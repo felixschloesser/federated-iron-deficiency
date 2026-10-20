@@ -37,7 +37,8 @@ and three Belgian hospitals.
   can stand in for new blood counts screened after training.
 - **Deployment.** The original app stops after training. Here the ServerApp
   sends the final model and the `screening-threshold` to every hospital, which
-  stores them with its own standardization at the node's `model-path`, so the
+  stores them with its own standardization at the node's `model-path`;
+  the startup keeps a copy in `~/.cache/iron-deficiency/startup/final_model.pt`, so the
   assessment can cover how the model is used, not only how it is trained.
 - **Local screening** (`iron_deficiency/screening.py`). Only registered women
   aged 18–49 are scored, as the model was trained on them alone. Only each

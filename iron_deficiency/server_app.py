@@ -1,6 +1,7 @@
 """ServerApp for federated iron-deficiency classification."""
 
 from logging import WARNING
+from pathlib import Path
 
 import torch
 
@@ -68,6 +69,11 @@ def main(grid: Grid, context: Context) -> None:
         train_config=ConfigRecord({"lr": lr}),
         num_rounds=num_rounds,
     )
+
+    # The startup keeps a copy of the final model on its own server
+    final_model = Path.home() / ".cache" / "iron-deficiency" / "startup" / "final_model.pt"
+    final_model.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(result.arrays.to_torch_state_dict(), final_model)
 
     # Deploy the final model to every hospital for local screening
     threshold: float = context.run_config["screening-threshold"]
