@@ -1,8 +1,13 @@
 """ServerApp for federated iron-deficiency classification."""
 
-from flwr.app import ArrayRecord, ConfigRecord, Context
+from logging import WARNING
+
+import torch
+
+from flwr.app import ArrayRecord, ConfigRecord, Context, Message, RecordDict
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, Result
+from flwr.supercore import log
 
 from iron_deficiency.task import Net
 
@@ -49,6 +54,7 @@ def main(grid: Grid, context: Context) -> None:
     lr: float = context.run_config["learning-rate"]
 
     # Load global model
+    torch.manual_seed(context.run_config["model-seed"])
     global_model = Net()
     arrays = ArrayRecord(global_model.state_dict())
 
@@ -62,6 +68,27 @@ def main(grid: Grid, context: Context) -> None:
         train_config=ConfigRecord({"lr": lr}),
         num_rounds=num_rounds,
     )
+
+    # Deploy the final model to every hospital for local screening
+    threshold: float = context.run_config["screening-threshold"]
+    replies = grid.send_and_receive(
+        [
+            Message(
+                content=RecordDict(
+                    {
+                        "arrays": result.arrays,
+                        "config": ConfigRecord({"threshold": threshold}),
+                    }
+                ),
+                dst_node_id=node_id,
+                message_type="query.deploy",
+            )
+            for node_id in grid.get_node_ids()
+        ]
+    )
+    for reply in replies:
+        if reply.has_error():
+            log(WARNING, "Deployment failed on node %s", reply.metadata.src_node_id)
 
     # Log the strategy metrics only when a W&B API key has been configured.
     wandb_api_key = str(context.run_config.get("wandb-api-key", "")).strip()

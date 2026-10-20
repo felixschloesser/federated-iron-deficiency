@@ -52,9 +52,9 @@ class Net(nn.Module):
         return self.net(x).squeeze(-1)
 
 
-def _split_cycle(
+def _split_frames(
     dataframe: pd.DataFrame, seed: int
-) -> tuple[TabularDataset, TabularDataset, TabularDataset]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     # Match the notebook's 64/16/20 split, stratified on the binary label.
     train_df, test_df = train_test_split(
         dataframe,
@@ -68,10 +68,26 @@ def _split_cycle(
         stratify=train_df["iron_deficient"],
         random_state=seed,
     )
+    return train_df, val_df, test_df
 
+
+def _training_stats(train_df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
     # Use training statistics from this cycle only, as in the notebook.
-    mean = train_df[FEATURES].mean()
-    std = train_df[FEATURES].std().replace(0, 1.0)
+    return train_df[FEATURES].mean(), train_df[FEATURES].std().replace(0, 1.0)
+
+
+def standardization(
+    cohort: pd.DataFrame, seed: int = SEED
+) -> tuple[pd.Series, pd.Series]:
+    """Return the feature mean and std of one cycle's training split."""
+    return _training_stats(_split_frames(cohort, seed)[0])
+
+
+def _split_cycle(
+    dataframe: pd.DataFrame, seed: int
+) -> tuple[TabularDataset, TabularDataset, TabularDataset]:
+    train_df, val_df, test_df = _split_frames(dataframe, seed)
+    mean, std = _training_stats(train_df)
 
     def to_dataset(frame: pd.DataFrame) -> TabularDataset:
         features = ((frame[FEATURES] - mean) / std).values.astype(np.float32)

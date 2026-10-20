@@ -1,5 +1,7 @@
 """ClientApp for federated iron-deficiency classification."""
 
+from pathlib import Path
+
 import pandas as pd
 import torch
 from datasets import load_from_disk
@@ -7,7 +9,8 @@ from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
 
 from iron_deficiency.dataset import load_federated_dataset
-from iron_deficiency.task import Net, load_data
+from iron_deficiency.screening import save_deployment
+from iron_deficiency.task import Net, load_data, standardization
 from iron_deficiency.task import test as test_fn
 from iron_deficiency.task import train as train_fn
 
@@ -34,6 +37,9 @@ def load_cohort(context: Context) -> pd.DataFrame:
 @app.train()
 def train(msg: Message, context: Context):
     """Train the model on local data."""
+
+    # Seed dropout so that runs, and the report's demo numbers, are reproducible
+    torch.manual_seed(context.run_config["model-seed"])
 
     # Load the model and initialize it with the received weights
     model = Net()
@@ -108,3 +114,30 @@ def evaluate(msg: Message, context: Context):
     metric_record = MetricRecord(metrics)
     content = RecordDict({"metrics": metric_record})
     return Message(content=content, reply_to=msg)
+
+
+def model_path(context: Context) -> Path:
+    """Return where this node keeps its deployed model."""
+    # Deployment Runtime: the hospital chooses where the model is stored
+    if "data-path" in context.node_config:
+        return Path(str(context.node_config["model-path"]))
+
+    # Simulation Runtime: one folder per virtual SuperNode in the user's cache
+    partition_id = int(context.node_config["partition-id"])
+    cache = Path.home() / ".cache" / "iron-deficiency"
+    return cache / f"partition-{partition_id}" / "model.pt"
+
+
+@app.query("deploy")
+def deploy(msg: Message, context: Context):
+    """Store the final model with this hospital's standardization for screening."""
+
+    mean, std = standardization(load_cohort(context))
+    save_deployment(
+        model_path(context),
+        msg.content["arrays"].to_torch_state_dict(),
+        mean,
+        std,
+        float(msg.content["config"]["threshold"]),
+    )
+    return Message(content=RecordDict(), reply_to=msg)

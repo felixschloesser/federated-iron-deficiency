@@ -12,13 +12,20 @@ HF_DATASET = "gracemyu/nhanes-merged"
 HF_REVISION = "2069b6643803fdf1a110b3c632dfc0fe3bb0b08d"
 HF_DATA_FILE = "merged_deduped.parquet"
 
-# One NHANES cycle per partition, keyed by the cycle's first survey year.
+# One NHANES cycle per hospital, keyed by the cycle's first survey year:
+# UZ Leuven (large), Heilig Hart Leuven (medium), AZ Diest (small).
 CYCLES = {
     "2005-2006": 2005,
     "2015-2016": 2015,
     "2017-2018": 2017,
-    "2021-2023": 2021,
 }
+# The cycles are similar in size, so the medium and small hospitals keep a
+# fixed sample, giving roughly a 5:2:1 size ratio.
+SAMPLE_FRACTIONS = {"2015-2016": 0.5, "2017-2018": 0.25}
+
+# No hospital trains on the latest cycle, 2021–2023, so it stands in for new
+# routine blood counts (all sexes and ages) screened after training.
+NEW_SAMPLES_YEAR = 2021
 
 CBC_VARS = [
     "LBXWBCSI",
@@ -63,6 +70,10 @@ def build_cohort(dataset_dict: datasets.DatasetDict) -> datasets.DatasetDict:
         iron_deficient=(cohort["LBXFER"] < FERRITIN_THRESHOLD).astype(int),
         cycle=cohort["YEAR"].map({year: name for name, year in CYCLES.items()}),
     )
+    cohort = pd.concat(
+        group.sample(frac=SAMPLE_FRACTIONS.get(cycle, 1.0), random_state=0)
+        for cycle, group in cohort.groupby("cycle")
+    ).sort_values("SEQN")
     columns = FEATURES + ["iron_deficient", "cycle"]
     return datasets.DatasetDict(
         {"train": datasets.Dataset.from_pandas(cohort[columns], preserve_index=False)}
@@ -82,11 +93,38 @@ def load_federated_dataset() -> FederatedDataset:
     )
 
 
+def load_new_samples() -> pd.DataFrame:
+    """Return the 2021–2023 cycle as a lab export of new blood counts."""
+    merged = (
+        datasets.load_dataset(
+            HF_DATASET,
+            revision=HF_REVISION,
+            data_files=HF_DATA_FILE,
+            columns=list(HF_COLUMNS),
+            split="train",
+        )
+        .to_pandas()
+        .rename(columns=HF_COLUMNS)
+    )
+    samples = merged[merged["YEAR"] == NEW_SAMPLES_YEAR].dropna(
+        subset=CBC_VARS + ["RIDAGEYR"]
+    )
+    # The NHANES respondent number stands in for the lab's sample ID.
+    return pd.DataFrame(
+        {
+            "sample_id": samples["SEQN"].astype(int),
+            "sex": samples["RIAGENDR"],
+            "age": samples["RIDAGEYR"],
+            **{var: samples[var] for var in CBC_VARS},
+        }
+    )
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Save one NHANES cohort partition per cycle for SuperNodes."
+        description="Save one cohort partition per cycle and new samples to screen."
     )
     parser.add_argument("--out-dir", type=Path, default=Path("demo_data"))
     args = parser.parse_args()
@@ -98,3 +136,6 @@ if __name__ == "__main__":
         cycle = partitioner.partition_id_to_natural_id[partition_id]
         partition.save_to_disk(args.out_dir / cycle)
         print(f"Saved partition {partition_id} ({cycle}) to {args.out_dir / cycle}")
+
+    load_new_samples().to_csv(args.out_dir / "new_samples.csv", index=False)
+    print(f"Saved new samples to screen to {args.out_dir / 'new_samples.csv'}")
