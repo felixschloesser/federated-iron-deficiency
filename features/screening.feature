@@ -10,7 +10,7 @@ Feature: Screening a CBC
   Scenario Outline: The model's decision becomes the result
     Given a received CBC sample of a woman aged 30 with indication non-specific complaint
     And the deployed model scores the sample <side> the threshold
-    When the lab technician runs the analyser
+    When laboratory staff run the analyser
     Then the screening result is "<result>"
 
     Examples:
@@ -20,7 +20,7 @@ Feature: Screening a CBC
 
   Scenario Outline: Each failing condition gives its own reason
     Given a received CBC sample with indication <indication>, registered sex <sex>, aged <age>
-    When the lab technician runs the analyser
+    When laboratory staff run the analyser
     Then the screening result is "not screened" with reason "<reason>"
 
     Examples:
@@ -33,7 +33,7 @@ Feature: Screening a CBC
 
   Scenario Outline: The age range includes its ends
     Given a received CBC sample with indication non-specific complaint, registered sex female, aged <age>
-    When the lab technician runs the analyser
+    When laboratory staff run the analyser
     Then the sample is screened by the model
 
     Examples:
@@ -43,18 +43,18 @@ Feature: Screening a CBC
 
   Scenario: The result records the deployed model
     Given a received CBC sample of a woman aged 30 with indication non-specific complaint
-    When the lab technician runs the analyser
+    When laboratory staff run the analyser
     Then the screening result records the deployed model's SHA-256 and threshold 0.5
 
   Scenario: No score is stored
     Given a received CBC sample of a woman aged 30 with indication non-specific complaint
-    When the lab technician runs the analyser
+    When laboratory staff run the analyser
     Then no stored field of the sample or its screening result holds a score
 
   Scenario: Without a deployed model the CBC awaits screening
     Given no deployed model
     And a received CBC sample of a woman aged 30 with indication non-specific complaint
-    When the lab technician runs the analyser
+    When laboratory staff run the analyser
     Then the sample is awaiting screening
     And the lab report is not visible to "Dr. Demo A"
     And screening is refused with code "no_deployed_model"
@@ -62,6 +62,11 @@ Feature: Screening a CBC
   Scenario: Screening once a model is deployed
     Given a CBC sample awaiting screening
     And a deployed model
-    When the lab technician screens the sample
+    When laboratory staff screen the sample
     Then the sample has a screening result
     And the lab report is visible to "Dr. Demo A"
+
+  Scenario: A ferritin sample is never screened
+    Given a received ferritin sample of a woman aged 30
+    When laboratory staff run the analyser
+    Then the sample has no screening result

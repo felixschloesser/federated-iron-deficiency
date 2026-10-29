@@ -5,3 +5,4 @@ wandb/
 .secret_key
 *.sqlite3
 staticfiles/
+.claude/worktrees/

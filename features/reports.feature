@@ -47,3 +47,7 @@ Feature: Lab reports for the general practitioner
       | result                 |
       | ferritin not suggested |
       | not screened           |
+
+  Scenario: A ferritin lab report is visible once analysed
+    Given an analysed ferritin sample for "Test Patient 1"
+    Then the lab report is visible to "Dr. Demo A"

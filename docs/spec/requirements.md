@@ -21,6 +21,7 @@ staff is replaced and the report's word moves to the rejected column.
 | Term | Source | Why chosen | Rejected terms |
 |---|---|---|---|
 | general practitioner | Report, Stakeholders table ("GP", spelled out) | The report's orderer and reader of the lab report; spelled out everywhere in the app | GP (abbreviation), requester, ordering physician (WHO 5-4, p. 66) |
+| laboratory staff | WHO LQMS, the handbook's word for the people who work in the laboratory (44 uses; e.g. ch. 5, Sample management) | Receive samples and run the analyser; one record per person (`LaboratoryStaffMember`) | lab technician ("technician" in WHO LQMS means equipment service only), technologist (a qualified grade), laboratorian, laboratory worker |
 | patient | Report, Use case | The report's word | participant (NHANES word; data origin only) |
 | order | Report, DF1 "lab order"; WHO glossary *path of workflow*, "physician's order" (p. 228) | Report and WHO agree | request, requisition (WHO), examination request (ISO 15189) |
 | test | Report, Use case "ferritin test" | Order picks one: CBC or ferritin | examination (ISO 15189) |
@@ -55,8 +56,8 @@ G0 Achieve[Ferritin suggested to the general practitioner of a likely iron-defic
 │   ├── E1 Expectation[general practitioner picks the true clinical indication]                         general practitioner
 │   └── R1 Achieve[Order carries patient's registered sex, age, test, indication]      Practice app
 ├── G2 Achieve[Sample analysed]
-│   ├── R2 Achieve[Sample received, sample ID assigned]                              Lab technician + Lab app
-│   └── R3 Achieve[Analyser result recorded]                                         Lab technician + Analyser
+│   ├── R2 Achieve[Sample received, sample ID assigned]                              Laboratory staff + Lab app
+│   └── R3 Achieve[Analyser result recorded]                                         Laboratory staff + Analyser
 ├── G3 Achieve[Screening result recorded for every analysed CBC]
 │   ├── R4 Maintain[Screened only if non-specific complaint, female, aged 18–49]       Lab app
 │   ├── R5 Maintain[Not-screened reason recorded]                                    Lab app
@@ -91,7 +92,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R9 | The lab report shows the results; the comment appears only for *ferritin suggested*. *Ferritin not suggested* and *not screened* show nothing about screening. | `reports.feature` |
 | R10 | A general practitioner marks a lab report as read with a POST; the reports index shows unread ones. | `reports.feature` |
 | R11 | *Order ferritin* is offered on a lab report with *ferritin suggested* when the patient has no ferritin order after it; it opens the ferritin order page with the patient filled in. | `reports.feature` |
-| R12 | A ferritin sample is never screened; its lab report is visible once analysed. | `lab.feature` |
+| R12 | A ferritin sample is never screened; its lab report is visible once analysed. | `lab.feature`, `screening.feature`, `reports.feature` |
 | R13 | Every general practitioner query is scoped to the general practitioner's own patients; another general practitioner's order or lab report returns 404. | `access.feature` |
 | R14 | Lab queries select only sample ID, ordering general practitioner, registered sex, age, test, indication and results; never the patient's name. | `access.feature` |
 | R15 | `DEMO_LOGIN` (default off) shows one POST login button per seeded user. A deploy check fails when `DEMO_LOGIN` is on and `DEBUG` is off. | `access.feature` |
@@ -101,12 +102,12 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | Agent | Kind | Responsible for |
 |---|---|---|
 | general practitioner | Person | E1; uses R1, R10, R11 |
-| Lab technician | Person | Triggers R2, R3, R8 (*Screen*) |
+| Laboratory staff | Person | Triggers R2, R3, R8 (*Screen*) |
 | Practice app (`practice`) | Software | R1, R8 (visibility), R9–R11, R13 |
 | Lab app (`lab`) | Software | R2–R8, R12, R14 |
 | Analyser | Software, stand-in | Returns the patient's NHANES 2021–2023 values (R3, R12) |
 | Deployed model | Environment | Produced by Flower training (report, DF15); read from `DEPLOYED_MODEL_PATH` |
-| Seed command (`seed_demo`) | Software | Creates general practitioners, lab technicians and patients from NHANES 2021–2023 with obviously synthetic names |
+| Seed command (`seed_demo`) | Software | Creates general practitioners, laboratory staff and patients from NHANES 2021–2023 with obviously synthetic names |
 
 ## 4. Obstacles
 
@@ -130,9 +131,9 @@ All are POSTs that redirect on success; services take `now`.
 | Operation | Actor | Precondition | Postcondition | Requirements |
 |---|---|---|---|---|
 | Place order | general practitioner | Patient is the general practitioner's; indication given iff test is CBC | Order with sex and age copied | R1, R13 |
-| Receive | Lab technician | Order not received | Sample with sample ID, received at `now` | R2 |
-| Run analyser | Lab technician | Sample received, not analysed | Values recorded; CBC screened at once if a model is deployed, else awaiting screening | R3, R8, R12 |
-| Screen | Lab technician | CBC awaiting screening; model deployed | Screening result with model SHA-256 and threshold | R4–R8 |
+| Receive | Laboratory staff | Order not received | Sample with sample ID, received at `now` | R2 |
+| Run analyser | Laboratory staff | Sample received, not analysed | Values recorded; CBC screened at once if a model is deployed, else awaiting screening | R3, R8, R12 |
+| Screen | Laboratory staff | CBC awaiting screening; model deployed | Screening result with model SHA-256 and threshold | R4–R8 |
 | Mark as read | general practitioner | Lab report visible to this general practitioner, unread | Read at `now` | R10, R13 |
 | Log in as (demo) | Anyone | `DEMO_LOGIN` on | Session for that seeded user | R15 |
 
@@ -147,7 +148,7 @@ All are POSTs that redirect on success; services take `now`.
 | Patient | general practitioner | Registered sex, age, the patient's orders; *Order CBC*, *Order ferritin* |
 | Order CBC / Order ferritin for a patient | general practitioner | The clinical indication only for a test that takes one; ferritin is a confirmation |
 | Orders | general practitioner | Own orders, newest first, linked to their patient |
-| Samples (lab index) | Lab technician | Orders to receive, samples to analyse, awaiting screening, screened; *Receive*, *Run analyser*, *Screen* |
+| Samples (lab index) | Laboratory staff | Orders to receive, samples to analyse, awaiting screening, screened; *Receive*, *Run analyser*, *Screen* |
 
 Index pages assert their query count. Conditional controls (*Order ferritin*,
 *Screen* and its refusal) are decided in query functions and tested there.
