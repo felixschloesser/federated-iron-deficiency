@@ -95,8 +95,8 @@ def load_federated_dataset() -> FederatedDataset:
     )
 
 
-def load_new_samples() -> pd.DataFrame:
-    """Return the 2021–2023 cycle as a lab export of new blood counts."""
+def _load_new_cycle() -> pd.DataFrame:
+    """Return every participant of the 2021–2023 cycle, which no hospital trains on."""
     merged = (
         datasets.load_dataset(
             HF_DATASET,
@@ -108,9 +108,12 @@ def load_new_samples() -> pd.DataFrame:
         .to_pandas()
         .rename(columns=HF_COLUMNS)
     )
-    samples = merged[merged["YEAR"] == NEW_SAMPLES_YEAR].dropna(
-        subset=CBC_VARS + ["RIDAGEYR"]
-    )
+    return merged[merged["YEAR"] == NEW_SAMPLES_YEAR]
+
+
+def load_new_samples() -> pd.DataFrame:
+    """Return the 2021–2023 cycle as a lab export of new blood counts."""
+    samples = _load_new_cycle().dropna(subset=CBC_VARS + ["RIDAGEYR"])
     # The NHANES respondent number stands in for the lab's sample ID.
     return pd.DataFrame(
         {
@@ -120,6 +123,15 @@ def load_new_samples() -> pd.DataFrame:
             **{var: samples[var] for var in CBC_VARS},
         }
     )
+
+
+def load_ferritin() -> pd.DataFrame:
+    """Return the ferritin results of the new samples, keyed by sample ID.
+
+    Kept apart from load_new_samples: the screening never sees ferritin.
+    """
+    ferritin = _load_new_cycle()[["SEQN", "LBXFER"]]
+    return ferritin.rename(columns={"SEQN": "sample_id"})
 
 
 if __name__ == "__main__":

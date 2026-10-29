@@ -7,9 +7,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from evaluate_screening import evaluate, load_ferritin
+from evaluate_screening import evaluate
 
-from iron_deficiency.dataset import load_federated_dataset
+from iron_deficiency.dataset import load_federated_dataset, load_ferritin
 from iron_deficiency.screening import COLUMNS, save_deployment
 from iron_deficiency.task import standardization
 

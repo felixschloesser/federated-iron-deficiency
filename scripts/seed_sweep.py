@@ -7,10 +7,11 @@ from pathlib import Path
 
 import pandas as pd
 import torch
-from evaluate_screening import evaluate, load_ferritin
+from evaluate_screening import evaluate
 from scipy import stats
 from train_centralized import train_centralized
 
+from iron_deficiency.dataset import load_ferritin
 from iron_deficiency.screening import COLUMNS
 
 HOSPITALS = {0: "UZ Leuven", 1: "Heilig Hart Leuven", 2: "AZ Diest"}

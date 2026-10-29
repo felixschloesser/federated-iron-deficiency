@@ -3,36 +3,11 @@
 import argparse
 from pathlib import Path
 
-import datasets
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-from iron_deficiency.dataset import (
-    FERRITIN_THRESHOLD,
-    HF_COLUMNS,
-    HF_DATA_FILE,
-    HF_DATASET,
-    HF_REVISION,
-    NEW_SAMPLES_YEAR,
-)
+from iron_deficiency.dataset import FERRITIN_THRESHOLD, load_ferritin
 from iron_deficiency.screening import COLUMNS, score
-
-
-def load_ferritin() -> pd.DataFrame:
-    """Return the ferritin results of the new samples, keyed by sample ID."""
-    merged = (
-        datasets.load_dataset(
-            HF_DATASET,
-            revision=HF_REVISION,
-            data_files=HF_DATA_FILE,
-            columns=list(HF_COLUMNS),
-            split="train",
-        )
-        .to_pandas()
-        .rename(columns=HF_COLUMNS)
-    )
-    ferritin = merged.loc[merged["YEAR"] == NEW_SAMPLES_YEAR, ["SEQN", "LBXFER"]]
-    return ferritin.rename(columns={"SEQN": "sample_id"})
 
 
 def evaluate(
