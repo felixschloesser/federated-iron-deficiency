@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 import django_stubs_ext
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.utils import get_random_secret_key
 
 # Lets generic views be subscripted (ListView[Order]) at runtime, as mypy wants.
@@ -13,12 +14,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
+# One deployment per hospital: what it stores lives in its own folder (spec §9, R21).
+HOSPITAL_DIR = (
+    Path(os.environ["HOSPITAL_DIR"]) if "HOSPITAL_DIR" in os.environ else None
+)
+if HOSPITAL_DIR is not None and "DATABASE_NAME" in os.environ:
+    raise ImproperlyConfigured(
+        "DATABASE_NAME cannot be set with HOSPITAL_DIR: the database lives in HOSPITAL_DIR."
+    )
+
 
 def _secret_key() -> str:
     """Return the key from the environment, else one kept per checkout."""
     if key := os.environ.get("DJANGO_SECRET_KEY"):
         return key
-    path = BASE_DIR / ".secret_key"
+    path = (HOSPITAL_DIR or BASE_DIR) / ".secret_key"
     if not path.exists():
         path.write_text(get_random_secret_key())
         path.chmod(0o600)
@@ -79,7 +89,9 @@ DATABASE_NAME = os.environ.get("DATABASE_NAME", BASE_DIR.name)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / f"{DATABASE_NAME}.sqlite3",
+        "NAME": HOSPITAL_DIR / "web.sqlite3"
+        if HOSPITAL_DIR
+        else BASE_DIR / f"{DATABASE_NAME}.sqlite3",
     }
 }
 

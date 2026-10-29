@@ -152,3 +152,17 @@ def test_update_lowers_the_baseline(tmp_path: Path) -> None:
     assert audit.main(["--root", str(root), "--update"]) == 0
     assert json.loads(baseline.read_text())["suppressions"] == 0
     assert audit.main(["--root", str(root)]) == 0
+
+
+def test_web_imports_only_the_screening_side(tmp_path: Path) -> None:
+    code = (
+        "from iron_deficiency.dataset import CBC_VARS\n"
+        "from iron_deficiency.screening import score\n"
+        "from iron_deficiency.client_app import app\n"
+        "import iron_deficiency.server_app\n"
+    )
+    root = tree(tmp_path, {"web/lab/services.py": code, "tools/x.py": code})
+    assert audit.run(root)["training_imports"] == [
+        "web/lab/services.py:3: imports iron_deficiency.client_app, startup code",
+        "web/lab/services.py:4: imports iron_deficiency.server_app, startup code",
+    ]

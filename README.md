@@ -125,6 +125,24 @@ runs, from any checkout: its simulation imports `iron_deficiency` from the
 environment it was started in. Stop it (`pkill -f flower-superlink`) before
 running the simulation from another checkout.
 
+## Run the demo deployment
+
+`tools/demo.py` runs the startup and the three hospitals as separate
+processes on your machine, each with its own folder under `demo/`
+(gitignored): the startup runs the SuperLink; each hospital runs a SuperNode,
+which sees only its own cohort and final models, and a web app on its own
+port. Flower traffic uses TLS with a self-signed certificate:
+
+```shell
+uv run python tools/demo.py up      # Ctrl-C stops every process
+uv run python tools/demo.py train   # in a second terminal
+```
+
+The web apps run at http://127.0.0.1:8001 (UZ Leuven), 8002 (Heilig Hart
+Leuven) and 8003 (AZ Diest), each with its own demo accounts and patients
+(password `demo-pass-2026`). The first `up` downloads the cohorts and the
+2021–2023 cycle from Hugging Face; set `HF_TOKEN` if it refuses.
+
 ## Screen new blood counts
 
 Each hospital screens a lab export of new blood counts with its deployed model.

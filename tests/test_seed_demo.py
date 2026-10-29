@@ -1,5 +1,7 @@
 """The demo data command used for manual and browser checks."""
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 from django.core.management import CommandError, call_command
@@ -97,4 +99,12 @@ def test_each_hospital_seeds_other_participants(
     rows = nhanes_rows()
     assert not seed_demo.choose(rows, seed=0).equals(seed_demo.choose(rows, seed=1))
     call_command("seed_demo", "--seed", "1")
+    assert Patient.objects.count() == 3 * len(PEOPLE)
+
+
+def test_reads_participants_from_a_csv(settings: Settings, tmp_path: Path) -> None:
+    settings.DEBUG = True
+    csv = tmp_path / "nhanes.csv"
+    nhanes_rows().to_csv(csv, index=False)
+    call_command("seed_demo", "--nhanes", str(csv))
     assert Patient.objects.count() == 3 * len(PEOPLE)

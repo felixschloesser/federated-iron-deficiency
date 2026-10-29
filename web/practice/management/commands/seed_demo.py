@@ -2,11 +2,12 @@
 
 import enum
 from collections.abc import Hashable, Mapping
+from pathlib import Path
 from typing import Any, assert_never
 
 import pandas as pd
 from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
 from iron_deficiency.dataset import (
@@ -57,11 +58,11 @@ def load_nhanes() -> pd.DataFrame:
     return load_new_samples().merge(load_ferritin(), on="sample_id", how="left")
 
 
-def choose(rows: pd.DataFrame) -> pd.DataFrame:
-    """PER_GROUP participants of each group, the same ones on every run."""
+def choose(rows: pd.DataFrame, seed: int) -> pd.DataFrame:
+    """PER_GROUP participants of each group, the same ones for the same seed."""
     return pd.concat(
         [
-            rows[group.selects(rows)].sample(n=PER_GROUP, random_state=0)
+            rows[group.selects(rows)].sample(n=PER_GROUP, random_state=seed)
             for group in Group
         ]
     )
@@ -108,12 +109,21 @@ def patient(
 class Command(BaseCommand):
     help = __doc__
 
+    def add_arguments(self, parser: CommandParser) -> None:
+        parser.add_argument(
+            "--seed", type=int, default=0, help="other patients for each hospital"
+        )
+        parser.add_argument(
+            "--nhanes", type=Path, help="a CSV of load_nhanes() instead of the network"
+        )
+
     def handle(self, *args: Any, **options: Any) -> None:
         if not settings.DEBUG:
             raise CommandError(
                 "Demo accounts share a known password; run with DJANGO_DEBUG=1."
             )
-        rows = choose(load_nhanes())
+        nhanes = pd.read_csv(options["nhanes"]) if options["nhanes"] else load_nhanes()
+        rows = choose(nhanes, seed=options["seed"])
         with transaction.atomic():
             practitioners = [
                 general_practitioner("doctor-a", "Dr. Demo A"),

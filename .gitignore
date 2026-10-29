@@ -6,3 +6,4 @@ wandb/
 *.sqlite3
 staticfiles/
 .claude/worktrees/
+demo/

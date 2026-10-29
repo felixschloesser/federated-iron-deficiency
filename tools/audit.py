@@ -17,6 +17,10 @@ ROOT = Path(__file__).resolve().parents[1]
 BASELINE = Path("tools") / "audit_baseline.json"
 ALLOWLIST = Path("tools") / "audit_allowlist.toml"
 SPEC = Path("docs") / "spec" / "requirements.md"
+# Generated folders: collected static files, and the demo deployment (tools/demo.py).
+BUILD_OUTPUT = {"staticfiles", "demo"}
+# The parts of the training package a hospital's web app may import (R21).
+HOSPITAL_SIDE = {"iron_deficiency.screening", "iron_deficiency.dataset"}
 
 # Split so that this file does not match its own patterns.
 SUPPRESSIONS = (
@@ -43,10 +47,10 @@ CSS_CLASS = re.compile(r"\.([A-Za-z_][\w-]*)")
 
 
 def files(root: Path, pattern: str) -> Iterator[Path]:
-    """Yield matching files, skipping hidden folders (.venv, .git) and build output."""
+    """Yield matching files, skipping hidden folders (.venv, .git) and BUILD_OUTPUT."""
     for path in sorted(root.rglob(pattern)):
         parts = path.relative_to(root).parts
-        if not any(part.startswith(".") or part == "staticfiles" for part in parts):
+        if not any(part.startswith(".") or part in BUILD_OUTPUT for part in parts):
             yield path
 
 
@@ -195,6 +199,31 @@ def get_mutation(root: Path) -> list[str]:
     return findings
 
 
+def training_imports(root: Path) -> list[str]:
+    """Hospital software uses only the screening side of the training package (R21)."""
+    findings = []
+    for path in files(root, "*.py"):
+        rel = path.relative_to(root)
+        if rel.parts[0] != "web":
+            continue
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.ImportFrom):
+                modules = [node.module or ""]
+            elif isinstance(node, ast.Import):
+                modules = [alias.name for alias in node.names]
+            else:
+                continue
+            for module in modules:
+                if (
+                    module.split(".")[0] == "iron_deficiency"
+                    and module not in HOSPITAL_SIDE
+                ):
+                    findings.append(
+                        f"{rel.as_posix()}:{node.lineno}: imports {module}, startup code"
+                    )
+    return findings
+
+
 def glossary_sources(root: Path) -> list[str]:
     path = root / SPEC
     if not path.exists():
@@ -226,6 +255,7 @@ CHECKS: dict[str, Callable[[Path], list[str]]] = {
         listed_members,
         get_mutation,
         glossary_sources,
+        training_imports,
     )
 }
 

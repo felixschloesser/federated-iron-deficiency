@@ -66,6 +66,8 @@ default-groups = ["dev", "web"]
 
 [tool.mypy]
 mypy_path = "typings"
+# Runtime output of tools/demo.py (gitignored), holding unpacked copies of the app.
+exclude = ["^demo/"]
 plugins = ["mypy_django_plugin.main"]
 
 [tool.django-stubs]
