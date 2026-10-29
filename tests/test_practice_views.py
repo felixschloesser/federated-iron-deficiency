@@ -155,3 +155,8 @@ def test_missing_page_comes_from_the_kit(client: Client) -> None:
 def test_error_page_renders_without_a_request() -> None:
     # Django renders 500.html with no context at all.
     assert "Something went wrong" in render_to_string("500.html")
+
+
+def test_form_error_is_shown_once_in_the_summary(client: Client) -> None:
+    response = client.post(reverse("login"), {"username": "x", "password": "y"})
+    assert response.content.decode().count("Please enter a correct username") == 1
