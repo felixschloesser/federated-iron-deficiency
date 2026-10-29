@@ -1,9 +1,11 @@
 """Views of the GP side: status, redirects, form error codes, query counts."""
 
 import pytest
+from django.template.loader import render_to_string
 from django.test import Client
 from django.urls import reverse
 from pytest_django import DjangoAssertNumQueries
+from pytest_django.asserts import assertContains
 
 from tests.conftest import make_gp, make_patient
 from web.accounts.models import User
@@ -110,3 +112,30 @@ def test_login_page_and_logout(client: Client, gp: GP) -> None:
     response = client.post(reverse("logout"))
     assert response.status_code == 302
     assert client.get(reverse("practice:index")).status_code == 302
+
+
+def test_placing_an_order_confirms_it(client: Client, gp: GP, patient: Patient) -> None:
+    response = logged_in(client, gp).post(
+        reverse("practice:new_order"),
+        {"patient": patient.pk, "test": "ferritin", "indication": ""},
+        follow=True,
+    )
+    assertContains(response, "Order placed.")
+
+
+def test_refusal_page_comes_from_the_kit(client: Client) -> None:
+    client.force_login(User.objects.create_user(username="lab"))
+    response = client.get(reverse("practice:index"))
+    assert response.status_code == 403
+    assert "403.html" in [template.name for template in response.templates]
+
+
+def test_missing_page_comes_from_the_kit(client: Client) -> None:
+    response = client.get("/no-such-page/")
+    assert response.status_code == 404
+    assert "404.html" in [template.name for template in response.templates]
+
+
+def test_error_page_renders_without_a_request() -> None:
+    # Django renders 500.html with no context at all.
+    assert "Something went wrong" in render_to_string("500.html")
