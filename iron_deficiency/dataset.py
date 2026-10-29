@@ -71,8 +71,10 @@ def build_cohort(dataset_dict: datasets.DatasetDict) -> datasets.DatasetDict:
         cycle=cohort["YEAR"].map({year: name for name, year in CYCLES.items()}),
     )
     cohort = pd.concat(
-        group.sample(frac=SAMPLE_FRACTIONS.get(cycle, 1.0), random_state=0)
-        for cycle, group in cohort.groupby("cycle")
+        [
+            group.sample(frac=SAMPLE_FRACTIONS.get(str(cycle), 1.0), random_state=0)
+            for cycle, group in cohort.groupby("cycle")
+        ]
     ).sort_values("SEQN")
     columns = FEATURES + ["iron_deficient", "cycle"]
     return datasets.DatasetDict(
@@ -131,6 +133,8 @@ if __name__ == "__main__":
 
     fds = load_federated_dataset()
     partitioner = fds.partitioners["train"]
+    if not isinstance(partitioner, NaturalIdPartitioner):
+        raise TypeError("The cohort must be partitioned by cycle")
     for partition_id in range(len(CYCLES)):
         partition = fds.load_partition(partition_id)
         cycle = partitioner.partition_id_to_natural_id[partition_id]

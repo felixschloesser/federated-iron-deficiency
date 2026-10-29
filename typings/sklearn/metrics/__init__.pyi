@@ -1,0 +1,3 @@
+from numpy.typing import ArrayLike
+
+def roc_auc_score(y_true: ArrayLike, y_score: ArrayLike) -> float: ...

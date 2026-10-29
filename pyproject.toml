@@ -7,6 +7,7 @@ name = "iron-deficiency"
 version = "1.3.0"
 description = "Federated iron-deficiency classification with PyTorch and Flower"
 license = {file = "LICENSE"}
+requires-python = ">=3.13"
 dependencies = [
     "flwr>=1.40.0",  # fab-include, checked with 1.40
     "flwr-datasets>=0.6.1",
@@ -45,5 +46,21 @@ wandb-api-key = "" # Pass at submit time: -c "wandb-api-key='$WANDB_API_KEY'"
 
 [dependency-groups]
 dev = [
+    "django-stubs>=6.1.2",
+    "mypy>=2.4.1",
+    "pandas-stubs>=3.0.5.260914",
     "pytest>=8",
+    "pytest-bdd>=9.0.0",
+    "pytest-django>=4.14.0",
+    "ruff>=0.17.3",
+    "scipy-stubs>=1.18.1.1",
 ]
+web = [
+    "django>=5.2,<6",
+]
+
+[tool.uv]
+default-groups = ["dev", "web"]
+
+[tool.mypy]
+mypy_path = "typings"

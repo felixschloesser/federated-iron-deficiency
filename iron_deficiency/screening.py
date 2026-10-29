@@ -55,7 +55,9 @@ def score(samples: pd.DataFrame, model_path: Path) -> tuple[pd.Series, float]:
     x = (x - deployment["mean"]) / deployment["std"]
     with torch.no_grad():
         probabilities = torch.sigmoid(net(x)).numpy()
-    return pd.Series(probabilities, index=samples.index[eligible]), deployment["threshold"]
+    return pd.Series(probabilities, index=samples.index[eligible]), deployment[
+        "threshold"
+    ]
 
 
 def screen(samples: pd.DataFrame, model_path: Path) -> pd.DataFrame:

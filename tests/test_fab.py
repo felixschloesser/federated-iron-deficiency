@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_fab_holds_only_the_federated_app(tmp_path):
+def test_fab_holds_only_the_federated_app(tmp_path: Path) -> None:
     app = tmp_path / "app"  # flwr requires a valid app name for the directory
     tracked = subprocess.run(
         ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True

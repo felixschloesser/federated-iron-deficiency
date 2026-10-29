@@ -7,17 +7,18 @@ import torch
 from datasets import load_from_disk
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
+from flwr_datasets import FederatedDataset
 
 from iron_deficiency.dataset import load_federated_dataset
 from iron_deficiency.screening import save_deployment
-from iron_deficiency.task import Net, load_data, standardization
+from iron_deficiency.task import Net, dataset_size, load_data, standardization
 from iron_deficiency.task import test as test_fn
 from iron_deficiency.task import train as train_fn
 
 # Flower ClientApp
 app = ClientApp()
 
-fds = None  # Cache FederatedDataset across calls in a simulation
+fds: FederatedDataset | None = None  # Cache across calls in a simulation
 
 
 def load_cohort(context: Context) -> pd.DataFrame:
@@ -34,16 +35,24 @@ def load_cohort(context: Context) -> pd.DataFrame:
     return fds.load_partition(partition_id).to_pandas()
 
 
+def config_float(msg: Message, key: str) -> float:
+    """Return a float the ServerApp sent in the message's config record."""
+    value = msg.content.config_records["config"][key]
+    if not isinstance(value, float):
+        raise TypeError(f"Config value {key!r} is not a float")
+    return value
+
+
 @app.train()
-def train(msg: Message, context: Context):
+def train(msg: Message, context: Context) -> Message:
     """Train the model on local data."""
 
     # Seed dropout so that runs, and the report's demo numbers, are reproducible
-    torch.manual_seed(context.run_config["model-seed"])
+    torch.manual_seed(int(context.run_config["model-seed"]))
 
     # Load the model and initialize it with the received weights
     model = Net()
-    model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
+    model.load_state_dict(msg.content.array_records["arrays"].to_torch_state_dict())
     device = torch.device(
         "cuda"
         if torch.cuda.is_available()
@@ -54,37 +63,35 @@ def train(msg: Message, context: Context):
     model.to(device)
 
     # Load the data
-    batch_size = context.run_config["batch-size"]
+    batch_size = int(context.run_config["batch-size"])
     trainloader, _, _ = load_data(load_cohort(context), batch_size)
 
     # Call the training function
     train_loss = train_fn(
         model,
         trainloader,
-        epochs=context.run_config["local-epochs"],
-        lr=msg.content["config"]["lr"],
-        weight_decay=context.run_config["weight-decay"],
+        epochs=int(context.run_config["local-epochs"]),
+        lr=config_float(msg, "lr"),
+        weight_decay=float(context.run_config["weight-decay"]),
         device=device,
     )
 
     # Construct and return reply Message
     model_record = ArrayRecord(model.state_dict())
-    metrics = {
-        "train_loss": train_loss,
-        "num-examples": len(trainloader.dataset),
-    }
-    metric_record = MetricRecord(metrics)
+    metric_record = MetricRecord(
+        {"train_loss": train_loss, "num-examples": dataset_size(trainloader)}
+    )
     content = RecordDict({"arrays": model_record, "metrics": metric_record})
     return Message(content=content, reply_to=msg)
 
 
 @app.evaluate()
-def evaluate(msg: Message, context: Context):
+def evaluate(msg: Message, context: Context) -> Message:
     """Evaluate the model on local validation data."""
 
     # Load the model and initialize it with the received weights
     model = Net()
-    model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
+    model.load_state_dict(msg.content.array_records["arrays"].to_torch_state_dict())
     device = torch.device(
         "cuda"
         if torch.cuda.is_available()
@@ -95,7 +102,7 @@ def evaluate(msg: Message, context: Context):
     model.to(device)
 
     # Load the data
-    batch_size = context.run_config["batch-size"]
+    batch_size = int(context.run_config["batch-size"])
     _, valloader, _ = load_data(load_cohort(context), batch_size)
 
     # Call the evaluation function
@@ -106,12 +113,13 @@ def evaluate(msg: Message, context: Context):
     )
 
     # Construct and return reply Message
-    metrics = {
-        "eval_loss": eval_loss,
-        "eval_auroc": eval_metrics["auroc"],
-        "num-examples": len(valloader.dataset),
-    }
-    metric_record = MetricRecord(metrics)
+    metric_record = MetricRecord(
+        {
+            "eval_loss": eval_loss,
+            "eval_auroc": eval_metrics["auroc"],
+            "num-examples": dataset_size(valloader),
+        }
+    )
     content = RecordDict({"metrics": metric_record})
     return Message(content=content, reply_to=msg)
 
@@ -129,15 +137,15 @@ def model_path(context: Context) -> Path:
 
 
 @app.query("deploy")
-def deploy(msg: Message, context: Context):
+def deploy(msg: Message, context: Context) -> Message:
     """Store the final model with this hospital's standardization for screening."""
 
     mean, std = standardization(load_cohort(context))
     save_deployment(
         model_path(context),
-        msg.content["arrays"].to_torch_state_dict(),
+        msg.content.array_records["arrays"].to_torch_state_dict(),
         mean,
         std,
-        float(msg.content["config"]["threshold"]),
+        config_float(msg, "threshold"),
     )
     return Message(content=RecordDict(), reply_to=msg)

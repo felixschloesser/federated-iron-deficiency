@@ -1,5 +1,7 @@
 """Checks for local screening with a deployed model."""
 
+from pathlib import Path
+
 import pandas as pd
 
 from iron_deficiency.dataset import CBC_VARS, FEATURES
@@ -7,7 +9,9 @@ from iron_deficiency.screening import save_deployment, screen
 from iron_deficiency.task import Net
 
 
-def test_screen_scores_only_eligible_women_and_returns_only_decisions(tmp_path):
+def test_screen_scores_only_eligible_women_and_returns_only_decisions(
+    tmp_path: Path,
+) -> None:
     model = tmp_path / "model.pt"
     zeros = pd.Series(0.0, index=FEATURES)
     save_deployment(model, Net().state_dict(), zeros, zeros + 1, threshold=0.5)

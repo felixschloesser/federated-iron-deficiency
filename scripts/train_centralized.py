@@ -7,10 +7,12 @@ import torch
 from torch.utils.data import ConcatDataset, DataLoader
 
 from iron_deficiency.dataset import load_federated_dataset
-from iron_deficiency.task import SEED, Net, load_data, train
+from iron_deficiency.task import SEED, Loader, Net, load_data, train
 
 # Same hyperparameters as the federated run
-CONFIG = tomllib.loads(Path("pyproject.toml").read_text())["tool"]["flwr"]["app"]["config"]
+CONFIG = tomllib.loads(Path("pyproject.toml").read_text())["tool"]["flwr"]["app"][
+    "config"
+]
 
 
 def train_centralized(seed: int, num_hospitals: int = 3) -> dict[str, torch.Tensor]:
@@ -24,7 +26,7 @@ def train_centralized(seed: int, num_hospitals: int = 3) -> dict[str, torch.Tens
         load_data(fds.load_partition(i).to_pandas(), CONFIG["batch-size"])[0].dataset
         for i in range(num_hospitals)
     ]
-    trainloader = DataLoader(
+    trainloader: Loader = DataLoader(
         ConcatDataset(trainsets),
         batch_size=CONFIG["batch-size"],
         shuffle=True,

@@ -1,6 +1,9 @@
 """Model, data loading, training, and evaluation utilities."""
 
+from collections.abc import Sized
+
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import torch
 from sklearn.metrics import roc_auc_score
@@ -12,18 +15,23 @@ from iron_deficiency.dataset import FEATURES
 
 SEED = 42
 
+Batch = tuple[torch.Tensor, torch.Tensor]
+Loader = DataLoader[Batch]
 
-class TabularDataset(Dataset):
+
+class TabularDataset(Dataset[Batch]):
     """A float32 feature matrix and float32 binary labels."""
 
-    def __init__(self, features: np.ndarray, labels: np.ndarray) -> None:
+    def __init__(
+        self, features: npt.NDArray[np.float32], labels: npt.NDArray[np.float32]
+    ) -> None:
         self.X = torch.from_numpy(features)
         self.y = torch.from_numpy(labels)
 
     def __len__(self) -> int:
         return len(self.y)
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, index: int) -> Batch:
         return self.X[index], self.y[index]
 
 
@@ -49,7 +57,8 @@ class Net(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x).squeeze(-1)
+        logits: torch.Tensor = self.net(x)
+        return logits.squeeze(-1)
 
 
 def _split_frames(
@@ -90,8 +99,8 @@ def _split_cycle(
     mean, std = _training_stats(train_df)
 
     def to_dataset(frame: pd.DataFrame) -> TabularDataset:
-        features = ((frame[FEATURES] - mean) / std).values.astype(np.float32)
-        labels = frame["iron_deficient"].values.astype(np.float32)
+        features = ((frame[FEATURES] - mean) / std).to_numpy(dtype=np.float32)
+        labels = frame["iron_deficient"].to_numpy(dtype=np.float32)
         return TabularDataset(features, labels)
 
     return to_dataset(train_df), to_dataset(val_df), to_dataset(test_df)
@@ -101,7 +110,7 @@ def load_data(
     cohort: pd.DataFrame,
     batch_size: int = 64,
     seed: int = SEED,
-) -> tuple[DataLoader, DataLoader, DataLoader]:
+) -> tuple[Loader, Loader, Loader]:
     """Return train, validation, and test loaders for one cycle's cohort."""
     trainset, valset, testset = _split_cycle(cohort, seed)
     generator = torch.Generator().manual_seed(seed)
@@ -114,7 +123,7 @@ def load_data(
 
 def train(
     net: nn.Module,
-    trainloader: DataLoader,
+    trainloader: Loader,
     epochs: int = 1,
     lr: float = 1e-3,
     weight_decay: float = 1e-4,
@@ -146,7 +155,7 @@ def train(
 @torch.no_grad()
 def test(
     net: nn.Module,
-    dataloader: DataLoader,
+    dataloader: Loader,
     device: torch.device | None = None,
 ) -> tuple[float, dict[str, float], np.ndarray, np.ndarray]:
     """Return loss, AUROC, probabilities, and labels, matching the notebook."""
@@ -168,3 +177,10 @@ def test(
     labels = np.concatenate(all_labels)
     metrics = {"auroc": float(roc_auc_score(labels, probs))}
     return total / num_examples, metrics, probs, labels
+
+
+def dataset_size(loader: Loader) -> int:
+    """Return the number of rows in a loader's dataset."""
+    if not isinstance(loader.dataset, Sized):
+        raise TypeError("The loader's dataset has no length")
+    return len(loader.dataset)

@@ -4,7 +4,6 @@ from logging import WARNING
 from pathlib import Path
 
 import torch
-
 from flwr.app import ArrayRecord, ConfigRecord, Context, Message, RecordDict
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, Result
@@ -33,7 +32,9 @@ def _log_result_to_wandb(result: Result, api_key: str) -> None:
     with wandb.init(project="iron-deficiency") as run:
         run.define_metric("*", step_metric="round")
         for round_number in rounds:
-            metrics = {"round": round_number}
+            metrics: dict[str, int | float | list[int] | list[float]] = {
+                "round": round_number
+            }
             for group_name, group in metric_groups.items():
                 if metric_record := group.get(round_number):
                     metrics.update(
@@ -50,12 +51,12 @@ def main(grid: Grid, context: Context) -> None:
     """Main entry point for the ServerApp."""
 
     # Read run config
-    fraction_evaluate: float = context.run_config["fraction-evaluate"]
-    num_rounds: int = context.run_config["num-server-rounds"]
-    lr: float = context.run_config["learning-rate"]
+    fraction_evaluate = float(context.run_config["fraction-evaluate"])
+    num_rounds = int(context.run_config["num-server-rounds"])
+    lr = float(context.run_config["learning-rate"])
 
     # Load global model
-    torch.manual_seed(context.run_config["model-seed"])
+    torch.manual_seed(int(context.run_config["model-seed"]))
     global_model = Net()
     arrays = ArrayRecord(global_model.state_dict())
 
@@ -71,12 +72,14 @@ def main(grid: Grid, context: Context) -> None:
     )
 
     # The startup keeps a copy of the final model on its own server
-    final_model = Path.home() / ".cache" / "iron-deficiency" / "startup" / "final_model.pt"
+    final_model = (
+        Path.home() / ".cache" / "iron-deficiency" / "startup" / "final_model.pt"
+    )
     final_model.parent.mkdir(parents=True, exist_ok=True)
     torch.save(result.arrays.to_torch_state_dict(), final_model)
 
     # Deploy the final model to every hospital for local screening
-    threshold: float = context.run_config["screening-threshold"]
+    threshold = float(context.run_config["screening-threshold"])
     replies = grid.send_and_receive(
         [
             Message(

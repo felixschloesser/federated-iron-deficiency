@@ -35,7 +35,9 @@ def load_ferritin() -> pd.DataFrame:
     return ferritin.rename(columns={"SEQN": "sample_id"})
 
 
-def evaluate(model: Path, samples: pd.DataFrame, ferritin: pd.DataFrame) -> dict:
+def evaluate(
+    model: Path, samples: pd.DataFrame, ferritin: pd.DataFrame
+) -> dict[str, float]:
     """Return the AUROC and confusion matrix of a deployed model's flags."""
     probabilities, threshold = score(samples, model)
     eligible = samples.loc[probabilities.index].assign(probability=probabilities)
@@ -69,5 +71,9 @@ if __name__ == "__main__":
     print(f"Flagged: {result['flagged']}")
     print(f"AUROC: {result['auroc']:.3f}\n")
     print("              deficient  ferritin >= cutoff")
-    print(f"flagged       {result['flagged_deficient']:>9}  {result['flagged_above_cutoff']:>18}")
-    print(f"not flagged   {result['missed_deficient']:>9}  {result['not_flagged_above_cutoff']:>18}")
+    print(
+        f"flagged       {result['flagged_deficient']:>9}  {result['flagged_above_cutoff']:>18}"
+    )
+    print(
+        f"not flagged   {result['missed_deficient']:>9}  {result['not_flagged_above_cutoff']:>18}"
+    )
