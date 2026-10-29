@@ -1,4 +1,4 @@
-"""GPs, their patients, and orders (terms: docs/spec/requirements.md §1)."""
+"""General practitioners, their patients, and orders (terms: docs/spec/requirements.md §1)."""
 
 from typing import assert_never
 
@@ -31,9 +31,11 @@ class ClinicalIndication(models.TextChoices):
     OTHER = "other", "Other"
 
 
-class GP(models.Model):
+class GeneralPractitioner(models.Model):
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="gp"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="general_practitioner",
     )
     name = models.CharField(max_length=100)
 
@@ -42,7 +44,9 @@ class GP(models.Model):
 
 
 class Patient(models.Model):
-    gp = models.ForeignKey(GP, on_delete=models.PROTECT, related_name="patients")
+    general_practitioner = models.ForeignKey(
+        GeneralPractitioner, on_delete=models.PROTECT, related_name="patients"
+    )
     name = models.CharField(max_length=100)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
@@ -52,9 +56,11 @@ class Patient(models.Model):
 
 
 class OrderQuerySet(models.QuerySet["Order"]):
-    def of_gp(self, gp: GP) -> "OrderQuerySet":
-        """Only this GP's orders (R13)."""
-        return self.filter(patient__gp=gp)
+    def of_general_practitioner(
+        self, general_practitioner: GeneralPractitioner
+    ) -> "OrderQuerySet":
+        """Only this general practitioner's orders (R13)."""
+        return self.filter(patient__general_practitioner=general_practitioner)
 
 
 class Order(models.Model):

@@ -5,21 +5,27 @@ from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from web.practice.models import GP, ClinicalIndication, Order, Patient, Test
+from web.practice.models import (
+    ClinicalIndication,
+    GeneralPractitioner,
+    Order,
+    Patient,
+    Test,
+)
 
 
 @transaction.atomic
 def place_order(
     *,
-    gp: GP,
+    general_practitioner: GeneralPractitioner,
     patient: Patient,
     test: Test,
     indication: ClinicalIndication | None,
     now: datetime,
 ) -> Order:
-    """Order one test for one of the GP's patients (R1, R13)."""
+    """Order one test for one of the general practitioner's patients (R1, R13)."""
     errors: dict[str, ValidationError] = {}
-    if patient.gp_id != gp.pk:
+    if patient.general_practitioner_id != general_practitioner.pk:
         errors["patient"] = ValidationError(
             "This is not one of your patients.", code="not_your_patient"
         )

@@ -2,7 +2,7 @@ from typing import Any
 
 from django import forms
 
-from web.practice.models import GP, ClinicalIndication, Patient, Test
+from web.practice.models import ClinicalIndication, GeneralPractitioner, Patient, Test
 
 
 class OrderForm(forms.Form):
@@ -17,8 +17,10 @@ class OrderForm(forms.Form):
         help_text="Required for a CBC; ferritin takes none.",
     )
 
-    def __init__(self, *args: Any, gp: GP, **kwargs: Any) -> None:
+    def __init__(
+        self, *args: Any, general_practitioner: GeneralPractitioner, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
         patient = self.fields["patient"]
         if isinstance(patient, forms.ModelChoiceField):
-            patient.queryset = gp.patients.order_by("name")
+            patient.queryset = general_practitioner.patients.order_by("name")

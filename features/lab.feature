@@ -3,7 +3,7 @@ Feature: Receiving and analysing samples
   returns the patient's NHANES 2021–2023 values. Covers R2, R3, R12.
 
   Background:
-    Given GP "Dr. Demo A" with patient "Test Patient 1", registered sex female, aged 32
+    Given general practitioner "Dr. Demo A" with patient "Test Patient 1", registered sex female, aged 32
     And "Test Patient 1" has NHANES CBC values and ferritin 11.0 ng/mL
 
   Scenario: Receiving an order assigns a sample ID

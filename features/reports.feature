@@ -1,9 +1,9 @@
-Feature: Lab reports for the GP
-  The GP sees the results of their own orders, a comment only when ferritin is
+Feature: Lab reports for the general practitioner
+  The general practitioner sees the results of their own orders, a comment only when ferritin is
   suggested, and can order ferritin from such a report. Covers R9–R11.
 
   Background:
-    Given GP "Dr. Demo A" with patient "Test Patient 1"
+    Given general practitioner "Dr. Demo A" with patient "Test Patient 1"
 
   Scenario: Ferritin suggested shows the comment
     Given a lab report for "Test Patient 1" with result "ferritin suggested"

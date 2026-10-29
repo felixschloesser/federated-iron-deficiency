@@ -1,5 +1,5 @@
 """Scenarios: ordering a test (features/ordering.feature), and ordering for
-another GP's patient (features/access.feature)."""
+another general practitioner's patient (features/access.feature)."""
 
 from datetime import UTC, datetime
 
@@ -17,8 +17,13 @@ TESTS = {"a CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
 scenarios("ordering.feature")
 
 
-@scenario("access.feature", "A GP cannot order for another GP's patient")
-def test_a_gp_cannot_order_for_another_gps_patient() -> None:
+@scenario(
+    "access.feature",
+    "A general practitioner cannot order for another general practitioner's patient",
+)
+def test_a_general_practitioner_cannot_order_for_another_general_practitioners_patient() -> (
+    None
+):
     pass
 
 
@@ -28,16 +33,20 @@ def indication_named(text: str) -> ClinicalIndication:
 
 @when(
     parsers.re(
-        r'"(?P<gp>[^"]+)" orders (?P<test>a CBC|ferritin) for "(?P<patient>[^"]+)"'
+        r'"(?P<general_practitioner>[^"]+)" orders (?P<test>a CBC|ferritin) for "(?P<patient>[^"]+)"'
         r"(?: with indication (?P<indication>.+)| without an indication)?$"
     )
 )
 def place_order(
-    world: World, gp: str, test: str, patient: str, indication: str | None
+    world: World,
+    general_practitioner: str,
+    test: str,
+    patient: str,
+    indication: str | None,
 ) -> None:
     try:
         world["order"] = services.place_order(
-            gp=world["gps"][gp],
+            general_practitioner=world["general_practitioners"][general_practitioner],
             patient=world["patients"][patient],
             test=TESTS[test],
             indication=indication_named(indication) if indication else None,

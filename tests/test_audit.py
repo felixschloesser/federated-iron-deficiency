@@ -115,7 +115,7 @@ def test_function_view(tmp_path: Path) -> None:
 
 
 def test_helpers_are_not_views(tmp_path: Path) -> None:
-    code = "def gp_of(request) -> GP:\n    return GP.objects.get()\n"
+    code = "def general_practitioner_of(request) -> GeneralPractitioner:\n    return GeneralPractitioner.objects.get()\n"
     assert counts(tree(tmp_path, {"web/practice/views.py": code}))["get_mutation"] == 0
 
 
@@ -125,7 +125,7 @@ def test_unsourced_glossary_term(tmp_path: Path) -> None:
         "| Term | Source | Why chosen | Rejected terms |\n"
         "|---|---|---|---|\n"
         "| order | Report, DF1 | Report's word | request |\n"
-        "| read | — **unsourced** | GP marks it | seen |\n"
+        "| read | — **unsourced** | general practitioner marks it | seen |\n"
         "\n## 2. Goal model\n"
     )
     root = tree(tmp_path, {"docs/spec/requirements.md": spec})

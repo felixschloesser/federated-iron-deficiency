@@ -1,10 +1,10 @@
 Feature: Ordering a test
-  A GP orders one test for one of their patients. The order carries only what
+  A general practitioner orders one test for one of their patients. The order carries only what
   the lab needs: the test, the clinical indication, registered sex and age.
   Covers R1.
 
   Background:
-    Given GP "Dr. Demo A" with patient "Test Patient 1", registered sex female, aged 32
+    Given general practitioner "Dr. Demo A" with patient "Test Patient 1", registered sex female, aged 32
 
   Scenario: A CBC order records the indication and copies sex and age
     When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication non-specific complaint

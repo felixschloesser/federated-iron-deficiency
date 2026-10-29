@@ -10,13 +10,13 @@ from django.views.generic import FormView, ListView
 
 from web.practice import services
 from web.practice.forms import OrderForm
-from web.practice.models import GP, Order, OrderQuerySet
+from web.practice.models import GeneralPractitioner, Order, OrderQuerySet
 
 
-class GPRequiredMixin(LoginRequiredMixin):
-    """Lets in only a logged-in GP, available to the view as `self.gp`."""
+class GeneralPractitionerRequiredMixin(LoginRequiredMixin):
+    """Lets in only a logged-in general practitioner, as `self.general_practitioner`."""
 
-    gp: GP
+    general_practitioner: GeneralPractitioner
 
     def dispatch(
         self, request: HttpRequest, *args: Any, **kwargs: Any
@@ -24,34 +24,39 @@ class GPRequiredMixin(LoginRequiredMixin):
         user = request.user
         if not user.is_authenticated:
             return self.handle_no_permission()
-        gp = GP.objects.filter(user=user).first()
-        if gp is None:
+        general_practitioner = GeneralPractitioner.objects.filter(user=user).first()
+        if general_practitioner is None:
             raise PermissionDenied
-        self.gp = gp
+        self.general_practitioner = general_practitioner
         return super().dispatch(request, *args, **kwargs)
 
 
-class OrderIndexView(GPRequiredMixin, ListView[Order]):
+class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
     template_name = "practice/index.html"
     context_object_name = "orders"
 
     def get_queryset(self) -> OrderQuerySet:
-        orders = Order.objects.of_gp(self.gp).select_related("patient")
+        orders = Order.objects.of_general_practitioner(
+            self.general_practitioner
+        ).select_related("patient")
         return orders.order_by("-ordered_at", "-pk")
 
 
-class NewOrderView(GPRequiredMixin, FormView[OrderForm]):
+class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
     template_name = "practice/new_order.html"
     form_class = OrderForm
     success_url = reverse_lazy("practice:index")
 
     def get_form_kwargs(self) -> dict[str, Any]:
-        return {**super().get_form_kwargs(), "gp": self.gp}
+        return {
+            **super().get_form_kwargs(),
+            "general_practitioner": self.general_practitioner,
+        }
 
     def form_valid(self, form: OrderForm) -> HttpResponse:
         try:
             services.place_order(
-                gp=self.gp,
+                general_practitioner=self.general_practitioner,
                 patient=form.cleaned_data["patient"],
                 test=form.cleaned_data["test"],
                 indication=form.cleaned_data["indication"],

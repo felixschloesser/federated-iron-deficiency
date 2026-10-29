@@ -1,4 +1,4 @@
-"""Views of the GP side: status, redirects, form error codes, query counts."""
+"""Views of the general practitioner side: status, redirects, form error codes, query counts."""
 
 import pytest
 from django.template.loader import render_to_string
@@ -7,25 +7,27 @@ from django.urls import reverse
 from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains
 
-from tests.conftest import make_gp, make_patient
+from tests.conftest import make_general_practitioner, make_patient
 from web.accounts.models import User
-from web.practice.models import GP, Order, Patient, RegisteredSex
+from web.practice.models import GeneralPractitioner, Order, Patient, RegisteredSex
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def gp() -> GP:
-    return make_gp("Dr. Demo A")
+def general_practitioner() -> GeneralPractitioner:
+    return make_general_practitioner("Dr. Demo A")
 
 
 @pytest.fixture
-def patient(gp: GP) -> Patient:
-    return make_patient(gp, "Test Patient 1", RegisteredSex.FEMALE, 32)
+def patient(general_practitioner: GeneralPractitioner) -> Patient:
+    return make_patient(
+        general_practitioner, "Test Patient 1", RegisteredSex.FEMALE, 32
+    )
 
 
-def logged_in(client: Client, gp: GP) -> Client:
-    client.force_login(gp.user)
+def logged_in(client: Client, general_practitioner: GeneralPractitioner) -> Client:
+    client.force_login(general_practitioner.user)
     return client
 
 
@@ -35,7 +37,7 @@ def test_anonymous_is_sent_to_login(client: Client) -> None:
     assert response["Location"].startswith(reverse("login"))
 
 
-def test_user_who_is_not_a_gp_is_refused(client: Client) -> None:
+def test_user_who_is_not_a_general_practitioner_is_refused(client: Client) -> None:
     client.force_login(User.objects.create_user(username="lab"))
     assert client.get(reverse("practice:index")).status_code == 403
     assert client.get(reverse("practice:new_order")).status_code == 403
@@ -43,35 +45,40 @@ def test_user_who_is_not_a_gp_is_refused(client: Client) -> None:
 
 def test_index_queries(
     client: Client,
-    gp: GP,
+    general_practitioner: GeneralPractitioner,
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    logged_in(client, gp)
+    logged_in(client, general_practitioner)
     form = {"patient": patient.pk, "test": "ferritin", "indication": ""}
     for _ in range(4):
         client.post(reverse("practice:new_order"), form)
-    # Session, user, GP, and the orders with their patients in one query.
+    # Session, user, GeneralPractitioner, and the orders with their patients in one query.
     with django_assert_num_queries(4):
         assert client.get(reverse("practice:index")).status_code == 200
 
 
 def test_new_order_offers_only_own_patients(
-    client: Client, gp: GP, patient: Patient
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
     other = make_patient(
-        make_gp("Dr. Demo B"), "Test Patient 2", RegisteredSex.MALE, 40
+        make_general_practitioner("Dr. Demo B"),
+        "Test Patient 2",
+        RegisteredSex.MALE,
+        40,
     )
-    response = logged_in(client, gp).get(reverse("practice:new_order"))
+    response = logged_in(client, general_practitioner).get(
+        reverse("practice:new_order")
+    )
     assert response.status_code == 200
     assert list(response.context["form"].fields["patient"].queryset) == [patient]
     assert other not in response.context["form"].fields["patient"].queryset
 
 
 def test_placing_an_order_redirects_to_the_index(
-    client: Client, gp: GP, patient: Patient
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
-    response = logged_in(client, gp).post(
+    response = logged_in(client, general_practitioner).post(
         reverse("practice:new_order"),
         {"patient": patient.pk, "test": "cbc", "indication": "non_specific_complaint"},
     )
@@ -81,9 +88,9 @@ def test_placing_an_order_redirects_to_the_index(
 
 
 def test_service_refusal_is_shown_on_its_field(
-    client: Client, gp: GP, patient: Patient
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
-    response = logged_in(client, gp).post(
+    response = logged_in(client, general_practitioner).post(
         reverse("practice:new_order"),
         {"patient": patient.pk, "test": "cbc", "indication": ""},
     )
@@ -93,11 +100,16 @@ def test_service_refusal_is_shown_on_its_field(
     assert not Order.objects.exists()
 
 
-def test_another_gps_patient_is_not_a_valid_choice(client: Client, gp: GP) -> None:
+def test_another_general_practitioners_patient_is_not_a_valid_choice(
+    client: Client, general_practitioner: GeneralPractitioner
+) -> None:
     other = make_patient(
-        make_gp("Dr. Demo B"), "Test Patient 2", RegisteredSex.MALE, 40
+        make_general_practitioner("Dr. Demo B"),
+        "Test Patient 2",
+        RegisteredSex.MALE,
+        40,
     )
-    response = logged_in(client, gp).post(
+    response = logged_in(client, general_practitioner).post(
         reverse("practice:new_order"),
         {"patient": other.pk, "test": "ferritin", "indication": ""},
     )
@@ -106,16 +118,20 @@ def test_another_gps_patient_is_not_a_valid_choice(client: Client, gp: GP) -> No
     assert [error.code for error in errors["patient"]] == ["invalid_choice"]
 
 
-def test_login_page_and_logout(client: Client, gp: GP) -> None:
+def test_login_page_and_logout(
+    client: Client, general_practitioner: GeneralPractitioner
+) -> None:
     assert client.get(reverse("login")).status_code == 200
-    logged_in(client, gp)
+    logged_in(client, general_practitioner)
     response = client.post(reverse("logout"))
     assert response.status_code == 302
     assert client.get(reverse("practice:index")).status_code == 302
 
 
-def test_placing_an_order_confirms_it(client: Client, gp: GP, patient: Patient) -> None:
-    response = logged_in(client, gp).post(
+def test_placing_an_order_confirms_it(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    response = logged_in(client, general_practitioner).post(
         reverse("practice:new_order"),
         {"patient": patient.pk, "test": "ferritin", "indication": ""},
         follow=True,

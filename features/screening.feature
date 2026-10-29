@@ -5,7 +5,7 @@ Feature: Screening a CBC
 
   Background:
     Given a deployed model with threshold 0.5
-    And GP "Dr. Demo A"
+    And general practitioner "Dr. Demo A"
 
   Scenario Outline: The model's decision becomes the result
     Given a received CBC sample of a woman aged 30 with indication non-specific complaint
