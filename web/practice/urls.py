@@ -4,6 +4,6 @@ from web.practice import views
 
 app_name = "practice"
 urlpatterns = [
-    path("", views.index, name="index"),
-    path("orders/new/", views.new_order, name="new_order"),
+    path("", views.OrderIndexView.as_view(), name="index"),
+    path("orders/new/", views.NewOrderView.as_view(), name="new_order"),
 ]

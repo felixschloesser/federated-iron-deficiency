@@ -3,7 +3,11 @@
 import os
 from pathlib import Path
 
+import django_stubs_ext
 from django.core.management.utils import get_random_secret_key
+
+# Lets generic views be subscripted (ListView[Order]) at runtime, as mypy wants.
+django_stubs_ext.monkeypatch()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -31,8 +35,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "web.accounts",
     "web.practice",
 ]
+
+AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

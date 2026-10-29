@@ -51,6 +51,12 @@ class Patient(models.Model):
         return self.name
 
 
+class OrderQuerySet(models.QuerySet["Order"]):
+    def of_gp(self, gp: GP) -> "OrderQuerySet":
+        """Only this GP's orders (R13)."""
+        return self.filter(patient__gp=gp)
+
+
 class Order(models.Model):
     patient = models.ForeignKey(
         Patient, on_delete=models.PROTECT, related_name="orders"
@@ -64,3 +70,5 @@ class Order(models.Model):
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
     ordered_at = models.DateTimeField()
+
+    objects = OrderQuerySet.as_manager()

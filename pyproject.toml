@@ -57,6 +57,7 @@ dev = [
 ]
 web = [
     "django>=5.2,<6",
+    "django-stubs-ext>=6.1.2",
 ]
 
 [tool.uv]

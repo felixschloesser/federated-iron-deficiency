@@ -1284,6 +1284,7 @@ dev = [
 ]
 web = [
     { name = "django" },
+    { name = "django-stubs-ext" },
 ]
 
 [package.metadata]
@@ -1309,7 +1310,10 @@ dev = [
     { name = "ruff", specifier = ">=0.17.3" },
     { name = "scipy-stubs", specifier = ">=1.18.1.1" },
 ]
-web = [{ name = "django", specifier = ">=5.2,<6" }]
+web = [
+    { name = "django", specifier = ">=5.2,<6" },
+    { name = "django-stubs-ext", specifier = ">=6.1.2" },
+]
 
 [[package]]
 name = "iterators"

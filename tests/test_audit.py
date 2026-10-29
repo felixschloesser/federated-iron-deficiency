@@ -33,8 +33,9 @@ def test_clean_tree_has_no_findings(tmp_path: Path) -> None:
             "templates/kit/base.html": '<main class="page"></main>\n',
             "templates/lab/index.html": '{% extends "kit/base.html" %}\n',
             "web/lab/views.py": (
-                "from django.views.decorators.http import require_POST\n\n"
-                "@require_POST\ndef receive(request) -> HttpResponse:\n    services.receive()\n"
+                "class ReceiveView(View):\n"
+                "    def post(self, request) -> HttpResponse:\n"
+                "        services.receive()\n"
             ),
         },
     )
@@ -86,41 +87,36 @@ def test_listed_choice_members(tmp_path: Path) -> None:
     assert counts(tree(tmp_path, {"web/lab/domain.py": code}))["listed_members"] == 1
 
 
-def test_mutation_in_a_view_that_allows_get(tmp_path: Path) -> None:
+def test_mutation_outside_a_post_handler(tmp_path: Path) -> None:
     code = (
-        "from django.views.decorators.http import require_GET\n\n"
-        "@require_GET\ndef index(request) -> HttpResponse:\n    sample.save()\n"
+        "class IndexView(ListView):\n"
+        "    def get_queryset(self) -> QuerySet:\n"
+        "        sample.save()\n"
     )
-    root = tree(tmp_path, {"web/lab/views.py": code})
-    assert counts(root)["get_mutation"] == 1
-
-
-def test_mutation_only_on_post_is_allowed(tmp_path: Path) -> None:
-    code = (
-        "@require_http_methods(['GET', 'POST'])\n"
-        "def new_order(request) -> HttpResponse:\n"
-        "    if request.method == 'POST' and form.is_valid():\n"
-        "        services.place_order()\n"
-        "    else:\n"
-        "        order.save()\n"
-        "    return render(request, 'x.html')\n"
-    )
-    root = tree(tmp_path, {"web/practice/views.py": code})
-    assert audit.run(root)["get_mutation"] == [
-        "web/practice/views.py:2: view new_order allows GET and mutates"
+    assert audit.run(tree(tmp_path, {"web/lab/views.py": code}))["get_mutation"] == [
+        "web/lab/views.py:2: IndexView.get_queryset mutates outside a POST handler"
     ]
 
 
-def test_helpers_taking_a_request_are_not_views(tmp_path: Path) -> None:
-    code = "def gp_of(request) -> GP:\n    return GP.objects.get()\n"
-    root = tree(tmp_path, {"web/practice/views.py": code})
-    assert counts(root)["get_mutation"] == 0
+def test_form_valid_may_call_a_service(tmp_path: Path) -> None:
+    code = (
+        "class NewOrderView(FormView):\n"
+        "    def form_valid(self, form) -> HttpResponse:\n"
+        "        services.place_order()\n"
+    )
+    assert counts(tree(tmp_path, {"web/practice/views.py": code}))["get_mutation"] == 0
 
 
-def test_view_without_declared_methods(tmp_path: Path) -> None:
+def test_function_view(tmp_path: Path) -> None:
     code = "def index(request) -> HttpResponse:\n    return render(request, 'x.html')\n"
-    root = tree(tmp_path, {"web/lab/views.py": code})
-    assert counts(root)["get_mutation"] == 1
+    assert audit.run(tree(tmp_path, {"web/lab/views.py": code}))["get_mutation"] == [
+        "web/lab/views.py:1: function view index; use a class-based view"
+    ]
+
+
+def test_helpers_are_not_views(tmp_path: Path) -> None:
+    code = "def gp_of(request) -> GP:\n    return GP.objects.get()\n"
+    assert counts(tree(tmp_path, {"web/practice/views.py": code}))["get_mutation"] == 0
 
 
 def test_unsourced_glossary_term(tmp_path: Path) -> None:

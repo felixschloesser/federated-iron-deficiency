@@ -20,7 +20,7 @@ def world() -> World:
 
 
 def make_gp(name: str) -> "GP":
-    from django.contrib.auth.models import User
+    from web.accounts.models import User
     from web.practice.models import GP
 
     user = User.objects.create_user(username=name.lower().replace(" ", "-"))

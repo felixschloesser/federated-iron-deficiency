@@ -1,14 +1,13 @@
 """Views of the GP side: status, redirects, form error codes, query counts."""
 
 import pytest
-from django.contrib.auth.models import User
-from django.db import connection
 from django.test import Client
-from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
-from web.practice.models import GP, Order, Patient, RegisteredSex
+from pytest_django import DjangoAssertNumQueries
 
 from tests.conftest import make_gp, make_patient
+from web.accounts.models import User
+from web.practice.models import GP, Order, Patient, RegisteredSex
 
 pytestmark = pytest.mark.django_db
 
@@ -40,19 +39,19 @@ def test_user_who_is_not_a_gp_is_refused(client: Client) -> None:
     assert client.get(reverse("practice:new_order")).status_code == 403
 
 
-def test_index_query_count_does_not_grow(
-    client: Client, gp: GP, patient: Patient
+def test_index_queries(
+    client: Client,
+    gp: GP,
+    patient: Patient,
+    django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     logged_in(client, gp)
     form = {"patient": patient.pk, "test": "ferritin", "indication": ""}
-    client.post(reverse("practice:new_order"), form)
-    with CaptureQueriesContext(connection) as one_order:
-        assert client.get(reverse("practice:index")).status_code == 200
-    for _ in range(3):
+    for _ in range(4):
         client.post(reverse("practice:new_order"), form)
-    with CaptureQueriesContext(connection) as four_orders:
-        client.get(reverse("practice:index"))
-    assert len(four_orders) == len(one_order)
+    # Session, user, GP, and the orders with their patients in one query.
+    with django_assert_num_queries(4):
+        assert client.get(reverse("practice:index")).status_code == 200
 
 
 def test_new_order_offers_only_own_patients(

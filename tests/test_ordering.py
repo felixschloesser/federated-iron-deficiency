@@ -5,11 +5,11 @@ from datetime import UTC, datetime
 
 from django.core.exceptions import ValidationError
 from pytest_bdd import parsers, scenario, scenarios, then, when
+
+from tests.conftest import World
 from web.practice import services
 from web.practice.models import ClinicalIndication, RegisteredSex
 from web.practice.models import Test as OrderedTest
-
-from tests.conftest import World
 
 NOW = datetime(2026, 10, 29, 9, 0, tzinfo=UTC)
 TESTS = {"a CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}

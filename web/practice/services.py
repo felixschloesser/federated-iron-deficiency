@@ -3,10 +3,12 @@
 from datetime import datetime
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from web.practice.models import GP, ClinicalIndication, Order, Patient, Test
 
 
+@transaction.atomic
 def place_order(
     *,
     gp: GP,

@@ -35,7 +35,7 @@ MUTATORS = {
     "get_or_create",
     "update_or_create",
 }
-GET_DECORATORS = {"require_GET", "require_safe"}
+POST_HANDLERS = {"post", "form_valid", "put", "patch", "delete"}
 
 TAG = re.compile(r"{%.*?%}|{{.*?}}")
 CLASS_ATTR = re.compile(r'class="([^"]*)"')
@@ -150,48 +150,15 @@ def listed_members(root: Path) -> list[str]:
     return findings
 
 
-def _decorator_name(node: ast.expr) -> str:
-    target = node.func if isinstance(node, ast.Call) else node
-    if isinstance(target, ast.Attribute):
-        return target.attr
-    return target.id if isinstance(target, ast.Name) else ""
+def _returns_response(function: ast.FunctionDef) -> bool:
+    # mypy --strict annotates every function, so a view is one returning a response.
+    returns = function.returns
+    return returns is not None and ast.unparse(returns).endswith("Response")
 
 
-def _allowed_methods(view: ast.FunctionDef) -> set[str] | None:
-    """Return the HTTP methods a view's decorator allows, or None if it declares none."""
-    for decorator in view.decorator_list:
-        name = _decorator_name(decorator)
-        if name == "require_POST":
-            return {"POST"}
-        if name in GET_DECORATORS:
-            return {"GET"}
-        if name == "require_http_methods" and isinstance(decorator, ast.Call):
-            return {
-                str(element.value)
-                for argument in decorator.args
-                if isinstance(argument, (ast.List, ast.Set, ast.Tuple))
-                for element in argument.elts
-                if isinstance(element, ast.Constant)
-            }
-    return None
-
-
-def _is_post_branch(node: ast.AST) -> bool:
-    """Whether `node` is an `if` that runs only for POST requests."""
-    return isinstance(node, ast.If) and "request.method == 'POST'" in ast.unparse(
-        node.test
-    )
-
-
-def _mutates(view: ast.AST) -> bool:
-    """Whether the view saves or calls a service outside a POST-only branch."""
-    nodes = [view]
-    while nodes:
-        node = nodes.pop()
-        if _is_post_branch(node) and isinstance(node, ast.If):
-            nodes.extend(node.orelse)
-            continue
-        nodes.extend(ast.iter_child_nodes(node))
+def _mutates(method: ast.FunctionDef) -> bool:
+    """Whether a method saves, creates, deletes or updates, or calls a service."""
+    for node in ast.walk(method):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
             chain = node.func
             while isinstance(chain.value, ast.Attribute):
@@ -204,24 +171,27 @@ def _mutates(view: ast.AST) -> bool:
 
 
 def get_mutation(root: Path) -> list[str]:
+    """Views are classes, and only their POST handlers mutate."""
     findings = []
     for path in files(root, "views.py"):
         rel = path.relative_to(root).as_posix()
-        for view in ast.parse(path.read_text()).body:
-            # mypy --strict annotates every function, so views are those returning a response.
-            if not isinstance(view, ast.FunctionDef) or not ast.unparse(
-                view.returns or ast.Constant(None)
-            ).endswith("Response"):
+        for node in ast.parse(path.read_text()).body:
+            if isinstance(node, ast.FunctionDef) and _returns_response(node):
+                findings.append(
+                    f"{rel}:{node.lineno}: function view {node.name}; use a class-based view"
+                )
+            if not isinstance(node, ast.ClassDef) or not node.name.endswith("View"):
                 continue
-            methods = _allowed_methods(view)
-            if methods is None:
-                findings.append(
-                    f"{rel}:{view.lineno}: view {view.name} declares no allowed methods"
-                )
-            elif "GET" in methods and _mutates(view):
-                findings.append(
-                    f"{rel}:{view.lineno}: view {view.name} allows GET and mutates"
-                )
+            for method in node.body:
+                if (
+                    isinstance(method, ast.FunctionDef)
+                    and method.name not in POST_HANDLERS
+                    and _mutates(method)
+                ):
+                    findings.append(
+                        f"{rel}:{method.lineno}: {node.name}.{method.name} mutates"
+                        " outside a POST handler"
+                    )
     return findings
 
 
