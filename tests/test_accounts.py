@@ -19,6 +19,21 @@ def test_role_of_a_general_practitioner() -> None:
     )
 
 
+def test_role_of_laboratory_staff() -> None:
+    from tests.conftest import make_laboratory_staff_member
+
+    assert (
+        role_of(make_laboratory_staff_member("Lab One").user) is Role.LABORATORY_STAFF
+    )
+
+
+@pytest.mark.parametrize("role", list(Role))
+def test_every_navigation_link_of_a_role_resolves(role: Role) -> None:
+    assert role.nav_links()
+    for link in role.nav_links():
+        assert resolve(link["url"])
+
+
 def test_role_of_an_account_without_one() -> None:
     assert role_of(User.objects.create_user(username="no-role")) is None
 
