@@ -2,13 +2,18 @@
 
 from django.contrib.auth import views as auth_views
 from django.urls import URLPattern, URLResolver, include, path
-from django.views.generic import RedirectView
+
+from web.accounts.forms import RoleAuthenticationForm
+from web.accounts.views import HomeView
 
 urlpatterns: list[URLPattern | URLResolver] = [
-    path("", RedirectView.as_view(pattern_name="practice:index"), name="home"),
+    path("", HomeView.as_view(), name="home"),
     path(
         "login/",
-        auth_views.LoginView.as_view(template_name="accounts/login.html"),
+        auth_views.LoginView.as_view(
+            template_name="accounts/login.html",
+            authentication_form=RoleAuthenticationForm,
+        ),
         name="login",
     ),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
