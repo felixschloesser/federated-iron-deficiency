@@ -220,7 +220,7 @@ are visible on disk and as processes. Everything lives under `demo/`
 demo/
 ├── startup/                     TB2
 │   ├── superlink/               DS3 run state, configuration, messages
-│   └── final-model.pt           DS4 the startup's copy (DF22)
+│   └── final-models/            DS4 the startup's copy of every final model, one per run (DF22)
 └── hospitals/
     ├── uz-leuven/               TB1
     │   ├── cohort/              DS2 training cohort (2005–2006)

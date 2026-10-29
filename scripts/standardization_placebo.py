@@ -10,6 +10,11 @@ import torch
 from evaluate_screening import evaluate
 
 from iron_deficiency.dataset import load_federated_dataset, load_ferritin
+from iron_deficiency.final_models import (
+    DEFAULT_DEMO_DIR,
+    hospital_final_models,
+    latest_final_model,
+)
 from iron_deficiency.screening import COLUMNS, save_deployment
 from iron_deficiency.task import standardization
 
@@ -19,13 +24,15 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument(
     "--model",
     type=Path,
-    default=Path.home() / ".cache" / "iron-deficiency" / "partition-2" / "model.pt",
+    default=None,
+    help="a final model; default: AZ Diest's latest under ~/.cache/iron-deficiency",
 )
 parser.add_argument("--input", type=Path, default=Path("demo_data/new_samples.csv"))
 parser.add_argument("--resamples", type=int, default=200)
 args = parser.parse_args()
 
-deployment = torch.load(args.model, weights_only=False)
+model = args.model or latest_final_model(hospital_final_models(DEFAULT_DEMO_DIR, 2))
+deployment = torch.load(model, weights_only=False)
 samples = pd.read_csv(args.input, usecols=COLUMNS)
 ferritin = load_ferritin()
 fds = load_federated_dataset()

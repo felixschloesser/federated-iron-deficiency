@@ -4,11 +4,19 @@ from logging import WARNING
 from pathlib import Path
 
 import torch
-from flwr.app import ArrayRecord, ConfigRecord, Context, Message, RecordDict
+from flwr.app import (
+    ArrayRecord,
+    ConfigRecord,
+    Context,
+    Message,
+    MetricRecord,
+    RecordDict,
+)
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, Result
 from flwr.supercore import log
 
+from iron_deficiency.final_models import DEFAULT_DEMO_DIR, startup_final_models
 from iron_deficiency.task import Net
 
 # Create ServerApp
@@ -71,12 +79,21 @@ def main(grid: Grid, context: Context) -> None:
         num_rounds=num_rounds,
     )
 
-    # The startup keeps a copy of the final model on its own server
-    final_model = (
-        Path.home() / ".cache" / "iron-deficiency" / "startup" / "final_model.pt"
+    # The startup keeps every final model on its own server, one per run (DS4)
+    demo_dir = str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR
+    startup_copy = startup_final_models(Path(demo_dir)) / f"{context.run_id}.pt"
+    startup_copy.parent.mkdir(parents=True, exist_ok=True)
+    if startup_copy.exists():
+        raise FileExistsError(startup_copy)
+    torch.save(result.arrays.to_torch_state_dict(), startup_copy)
+
+    # Send the final model to every hospital, with only the federated aggregate
+    last_round = max(result.evaluate_metrics_clientapp, default=None)
+    federated = (
+        result.evaluate_metrics_clientapp[last_round]
+        if last_round is not None
+        else MetricRecord()
     )
-    final_model.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(result.arrays.to_torch_state_dict(), final_model)
 
     # Deploy the final model to every hospital for local screening
     threshold = float(context.run_config["screening-threshold"])
@@ -87,6 +104,7 @@ def main(grid: Grid, context: Context) -> None:
                     {
                         "arrays": result.arrays,
                         "config": ConfigRecord({"threshold": threshold}),
+                        "federated": federated,
                     }
                 ),
                 dst_node_id=node_id,

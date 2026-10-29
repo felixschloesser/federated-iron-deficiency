@@ -12,6 +12,11 @@ from scipy import stats
 from train_centralized import train_centralized
 
 from iron_deficiency.dataset import load_ferritin
+from iron_deficiency.final_models import (
+    DEFAULT_DEMO_DIR,
+    hospital_final_models,
+    latest_final_model,
+)
 from iron_deficiency.screening import COLUMNS
 
 HOSPITALS = {0: "UZ Leuven", 1: "Heilig Hart Leuven", 2: "AZ Diest"}
@@ -26,7 +31,6 @@ args = parser.parse_args()
 
 samples = pd.read_csv(args.input, usecols=COLUMNS)
 ferritin = load_ferritin()
-cache = Path.home() / ".cache" / "iron-deficiency"
 
 rows = []
 for seed in range(args.seeds):
@@ -46,7 +50,9 @@ for seed in range(args.seeds):
     )
     centralized = train_centralized(seed)
     for partition_id, hospital in HOSPITALS.items():
-        federated = cache / f"partition-{partition_id}" / "model.pt"
+        federated = latest_final_model(
+            hospital_final_models(DEFAULT_DEMO_DIR, partition_id)
+        )
         rows.append(
             {
                 "seed": seed,

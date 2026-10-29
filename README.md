@@ -35,11 +35,15 @@ and three Belgian hospitals.
   cycles keep fixed 50% and 25% samples, giving a large, a medium, and a small
   hospital (about 5:2:1). The latest cycle, 2021–2023, no longer trains, so it
   can stand in for new blood counts screened after training.
-- **Deployment.** The original app stops after training. Here the ServerApp
-  sends the final model and the `screening-threshold` to every hospital, which
-  stores them with its own standardization at the node's `model-path`;
-  the startup keeps a copy in `~/.cache/iron-deficiency/startup/final_model.pt`, so the
-  assessment can cover how the model is used, not only how it is trained.
+- **Final models.** The original app stops after training. Here the ServerApp
+  sends the final model, the `screening-threshold` and the aggregated
+  evaluation metrics to every hospital. Each stores it as a new file named
+  after the run ID in its `final-models-path`, with its own standardization
+  and a local validation on its validation split: the confusion matrix at the
+  threshold, and AUROC (`iron_deficiency/final_models.py`). A hospital decides
+  itself which final model to deploy. The startup keeps a copy of every final
+  model in `<demo-dir>/startup/final-models/`, so the assessment can cover how
+  the model is used, not only how it is trained.
 - **Local screening** (`iron_deficiency/screening.py`). Only registered women
   aged 18–49 are scored, as the model was trained on them alone. Only each
   sample ID and its decision leave the screening, with no scores or other input
@@ -75,12 +79,13 @@ deployed model, through its node configuration. For example:
 flower-supernode \
   --superlink fleet-supergrid.flower.ai:443 \
   --auth-supernode-private-key ~/path/to/supernode/private/key \
-  --node-config "data-path='/path/to/demo_data/2005-2006' model-path='/path/to/models/2005-2006.pt'" \
+  --node-config "data-path='/path/to/demo_data/2005-2006' final-models-path='/path/to/final-models'" \
   --allow-runtime-dependency-installation # optional
 ```
 
-Launch the other two SuperNodes in the same way, pointing `data-path` and
-`model-path` to the `2015-2016` and `2017-2018` partitions, respectively.
+Launch the other two SuperNodes in the same way, pointing `data-path` to the
+`2015-2016` and `2017-2018` partitions and `final-models-path` to their own
+folders.
 
 Once the three SuperNodes are online and part of the federation, follow
 [Run Flower Apps on SuperGrid](https://flower.ai/docs/framework/how-to-run-flower-apps-on-supergrid.html)
@@ -104,14 +109,21 @@ flwr federation simulation-config @<username>/<federation-name> supergrid --num-
 flwr run . supergrid --federation @<username>/<federation-name>
 ```
 
-On SuperGrid, the deployed models stay with the virtual SuperNodes. To screen
+On SuperGrid, the final models stay with the virtual SuperNodes. To screen
 with them, run the simulation on your machine instead. Each virtual SuperNode
-then stores its model in `~/.cache/iron-deficiency/partition-<id>/model.pt`,
-where partitions 0, 1, and 2 are the 2005–2006, 2015–2016, and 2017–2018 cycles:
+then stores its final model in `<demo-dir>/hospitals/<hospital>/final-models/`,
+where the hospitals are `uz-leuven`, `heilig-hart-leuven` and `az-diest`
+(partitions 0, 1 and 2). `demo-dir` must be absolute; it defaults to
+`~/.cache/iron-deficiency`:
 
 ```shell
-flwr run . --federation-config "num-supernodes=3" --stream
+flwr run . --federation-config "num-supernodes=3" --run-config "demo-dir='$PWD/demo'" --stream
 ```
+
+`flwr run` starts a local SuperLink in the background and reuses it for later
+runs, from any checkout: its simulation imports `iron_deficiency` from the
+environment it was started in. Stop it (`pkill -f flower-superlink`) before
+running the simulation from another checkout.
 
 ## Screen new blood counts
 
@@ -122,7 +134,7 @@ screened, as the model was trained on them alone:
 
 ```shell
 python -m iron_deficiency.screening \
-  --model ~/.cache/iron-deficiency/partition-2/model.pt \
+  --model ~/.cache/iron-deficiency/hospitals/az-diest/final-models/<run-id>.pt \
   --input demo_data/new_samples.csv \
   --output flags.csv
 ```
@@ -138,7 +150,7 @@ women's actual ferritin, print its AUROC and the confusion matrix of its flags:
 
 ```shell
 python scripts/evaluate_screening.py \
-  --model ~/.cache/iron-deficiency/partition-2/model.pt \
+  --model ~/.cache/iron-deficiency/hospitals/az-diest/final-models/<run-id>.pt \
   --input demo_data/new_samples.csv
 ```
 

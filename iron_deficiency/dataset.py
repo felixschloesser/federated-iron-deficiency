@@ -22,6 +22,12 @@ CYCLES = {
 # The cycles are similar in size, so the medium and small hospitals keep a
 # fixed sample, giving roughly a 5:2:1 size ratio.
 SAMPLE_FRACTIONS = {"2015-2016": 0.5, "2017-2018": 0.25}
+# Each cycle's hospital, as its folder under the demo directory (spec §9).
+HOSPITALS = {
+    "2005-2006": "uz-leuven",
+    "2015-2016": "heilig-hart-leuven",
+    "2017-2018": "az-diest",
+}
 
 # No hospital trains on the latest cycle, 2021–2023, so it stands in for new
 # routine blood counts (all sexes and ages) screened after training.

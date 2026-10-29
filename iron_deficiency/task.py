@@ -99,8 +99,11 @@ def _split_cycle(
     mean, std = _training_stats(train_df)
 
     def to_dataset(frame: pd.DataFrame) -> TabularDataset:
-        features = ((frame[FEATURES] - mean) / std).to_numpy(dtype=np.float32)
-        labels = frame["iron_deficient"].to_numpy(dtype=np.float32)
+        # copy=True: pandas 3 may return a read-only view, which torch.from_numpy warns about.
+        features = ((frame[FEATURES] - mean) / std).to_numpy(
+            dtype=np.float32, copy=True
+        )
+        labels = frame["iron_deficient"].to_numpy(dtype=np.float32, copy=True)
         return TabularDataset(features, labels)
 
     return to_dataset(train_df), to_dataset(val_df), to_dataset(test_df)

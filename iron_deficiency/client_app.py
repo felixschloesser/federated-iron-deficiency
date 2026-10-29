@@ -1,5 +1,6 @@
 """ClientApp for federated iron-deficiency classification."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -10,8 +11,12 @@ from flwr.clientapp import ClientApp
 from flwr_datasets import FederatedDataset
 
 from iron_deficiency.dataset import load_federated_dataset
-from iron_deficiency.screening import save_deployment
-from iron_deficiency.task import Net, dataset_size, load_data, standardization
+from iron_deficiency.final_models import (
+    DEFAULT_DEMO_DIR,
+    hospital_final_models,
+    store_final_model,
+)
+from iron_deficiency.task import Net, dataset_size, load_data
 from iron_deficiency.task import test as test_fn
 from iron_deficiency.task import train as train_fn
 
@@ -124,28 +129,34 @@ def evaluate(msg: Message, context: Context) -> Message:
     return Message(content=content, reply_to=msg)
 
 
-def model_path(context: Context) -> Path:
-    """Return where this node keeps its deployed model."""
-    # Deployment Runtime: the hospital chooses where the model is stored
+def final_models_path(context: Context) -> Path:
+    """Return the folder where this hospital keeps its final models."""
+    # Deployment Runtime: the hospital chooses the folder
     if "data-path" in context.node_config:
-        return Path(str(context.node_config["model-path"]))
+        return Path(str(context.node_config["final-models-path"]))
 
-    # Simulation Runtime: one folder per virtual SuperNode in the user's cache
+    # Simulation Runtime: the hospital's folder under the demo directory
+    demo_dir = str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR
     partition_id = int(context.node_config["partition-id"])
-    cache = Path.home() / ".cache" / "iron-deficiency"
-    return cache / f"partition-{partition_id}" / "model.pt"
+    return hospital_final_models(Path(demo_dir), partition_id)
 
 
 @app.query("deploy")
 def deploy(msg: Message, context: Context) -> Message:
-    """Store the final model with this hospital's standardization for screening."""
+    """Store the final model, for the hospital to deploy or not (spec R16, R20)."""
 
-    mean, std = standardization(load_cohort(context))
-    save_deployment(
-        model_path(context),
-        msg.content.array_records["arrays"].to_torch_state_dict(),
-        mean,
-        std,
-        config_float(msg, "threshold"),
+    aggregate = msg.content.metric_records["federated"]
+    store_final_model(
+        final_models_path(context),
+        run_id=context.run_id,
+        state_dict=msg.content.array_records["arrays"].to_torch_state_dict(),
+        cohort=load_cohort(context),
+        threshold=config_float(msg, "threshold"),
+        federated={
+            name: float(value)
+            for name, value in aggregate.items()
+            if isinstance(value, (int, float))
+        },
+        stored_at=datetime.now(UTC),
     )
     return Message(content=RecordDict(), reply_to=msg)
