@@ -73,3 +73,6 @@ django_settings_module = "web.settings"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "web.settings"
 bdd_features_base_dir = "features/"
+
+[tool.ruff.lint.isort]
+known-first-party = ["iron_deficiency", "tests", "tools", "web"]

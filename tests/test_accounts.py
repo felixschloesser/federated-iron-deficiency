@@ -3,10 +3,10 @@
 import pytest
 from django.test import Client
 from django.urls import resolve, reverse
-from web.accounts.roles import Role, role_of
 
 from tests.conftest import make_general_practitioner
 from web.accounts.models import User
+from web.accounts.roles import Role, role_of
 
 pytestmark = pytest.mark.django_db
 PASSWORD = "check-pass-2026"
@@ -36,7 +36,7 @@ def test_login_leads_to_the_start_page_of_the_role(client: Client) -> None:
         reverse("login"), {"username": user.username, "password": PASSWORD}
     )
     assert response["Location"] == reverse("home")
-    assert client.get(reverse("home"))["Location"] == reverse("practice:index")
+    assert client.get(reverse("home"))["Location"] == reverse("practice:patients")
 
 
 def test_account_without_a_role_cannot_log_in(client: Client) -> None:
