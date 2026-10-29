@@ -79,7 +79,7 @@ G6 Maintain[Only a final model the hospital deployed screens its patients]
 ├── R16 Achieve[Each final model stored at the hospital with run ID, threshold and local validation]  ClientApp
 ├── R17 Maintain[A final model that cannot be deployed shows why, and has no Deploy]  Deploy app
 ├── E2 Expectation[Laboratory director deploys only after comparing local validation]  Laboratory director
-├── R18 Achieve[Deploying a newer final model makes it the deployed model; no rollback]  Deploy app
+├── R18 Achieve[Deploying a final model makes it the deployed model; an older one rolls back]  Deploy app
 └── R19 Maintain[Screening uses the deployed model only while its SHA-256 matches]   Lab app
 
 P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
@@ -109,9 +109,9 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R13 | Every general practitioner query is scoped to the general practitioner's own patients; another general practitioner's order or lab report returns 404. | `access.feature` |
 | R14 | Lab queries select only sample ID, ordering general practitioner, registered sex, age, test, indication and results; never the patient's name. | `access.feature` |
 | R15 | `DEMO_LOGIN` (default off) shows one POST login button per seeded user. A deploy check fails when `DEMO_LOGIN` is on and `DEBUG` is off. | `access.feature` |
-| R16 | The ClientApp's deploy handler writes each final model as a new file named after its Flower run ID into the node's `final-models-path`, never overwriting one, with the time it was stored, the threshold, the federated metrics the ServerApp sends, and its local validation on this hospital's validation split: the confusion matrix at the final model's threshold, as counts, and AUROC. Training results are unchanged. | `tests/test_final_models.py` |
-| R17 | The Models page lists every final model; one that is unreadable, trained on other features than `FEATURES`, lacks a threshold or standardization, or is older than the deployed model is shown as *cannot be deployed* with the reason, and deploying it is refused with that reason's code. | `deployment.feature` |
-| R18 | The laboratory director deploys a final model that can be deployed: only one stored after the deployed model, so there is no rollback (`older_than_deployed`). The app keeps the deployment history (final model, deployed at) and nothing else: no account, no reason. Past screening results are never re-screened. | `deployment.feature` |
+| R16 | The ClientApp's deploy handler writes each final model as a new file named after its Flower run ID into the node's `final-models-path`, never overwriting one, with the threshold, the federated metrics the ServerApp sends, and its local validation on this hospital's validation split: the confusion matrix at the final model's threshold, as counts, and AUROC. Training results are unchanged. | `tests/test_final_models.py` |
+| R17 | The Models page lists every final model; one that is unreadable, trained on other features than `FEATURES`, or lacks a threshold or standardization is shown as *cannot be deployed* with the reason, and deploying it is refused with that reason's code. | `deployment.feature` |
+| R18 | The laboratory director deploys any final model that can be deployed, including an older one (rollback). The app keeps the deployment history (final model, deployed at) and nothing else: no account, no reason. Past screening results are never re-screened. | `deployment.feature` |
 | R19 | Before each screening the deployed model's file is hashed; if it no longer matches the SHA-256 recorded at deployment, there is no usable deployed model (R8). | `deployment.feature`, `screening.feature` |
 | R20 | A final model's metadata holds only this hospital's local validation and the federated aggregate the ServerApp computed; never another hospital's metrics. | `tests/test_final_models.py` |
 | R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), and code under `web/` imports from the training package only `iron_deficiency.screening` and `iron_deficiency.dataset` (audit check). | `tests/test_settings.py`, `tools/audit.py` |
@@ -147,7 +147,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | O9 | Demo login shipped to a deployment | P0 | R15 |
 | O10 | The score reveals more than the result | P0 | R7 |
 | O11 | A final model screens before anyone at the hospital looked at it | G6 | R18: only a deployed model screens |
-| O12 | A bad final model is deployed | G0 | Accepted: with no rollback and no withdraw, it screens until the startup sends a newer final model; past results are not re-screened |
+| O12 | A bad final model is deployed | G0 | R18: deploy an older one; no re-screening of past results |
 | O13 | A final model was trained on other features | G6 | R17 |
 | O14 | The deployed model's file is replaced on disk | G6 | R19 |
 | O15 | A hospital learns another hospital's metrics through the final model's metadata | P0 | R20 |
@@ -162,7 +162,7 @@ All are POSTs that redirect on success; services take `now`.
 | Place order | general practitioner | Patient is the general practitioner's; indication given iff test is CBC | Order with sex and age copied | R1, R13 |
 | Receive | Laboratory staff | Order not received | Sample with sample ID, received at `now` | R2 |
 | Run analyser | Laboratory staff | Sample received, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |
-| Deploy | Laboratory director | Final model can be deployed (R17): readable, matching, and stored after the deployed model | It is the deployed model from `now` | R18 |
+| Deploy | Laboratory director | Final model can be deployed (R17) | It is the deployed model from `now` | R18 |
 | Mark as read | general practitioner | Lab report visible to this general practitioner, unread | Read at `now` | R10, R13 |
 | Log in as (demo) | Anyone | `DEMO_LOGIN` on | Session for that seeded user | R15 |
 
@@ -193,7 +193,7 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 - Several hospitals in one deployment (one deployment per hospital; the general practitioner side sits inside the hospital's deployment, unlike the DFD)
 - Retention and deletion of samples and lab reports
 - Training and federation (Flower, report P3–P6); the hospital's side of model distribution is in scope (G6)
-- Withdrawing the deployed model, and rollback: deploying a final model older than the deployed one (O12 accepted)
+- Withdrawing the deployed model without deploying another (unsourced term; deploy an older final model instead)
 - Recording who deployed a final model, or why; application logging beyond Django's defaults (the PIA leaves logs aside)
 - Re-screening past results with a newly deployed model, or CBCs released not screened; recalling lab reports
 - Holding a lab report until a deployed model is usable
