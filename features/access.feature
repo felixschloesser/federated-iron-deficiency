@@ -1,0 +1,44 @@
+Feature: Who sees what
+  A GP sees only their own patients; the lab never learns a patient's name;
+  demo login exists only in development. Covers R13–R15.
+
+  Background:
+    Given GP "Dr. Demo A" with patient "Test Patient 1"
+    And GP "Dr. Demo B" with patient "Test Patient 2"
+
+  Scenario: A GP sees only their own lab reports
+    Given lab reports for "Test Patient 1" and "Test Patient 2"
+    Then "Dr. Demo A"'s lab reports contain only the one for "Test Patient 1"
+
+  Scenario: A GP cannot open another GP's lab report
+    Given a lab report for "Test Patient 2"
+    When "Dr. Demo A" opens that lab report
+    Then it is not found
+
+  Scenario: A GP cannot order for another GP's patient
+    When "Dr. Demo A" orders a CBC for "Test Patient 2" with indication other
+    Then the order is refused with code "not_your_patient" on field "patient"
+
+  Scenario: A GP cannot mark another GP's lab report as read
+    Given an unread lab report for "Test Patient 2"
+    When "Dr. Demo A" marks that lab report as read
+    Then it is not found
+
+  Scenario: The lab never sees a patient's name
+    Given a received CBC sample for "Test Patient 1"
+    Then the lab's samples hold sample ID, ordering GP, registered sex, age, test, indication and results
+    And no lab query returns the patient's name
+
+  Scenario: Demo login buttons when enabled
+    Given DEMO_LOGIN is on
+    When the login page is shown
+    Then it offers one login button per seeded user
+
+  Scenario: No demo login by default
+    Given DEMO_LOGIN is off
+    Then logging in as a seeded user without a password is refused
+
+  Scenario: Demo login fails the deploy check
+    Given DEMO_LOGIN is on and DEBUG is off
+    When the deploy check runs
+    Then it reports an error

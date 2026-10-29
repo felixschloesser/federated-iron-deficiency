@@ -1,0 +1,67 @@
+Feature: Screening a CBC
+  The deployed model screens a CBC only for a non-specific complaint in a
+  woman aged 18–49. Only the result, the not-screened reason and the deployed
+  model's identity are stored, never a score. Covers R4–R8.
+
+  Background:
+    Given a deployed model with threshold 0.5
+    And GP "Dr. Demo A"
+
+  Scenario Outline: The model's decision becomes the result
+    Given a received CBC sample of a woman aged 30 with indication non-specific complaint
+    And the deployed model scores the sample <side> the threshold
+    When the lab technician runs the analyser
+    Then the screening result is "<result>"
+
+    Examples:
+      | side  | result                  |
+      | above | ferritin suggested      |
+      | below | ferritin not suggested  |
+
+  Scenario Outline: Each failing condition gives its own reason
+    Given a received CBC sample with indication <indication>, registered sex <sex>, aged <age>
+    When the lab technician runs the analyser
+    Then the screening result is "not screened" with reason "<reason>"
+
+    Examples:
+      | indication             | sex    | age | reason     |
+      | other                  | female | 30  | indication |
+      | non-specific complaint | male   | 30  | sex        |
+      | non-specific complaint | female | 17  | age        |
+      | non-specific complaint | female | 50  | age        |
+      | other                  | male   | 70  | indication |
+
+  Scenario Outline: The age range includes its ends
+    Given a received CBC sample with indication non-specific complaint, registered sex female, aged <age>
+    When the lab technician runs the analyser
+    Then the sample is screened by the model
+
+    Examples:
+      | age |
+      | 18  |
+      | 49  |
+
+  Scenario: The result records the deployed model
+    Given a received CBC sample of a woman aged 30 with indication non-specific complaint
+    When the lab technician runs the analyser
+    Then the screening result records the deployed model's SHA-256 and threshold 0.5
+
+  Scenario: No score is stored
+    Given a received CBC sample of a woman aged 30 with indication non-specific complaint
+    When the lab technician runs the analyser
+    Then no stored field of the sample or its screening result holds a score
+
+  Scenario: Without a deployed model the CBC awaits screening
+    Given no deployed model
+    And a received CBC sample of a woman aged 30 with indication non-specific complaint
+    When the lab technician runs the analyser
+    Then the sample is awaiting screening
+    And the lab report is not visible to "Dr. Demo A"
+    And screening is refused with code "no_deployed_model"
+
+  Scenario: Screening once a model is deployed
+    Given a CBC sample awaiting screening
+    And a deployed model
+    When the lab technician screens the sample
+    Then the sample has a screening result
+    And the lab report is visible to "Dr. Demo A"
