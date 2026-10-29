@@ -1,0 +1,23 @@
+{% extends "kit/base.html" %}
+{% block title %}Patients{% endblock %}
+{% block content %}
+{% include "kit/index_header.html" with title="Patients" %}
+{% if patients %}
+<table>
+  <thead>
+    <tr><th scope="col">Name</th><th scope="col">Registered sex</th><th scope="col">Age</th></tr>
+  </thead>
+  <tbody>
+    {% for patient in patients %}
+    <tr>
+      <td><a href="{% url 'practice:patient' patient.pk %}">{{ patient.name }}</a></td>
+      <td>{{ patient.get_registered_sex_display }}</td>
+      <td>{{ patient.age }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No patients.</p>
+{% endif %}
+{% endblock %}

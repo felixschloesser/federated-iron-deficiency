@@ -140,10 +140,13 @@ All are POSTs that redirect on success; services take `now`.
 
 | Page | Role | Content |
 |---|---|---|
-| Log in | Anyone | Django login form; demo buttons when `DEMO_LOGIN` |
+| Log in | Anyone | Django login form; refuses an account without a role; demo buttons when `DEMO_LOGIN`. Afterwards, and at `/`, the start page of the user's role |
 | Lab reports (general practitioner index) | general practitioner | Own lab reports, newest first, unread marked; pending orders |
 | Lab report | general practitioner | Results, comment (R9), *Mark as read*, *Order ferritin* (R11) |
-| Order CBC, Order ferritin | general practitioner | One page per test: patient, and the clinical indication only for a test that takes one |
+| Patients (start page) | general practitioner | Own patients: name, registered sex, age |
+| Patient | general practitioner | Registered sex, age, the patient's orders; *Order CBC*, *Order ferritin* |
+| Order CBC / Order ferritin for a patient | general practitioner | The clinical indication only for a test that takes one; ferritin is a confirmation |
+| Orders | general practitioner | Own orders, newest first, linked to their patient |
 | Samples (lab index) | Lab technician | Orders to receive, samples to analyse, awaiting screening, screened; *Receive*, *Run analyser*, *Screen* |
 
 Index pages assert their query count. Conditional controls (*Order ferritin*,

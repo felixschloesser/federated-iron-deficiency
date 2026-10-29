@@ -1,17 +1,18 @@
 {% extends "kit/base.html" %}
-{% block title %}Orders{% endblock %}
+{% block title %}{{ patient.name }}{% endblock %}
 {% block content %}
-{% include "kit/index_header.html" with title="Orders" actions=actions %}
+{% include "kit/index_header.html" with title=patient.name actions=actions %}
+<p>{{ patient.get_registered_sex_display }}, aged {{ patient.age }}</p>
+<h2>Orders</h2>
 {% if orders %}
 <table>
   <thead>
-    <tr><th scope="col">Ordered</th><th scope="col">Patient</th><th scope="col">Test</th><th scope="col">Clinical indication</th></tr>
+    <tr><th scope="col">Ordered</th><th scope="col">Test</th><th scope="col">Clinical indication</th></tr>
   </thead>
   <tbody>
     {% for order in orders %}
     <tr>
       <td>{{ order.ordered_at|date:"j M Y, H:i" }}</td>
-      <td>{{ order.patient.name }}</td>
       <td>{{ order.get_test_display }}</td>
       <td>{{ order.get_indication_display|default:"—" }}</td>
     </tr>

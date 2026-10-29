@@ -14,14 +14,25 @@ class Role(enum.Enum):
         """The page a user of this role lands on after logging in."""
         match self:
             case Role.GENERAL_PRACTITIONER:
-                return reverse("practice:index")
+                return reverse("practice:patients")
+            case _:
+                assert_never(self)
+
+    def nav_links(self) -> list[dict[str, str]]:
+        """The pages of this role, linked from the header."""
+        match self:
+            case Role.GENERAL_PRACTITIONER:
+                return [
+                    {"url": reverse("practice:patients"), "label": "Patients"},
+                    {"url": reverse("practice:orders"), "label": "Orders"},
+                ]
             case _:
                 assert_never(self)
 
 
-def role_of(user: AbstractBaseUser | AnonymousUser) -> Role | None:
+def role_of(user: AbstractBaseUser | AnonymousUser | None) -> Role | None:
     """Return the user's role, or None for an account without one."""
-    # hasattr loads and caches the linked record, so the view reuses it.
+    # RoleBackend loads the record with the user, so this costs no query.
     if hasattr(user, "general_practitioner"):
         return Role.GENERAL_PRACTITIONER
     return None

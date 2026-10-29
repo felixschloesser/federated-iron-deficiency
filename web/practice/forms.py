@@ -2,13 +2,12 @@ from typing import Any
 
 from django import forms
 
-from web.practice.models import ClinicalIndication, GeneralPractitioner, Patient, Test
+from web.practice.models import ClinicalIndication, Test
 
 
 class OrderForm(forms.Form):
-    """An order for one test; the indication field only for a test that takes one."""
+    """An order for one test; asks the indication only for a test that takes one."""
 
-    patient = forms.ModelChoiceField(queryset=Patient.objects.none())
     # The service refuses a missing indication (indication_required).
     indication = forms.TypedChoiceField(
         label="Clinical indication",
@@ -19,16 +18,7 @@ class OrderForm(forms.Form):
         widget=forms.RadioSelect,
     )
 
-    def __init__(
-        self,
-        *args: Any,
-        general_practitioner: GeneralPractitioner,
-        test: Test,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, *args: Any, test: Test, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        patient = self.fields["patient"]
-        if isinstance(patient, forms.ModelChoiceField):
-            patient.queryset = general_practitioner.patients.order_by("name")
         if not test.takes_indication():
             del self.fields["indication"]

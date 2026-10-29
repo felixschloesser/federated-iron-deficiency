@@ -7,6 +7,12 @@ register_converter(TestConverter, "test")
 
 app_name = "practice"
 urlpatterns = [
-    path("", views.OrderIndexView.as_view(), name="index"),
-    path("orders/new/<test:test>/", views.NewOrderView.as_view(), name="new_order"),
+    path("patients/", views.PatientIndexView.as_view(), name="patients"),
+    path("patients/<int:pk>/", views.PatientDetailView.as_view(), name="patient"),
+    path(
+        "patients/<int:patient>/orders/new/<test:test>/",
+        views.NewOrderView.as_view(),
+        name="new_order",
+    ),
+    path("orders/", views.OrderIndexView.as_view(), name="orders"),
 ]

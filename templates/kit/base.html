@@ -14,7 +14,7 @@
       <ul><li><strong>Iron-deficiency screening</strong></li></ul>
       {% if user.is_authenticated %}
       <ul>
-        {% block nav %}{% endblock %}
+        {% for link in nav_links %}<li><a href="{{ link.url }}">{{ link.label }}</a></li>{% endfor %}
         <li>
           <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}
