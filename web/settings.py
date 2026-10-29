@@ -18,6 +18,8 @@ DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 HOSPITAL_DIR = (
     Path(os.environ["HOSPITAL_DIR"]) if "HOSPITAL_DIR" in os.environ else None
 )
+# Shown in the title bar and header; never the screening's name.
+HOSPITAL_NAME = os.environ.get("HOSPITAL_NAME", "Demo hospital")
 if HOSPITAL_DIR is not None and "DATABASE_NAME" in os.environ:
     raise ImproperlyConfigured(
         "DATABASE_NAME cannot be set with HOSPITAL_DIR: the database lives in HOSPITAL_DIR."
@@ -77,6 +79,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "web.accounts.context_processors.navigation",
+                "web.context_processors.hospital",
             ],
         },
     },

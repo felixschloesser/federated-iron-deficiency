@@ -35,3 +35,10 @@ article[role="status"][data-level="error"] {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Pico's .container grows to 1450px on the widest screens; stop at its xl width. */
+@media (min-width: 1536px) {
+  .container {
+    max-width: 1200px;
+  }
+}

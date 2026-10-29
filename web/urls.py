@@ -5,6 +5,7 @@ from django.urls import URLPattern, URLResolver, include, path
 
 from web.accounts.forms import RoleAuthenticationForm
 from web.accounts.views import HomeView
+from web.views import ServerErrorView
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("", HomeView.as_view(), name="home"),
@@ -20,3 +21,5 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("practice/", include("web.practice.urls")),
     path("lab/", include("web.lab.urls")),
 ]
+
+handler500 = ServerErrorView.as_view()

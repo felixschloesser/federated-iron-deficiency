@@ -1,1 +1,1 @@
-"""Hospital screening app: one deployment per hospital (docs/spec/requirements.md)."""
+"""A hospital's lab and practice web app: one deployment per hospital (docs/spec)."""

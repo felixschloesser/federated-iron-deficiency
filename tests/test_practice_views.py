@@ -2,16 +2,19 @@
 query counts."""
 
 import pytest
+from django.http import HttpResponseServerError
 from django.template.loader import render_to_string
-from django.test import Client
+from django.test import Client, RequestFactory
 from django.urls import reverse
 from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains
+from pytest_django.fixtures import Settings
 
 from tests.conftest import make_general_practitioner, make_patient
 from web.accounts.models import User
 from web.practice.models import GeneralPractitioner, Order, Patient, RegisteredSex
 from web.practice.models import Test as OrderedTest
+from web.views import ServerErrorView
 
 pytestmark = pytest.mark.django_db
 
@@ -221,8 +224,15 @@ def test_missing_page_comes_from_the_kit(client: Client) -> None:
 
 
 def test_error_page_renders_without_a_request() -> None:
-    # Django renders 500.html with no context at all.
+    # Django's own handler renders 500.html with no context at all.
     assert "Something went wrong" in render_to_string("500.html")
+
+
+def test_error_page_names_the_hospital(settings: Settings) -> None:
+    settings.HOSPITAL_NAME = "AZ Diest"
+    response = ServerErrorView.as_view()(RequestFactory().get("/"))
+    assert isinstance(response, HttpResponseServerError)
+    assert b"<title>Something went wrong \xc2\xb7 AZ Diest</title>" in response.content
 
 
 def test_form_error_is_shown_once_in_the_summary(client: Client) -> None:

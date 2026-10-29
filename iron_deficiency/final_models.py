@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import torch
 
-from iron_deficiency.dataset import CYCLES, FEATURES, HOSPITALS
+from iron_deficiency.dataset import CYCLES, FEATURES, HOSPITALS, hospital_slug
 from iron_deficiency.task import Net, load_data, standardization, test
 
 # Where final models live when no demo directory is configured.
@@ -16,7 +16,7 @@ DEFAULT_DEMO_DIR = Path.home() / ".cache" / "iron-deficiency"
 def hospital_final_models(demo_dir: Path, partition_id: int) -> Path:
     """The final-models folder of the hospital that holds this partition."""
     cycle = list(CYCLES)[partition_id]  # Partition IDs follow CYCLES order
-    return demo_dir / "hospitals" / HOSPITALS[cycle] / "final-models"
+    return demo_dir / "hospitals" / hospital_slug(HOSPITALS[cycle]) / "final-models"
 
 
 def startup_final_models(demo_dir: Path) -> Path:

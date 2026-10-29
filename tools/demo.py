@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 
-from iron_deficiency.dataset import CYCLES, HOSPITALS
+from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 
 ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API over HTTPS on this one address.
@@ -46,7 +46,10 @@ def hospital_dir(demo_dir: Path, slug: str) -> Path:
 
 def hospitals() -> list[tuple[int, str]]:
     """Each hospital's partition ID and folder name, in CYCLES order."""
-    return [(partition, HOSPITALS[cycle]) for partition, cycle in enumerate(CYCLES)]
+    return [
+        (partition, hospital_slug(HOSPITALS[cycle]))
+        for partition, cycle in enumerate(CYCLES)
+    ]
 
 
 def plan(demo_dir: Path) -> list[Process]:
@@ -102,7 +105,11 @@ def plan(demo_dir: Path) -> list[Process]:
                     "--noreload",
                     f"127.0.0.1:{FIRST_WEB_PORT + partition}",
                 ],
-                {"HOSPITAL_DIR": str(hospital), "DJANGO_DEBUG": "1"},
+                {
+                    "HOSPITAL_DIR": str(hospital),
+                    "HOSPITAL_NAME": HOSPITALS[list(CYCLES)[partition]],
+                    "DJANGO_DEBUG": "1",
+                },
             )
         )
     return processes
