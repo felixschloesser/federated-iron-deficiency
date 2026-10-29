@@ -1,14 +1,15 @@
 Feature: Screening a CBC
   The deployed model screens a CBC only for a non-specific complaint in a
-  woman aged 18–49. Only the result, the not-screened reason and the deployed
-  model's identity are stored, never a score. Covers R4–R8.
+  woman aged 18–49. Only the result, the not-screened reason and the final
+  model that produced it are stored, never a score. Covers R4–R8, R19.
 
   Background:
-    Given a deployed model with threshold 0.5
+    Given final model "run-1" with threshold 0.5
     And general practitioner "Dr. Demo A"
 
   Scenario Outline: The model's decision becomes the result
-    Given a received CBC sample of a woman aged 30 with indication non-specific complaint
+    Given the laboratory director deployed "run-1"
+    And a received CBC sample of a woman aged 30 with indication non-specific complaint
     And the deployed model scores the sample <side> the threshold
     When laboratory staff run the analyser
     Then the screening result is "<result>"
@@ -18,7 +19,7 @@ Feature: Screening a CBC
       | above | ferritin suggested      |
       | below | ferritin not suggested  |
 
-  Scenario Outline: Each failing condition gives its own reason
+  Scenario Outline: Each failing condition gives its own reason, with or without a deployed model
     Given a received CBC sample with indication <indication>, registered sex <sex>, aged <age>
     When laboratory staff run the analyser
     Then the screening result is "not screened" with reason "<reason>"
@@ -32,7 +33,8 @@ Feature: Screening a CBC
       | other                  | male   | 70  | indication |
 
   Scenario Outline: The age range includes its ends
-    Given a received CBC sample with indication non-specific complaint, registered sex female, aged <age>
+    Given the laboratory director deployed "run-1"
+    And a received CBC sample with indication non-specific complaint, registered sex female, aged <age>
     When laboratory staff run the analyser
     Then the sample is screened by the model
 
@@ -41,28 +43,35 @@ Feature: Screening a CBC
       | 18  |
       | 49  |
 
-  Scenario: The result records the deployed model
-    Given a received CBC sample of a woman aged 30 with indication non-specific complaint
+  Scenario: The result records the final model that produced it
+    Given the laboratory director deployed "run-1"
+    And a received CBC sample of a woman aged 30 with indication non-specific complaint
     When laboratory staff run the analyser
-    Then the screening result records the deployed model's SHA-256 and threshold 0.5
+    Then the screening result records final model "run-1", its SHA-256 and threshold 0.5
 
   Scenario: No score is stored
-    Given a received CBC sample of a woman aged 30 with indication non-specific complaint
+    Given the laboratory director deployed "run-1"
+    And a received CBC sample of a woman aged 30 with indication non-specific complaint
     When laboratory staff run the analyser
     Then no stored field of the sample or its screening result holds a score
 
-  Scenario: Without a deployed model the CBC awaits screening
-    Given no deployed model
+  Scenario Outline: Without a usable deployed model the CBC awaits screening
+    Given <state>
     And a received CBC sample of a woman aged 30 with indication non-specific complaint
     When laboratory staff run the analyser
     Then the sample is awaiting screening
     And the lab report is not visible to "Dr. Demo A"
-    And screening is refused with code "no_deployed_model"
+    And screening is refused with code "<code>"
 
-  Scenario: Screening once a model is deployed
+    Examples:
+      | state                                                | code                    |
+      | no final model has been deployed                     | no_deployed_model       |
+      | the file of the deployed "run-1" has changed on disk | deployed_model_changed  |
+
+  Scenario: Screening once a final model is deployed
     Given a CBC sample awaiting screening
-    And a deployed model
-    When laboratory staff screen the sample
+    When the laboratory director deploys final model "run-1"
+    And laboratory staff screen the sample
     Then the sample has a screening result
     And the lab report is visible to "Dr. Demo A"
 
