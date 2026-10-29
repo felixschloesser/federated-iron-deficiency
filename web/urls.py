@@ -18,4 +18,5 @@ urlpatterns: list[URLPattern | URLResolver] = [
     ),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("practice/", include("web.practice.urls")),
+    path("lab/", include("web.lab.urls")),
 ]

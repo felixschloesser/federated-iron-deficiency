@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "web.accounts",
     "web.practice",
+    "web.nhanes",
+    "web.lab",
 ]
 
 AUTH_USER_MODEL = "accounts.User"

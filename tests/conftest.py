@@ -34,13 +34,20 @@ def make_patient(
     sex: "RegisteredSex",
     age: int,
 ) -> "Patient":
+    """A patient with an NHANES participant of placeholder values and no ferritin."""
+    from iron_deficiency.dataset import CBC_VARS
+    from web.nhanes.models import Participant
     from web.practice.models import Patient
 
+    participant = Participant.objects.create(
+        seqn=Participant.objects.count() + 1, cbc=dict.fromkeys(CBC_VARS, 1.0)
+    )
     return Patient.objects.create(
         general_practitioner=general_practitioner,
         name=name,
         registered_sex=sex,
         age=age,
+        participant=participant,
     )
 
 

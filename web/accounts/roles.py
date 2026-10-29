@@ -9,12 +9,25 @@ from django.urls import reverse
 
 class Role(enum.Enum):
     GENERAL_PRACTITIONER = "general practitioner"
+    LABORATORY_STAFF = "laboratory staff"
+
+    def people(self) -> str:
+        """The people of this role, as a sentence names them."""
+        match self:
+            case Role.GENERAL_PRACTITIONER:
+                return "general practitioners"
+            case Role.LABORATORY_STAFF:
+                return "laboratory staff"
+            case _:
+                assert_never(self)
 
     def start_url(self) -> str:
         """The page a user of this role lands on after logging in."""
         match self:
             case Role.GENERAL_PRACTITIONER:
                 return reverse("practice:patients")
+            case Role.LABORATORY_STAFF:
+                return reverse("lab:samples")
             case _:
                 assert_never(self)
 
@@ -26,6 +39,8 @@ class Role(enum.Enum):
                     {"url": reverse("practice:patients"), "label": "Patients"},
                     {"url": reverse("practice:orders"), "label": "Orders"},
                 ]
+            case Role.LABORATORY_STAFF:
+                return [{"url": reverse("lab:samples"), "label": "Samples"}]
             case _:
                 assert_never(self)
 
@@ -35,4 +50,6 @@ def role_of(user: AbstractBaseUser | AnonymousUser | None) -> Role | None:
     # RoleBackend loads the record with the user, so this costs no query.
     if hasattr(user, "general_practitioner"):
         return Role.GENERAL_PRACTITIONER
+    if hasattr(user, "laboratory_staff_member"):
+        return Role.LABORATORY_STAFF
     return None

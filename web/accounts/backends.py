@@ -10,7 +10,9 @@ class RoleBackend(ModelBackend):
 
     def get_user(self, user_id: Any) -> User | None:
         user = (
-            User.objects.select_related("general_practitioner")
+            User.objects.select_related(
+                "general_practitioner", "laboratory_staff_member"
+            )
             .filter(pk=user_id)
             .first()
         )

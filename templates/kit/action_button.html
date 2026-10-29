@@ -1,0 +1,6 @@
+{% comment %}One action as a POST button (POST-redirect-GET).
+Include with: url, label.{% endcomment %}
+<form method="post" action="{{ url }}">
+  {% csrf_token %}
+  <button type="submit">{{ label }}</button>
+</form>

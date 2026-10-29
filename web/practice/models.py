@@ -50,6 +50,10 @@ class Patient(models.Model):
     name = models.CharField(max_length=100)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
+    # Demo data: the NHANES participant whose values the analyser returns.
+    participant = models.OneToOneField(
+        "nhanes.Participant", on_delete=models.PROTECT, related_name="patient"
+    )
 
     def __str__(self) -> str:
         return self.name

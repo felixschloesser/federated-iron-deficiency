@@ -6,7 +6,9 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from iron_deficiency.dataset import CBC_VARS
 from web.accounts.models import User
+from web.nhanes.models import Participant
 from web.practice.models import GeneralPractitioner, RegisteredSex
 
 PASSWORD = "demo-pass-2026"
@@ -38,13 +40,25 @@ class Command(BaseCommand):
         with transaction.atomic():
             doctor_a = general_practitioner("doctor-a", "Dr. Demo A")
             doctor_b = general_practitioner("doctor-b", "Dr. Demo B")
-            for owner, name, sex, age in (
-                (doctor_a, "Test Patient 1", RegisteredSex.FEMALE, 32),
-                (doctor_a, "Test Patient 3", RegisteredSex.MALE, 60),
-                (doctor_b, "Test Patient 2", RegisteredSex.FEMALE, 25),
+            for seqn, (owner, name, sex, age) in enumerate(
+                (
+                    (doctor_a, "Test Patient 1", RegisteredSex.FEMALE, 32),
+                    (doctor_a, "Test Patient 3", RegisteredSex.MALE, 60),
+                    (doctor_b, "Test Patient 2", RegisteredSex.FEMALE, 25),
+                ),
+                start=1,
             ):
+                # shortcut: placeholder blood values; NHANES patients replace these next.
+                participant, _ = Participant.objects.get_or_create(
+                    seqn=seqn, defaults={"cbc": dict.fromkeys(CBC_VARS, 1.0)}
+                )
                 owner.patients.get_or_create(
-                    name=name, defaults={"registered_sex": sex, "age": age}
+                    name=name,
+                    defaults={
+                        "registered_sex": sex,
+                        "age": age,
+                        "participant": participant,
+                    },
                 )
             user("no-role")  # Logged in but neither role: for the refusal page.
         self.stdout.write(

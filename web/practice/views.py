@@ -2,36 +2,34 @@ from functools import cached_property
 from typing import Any
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponse, HttpResponseBase
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import DetailView, FormView, ListView
 
-from web.accounts.roles import Role, role_of
+from web.accounts.mixins import RoleRequiredMixin
+from web.accounts.roles import Role
 from web.practice import services
 from web.practice.forms import OrderForm
 from web.practice.models import GeneralPractitioner, Order, OrderQuerySet, Patient, Test
 
 
-class GeneralPractitionerRequiredMixin(LoginRequiredMixin):
-    """Lets in only a logged-in general practitioner, as `self.general_practitioner`."""
+class GeneralPractitionerRequiredMixin(RoleRequiredMixin):
+    """Lets in only general practitioners, as `self.general_practitioner`."""
 
-    general_practitioner: GeneralPractitioner
+    role = Role.GENERAL_PRACTITIONER
+    request: HttpRequest
 
-    def dispatch(
-        self, request: HttpRequest, *args: Any, **kwargs: Any
-    ) -> HttpResponseBase:
-        user = request.user
+    @cached_property
+    def general_practitioner(self) -> GeneralPractitioner:
+        user = self.request.user
         if not user.is_authenticated:
-            return self.handle_no_permission()
-        if role_of(user) is not Role.GENERAL_PRACTITIONER:
             raise PermissionDenied
-        self.general_practitioner = user.general_practitioner
-        return super().dispatch(request, *args, **kwargs)
+        practitioner: GeneralPractitioner = user.general_practitioner
+        return practitioner
 
 
 class PatientIndexView(GeneralPractitionerRequiredMixin, ListView[Patient]):

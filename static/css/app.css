@@ -25,3 +25,13 @@ article[role="status"][data-level="success"] {
 article[role="status"][data-level="error"] {
   border-color: var(--pico-del-color);
 }
+
+/* Text for screen readers only, such as the header of an action column. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
