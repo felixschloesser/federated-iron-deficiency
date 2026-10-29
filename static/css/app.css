@@ -11,3 +11,17 @@
   background: var(--pico-background-color);
   padding: 0.5rem;
 }
+
+/* Messages after a redirect, coloured by level with Pico's theme-aware colours. */
+article[role="status"] {
+  border: 1px solid var(--pico-muted-border-color);
+  border-left-width: 0.5rem;
+}
+
+article[role="status"][data-level="success"] {
+  border-color: var(--pico-ins-color);
+}
+
+article[role="status"][data-level="error"] {
+  border-color: var(--pico-del-color);
+}

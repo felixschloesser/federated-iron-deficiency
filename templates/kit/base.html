@@ -27,7 +27,7 @@
   </header>
   <main id="main" class="container">
     {% for message in messages %}
-    <article role="status">{{ message }}</article>
+    <article role="status" data-level="{{ message.tags }}">{{ message }}</article>
     {% endfor %}
     {% block content %}{% endblock %}
   </main>
