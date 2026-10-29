@@ -70,10 +70,15 @@ def test_safe_filter_needs_an_allowlist_entry(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "line", [f"x = 1  {NOQA}", f"x = 1  {TYPE_IGNORE}", f"@{CSRF_EXEMPT}"]
+    "code",
+    [
+        f"x = 1  {NOQA}\n",
+        f"x = 1  {TYPE_IGNORE}\n",
+        f"@{CSRF_EXEMPT}\ndef view(request):\n    pass\n",
+    ],
 )
-def test_suppressions(tmp_path: Path, line: str) -> None:
-    assert counts(tree(tmp_path, {"web/x.py": line + "\n"}))["suppressions"] == 1
+def test_suppressions(tmp_path: Path, code: str) -> None:
+    assert counts(tree(tmp_path, {"web/x.py": code}))["suppressions"] == 1
 
 
 def test_listed_choice_members(tmp_path: Path) -> None:
