@@ -87,3 +87,14 @@ def test_refuses_outside_development(settings: Settings) -> None:
     with pytest.raises(CommandError, match="DJANGO_DEBUG=1"):
         call_command("seed_demo")
     assert not User.objects.exists()
+
+
+def test_each_hospital_seeds_other_participants(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.DEBUG = True
+    monkeypatch.setattr(seed_demo, "load_nhanes", nhanes_rows)
+    rows = nhanes_rows()
+    assert not seed_demo.choose(rows, seed=0).equals(seed_demo.choose(rows, seed=1))
+    call_command("seed_demo", "--seed", "1")
+    assert Patient.objects.count() == 3 * len(PEOPLE)
