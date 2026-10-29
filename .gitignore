@@ -2,3 +2,6 @@ __pycache__/
 .venv/
 demo_data/
 wandb/
+.secret_key
+*.sqlite3
+staticfiles/

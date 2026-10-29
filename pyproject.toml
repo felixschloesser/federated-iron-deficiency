@@ -64,3 +64,10 @@ default-groups = ["dev", "web"]
 
 [tool.mypy]
 mypy_path = "typings"
+plugins = ["mypy_django_plugin.main"]
+
+[tool.django-stubs]
+django_settings_module = "web.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "web.settings"

@@ -1,0 +1,19 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% endblock %} · Iron-deficiency screening</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <span class="site-name">Iron-deficiency screening</span>
+    {% block nav %}{% endblock %}
+  </header>
+  <main id="main" class="page">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
