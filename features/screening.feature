@@ -2,6 +2,7 @@ Feature: Screening a CBC
   The deployed model screens a CBC only for a non-specific complaint in a
   woman aged 18–49. Only the result, the not-screened reason and the final
   model that produced it are stored, never a score. Covers R4–R8, R19.
+  Every analysed CBC gets a result and its lab report at once.
 
   Background:
     Given final model "run-1" with threshold 0.5
@@ -55,25 +56,17 @@ Feature: Screening a CBC
     When laboratory staff run the analyser
     Then no stored field of the sample or its screening result holds a score
 
-  Scenario Outline: Without a usable deployed model the CBC awaits screening
+  Scenario Outline: Without a usable deployed model the CBC is released not screened
     Given <state>
     And a received CBC sample of a woman aged 30 with indication non-specific complaint
     When laboratory staff run the analyser
-    Then the sample is awaiting screening
-    And the lab report is not visible to "Dr. Demo A"
-    And screening is refused with code "<code>"
+    Then the screening result is "not screened" with reason "<reason>"
+    And the lab report is visible to "Dr. Demo A"
 
     Examples:
-      | state                                                | code                    |
+      | state                                                | reason                  |
       | no final model has been deployed                     | no_deployed_model       |
       | the file of the deployed "run-1" has changed on disk | deployed_model_changed  |
-
-  Scenario: Screening once a final model is deployed
-    Given a CBC sample awaiting screening
-    When the laboratory director deploys final model "run-1"
-    And laboratory staff screen the sample
-    Then the sample has a screening result
-    And the lab report is visible to "Dr. Demo A"
 
   Scenario: A ferritin sample is never screened
     Given a received ferritin sample of a woman aged 30

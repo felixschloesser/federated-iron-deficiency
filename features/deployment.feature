@@ -5,8 +5,16 @@ Feature: Deploying a final model
 
   Background:
     Given laboratory director "Director One"
-    And final model "run-1" with local AUROC 0.84 and flag rate 9%
-    And final model "run-2" with local AUROC 0.86 and flag rate 11%
+    And final model "run-1" with local validation:
+      |                 | ferritin suggested | ferritin not suggested |
+      | deficient       | 7                  | 3                      |
+      | not deficient   | 5                  | 37                     |
+    And its local AUROC is 0.84
+    And final model "run-2" with local validation:
+      |                 | ferritin suggested | ferritin not suggested |
+      | deficient       | 8                  | 2                      |
+      | not deficient   | 6                  | 36                     |
+    And its local AUROC is 0.86
 
   Scenario: A final model screens no one until it is deployed
     Then there is no deployed model
@@ -24,8 +32,8 @@ Feature: Deploying a final model
 
   Scenario: Local validation is shown next to the deployed model's
     Given the laboratory director deployed "run-1"
-    Then the final models show "run-1" deployed with local AUROC 0.84 and flag rate 9%
-    And they show "run-2" with local AUROC 0.86 and flag rate 11%
+    Then the final models show "run-1", deployed, finding 7 of 10 deficient with 5 unnecessary suggestions, AUROC 0.84
+    And they show "run-2", finding 8 of 10 deficient with 6 unnecessary suggestions, AUROC 0.86
 
   Scenario Outline: A final model that cannot be deployed says why
     Given final model "run-3" that <problem>
@@ -42,6 +50,7 @@ Feature: Deploying a final model
   Scenario: A deployed model whose file changed on disk stops screening
     Given the file of the deployed "run-1" has changed on disk
     Then there is no usable deployed model, with reason code "deployed_model_changed"
+    And the Models page says the deployed model changed on disk
 
   Scenario: Only the laboratory director deploys
     Given laboratory staff member "Lab One"
