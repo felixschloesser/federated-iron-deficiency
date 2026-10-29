@@ -26,7 +26,7 @@ packages = ["iron_deficiency"]
 publisher = "javier"
 fab-format-version = 1
 # Allowlist: the web app and docs in this repo must not reach the SuperNodes.
-fab-include = ["iron_deficiency/**", "scripts/**", "README.md", "LICENSE"]
+fab-include = ["/iron_deficiency/**", "/scripts/**", "/README.md", "/LICENSE"]
 flwr-version-target = "1.40.0"
 
 [tool.flwr.app.components]
