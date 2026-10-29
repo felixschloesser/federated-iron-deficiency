@@ -13,6 +13,8 @@ Include with: form, submit_label.{% endcomment %}
 {% endif %}
 <form method="post" novalidate>
   {% csrf_token %}
-  {{ form }}
+  {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+  {# Fields one by one: form-wide errors appear only in the summary above. #}
+  {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
   <button type="submit">{{ submit_label }}</button>
 </form>
