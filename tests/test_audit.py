@@ -1,0 +1,131 @@
+"""Checks for tools/audit.py, each on a small tree with one violation."""
+
+import json
+from pathlib import Path
+
+import pytest
+
+from tools import audit
+
+# Split so that this file does not itself trip the audit.
+NOQA = "# no" + "qa"
+TYPE_IGNORE = "# type" + ": ignore"
+CSRF_EXEMPT = "csrf" + "_exempt"
+SAFE = "|sa" + "fe"
+
+
+def tree(root: Path, files: dict[str, str]) -> Path:
+    for name, text in files.items():
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
+        (root / name).write_text(text)
+    return root
+
+
+def counts(root: Path) -> dict[str, int]:
+    return {name: len(findings) for name, findings in audit.run(root).items()}
+
+
+def test_clean_tree_has_no_findings(tmp_path: Path) -> None:
+    root = tree(
+        tmp_path,
+        {
+            "static/css/app.css": ".page { margin: 0; }\n",
+            "templates/kit/base.html": '<main class="page"></main>\n',
+            "templates/lab/index.html": '{% extends "kit/base.html" %}\n',
+            "web/lab/views.py": (
+                "from django.views.decorators.http import require_POST\n\n"
+                "@require_POST\ndef receive(request):\n    services.receive()\n"
+            ),
+        },
+    )
+    assert not any(counts(root).values()), audit.run(root)
+
+
+def test_undefined_css_class(tmp_path: Path) -> None:
+    root = tree(
+        tmp_path,
+        {
+            "static/css/app.css": ".page {}\n",
+            "templates/kit/base.html": (
+                '<p class="page {% if unread %}unread{% endif %}">\n'
+            ),
+        },
+    )
+    assert audit.run(root)["css_classes"] == [
+        "templates/kit/base.html:1: class 'unread' is not defined in static/css"
+    ]
+
+
+def test_page_template_outside_the_kit(tmp_path: Path) -> None:
+    root = tree(tmp_path, {"templates/lab/index.html": "<html></html>\n"})
+    assert counts(root)["kit_only"] == 1
+
+
+def test_safe_filter_needs_an_allowlist_entry(tmp_path: Path) -> None:
+    files = {"templates/kit/base.html": "{{ body" + SAFE + " }}\n"}
+    assert counts(tree(tmp_path, files))["safe"] == 1
+    allowlist = '[safe]\n"templates/kit/base.html" = "Rendered Markdown we write"\n'
+    tree(tmp_path, {"tools/audit_allowlist.toml": allowlist})
+    assert counts(tmp_path)["safe"] == 0
+
+
+@pytest.mark.parametrize(
+    "line", [f"x = 1  {NOQA}", f"x = 1  {TYPE_IGNORE}", f"@{CSRF_EXEMPT}"]
+)
+def test_suppressions(tmp_path: Path, line: str) -> None:
+    assert counts(tree(tmp_path, {"web/x.py": line + "\n"}))["suppressions"] == 1
+
+
+def test_listed_choice_members(tmp_path: Path) -> None:
+    code = "OPEN = [Status.ORDERED, Status.RECEIVED]\n"
+    assert counts(tree(tmp_path, {"web/lab/domain.py": code}))["listed_members"] == 1
+
+
+def test_mutation_in_a_view_that_allows_get(tmp_path: Path) -> None:
+    code = (
+        "from django.views.decorators.http import require_GET\n\n"
+        "@require_GET\ndef index(request):\n    sample.save()\n"
+    )
+    root = tree(tmp_path, {"web/lab/views.py": code})
+    assert counts(root)["get_mutation"] == 1
+
+
+def test_view_without_declared_methods(tmp_path: Path) -> None:
+    code = "def index(request):\n    return render(request, 'x.html')\n"
+    root = tree(tmp_path, {"web/lab/views.py": code})
+    assert counts(root)["get_mutation"] == 1
+
+
+def test_unsourced_glossary_term(tmp_path: Path) -> None:
+    spec = (
+        "## 1. Vocabulary\n\n"
+        "| Term | Source | Why chosen | Rejected terms |\n"
+        "|---|---|---|---|\n"
+        "| order | Report, DF1 | Report's word | request |\n"
+        "| read | — **unsourced** | GP marks it | seen |\n"
+        "\n## 2. Goal model\n"
+    )
+    root = tree(tmp_path, {"docs/spec/requirements.md": spec})
+    assert audit.run(root)["glossary_sources"] == [
+        "docs/spec/requirements.md: term 'read' has no source"
+    ]
+
+
+def test_ratchet_fails_above_the_baseline(tmp_path: Path) -> None:
+    root = tree(tmp_path, {"web/x.py": f"x = 1  {NOQA}\n"})
+    baseline = root / "tools" / "audit_baseline.json"
+    baseline.parent.mkdir()
+    baseline.write_text(json.dumps({"suppressions": 0}))
+    assert audit.main(["--root", str(root)]) == 1
+    assert audit.main(["--root", str(root), "--update"]) == 1
+    assert json.loads(baseline.read_text()) == {"suppressions": 0}
+
+
+def test_update_lowers_the_baseline(tmp_path: Path) -> None:
+    root = tree(tmp_path, {"web/x.py": "x = 1\n"})
+    baseline = root / "tools" / "audit_baseline.json"
+    baseline.parent.mkdir()
+    baseline.write_text(json.dumps({"suppressions": 2}))
+    assert audit.main(["--root", str(root), "--update"]) == 0
+    assert json.loads(baseline.read_text())["suppressions"] == 0
+    assert audit.main(["--root", str(root)]) == 0
