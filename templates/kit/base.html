@@ -12,7 +12,17 @@
   <header class="container">
     <nav>
       <ul><li><strong>Iron-deficiency screening</strong></li></ul>
-      {% block nav %}{% endblock %}
+      {% if user.is_authenticated %}
+      <ul>
+        {% block nav %}{% endblock %}
+        <li>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="secondary outline">Log out</button>
+          </form>
+        </li>
+      </ul>
+      {% endif %}
     </nav>
   </header>
   <main id="main" class="container">

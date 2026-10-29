@@ -176,8 +176,22 @@ def _allowed_methods(view: ast.FunctionDef) -> set[str] | None:
     return None
 
 
-def _mutates(view: ast.FunctionDef) -> bool:
-    for node in ast.walk(view):
+def _is_post_branch(node: ast.AST) -> bool:
+    """Whether `node` is an `if` that runs only for POST requests."""
+    return isinstance(node, ast.If) and "request.method == 'POST'" in ast.unparse(
+        node.test
+    )
+
+
+def _mutates(view: ast.AST) -> bool:
+    """Whether the view saves or calls a service outside a POST-only branch."""
+    nodes = [view]
+    while nodes:
+        node = nodes.pop()
+        if _is_post_branch(node) and isinstance(node, ast.If):
+            nodes.extend(node.orelse)
+            continue
+        nodes.extend(ast.iter_child_nodes(node))
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
             chain = node.func
             while isinstance(chain.value, ast.Attribute):
@@ -194,11 +208,10 @@ def get_mutation(root: Path) -> list[str]:
     for path in files(root, "views.py"):
         rel = path.relative_to(root).as_posix()
         for view in ast.parse(path.read_text()).body:
-            if (
-                not isinstance(view, ast.FunctionDef)
-                or view.args.args[:1] == []
-                or view.args.args[0].arg != "request"
-            ):
+            # mypy --strict annotates every function, so views are those returning a response.
+            if not isinstance(view, ast.FunctionDef) or not ast.unparse(
+                view.returns or ast.Constant(None)
+            ).endswith("Response"):
                 continue
             methods = _allowed_methods(view)
             if methods is None:

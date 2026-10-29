@@ -1,0 +1,18 @@
+{% comment %}Form layout with an error summary linking to each failing field.
+Include with: form, submit_label.{% endcomment %}
+{% if form.errors %}
+<article role="alert" aria-labelledby="error-summary-title">
+  <h2 id="error-summary-title">There is a problem</h2>
+  <ul>
+    {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+    {% for field in form %}{% for error in field.errors %}
+    <li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ error }}</a></li>
+    {% endfor %}{% endfor %}
+  </ul>
+</article>
+{% endif %}
+<form method="post" novalidate>
+  {% csrf_token %}
+  {{ form }}
+  <button type="submit">{{ submit_label }}</button>
+</form>

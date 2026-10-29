@@ -34,7 +34,7 @@ def test_clean_tree_has_no_findings(tmp_path: Path) -> None:
             "templates/lab/index.html": '{% extends "kit/base.html" %}\n',
             "web/lab/views.py": (
                 "from django.views.decorators.http import require_POST\n\n"
-                "@require_POST\ndef receive(request):\n    services.receive()\n"
+                "@require_POST\ndef receive(request) -> HttpResponse:\n    services.receive()\n"
             ),
         },
     )
@@ -89,14 +89,36 @@ def test_listed_choice_members(tmp_path: Path) -> None:
 def test_mutation_in_a_view_that_allows_get(tmp_path: Path) -> None:
     code = (
         "from django.views.decorators.http import require_GET\n\n"
-        "@require_GET\ndef index(request):\n    sample.save()\n"
+        "@require_GET\ndef index(request) -> HttpResponse:\n    sample.save()\n"
     )
     root = tree(tmp_path, {"web/lab/views.py": code})
     assert counts(root)["get_mutation"] == 1
 
 
+def test_mutation_only_on_post_is_allowed(tmp_path: Path) -> None:
+    code = (
+        "@require_http_methods(['GET', 'POST'])\n"
+        "def new_order(request) -> HttpResponse:\n"
+        "    if request.method == 'POST' and form.is_valid():\n"
+        "        services.place_order()\n"
+        "    else:\n"
+        "        order.save()\n"
+        "    return render(request, 'x.html')\n"
+    )
+    root = tree(tmp_path, {"web/practice/views.py": code})
+    assert audit.run(root)["get_mutation"] == [
+        "web/practice/views.py:2: view new_order allows GET and mutates"
+    ]
+
+
+def test_helpers_taking_a_request_are_not_views(tmp_path: Path) -> None:
+    code = "def gp_of(request) -> GP:\n    return GP.objects.get()\n"
+    root = tree(tmp_path, {"web/practice/views.py": code})
+    assert counts(root)["get_mutation"] == 0
+
+
 def test_view_without_declared_methods(tmp_path: Path) -> None:
-    code = "def index(request):\n    return render(request, 'x.html')\n"
+    code = "def index(request) -> HttpResponse:\n    return render(request, 'x.html')\n"
     root = tree(tmp_path, {"web/lab/views.py": code})
     assert counts(root)["get_mutation"] == 1
 

@@ -1,0 +1,8 @@
+{% comment %}Index header: a page title and, optionally, its one primary action.
+Include with: title, and action_url + action_label (empty for none).{% endcomment %}
+<hgroup>
+  <h1>{{ title }}</h1>
+</hgroup>
+{% if action_url %}
+<p><a href="{{ action_url }}" role="button">{{ action_label }}</a></p>
+{% endif %}

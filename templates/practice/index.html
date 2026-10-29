@@ -1,0 +1,25 @@
+{% extends "kit/base.html" %}
+{% block title %}Orders{% endblock %}
+{% block content %}
+{% url "practice:new_order" as new_order_url %}
+{% include "kit/index_header.html" with title="Orders" action_url=new_order_url action_label="New order" %}
+{% if orders %}
+<table>
+  <thead>
+    <tr><th scope="col">Ordered</th><th scope="col">Patient</th><th scope="col">Test</th><th scope="col">Clinical indication</th></tr>
+  </thead>
+  <tbody>
+    {% for order in orders %}
+    <tr>
+      <td>{{ order.ordered_at|date:"j M Y, H:i" }}</td>
+      <td>{{ order.patient.name }}</td>
+      <td>{{ order.get_test_display }}</td>
+      <td>{{ order.get_indication_display|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No orders yet.</p>
+{% endif %}
+{% endblock %}
