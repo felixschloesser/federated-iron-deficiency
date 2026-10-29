@@ -60,7 +60,7 @@ def test_index_offers_an_order_page_per_test(
 def test_unknown_test_is_not_found(
     client: Client, general_practitioner: GeneralPractitioner
 ) -> None:
-    url = reverse("practice:new_order", kwargs={"test": "vitamin-d"})
+    url = reverse("practice:index") + "orders/new/vitamin-d/"
     assert logged_in(client, general_practitioner).get(url).status_code == 404
 
 

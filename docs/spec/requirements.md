@@ -90,7 +90,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R8 | With no deployed model, an analysed CBC is *awaiting screening*; its lab report is not visible and *Screen* is refused beside the action. Once a model is deployed, *Screen* records the result. | `screening.feature` |
 | R9 | The lab report shows the results; the comment appears only for *ferritin suggested*. *Ferritin not suggested* and *not screened* show nothing about screening. | `reports.feature` |
 | R10 | A general practitioner marks a lab report as read with a POST; the reports index shows unread ones. | `reports.feature` |
-| R11 | *Order ferritin* is offered on a lab report with *ferritin suggested* when the patient has no ferritin order after it; it opens the order form with patient and test filled in. | `reports.feature` |
+| R11 | *Order ferritin* is offered on a lab report with *ferritin suggested* when the patient has no ferritin order after it; it opens the ferritin order page with the patient filled in. | `reports.feature` |
 | R12 | A ferritin sample is never screened; its lab report is visible once analysed. | `lab.feature` |
 | R13 | Every general practitioner query is scoped to the general practitioner's own patients; another general practitioner's order or lab report returns 404. | `access.feature` |
 | R14 | Lab queries select only sample ID, ordering general practitioner, registered sex, age, test, indication and results; never the patient's name. | `access.feature` |
@@ -143,7 +143,7 @@ All are POSTs that redirect on success; services take `now`.
 | Log in | Anyone | Django login form; demo buttons when `DEMO_LOGIN` |
 | Lab reports (general practitioner index) | general practitioner | Own lab reports, newest first, unread marked; pending orders |
 | Lab report | general practitioner | Results, comment (R9), *Mark as read*, *Order ferritin* (R11) |
-| New order | general practitioner | Patient, test, clinical indication |
+| Order CBC, Order ferritin | general practitioner | One page per test: patient, and the clinical indication only for a test that takes one |
 | Samples (lab index) | Lab technician | Orders to receive, samples to analyse, awaiting screening, screened; *Receive*, *Run analyser*, *Screen* |
 
 Index pages assert their query count. Conditional controls (*Order ferritin*,

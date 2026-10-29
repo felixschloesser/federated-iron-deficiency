@@ -1,8 +1,7 @@
 {% extends "kit/base.html" %}
 {% block title %}Orders{% endblock %}
 {% block content %}
-{% url "practice:new_order" as new_order_url %}
-{% include "kit/index_header.html" with title="Orders" action_url=new_order_url action_label="New order" %}
+{% include "kit/index_header.html" with title="Orders" actions=actions %}
 {% if orders %}
 <table>
   <thead>

@@ -4,13 +4,13 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpRequest, HttpResponse, HttpResponseBase
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import FormView, ListView
 
 from web.practice import services
 from web.practice.forms import OrderForm
-from web.practice.models import GeneralPractitioner, Order, OrderQuerySet
+from web.practice.models import GeneralPractitioner, Order, OrderQuerySet, Test
 
 
 class GeneralPractitionerRequiredMixin(LoginRequiredMixin):
@@ -41,6 +41,16 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
         ).select_related("patient")
         return orders.order_by("-ordered_at", "-pk")
 
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        actions = [
+            {
+                "url": reverse("practice:new_order", kwargs={"test": test}),
+                "label": f"Order {test.label}",
+            }
+            for test in Test
+        ]
+        return {**super().get_context_data(**kwargs), "actions": actions}
+
 
 class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
     template_name = "practice/new_order.html"
@@ -51,15 +61,19 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
         return {
             **super().get_form_kwargs(),
             "general_practitioner": self.general_practitioner,
+            "test": self.kwargs["test"],
         }
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        return {**super().get_context_data(**kwargs), "test": self.kwargs["test"]}
 
     def form_valid(self, form: OrderForm) -> HttpResponse:
         try:
             services.place_order(
                 general_practitioner=self.general_practitioner,
                 patient=form.cleaned_data["patient"],
-                test=form.cleaned_data["test"],
-                indication=form.cleaned_data["indication"],
+                test=self.kwargs["test"],
+                indication=form.cleaned_data.get("indication"),
                 now=timezone.now(),
             )
         except ValidationError as error:

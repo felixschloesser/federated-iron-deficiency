@@ -13,7 +13,7 @@ class RegisteredSex(models.TextChoices):
 
 class Test(models.TextChoices):
     CBC = "cbc", "CBC"
-    FERRITIN = "ferritin", "Ferritin"
+    FERRITIN = "ferritin", "ferritin"
 
     def takes_indication(self) -> bool:
         """Whether an order for this test states a clinical indication."""

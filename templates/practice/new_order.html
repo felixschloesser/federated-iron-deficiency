@@ -1,6 +1,6 @@
 {% extends "kit/base.html" %}
-{% block title %}New order{% endblock %}
+{% block title %}Order {{ test.label }}{% endblock %}
 {% block content %}
-{% include "kit/index_header.html" with title="New order" action_url="" action_label="" %}
+{% include "kit/index_header.html" with title="Order "|add:test.label %}
 {% include "kit/form.html" with form=form submit_label="Place order" %}
 {% endblock %}
