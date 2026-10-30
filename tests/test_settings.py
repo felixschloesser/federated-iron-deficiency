@@ -4,6 +4,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -97,7 +98,7 @@ def test_a_party_holds_only_its_own_tables(
     env = {folder: str(tmp_path)}
     run_manage(env, "migrate", "-v0")
     run_manage(env, command, "--nhanes", str(nhanes))
-    with sqlite3.connect(tmp_path / "web.sqlite3") as database:
+    with closing(sqlite3.connect(tmp_path / "web.sqlite3")) as database:
         tables = {
             name
             for (name,) in database.execute(
