@@ -7,6 +7,8 @@ import django_stubs_ext
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.utils import get_random_secret_key
 
+from web.party import Party
+
 # Lets generic views be subscripted (ListView[Order]) at runtime, as mypy wants.
 django_stubs_ext.monkeypatch()
 
@@ -14,9 +16,23 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
-# One deployment per hospital: what it stores lives in its own folder (spec §9, R21).
+# One deployment per party: what it stores lives in its own folder (spec §9, R21).
 HOSPITAL_DIR = (
     Path(os.environ["HOSPITAL_DIR"]) if "HOSPITAL_DIR" in os.environ else None
+)
+PRACTICE_DIR = (
+    Path(os.environ["PRACTICE_DIR"]) if "PRACTICE_DIR" in os.environ else None
+)
+if HOSPITAL_DIR is not None and PRACTICE_DIR is not None:
+    raise ImproperlyConfigured("Set HOSPITAL_DIR or PRACTICE_DIR, not both.")
+PARTY_DIR = HOSPITAL_DIR or PRACTICE_DIR
+# None: a development checkout, serving every party's pages from one database.
+PARTY = (
+    Party.HOSPITAL
+    if HOSPITAL_DIR
+    else Party.GENERAL_PRACTITIONER
+    if PRACTICE_DIR
+    else None
 )
 # The hospital's final models (R16); without HOSPITAL_DIR, an optional folder.
 FINAL_MODELS_DIR = (
@@ -27,18 +43,27 @@ FINAL_MODELS_DIR = (
     else None
 )
 # Shown in the title bar and header; never the screening's name.
-HOSPITAL_NAME = os.environ.get("HOSPITAL_NAME", "Demo hospital")
-if HOSPITAL_DIR is not None and "DATABASE_NAME" in os.environ:
+PARTY_NAME = (
+    os.environ.get("PRACTICE_NAME", "Demo practice")
+    if PRACTICE_DIR
+    else os.environ.get("HOSPITAL_NAME", "Demo hospital")
+)
+if PARTY_DIR is not None and "DATABASE_NAME" in os.environ:
     raise ImproperlyConfigured(
-        "DATABASE_NAME cannot be set with HOSPITAL_DIR: the database lives in HOSPITAL_DIR."
+        "DATABASE_NAME cannot be set with HOSPITAL_DIR or PRACTICE_DIR:"
+        " the database lives in that folder."
     )
+# The hospital's messaging endpoint; the practice is always the client (R23).
+MESSAGING_ADDRESS = os.environ.get("MESSAGING_ADDRESS")
+if MESSAGING_ADDRESS is not None and PRACTICE_DIR is None:
+    raise ImproperlyConfigured("MESSAGING_ADDRESS needs PRACTICE_DIR.")
 
 
 def _secret_key() -> str:
     """Return the key from the environment, else one kept per checkout."""
     if key := os.environ.get("DJANGO_SECRET_KEY"):
         return key
-    path = (HOSPITAL_DIR or BASE_DIR) / ".secret_key"
+    path = (PARTY_DIR or BASE_DIR) / ".secret_key"
     if not path.exists():
         path.write_text(get_random_secret_key())
         path.chmod(0o600)
@@ -88,7 +113,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "web.accounts.context_processors.navigation",
-                "web.context_processors.hospital",
+                "web.context_processors.party",
             ],
         },
     },
@@ -101,8 +126,8 @@ DATABASE_NAME = os.environ.get("DATABASE_NAME", BASE_DIR.name)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": HOSPITAL_DIR / "web.sqlite3"
-        if HOSPITAL_DIR
+        "NAME": PARTY_DIR / "web.sqlite3"
+        if PARTY_DIR
         else BASE_DIR / f"{DATABASE_NAME}.sqlite3",
         # A file, not memory: Django never closes an in-memory database, so the
         # messaging endpoint's threads would leave their connections open in tests.

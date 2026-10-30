@@ -125,7 +125,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R18 | The laboratory director deploys any final model that can be deployed, including an older one (rollback). The app keeps the deployment history (final model, deployed at) and nothing else: no account, no reason. Past screening results are never re-screened. | `deployment.feature` |
 | R19 | Before each screening the deployed model's file is hashed; if it no longer matches the SHA-256 recorded at deployment, there is no usable deployed model (R8). | `deployment.feature`, `screening.feature` |
 | R20 | A final model's metadata holds only this hospital's local validation and the federated aggregate the ServerApp computed; never another hospital's metrics. | `tests/test_final_models.py` |
-| R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), and code under `web/` imports from the training package only `iron_deficiency.screening` and `iron_deficiency.dataset` (audit check). | `tests/test_settings.py`, `tools/audit.py` |
+| R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), a practice's only its own (`PRACTICE_DIR`), and each serves only its own party's pages, and code under `web/` imports from the training package only `iron_deficiency.screening` and `iron_deficiency.dataset` (audit check). | `tests/test_settings.py`, `tools/audit.py` |
 
 ## 3. Agents
 
@@ -249,11 +249,11 @@ demo/
     ├── heilig-hart-leuven/      TB1 (2015–2016, 50%)
     └── az-diest/                TB1 (2017–2018, 25%)
 └── practices/                   E3, outside TB1: each general practitioner's own app
-    ├── de-akker/                Huisartsenpraktijk De Akker, Heverlee → UZ Leuven
+    ├── huisartsenpraktijk-de-akker/  Heverlee → UZ Leuven
     │   ├── certificates/        client certificate from UZ Leuven's CA, and that CA's certificate
     │   └── web.sqlite3          patients, orders, fetched lab reports
-    ├── de-berk/                 Huisartsenpraktijk De Berk, Kessel-Lo → Heilig Hart Leuven
-    └── de-ceder/                Huisartsenpraktijk De Ceder, Diest → AZ Diest
+    ├── huisartsenpraktijk-de-berk/   Kessel-Lo → Heilig Hart Leuven
+    └── huisartsenpraktijk-de-ceder/  Diest → AZ Diest
 ```
 
 The three practices are fictional; a real practice may share a name.
@@ -269,8 +269,12 @@ start if its database or final models lie outside `HOSPITAL_DIR`.
 Each hospital also runs a messaging endpoint (UZ Leuven 8441, Heilig Hart
 Leuven 8442, AZ Diest 8443) next to its staff app (8001–8003), and each
 general practitioner's app runs on its own port (De Akker 8011, De Berk 8012,
-De Ceder 8013). Each hospital folder gains `ca/` (its certificate authority)
-and the endpoint's server certificate.
+De Ceder 8013) with `PRACTICE_DIR` set to its folder and `MESSAGING_ADDRESS`
+to its hospital's endpoint, next to a process that checks for lab reports
+every 60 seconds (`check_for_lab_reports --every 60`). Each hospital folder
+gains `ca/` (its certificate authority) and `messaging/` (the endpoint's
+server certificate, served by `serve_messages`). Without either folder set,
+a development checkout serves every party's pages from one database.
 
 ## 10. Messages between the general practitioner and the hospital (DF1, DF20)
 

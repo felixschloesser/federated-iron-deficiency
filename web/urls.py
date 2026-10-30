@@ -1,10 +1,14 @@
 """URLconf; each slice adds its app's routes."""
 
+from typing import assert_never
+
+from django.conf import settings
 from django.contrib.auth import views as auth_views
 from django.urls import URLPattern, URLResolver, include, path
 
 from web.accounts.forms import RoleAuthenticationForm
 from web.accounts.views import HomeView
+from web.party import Party
 from web.views import ServerErrorView
 
 urlpatterns: list[URLPattern | URLResolver] = [
@@ -18,9 +22,28 @@ urlpatterns: list[URLPattern | URLResolver] = [
         name="login",
     ),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
-    path("practice/", include("web.practice.urls")),
-    path("lab/", include("web.lab.urls")),
-    path("deployment/", include("web.deployment.urls")),
 ]
+
+
+def party_urls(party: Party | None) -> list[URLResolver]:
+    """The pages of one party's deployment; in development, every party's."""
+    match party:
+        case None:
+            return [
+                *party_urls(Party.HOSPITAL),
+                *party_urls(Party.GENERAL_PRACTITIONER),
+            ]
+        case Party.HOSPITAL:
+            return [
+                path("lab/", include("web.lab.urls")),
+                path("deployment/", include("web.deployment.urls")),
+            ]
+        case Party.GENERAL_PRACTITIONER:
+            return [path("practice/", include("web.practice.urls"))]
+        case _:
+            assert_never(party)
+
+
+urlpatterns += party_urls(settings.PARTY)
 
 handler500 = ServerErrorView.as_view()

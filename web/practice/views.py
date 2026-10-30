@@ -1,17 +1,21 @@
 from functools import cached_property
 from typing import Any
 
+import grpc
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404
+from django.http import Http404, HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.template.defaultfilters import pluralize
 from django.urls import reverse
 from django.utils import timezone
-from django.views.generic import DetailView, FormView, ListView
+from django.views.generic import DetailView, FormView, ListView, View
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
+from web.messaging import client
 from web.practice import services
 from web.practice.forms import OrderForm
 from web.practice.models import GeneralPractitioner, Order, OrderQuerySet, Patient
@@ -82,6 +86,33 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
         ).select_related("patient")
         return orders.order_by("-ordered_at", "-pk")
 
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        # Only a practice with a hospital to ask can check for reports (R23).
+        url = (
+            reverse("practice:check_for_reports")
+            if settings.MESSAGING_ADDRESS
+            else None
+        )
+        return {**super().get_context_data(**kwargs), "check_for_reports_url": url}
+
+
+class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
+    """Sends pending lab orders and fetches new lab reports now (R23)."""
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        connection = client.configured_connection()
+        if connection is None:
+            raise Http404
+        try:
+            fetched = client.check_for_lab_reports(connection, now=timezone.now())
+        except grpc.RpcError:
+            messages.error(
+                request, "The hospital could not be reached. Try again later."
+            )
+        else:
+            messages.success(request, f"{fetched} new lab report{pluralize(fetched)}.")
+        return redirect("practice:orders")
+
 
 class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
     """Orders one test for one patient: both chosen before the form."""
@@ -120,4 +151,13 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
                 form.add_error(field if field in form.fields else None, errors)
             return self.form_invalid(form)
         messages.success(self.request, "Order placed.")
+        if (connection := client.configured_connection()) is not None:
+            try:
+                client.send_pending_lab_orders(connection, now=timezone.now())
+            except grpc.RpcError:
+                messages.warning(
+                    self.request,
+                    "The hospital could not be reached; the lab order is"
+                    " sent with the next check for reports.",
+                )
         return super().form_valid(form)

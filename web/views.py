@@ -12,5 +12,5 @@ class ServerErrorView(View):
     def dispatch(
         self, request: HttpRequest, *args: Any, **kwargs: Any
     ) -> HttpResponseServerError:
-        context = {"hospital_name": settings.HOSPITAL_NAME}
+        context = {"party_name": settings.PARTY_NAME}
         return HttpResponseServerError(render_to_string("500.html", context))

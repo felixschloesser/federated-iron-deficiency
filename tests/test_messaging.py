@@ -322,7 +322,9 @@ def released_ferritin(owner: GeneralPractitioner) -> Patient:
         indication=None,
         now=NOW,
     )
-    messaging.send_pending_lab_orders(messaging.configured_connection(), now=NOW)
+    connection = messaging.configured_connection()
+    assert connection is not None
+    messaging.send_pending_lab_orders(connection, now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get()
     lab_services.receive(sample=lab_order.sample, now=NOW)
     lab_services.run_analyser(lab_order=lab_order, now=NOW)

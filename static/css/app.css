@@ -22,6 +22,10 @@ article[role="status"][data-level="success"] {
   border-color: var(--pico-ins-color);
 }
 
+article[role="status"][data-level="warning"] {
+  border-color: var(--pico-mark-background-color);
+}
+
 article[role="status"][data-level="error"] {
   border-color: var(--pico-del-color);
 }

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import grpc
+from django.conf import settings
 from django.db import transaction
 
 from web.messaging import messages_pb2, messages_pb2_grpc
@@ -20,6 +21,19 @@ class Connection:
     root_certificate: bytes
     certificate: bytes | None
     private_key: bytes | None
+
+
+def configured_connection() -> Connection | None:
+    """The practice's connection to its hospital, or None without one to ask."""
+    if settings.MESSAGING_ADDRESS is None or settings.PARTY_DIR is None:
+        return None
+    certificates = settings.PARTY_DIR / "certificates"
+    return Connection(
+        address=settings.MESSAGING_ADDRESS,
+        root_certificate=(certificates / "ca.crt").read_bytes(),
+        certificate=(certificates / "certificate.pem").read_bytes(),
+        private_key=(certificates / "key.pem").read_bytes(),
+    )
 
 
 def _laboratory(connection: Connection) -> messages_pb2_grpc.LaboratoryStub:

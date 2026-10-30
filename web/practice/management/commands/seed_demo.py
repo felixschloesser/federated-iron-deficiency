@@ -21,6 +21,7 @@ from web.accounts.models import User
 from web.deployment.models import LaboratoryDirector
 from web.lab.models import LaboratoryStaffMember
 from web.nhanes.models import Participant
+from web.party import Party
 from web.practice.models import GeneralPractitioner, Patient
 from web.vocabulary import RegisteredSex
 
@@ -85,21 +86,23 @@ def general_practitioner(username: str, name: str) -> GeneralPractitioner:
     return practitioner
 
 
-def patient(
-    row: Mapping[Hashable, Any], name: str, owner: GeneralPractitioner
-) -> Patient:
+def participant(row: Mapping[Hashable, Any]) -> None:
+    """The hospital's analyser stand-in: what this patient's tube would measure."""
     ferritin = row["LBXFER"]
-    seqn = int(row["sample_id"])
-    # The hospital's analyser stand-in: what this patient's tube would measure.
     Participant.objects.get_or_create(
-        seqn=seqn,
+        seqn=int(row["sample_id"]),
         defaults={
             "cbc": {var: float(row[var]) for var in CBC_VARS},
             "ferritin": None if pd.isna(ferritin) else float(ferritin),
         },
     )
+
+
+def patient(
+    row: Mapping[Hashable, Any], name: str, owner: GeneralPractitioner
+) -> Patient:
     record, _ = Patient.objects.get_or_create(
-        sample_id=str(seqn),
+        sample_id=str(int(row["sample_id"])),
         defaults={
             "general_practitioner": owner,
             "name": name,
@@ -108,6 +111,29 @@ def patient(
         },
     )
     return record
+
+
+def seed_hospital(rows: list[dict[Hashable, Any]]) -> list[str]:
+    LaboratoryStaffMember.objects.get_or_create(
+        user=user("lab-1"), defaults={"name": "Laboratory Staff 1"}
+    )
+    LaboratoryDirector.objects.get_or_create(
+        user=user("director-1"), defaults={"name": "Laboratory Director 1"}
+    )
+    for row in rows:
+        participant(row)
+    return ["lab-1", "director-1"]
+
+
+def seed_practice(rows: list[dict[Hashable, Any]]) -> list[str]:
+    practitioners = [
+        general_practitioner("doctor-a", "Dr. Demo A"),
+        general_practitioner("doctor-b", "Dr. Demo B"),
+    ]
+    for number, row in enumerate(rows, start=1):
+        owner = practitioners[(number - 1) % len(practitioners)]
+        patient(row, f"Test Patient {number}", owner)
+    return ["doctor-a", "doctor-b"]
 
 
 class Command(BaseCommand):
@@ -127,23 +153,21 @@ class Command(BaseCommand):
                 "Demo accounts share a known password; run with DJANGO_DEBUG=1."
             )
         nhanes = pd.read_csv(options["nhanes"]) if options["nhanes"] else load_nhanes()
-        rows = choose(nhanes, seed=options["seed"])
+        # Both parties seed the same participants: the practice their patients,
+        # the hospital what their tubes would measure.
+        rows = choose(nhanes, seed=options["seed"]).to_dict("records")
+        party = settings.PARTY
         with transaction.atomic():
-            practitioners = [
-                general_practitioner("doctor-a", "Dr. Demo A"),
-                general_practitioner("doctor-b", "Dr. Demo B"),
+            accounts = [
+                *(
+                    seed_hospital(rows)
+                    if party is not Party.GENERAL_PRACTITIONER
+                    else []
+                ),
+                *(seed_practice(rows) if party is not Party.HOSPITAL else []),
             ]
-            LaboratoryStaffMember.objects.get_or_create(
-                user=user("lab-1"), defaults={"name": "Laboratory Staff 1"}
-            )
-            LaboratoryDirector.objects.get_or_create(
-                user=user("director-1"), defaults={"name": "Laboratory Director 1"}
-            )
             user("no-role")  # Has no role: for the refusal at login.
-            for number, row in enumerate(rows.to_dict("records"), start=1):
-                owner = practitioners[(number - 1) % len(practitioners)]
-                patient(row, f"Test Patient {number}", owner)
         self.stdout.write(
-            f"Accounts doctor-a, doctor-b, lab-1, director-1 and no-role, password {PASSWORD};"
-            f" {len(rows)} NHANES patients"
+            f"Accounts {', '.join(accounts)} and no-role, password {PASSWORD};"
+            f" {len(rows)} NHANES participants"
         )

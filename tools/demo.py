@@ -3,8 +3,9 @@
     python tools/demo.py up      # prepare demo/, start every party, Ctrl-C stops
     python tools/demo.py train   # in a second terminal: one training run over TLS
 
-The startup runs the SuperLink; each hospital runs a SuperNode and a web app,
-and sees only its own folder under demo/hospitals/.
+The startup runs the SuperLink; each hospital runs a SuperNode, a web app and
+its messaging endpoint; each general practitioner's practice runs its own web
+app and fetches lab reports from its one hospital. Each sees only its own folder.
 """
 
 import argparse
@@ -13,7 +14,6 @@ import shutil
 import signal
 import subprocess
 import sys
-import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -21,17 +21,34 @@ from functools import partial
 from pathlib import Path
 
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
+from tools.certificates import issue, make_authority
 
 ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API over HTTPS on this one address.
 SUPERLINK = "127.0.0.1:9092"
 FIRST_WEB_PORT = 8001
+FIRST_PRACTICE_PORT = 8011
+FIRST_MESSAGING_PORT = 8441
 FIRST_RUNTIME_PORT = 9094
+REPORT_CHECK_SECONDS = 60
+# Each practice sends its lab orders to one hospital (spec §9); fictional names.
+PRACTICES = dict(
+    zip(
+        CYCLES,
+        (
+            "Huisartsenpraktijk De Akker",
+            "Huisartsenpraktijk De Berk",
+            "Huisartsenpraktijk De Ceder",
+        ),
+        strict=True,
+    )
+)
 
 
 @dataclass(frozen=True)
 class Process:
     name: str
+    folder: Path
     command: list[str]
     env: dict[str, str] = field(default_factory=dict)
 
@@ -44,12 +61,28 @@ def hospital_dir(demo_dir: Path, slug: str) -> Path:
     return demo_dir / "hospitals" / slug
 
 
+def practice_dir(demo_dir: Path, slug: str) -> Path:
+    return demo_dir / "practices" / slug
+
+
 def hospitals() -> list[tuple[int, str]]:
     """Each hospital's partition ID and folder name, in CYCLES order."""
     return [
         (partition, hospital_slug(HOSPITALS[cycle]))
         for partition, cycle in enumerate(CYCLES)
     ]
+
+
+def practices() -> list[tuple[int, str]]:
+    """Each practice's folder name, numbered as its hospital's partition."""
+    return [
+        (partition, hospital_slug(PRACTICES[cycle]))
+        for partition, cycle in enumerate(CYCLES)
+    ]
+
+
+def manage(*args: str) -> list[str]:
+    return [sys.executable, str(ROOT / "manage.py"), *args]
 
 
 def plan(demo_dir: Path) -> list[Process]:
@@ -60,6 +93,7 @@ def plan(demo_dir: Path) -> list[Process]:
     processes = [
         Process(
             "superlink",
+            startup,
             [
                 str(flower / "flower-superlink"),
                 *("--host", SUPERLINK.split(":")[0]),
@@ -69,21 +103,26 @@ def plan(demo_dir: Path) -> list[Process]:
                 # took minutes to import torch, past the SuperLink's heartbeat.
                 "--disable-runtime-dependency-installation",
                 *("--ssl-ca-certfile", str(certificates / "ca.crt")),
-                *("--ssl-certfile", str(certificates / "server.pem")),
-                *("--ssl-keyfile", str(certificates / "server.key")),
+                *(
+                    "--ssl-certfile",
+                    str(certificates / "superlink" / "certificate.pem"),
+                ),
+                *("--ssl-keyfile", str(certificates / "superlink" / "key.pem")),
             ],
             {"FLWR_HOME": str(startup / "flwr-home")},
         )
     ]
-    for partition, slug in hospitals():
+    for (partition, slug), cycle in zip(hospitals(), CYCLES, strict=True):
         hospital = hospital_dir(demo_dir, slug)
         node_config = (
             f"data-path='{hospital / 'cohort'}' "
             f"final-models-path='{hospital / 'final-models'}'"
         )
-        processes.append(
+        party = {"HOSPITAL_DIR": str(hospital), "DJANGO_DEBUG": "1"}
+        processes += [
             Process(
                 f"supernode {slug}",
+                hospital,
                 [
                     str(flower / "flower-supernode"),
                     *("--superlink", SUPERLINK),
@@ -93,84 +132,50 @@ def plan(demo_dir: Path) -> list[Process]:
                     *("--node-config", node_config),
                 ],
                 {"FLWR_HOME": str(hospital / "flwr-home")},
-            )
-        )
-        processes.append(
+            ),
             Process(
                 f"web {slug}",
-                [
-                    sys.executable,
-                    str(ROOT / "manage.py"),
+                hospital,
+                manage(
+                    "runserver", "--noreload", f"127.0.0.1:{FIRST_WEB_PORT + partition}"
+                ),
+                {**party, "HOSPITAL_NAME": HOSPITALS[cycle]},
+            ),
+            Process(
+                f"messaging {slug}",
+                hospital,
+                manage(
+                    "serve_messages", f"127.0.0.1:{FIRST_MESSAGING_PORT + partition}"
+                ),
+                party,
+            ),
+        ]
+    for (partition, slug), cycle in zip(practices(), CYCLES, strict=True):
+        practice = practice_dir(demo_dir, slug)
+        party = {
+            "PRACTICE_DIR": str(practice),
+            "MESSAGING_ADDRESS": f"127.0.0.1:{FIRST_MESSAGING_PORT + partition}",
+            "DJANGO_DEBUG": "1",
+        }
+        processes += [
+            Process(
+                f"web {slug}",
+                practice,
+                manage(
                     "runserver",
                     "--noreload",
-                    f"127.0.0.1:{FIRST_WEB_PORT + partition}",
-                ],
-                {
-                    "HOSPITAL_DIR": str(hospital),
-                    "HOSPITAL_NAME": HOSPITALS[list(CYCLES)[partition]],
-                    "DJANGO_DEBUG": "1",
-                },
-            )
-        )
+                    f"127.0.0.1:{FIRST_PRACTICE_PORT + partition}",
+                ),
+                {**party, "PRACTICE_NAME": PRACTICES[cycle]},
+            ),
+            Process(
+                f"reports {slug}",
+                practice,
+                manage("check_for_lab_reports", "--every", str(REPORT_CHECK_SECONDS)),
+                party,
+            ),
+        ]
     return processes
-
-
-def make_certificates(certificates: Path) -> None:
-    """A self-signed CA and a SuperLink certificate for localhost."""
-    certificates.mkdir(parents=True, exist_ok=True)
-
-    def openssl(*args: str) -> None:
-        subprocess.run(
-            ["openssl", *args], cwd=certificates, check=True, capture_output=True
-        )
-
-    openssl(
-        "req",
-        "-x509",
-        "-newkey",
-        "rsa:2048",
-        "-nodes",
-        "-days",
-        "30",
-        "-subj",
-        "/CN=Demo startup CA",
-        "-keyout",
-        "ca.key",
-        "-out",
-        "ca.crt",
-    )
-    openssl(
-        "req",
-        "-newkey",
-        "rsa:2048",
-        "-nodes",
-        "-subj",
-        "/CN=localhost",
-        "-keyout",
-        "server.key",
-        "-out",
-        "server.csr",
-    )
-    with tempfile.NamedTemporaryFile("w", suffix=".ext") as extensions:
-        extensions.write("subjectAltName=DNS:localhost,IP:127.0.0.1\n")
-        extensions.flush()
-        openssl(
-            "x509",
-            "-req",
-            "-in",
-            "server.csr",
-            "-CA",
-            "ca.crt",
-            "-CAkey",
-            "ca.key",
-            "-CAcreateserial",
-            "-days",
-            "30",
-            "-out",
-            "server.pem",
-            "-extfile",
-            extensions.name,
-        )
 
 
 def from_hub[T](load: Callable[[], T], attempts: int = 4) -> T:
@@ -186,6 +191,14 @@ def from_hub[T](load: Callable[[], T], attempts: int = 4) -> T:
     return load()
 
 
+def prepare_web(folder: Path, party: str, partition: int) -> None:
+    """Migrate the party's database and seed its demo accounts."""
+    env = {**os.environ, party: str(folder), "DJANGO_DEBUG": "1"}
+    subprocess.run(manage("migrate", "-v0"), env=env, check=True)
+    seed = ("--seed", str(partition), "--nhanes", str(folder / "nhanes.csv"))
+    subprocess.run(manage("seed_demo", *seed), env=env, check=True)
+
+
 def prepare(demo_dir: Path) -> None:
     """Create what is missing: certificates, cohorts, connection, web databases."""
     from iron_deficiency.dataset import (
@@ -196,8 +209,9 @@ def prepare(demo_dir: Path) -> None:
 
     startup = startup_dir(demo_dir)
     certificates = startup / "certificates"
-    if not (certificates / "ca.crt").exists():
-        make_certificates(certificates)
+    if not (certificates / "superlink" / "certificate.pem").exists():
+        startup_authority = make_authority(certificates, "Demo startup")
+        issue(startup_authority, certificates / "superlink", "localhost", server=True)
     (startup / "superlink").mkdir(parents=True, exist_ok=True)
     flwr_home = startup / "flwr-home"
     flwr_home.mkdir(parents=True, exist_ok=True)
@@ -208,35 +222,38 @@ def prepare(demo_dir: Path) -> None:
     )
     federated_dataset = None
     nhanes = None
-    for partition, slug in hospitals():
+    for (partition, slug), (_, practice_slug), cycle in zip(
+        hospitals(), practices(), CYCLES, strict=True
+    ):
         hospital = hospital_dir(demo_dir, slug)
+        practice = practice_dir(demo_dir, practice_slug)
         # The hospital holds its own copy of the startup's CA certificate.
         (hospital / "certificates").mkdir(parents=True, exist_ok=True)
         shutil.copy(certificates / "ca.crt", hospital / "certificates" / "ca.crt")
+        # Each hospital is its own CA: its endpoint's certificate, its practice's.
+        if not (practice / "certificates" / "certificate.pem").exists():
+            authority = make_authority(hospital / "ca", HOSPITALS[cycle])
+            issue(authority, hospital / "messaging", "localhost", server=True)
+            # The practice trusts its hospital's CA, not the startup's.
+            issue(authority, practice / "certificates", PRACTICES[cycle], server=False)
+            shutil.copy(authority.certificate, practice / "certificates" / "ca.crt")
         if not (hospital / "cohort").exists():
             federated_dataset = federated_dataset or load_federated_dataset()
             cohort = from_hub(partial(federated_dataset.load_partition, partition))
             cohort.save_to_disk(hospital / "cohort")
-        # The hospital's patients come from NHANES 2021-2023, loaded once.
-        if not (hospital / "nhanes.csv").exists():
-            if nhanes is None:
-                nhanes = from_hub(
-                    lambda: load_new_samples().merge(
-                        load_ferritin(), on="sample_id", how="left"
+        # The same NHANES 2021-2023 participants: the practice's patients and
+        # the hospital's analyser stand-in, loaded once.
+        for folder in (hospital, practice):
+            if not (folder / "nhanes.csv").exists():
+                if nhanes is None:
+                    nhanes = from_hub(
+                        lambda: load_new_samples().merge(
+                            load_ferritin(), on="sample_id", how="left"
+                        )
                     )
-                )
-            nhanes.to_csv(hospital / "nhanes.csv", index=False)
-        web = {**os.environ, "HOSPITAL_DIR": str(hospital), "DJANGO_DEBUG": "1"}
-        manage = [sys.executable, str(ROOT / "manage.py")]
-        subprocess.run([*manage, "migrate", "-v0"], env=web, check=True)
-        seed = [
-            "seed_demo",
-            "--seed",
-            str(partition),
-            "--nhanes",
-            str(hospital / "nhanes.csv"),
-        ]
-        subprocess.run([*manage, *seed], env=web, check=True)
+                nhanes.to_csv(folder / "nhanes.csv", index=False)
+        prepare_web(hospital, "HOSPITAL_DIR", partition)
+        prepare_web(practice, "PRACTICE_DIR", partition)
 
 
 def up(demo_dir: Path) -> None:
@@ -247,13 +264,7 @@ def up(demo_dir: Path) -> None:
     running: list[subprocess.Popen[bytes]] = []
     try:
         for process in plan(demo_dir):
-            party = process.name.split()[-1]
-            folder = (
-                startup_dir(demo_dir)
-                if party == "superlink"
-                else hospital_dir(demo_dir, party)
-            )
-            output = (folder / f"{process.name.split()[0]}.out").open("wb")
+            output = (process.folder / f"{process.name.split()[0]}.out").open("wb")
             running.append(
                 subprocess.Popen(
                     process.command,
@@ -264,6 +275,9 @@ def up(demo_dir: Path) -> None:
             )
         for partition, slug in hospitals():
             print(f"{slug}: http://127.0.0.1:{FIRST_WEB_PORT + partition}/", flush=True)
+        for partition, slug in practices():
+            port = FIRST_PRACTICE_PORT + partition
+            print(f"{slug}: http://127.0.0.1:{port}/", flush=True)
         print(
             "Train with: python tools/demo.py train. Ctrl-C stops every party.",
             flush=True,

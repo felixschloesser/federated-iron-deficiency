@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{% endblock %}{% if hospital_name %} · {{ hospital_name }}{% endif %}</title>
+  <title>{% block title %}{% endblock %}{% if party_name %} · {{ party_name }}{% endif %}</title>
   <link rel="stylesheet" href="{% static 'css/vendor/pico-2.1.1/pico.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
@@ -12,7 +12,7 @@
   <header class="container">
     <nav>
       {# 500.html renders without context, so the name may be absent. #}
-      <ul><li>{% if hospital_name %}<strong>{{ hospital_name }}</strong>{% endif %}</li></ul>
+      <ul><li>{% if party_name %}<strong>{{ party_name }}</strong>{% endif %}</li></ul>
       {% if user.is_authenticated %}
       <ul>
         {% for link in nav_links %}<li><a href="{{ link.url }}">{{ link.label }}</a></li>{% endfor %}

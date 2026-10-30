@@ -91,5 +91,5 @@ def test_each_practice_talks_to_its_own_hospital() -> None:
     for cycle, practice in PRACTICES.items():
         address = endpoints[hospital_slug(HOSPITALS[cycle])]
         for process in plan(DEMO):
-            if process.name.split()[1] == hospital_slug(practice):
+            if process.name.endswith(f" {hospital_slug(practice)}"):
                 assert process.env["MESSAGING_ADDRESS"] == address, process.name
