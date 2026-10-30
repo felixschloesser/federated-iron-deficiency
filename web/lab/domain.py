@@ -1,5 +1,7 @@
 """Screening results (R4, R5, R8; terms: docs/spec/requirements.md §1)."""
 
+from typing import assert_never
+
 from django.db import models
 
 from iron_deficiency.dataset import ELIGIBLE_AGES
@@ -23,3 +25,13 @@ class NotScreened(models.TextChoices):
         "deployed_model_changed",
         "deployed model file changed",
     )
+
+    def is_model_problem(self) -> bool:
+        """Whether the hospital's model, not the patient, kept the CBC unscreened."""
+        match self:
+            case NotScreened.INDICATION | NotScreened.SEX | NotScreened.AGE:
+                return False
+            case NotScreened.NO_DEPLOYED_MODEL | NotScreened.DEPLOYED_MODEL_CHANGED:
+                return True
+            case _:
+                assert_never(self)

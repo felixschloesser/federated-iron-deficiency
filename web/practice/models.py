@@ -1,9 +1,11 @@
 """General practitioners, their patients, and orders (terms: docs/spec/requirements.md §1)."""
 
+from dataclasses import dataclass
+
 from django.conf import settings
 from django.db import models
 
-from web.vocabulary import ClinicalIndication, RegisteredSex, Test
+from web.vocabulary import RESULT_NAMES, ClinicalIndication, RegisteredSex, Test
 
 
 class GeneralPractitioner(models.Model):
@@ -69,13 +71,36 @@ class Order(models.Model):
         )
 
 
+@dataclass(frozen=True)
+class ResultValue:
+    variable: str
+    name: str
+    unit: str
+    value: float
+
+
 class LabReport(models.Model):
-    """A lab report fetched from the hospital (DF20): results and the comment only."""
+    """A lab report fetched from the hospital (DF20): results, and whether
+    ferritin is suggested; nothing else of screening (R9, R25)."""
 
     order = models.OneToOneField(
         Order, on_delete=models.PROTECT, related_name="lab_report"
     )
     results = models.JSONField()
-    comment = models.TextField(blank=True)
+    ferritin_suggested = models.BooleanField(default=False)
     released_at = models.DateTimeField()
     fetched_at = models.DateTimeField()
+
+    @property
+    def comment(self) -> str:
+        """The comment the general practitioner reads: only for a suggestion (R9)."""
+        return "Ferritin suggested." if self.ferritin_suggested else ""
+
+    def values(self) -> list[ResultValue]:
+        """The measured values under NHANES's names and units, uninterpreted;
+        empty when NHANES has none (R3)."""
+        return [
+            ResultValue(variable, names.name, names.unit, self.results[variable])
+            for variable, names in RESULT_NAMES.items()
+            if variable in self.results
+        ]

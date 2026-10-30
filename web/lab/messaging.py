@@ -75,7 +75,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
                     sample_id=lab_order.sample.sample_id,
                     test=lab_order.test,
                     results=lab_order.results or {},
-                    comment=lab_order.comment,
+                    ferritin_suggested=lab_order.ferritin_suggested,
                     released_at=lab_order.analysed_at.isoformat(),
                 )
                 for lab_order in queries.lab_reports_to_send(client_of(context))

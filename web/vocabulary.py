@@ -1,6 +1,7 @@
 """Terms both kinds of deployment use: the general practitioner's app and the
 hospital (terms: docs/spec/requirements.md §1). No models, so either may import it."""
 
+from dataclasses import dataclass
 from typing import assert_never
 
 from django.db import models
@@ -29,3 +30,31 @@ class Test(models.TextChoices):
 class ClinicalIndication(models.TextChoices):
     NON_SPECIFIC_COMPLAINT = "non_specific_complaint", "Non-specific complaint"
     OTHER = "other", "Other"
+
+
+@dataclass(frozen=True)
+class ResultName:
+    """How a lab report names a measured value: NHANES 2021–2023's own label and
+    unit (CBC_L and FERTIN_L codebooks), keyed by the NHANES variable."""
+
+    name: str
+    unit: str
+
+
+# In the order of iron_deficiency.dataset.CBC_VARS, then ferritin; a test checks both.
+RESULT_NAMES = {
+    "LBXWBCSI": ResultName("White blood cell count", "1000 cells/µL"),
+    "LBXRBCSI": ResultName("Red blood cell count", "million cells/µL"),
+    "LBXHGB": ResultName("Hemoglobin", "g/dL"),
+    "LBXHCT": ResultName("Hematocrit", "%"),
+    "LBXMCVSI": ResultName("Mean cell volume", "fL"),
+    "LBXMC": ResultName("Mean cell hemoglobin concentration", "g/dL"),
+    "LBXMCHSI": ResultName("Mean cell hemoglobin", "pg"),
+    "LBXRDW": ResultName("Red cell distribution width", "%"),
+    "LBXPLTSI": ResultName("Platelet count", "1000 cells/µL"),
+    "LBXMPSI": ResultName("Mean platelet volume", "fL"),
+    "LBDLYMNO": ResultName("Lymphocyte number", "1000 cells/µL"),
+    "LBDNENO": ResultName("Segmented neutrophils number", "1000 cells/µL"),
+    "LBDMONO": ResultName("Monocyte number", "1000 cells/µL"),
+    "LBXFER": ResultName("Ferritin", "ng/mL"),
+}

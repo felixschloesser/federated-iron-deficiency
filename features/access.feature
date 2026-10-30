@@ -19,11 +19,6 @@ Feature: Who sees what
     When "Dr. Demo A" orders a CBC for "Test Patient 2" with indication other
     Then the order is refused with code "not_your_patient" on field "patient"
 
-  Scenario: A general practitioner cannot mark another general practitioner's lab report as read
-    Given an unread lab report for "Test Patient 2"
-    When "Dr. Demo A" marks that lab report as read
-    Then it is not found
-
   Scenario: The lab never sees a patient's name
     Given a received CBC sample for "Test Patient 1"
     Then the lab's samples hold sample ID, ordering general practitioner, registered sex, age, test, indication and results

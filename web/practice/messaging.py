@@ -111,7 +111,7 @@ def _store(report: messages_pb2.LabReport, *, now: datetime) -> bool:
         order=order,
         defaults={
             "results": dict(report.results),
-            "comment": report.comment,
+            "ferritin_suggested": report.ferritin_suggested,
             "released_at": released_at,
             "fetched_at": now,
         },

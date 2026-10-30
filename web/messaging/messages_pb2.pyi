@@ -81,7 +81,9 @@ type Global___LabOrder = LabOrder  # noqa: Y015
 
 @_typing.final
 class LabReport(_message.Message):
-    """DF20. Results and the comment only (R25): no score, no screening result."""
+    """DF20. Results and one bit of screening (R9, R25): no score, and nothing that
+    tells ferritin not suggested from not screened.
+    """
 
     DESCRIPTOR: _descriptor.Descriptor
 
@@ -109,15 +111,15 @@ class LabReport(_message.Message):
     SAMPLE_ID_FIELD_NUMBER: _builtins.int
     TEST_FIELD_NUMBER: _builtins.int
     RESULTS_FIELD_NUMBER: _builtins.int
-    COMMENT_FIELD_NUMBER: _builtins.int
     RELEASED_AT_FIELD_NUMBER: _builtins.int
+    FERRITIN_SUGGESTED_FIELD_NUMBER: _builtins.int
     report_id: _builtins.str
     sample_id: _builtins.str
     test: _builtins.str
-    comment: _builtins.str
-    """only for ferritin suggested (R9)"""
     released_at: _builtins.str
     """ISO 8601"""
+    ferritin_suggested: _builtins.bool
+    """false when absent: never a false suggestion"""
     @_builtins.property
     def results(self) -> _containers.ScalarMap[_builtins.str, _builtins.float]: ...
     def __init__(
@@ -127,14 +129,14 @@ class LabReport(_message.Message):
         sample_id: _builtins.str = ...,
         test: _builtins.str = ...,
         results: _abc.Mapping[_builtins.str, _builtins.float] | None = ...,
-        comment: _builtins.str = ...,
         released_at: _builtins.str = ...,
+        ferritin_suggested: _builtins.bool = ...,
     ) -> None: ...
     type _HasFieldArgType = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
     type _ClearFieldArgType = _typing.Literal[
-        "comment",
-        b"comment",
+        "ferritin_suggested",
+        b"ferritin_suggested",
         "released_at",
         b"released_at",
         "report_id",

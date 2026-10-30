@@ -12,6 +12,7 @@ from django.views.generic import TemplateView
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
 from web.lab import queries, services
+from web.lab.domain import NotScreened
 from web.lab.models import LabOrder, Sample
 
 
@@ -55,9 +56,17 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            messages.success(
-                request,
+            analysed = (
                 f"Sample {lab_order.sample.sample_id}:"
-                f" {lab_order.get_test_display()} analysed.",
+                f" {lab_order.get_test_display()} analysed"
             )
+            reason = lab_order.not_screened_reason
+            if reason is not None and NotScreened(reason).is_model_problem():
+                messages.warning(
+                    request,
+                    f"{analysed} and released not screened:"
+                    f" {NotScreened(reason).label}. Tell the laboratory director.",
+                )
+            else:
+                messages.success(request, f"{analysed}.")
         return redirect("lab:samples")

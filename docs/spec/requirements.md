@@ -49,10 +49,8 @@ staff is replaced and the report's word moves to the rejected column.
 | threshold | Report, Design choices | The report's word | cutoff (reserved for ferritin's 15 ng/mL) |
 | lab report | Report, DF20 | The report's word | test report (WHO p. 193) |
 | comment | Report, Use case; WHO report contents "applicable comments" (p. 193) | Both sources | interpretive comment |
-| read | — **unsourced** | A general practitioner marks a lab report as read | seen, acknowledged |
-
-Open: *read* has no source. It stays flagged until one is found or the term is
-replaced.
+| CBC value names and units, e.g. *Hemoglobin*, g/dL | NHANES 2021–2023 CBC_L codebook, SAS labels (`sources/nhanes-2021-2023-CBC_L.htm`) | The values are NHANES's own, in its units; no conversion | Hb, Ht and other report abbreviations (no source; other units) |
+| Ferritin, ng/mL | NHANES 2021–2023 FERTIN_L codebook (`sources/nhanes-2021-2023-FERTIN_L.htm`) | As above | µg/L (LBDFERSI) |
 
 ## 2. Goal model
 
@@ -77,8 +75,7 @@ G0 Achieve[Ferritin suggested to the general practitioner of a likely iron-defic
 │   └── R7 Avoid[Score stored]                                                       Lab app
 ├── G4 Achieve[Lab report visible to the ordering general practitioner]
 │   ├── R8 Achieve[Lab report released at once, screened or not]                     Lab app
-│   ├── R9 Maintain[Comment only when ferritin suggested]                            Practice app
-│   └── R10 Achieve[general practitioner can mark a lab report as read]                                Practice app
+│   └── R9 Maintain[Comment only when ferritin suggested]                            Practice app
 └── G5 Achieve[Ferritin follow-up from a lab report]
     ├── R11 Achieve[Order ferritin offered when ferritin suggested and not yet ordered]  Practice app
     └── R12 Achieve[Ferritin result recorded, never screened]                         Lab app + Analyser
@@ -110,9 +107,8 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R6 | A screening result records the final model that produced it (run ID, SHA-256, threshold). | `screening.feature` |
 | R7 | No score, probability or standardized input is stored or shown. | `screening.feature` |
 | R8 | Running the analyser on a CBC screens it at once, and its lab report is released at once. Without a usable deployed model (R19) a CBC that meets R4 is *not screened* with that reason: the general practitioner's CBC never waits for the startup's model, and is not screened again later. Screening runs in the same transaction as the analysis, so an analysed lab order is a released lab report; there is no separate release step. | `screening.feature` |
-| R9 | The lab report shows the results; the comment appears only for *ferritin suggested*. *Ferritin not suggested* and *not screened* show nothing about screening. | `screening.feature` (the comment the hospital sends), `reports.feature` |
-| R10 | A general practitioner marks a lab report as read with a POST; the reports index shows unread ones. | `reports.feature` |
-| R11 | *Order ferritin* is offered on a lab report with *ferritin suggested* when the patient has no ferritin order after it; it opens the ferritin order page with the patient filled in. | `reports.feature` |
+| R9 | The lab report shows the values under NHANES's names and units, without reference ranges or any mark; the comment *Ferritin suggested.* appears only for *ferritin suggested*. The hospital sends one bit, *ferritin suggested*, so *ferritin not suggested* and *not screened* look the same at the practice and show nothing about screening. | `screening.feature` (the bit the hospital sends), `messaging.feature`, `reports.feature` |
+| R11 | *Order ferritin* is offered beside the comment of a lab report with *ferritin suggested* while the patient has no ferritin order (R26: at most one); it opens the ferritin order page for the patient. It is never offered without a suggestion: ferritin is ordered on suspicion (report, Use case). | `reports.feature` |
 | R12 | A ferritin sample is never screened; its lab report is visible once analysed. | `lab.feature`, `screening.feature`, `reports.feature` |
 | R13 | Every general practitioner query is scoped to the general practitioner's own patients; another general practitioner's order or lab report returns 404. | `access.feature` |
 | R14 | Lab queries select only sample ID, ordering general practitioner, registered sex, age, test, indication and results; never the patient's name. | `access.feature` |
@@ -133,7 +129,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 
 | Agent | Kind | Responsible for |
 |---|---|---|
-| general practitioner | Person | E1; uses R1, R10, R11 |
+| general practitioner | Person | E1; uses R1, R9, R11 |
 | Laboratory staff | Person | Triggers R2, R3 (and with it R4–R8) |
 | Laboratory director | Person | E2; triggers R18 (*Deploy*) |
 | ClientApp (deploy handler) | Software, startup's code at each hospital | R16, R20 |
@@ -182,7 +178,6 @@ All are POSTs that redirect on success; services take `now`.
 | Receive | Laboratory staff | Order not received | Sample with sample ID, received at `now` | R2 |
 | Run analyser | Laboratory staff | Sample received, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |
 | Deploy | Laboratory director | Final model can be deployed (R17) | It is the deployed model from `now` | R18 |
-| Mark as read | general practitioner | Lab report visible to this general practitioner, unread | Read at `now` | R10, R13 |
 | Log in as (demo) | Anyone | `DEMO_LOGIN` on | Session for that seeded user | R15 |
 
 ## 6. Pages
@@ -190,14 +185,12 @@ All are POSTs that redirect on success; services take `now`.
 | Page | Role | Content |
 |---|---|---|
 | Log in | Anyone | Django login form; refuses an account without a role; demo buttons when `DEMO_LOGIN`. Afterwards, and at `/`, the start page of the user's role |
-| Lab reports (general practitioner index) | general practitioner | Own lab reports, newest first, unread marked; pending orders |
-| Lab report | general practitioner | Results, comment (R9), *Mark as read*, *Order ferritin* (R11) |
 | Patients (start page) | general practitioner | Own patients: name, registered sex, age. Served by the general practitioner's app, not the hospital's |
-| Patient | general practitioner | Registered sex, age, the patient's orders; *Order CBC*, *Order ferritin* |
+| Patient | general practitioner | Registered sex, age, the patient's orders, each with its lab report once fetched: values (R9), comment, *Order ferritin* beside a suggestion (R11); *Order CBC*, *Order ferritin* |
 | Order CBC / Order ferritin for a patient | general practitioner | The clinical indication only for a test that takes one; ferritin is a confirmation |
-| Orders | general practitioner | Own orders, newest first, linked to their patient; *Check for reports* |
+| Orders | general practitioner | Own orders, newest first, linked to their patient, with when their lab report was released; *Check for reports* |
 | Models (start page) | Laboratory director | Every final model: run ID, received, threshold, local confusion matrix (counts) and AUROC, federated AUROC; the deployed one marked; *Deploy* or *cannot be deployed: reason* |
-| Samples (lab index) | Laboratory staff | Orders to receive, samples to analyse, analysed with their screening result; *Receive*, *Run analyser* |
+| Samples (lab index) | Laboratory staff | Orders to receive, samples to analyse, analysed with their screening result; *Receive*, *Run analyser*. A CBC not screened because of the model (none deployed, or its file changed) gives a warning to tell the laboratory director (O3) |
 
 Index pages assert their query count. Conditional controls (*Order ferritin*,
 *Deploy* and its refusal) are decided in query functions and tested there.
@@ -288,7 +281,7 @@ fails if they drift from it.
 | Message | Fields | Never |
 |---|---|---|
 | Lab order (DF1) | sample ID, test, clinical indication (CBC only), registered sex, age, ordering general practitioner's name | patient name, blood values |
-| Lab report (DF20) | sample ID, test, results, comment (only for *ferritin suggested*), released at | score, screening result other than the comment, not-screened reason |
+| Lab report (DF20) | sample ID, test, results, *ferritin suggested* (one bit), released at | score, screening result beyond that bit, not-screened reason, free text |
 
 The tube itself is not a message: the hospital's analyser stand-in looks up
 what a sample ID's tube would measure (§8).

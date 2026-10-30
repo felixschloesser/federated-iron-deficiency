@@ -19,7 +19,7 @@ _sym_db = _symbol_database.Default()
 
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\x0emessages.proto\x12\x1ciron_deficiency.messaging.v1"\x96\x01\n\x08LabOrder\x12\x11\n\tsample_id\x18\x01 \x01(\t\x12\x0c\n\x04test\x18\x02 \x01(\t\x12\x12\n\nindication\x18\x03 \x01(\t\x12\x16\n\x0eregistered_sex\x18\x04 \x01(\t\x12\x0b\n\x03\x61ge\x18\x05 \x01(\r\x12\x1c\n\x14general_practitioner\x18\x06 \x01(\t\x12\x12\n\nordered_at\x18\x07 \x01(\t"\xdc\x01\n\tLabReport\x12\x11\n\treport_id\x18\x01 \x01(\t\x12\x11\n\tsample_id\x18\x02 \x01(\t\x12\x0c\n\x04test\x18\x03 \x01(\t\x12\x45\n\x07results\x18\x04 \x03(\x0b\x32\x34.iron_deficiency.messaging.v1.LabReport.ResultsEntry\x12\x0f\n\x07\x63omment\x18\x05 \x01(\t\x12\x13\n\x0breleased_at\x18\x06 \x01(\t\x1a.\n\x0cResultsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01"\n\n\x08Received"\x11\n\x0f\x46\x65tchLabReports"F\n\nLabReports\x12\x38\n\x07reports\x18\x01 \x03(\x0b\x32\'.iron_deficiency.messaging.v1.LabReport"%\n\x0f\x41\x63knowledgement\x12\x12\n\nreport_ids\x18\x01 \x03(\t2\xcb\x02\n\nLaboratory\x12^\n\x0cSendLabOrder\x12&.iron_deficiency.messaging.v1.LabOrder\x1a&.iron_deficiency.messaging.v1.Received\x12m\n\x12\x46\x65tchNewLabReports\x12-.iron_deficiency.messaging.v1.FetchLabReports\x1a(.iron_deficiency.messaging.v1.LabReports\x12n\n\x15\x41\x63knowledgeLabReports\x12-.iron_deficiency.messaging.v1.Acknowledgement\x1a&.iron_deficiency.messaging.v1.Receivedb\x06proto3'
+    b'\n\x0emessages.proto\x12\x1ciron_deficiency.messaging.v1"\x96\x01\n\x08LabOrder\x12\x11\n\tsample_id\x18\x01 \x01(\t\x12\x0c\n\x04test\x18\x02 \x01(\t\x12\x12\n\nindication\x18\x03 \x01(\t\x12\x16\n\x0eregistered_sex\x18\x04 \x01(\t\x12\x0b\n\x03\x61ge\x18\x05 \x01(\r\x12\x1c\n\x14general_practitioner\x18\x06 \x01(\t\x12\x12\n\nordered_at\x18\x07 \x01(\t"\xf6\x01\n\tLabReport\x12\x11\n\treport_id\x18\x01 \x01(\t\x12\x11\n\tsample_id\x18\x02 \x01(\t\x12\x0c\n\x04test\x18\x03 \x01(\t\x12\x45\n\x07results\x18\x04 \x03(\x0b\x32\x34.iron_deficiency.messaging.v1.LabReport.ResultsEntry\x12\x13\n\x0breleased_at\x18\x06 \x01(\t\x12\x1a\n\x12\x66\x65rritin_suggested\x18\x07 \x01(\x08\x1a.\n\x0cResultsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01J\x04\x08\x05\x10\x06R\x07\x63omment"\n\n\x08Received"\x11\n\x0f\x46\x65tchLabReports"F\n\nLabReports\x12\x38\n\x07reports\x18\x01 \x03(\x0b\x32\'.iron_deficiency.messaging.v1.LabReport"%\n\x0f\x41\x63knowledgement\x12\x12\n\nreport_ids\x18\x01 \x03(\t2\xcb\x02\n\nLaboratory\x12^\n\x0cSendLabOrder\x12&.iron_deficiency.messaging.v1.LabOrder\x1a&.iron_deficiency.messaging.v1.Received\x12m\n\x12\x46\x65tchNewLabReports\x12-.iron_deficiency.messaging.v1.FetchLabReports\x1a(.iron_deficiency.messaging.v1.LabReports\x12n\n\x15\x41\x63knowledgeLabReports\x12-.iron_deficiency.messaging.v1.Acknowledgement\x1a&.iron_deficiency.messaging.v1.Receivedb\x06proto3'
 )
 
 _globals = globals()
@@ -32,17 +32,17 @@ if not _descriptor._USE_C_DESCRIPTORS:
     _globals["_LABORDER"]._serialized_start = 49
     _globals["_LABORDER"]._serialized_end = 199
     _globals["_LABREPORT"]._serialized_start = 202
-    _globals["_LABREPORT"]._serialized_end = 422
-    _globals["_LABREPORT_RESULTSENTRY"]._serialized_start = 376
-    _globals["_LABREPORT_RESULTSENTRY"]._serialized_end = 422
-    _globals["_RECEIVED"]._serialized_start = 424
-    _globals["_RECEIVED"]._serialized_end = 434
-    _globals["_FETCHLABREPORTS"]._serialized_start = 436
-    _globals["_FETCHLABREPORTS"]._serialized_end = 453
-    _globals["_LABREPORTS"]._serialized_start = 455
-    _globals["_LABREPORTS"]._serialized_end = 525
-    _globals["_ACKNOWLEDGEMENT"]._serialized_start = 527
-    _globals["_ACKNOWLEDGEMENT"]._serialized_end = 564
-    _globals["_LABORATORY"]._serialized_start = 567
-    _globals["_LABORATORY"]._serialized_end = 898
+    _globals["_LABREPORT"]._serialized_end = 448
+    _globals["_LABREPORT_RESULTSENTRY"]._serialized_start = 387
+    _globals["_LABREPORT_RESULTSENTRY"]._serialized_end = 433
+    _globals["_RECEIVED"]._serialized_start = 450
+    _globals["_RECEIVED"]._serialized_end = 460
+    _globals["_FETCHLABREPORTS"]._serialized_start = 462
+    _globals["_FETCHLABREPORTS"]._serialized_end = 479
+    _globals["_LABREPORTS"]._serialized_start = 481
+    _globals["_LABREPORTS"]._serialized_end = 551
+    _globals["_ACKNOWLEDGEMENT"]._serialized_start = 553
+    _globals["_ACKNOWLEDGEMENT"]._serialized_end = 590
+    _globals["_LABORATORY"]._serialized_start = 593
+    _globals["_LABORATORY"]._serialized_end = 924
 # @@protoc_insertion_point(module_scope)

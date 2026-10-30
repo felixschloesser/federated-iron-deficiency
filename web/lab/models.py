@@ -100,11 +100,9 @@ class LabOrder(models.Model):
         return None
 
     @property
-    def comment(self) -> str:
-        """The lab report's comment: only ferritin suggested has one (R9)."""
-        if self.screening_result == ScreeningResult.FERRITIN_SUGGESTED:
-            return "Ferritin suggested."
-        return ""
+    def ferritin_suggested(self) -> bool:
+        """All the lab report says of screening (R9, R25)."""
+        return self.screening_result == ScreeningResult.FERRITIN_SUGGESTED
 
     @property
     def ferritin(self) -> float | None:

@@ -5,7 +5,7 @@ import grpc
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import QuerySet
+from django.db.models import F, QuerySet
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.defaultfilters import pluralize
@@ -18,6 +18,7 @@ from web.accounts.roles import Role
 from web.practice import messaging, services
 from web.practice.forms import OrderForm
 from web.practice.models import GeneralPractitioner, Order, OrderQuerySet, Patient
+from web.practice.queries import ferritin_order_offered
 from web.vocabulary import Test
 
 
@@ -55,7 +56,9 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         patient = self.object
-        orders = list(patient.orders.order_by("-ordered_at", "-pk"))
+        orders = list(
+            patient.orders.select_related("lab_report").order_by("-ordered_at", "-pk")
+        )
         ordered = {order.test for order in orders}
         # One sample per patient, each test at most once (R26): offer only the others.
         actions = [
@@ -68,10 +71,26 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             for test in Test
             if test not in ordered
         ]
+        # Each order with its lab report, if fetched, and Order ferritin beside a
+        # suggestion (R9, R11).
+        entries = [
+            {
+                "order": order,
+                "lab_report": lab_report,
+                "order_ferritin_url": reverse(
+                    "practice:new_order",
+                    kwargs={"patient": patient.pk, "test": Test.FERRITIN},
+                )
+                if lab_report is not None and ferritin_order_offered(lab_report)
+                else None,
+            }
+            for order in orders
+            for lab_report in [getattr(order, "lab_report", None)]
+        ]
         return {
             **super().get_context_data(**kwargs),
             "actions": actions,
-            "orders": orders,
+            "entries": entries,
         }
 
 
@@ -80,9 +99,11 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
     context_object_name = "orders"
 
     def get_queryset(self) -> OrderQuerySet:
-        orders = Order.objects.of_general_practitioner(
-            self.general_practitioner
-        ).select_related("patient")
+        orders = (
+            Order.objects.of_general_practitioner(self.general_practitioner)
+            .select_related("patient")
+            .annotate(lab_report_released_at=F("lab_report__released_at"))
+        )
         return orders.order_by("-ordered_at", "-pk")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:

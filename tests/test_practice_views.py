@@ -115,10 +115,36 @@ def test_patient_page_queries(
     logged_in(client, general_practitioner)
     client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
     client.post(order_url(patient, OrderedTest.FERRITIN))
-    # Session, user with general practitioner, patient, orders.
+    # Session, user with general practitioner, patient, orders with lab reports.
     with django_assert_num_queries(4):
         response = client.get(patient_url(patient))
-    assert len(response.context["orders"]) == 2
+    assert len(response.context["entries"]) == 2
+
+
+def test_patient_page_offers_ferritin_beside_a_suggestion(
+    client: Client,
+    general_practitioner: GeneralPractitioner,
+    patient: Patient,
+    django_assert_num_queries: DjangoAssertNumQueries,
+) -> None:
+    from web.practice.models import LabReport
+
+    logged_in(client, general_practitioner)
+    client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
+    LabReport.objects.create(
+        order=Order.objects.get(),
+        results={"LBXHGB": 11.2},
+        ferritin_suggested=True,
+        released_at="2026-10-30T12:00:00+00:00",
+        fetched_at="2026-10-30T12:05:00+00:00",
+    )
+    # As above, and whether the patient has ferritin yet.
+    with django_assert_num_queries(5):
+        response = client.get(patient_url(patient))
+    (entry,) = response.context["entries"]
+    assert entry["order_ferritin_url"] == order_url(patient, OrderedTest.FERRITIN)
+    assertContains(response, "Ferritin suggested.")
+    assertContains(response, "Hemoglobin")
 
 
 def test_another_general_practitioners_patient_is_not_found(

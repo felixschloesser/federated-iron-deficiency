@@ -134,3 +134,9 @@ def ferritin_offered(world: World) -> None:
 @then("ordering ferritin is not offered on the lab report")
 def ferritin_not_offered(world: World) -> None:
     assert not offered(world)
+
+
+def test_every_cbc_value_and_ferritin_has_a_name_in_cbc_order() -> None:
+    from web.vocabulary import RESULT_NAMES
+
+    assert list(RESULT_NAMES) == [*CBC_VARS, "LBXFER"]

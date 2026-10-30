@@ -4,21 +4,46 @@
 {% include "kit/index_header.html" with title=patient.name actions=actions %}
 <p>{{ patient.get_registered_sex_display }}, aged {{ patient.age }}</p>
 <h2>Orders</h2>
-{% if orders %}
+{% if entries %}
 <div class="overflow-auto"><table>
   <thead>
-    <tr><th scope="col">Ordered</th><th scope="col">Test</th><th scope="col">Clinical indication</th></tr>
+    <tr><th scope="col">Ordered</th><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Lab report</th></tr>
   </thead>
   <tbody>
-    {% for order in orders %}
+    {% for entry in entries %}
     <tr>
-      <td>{{ order.ordered_at|date:"j M Y, H:i" }}</td>
-      <td>{{ order.get_test_display }}</td>
-      <td>{{ order.get_indication_display|default:"—" }}</td>
+      <td>{{ entry.order.ordered_at|date:"j M Y, H:i" }}</td>
+      <td>{{ entry.order.get_test_display }}</td>
+      <td>{{ entry.order.get_indication_display|default:"—" }}</td>
+      <td>{% if entry.lab_report %}Released {{ entry.lab_report.released_at|date:"j M Y, H:i" }}{% else %}—{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table></div>
+{% for entry in entries %}{% if entry.lab_report %}
+<section>
+  <h2>{{ entry.order.get_test_display }} lab report</h2>
+  <p>Released {{ entry.lab_report.released_at|date:"j M Y, H:i" }}</p>
+  {% if entry.lab_report.comment %}<p><strong>{{ entry.lab_report.comment }}</strong></p>{% endif %}
+  {% if entry.order_ferritin_url %}<div class="action-row"><a href="{{ entry.order_ferritin_url }}" role="button">Order ferritin</a></div>{% endif %}
+  {% with values=entry.lab_report.values %}
+  {% if values %}
+  <div class="overflow-auto"><table>
+    <thead>
+      <tr><th scope="col">Value</th><th scope="col">Result</th><th scope="col">Unit</th></tr>
+    </thead>
+    <tbody>
+      {% for value in values %}
+      <tr><td>{{ value.name }}</td><td>{{ value.value }}</td><td>{{ value.unit }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p>Not available in the demo data.</p>
+  {% endif %}
+  {% endwith %}
+</section>
+{% endif %}{% endfor %}
 {% else %}
 <p>No orders yet.</p>
 {% endif %}
