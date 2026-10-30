@@ -32,6 +32,8 @@ def make_authority(directory: Path, name: str) -> Authority:
         *("-subj", f"/CN={name} certificate authority"),
         *("-keyout", "ca.key", "-out", "ca.crt"),
     )
+    # Owner only, whatever the openssl build's default.
+    (directory / "ca.key").chmod(0o600)
     return Authority(name, directory / "ca.crt", directory / "ca.key")
 
 
@@ -58,4 +60,5 @@ def issue(
             *("-CA", str(authority.certificate), "-CAkey", str(authority.key)),
             *("-CAcreateserial", "-out", "certificate.pem", "-extfile", file.name),
         )
+    (directory / "key.pem").chmod(0o600)
     return directory / "certificate.pem", directory / "key.pem"
