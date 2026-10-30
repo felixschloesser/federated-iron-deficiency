@@ -5,7 +5,6 @@ from datetime import datetime
 
 import grpc
 from django.conf import settings
-from django.db import transaction
 
 from web.messaging import messages_pb2, messages_pb2_grpc
 from web.practice.models import LabReport, Order
@@ -81,21 +80,33 @@ def check_for_lab_reports(connection: Connection, *, now: datetime) -> int:
     reports = laboratory.FetchNewLabReports(
         messages_pb2.FetchLabReports(), timeout=TIMEOUT_SECONDS
     ).reports
-    with transaction.atomic():
-        for report in reports:
-            order = Order.objects.get(sample_id=report.sample_id, test=report.test)
-            LabReport.objects.get_or_create(
-                order=order,
-                defaults={
-                    "results": dict(report.results),
-                    "comment": report.comment,
-                    "released_at": datetime.fromisoformat(report.released_at),
-                    "fetched_at": now,
-                },
-            )
-    if reports:
+    stored = [report.report_id for report in reports if _store(report, now=now)]
+    if stored:
         laboratory.AcknowledgeLabReports(
-            messages_pb2.Acknowledgement(report_ids=[r.report_id for r in reports]),
-            timeout=TIMEOUT_SECONDS,
+            messages_pb2.Acknowledgement(report_ids=stored), timeout=TIMEOUT_SECONDS
         )
-    return len(reports)
+    return len(stored)
+
+
+def _store(report: messages_pb2.LabReport, *, now: datetime) -> bool:
+    """Store a lab report of one of this app's orders; False if it matches none.
+
+    The hospital is another party: a report that cannot be stored stays
+    unacknowledged instead of holding back the others."""
+    order = Order.objects.filter(sample_id=report.sample_id, test=report.test).first()
+    try:
+        released_at = datetime.fromisoformat(report.released_at)
+    except ValueError:
+        return False
+    if order is None:
+        return False
+    LabReport.objects.get_or_create(
+        order=order,
+        defaults={
+            "results": dict(report.results),
+            "comment": report.comment,
+            "released_at": released_at,
+            "fetched_at": now,
+        },
+    )
+    return True

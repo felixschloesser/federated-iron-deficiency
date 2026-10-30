@@ -1,5 +1,6 @@
 """Recording lab orders, receiving samples and running the analyser."""
 
+from dataclasses import dataclass
 from datetime import datetime
 
 from django.core.exceptions import ValidationError
@@ -10,28 +11,32 @@ from web.nhanes.models import Participant
 from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
+@dataclass(frozen=True)
+class LabOrderDetails:
+    """What a lab order (DF1) says: no patient name, no values (R25)."""
+
+    sample_id: str
+    test: Test
+    indication: ClinicalIndication | None
+    registered_sex: RegisteredSex
+    age: int
+    general_practitioner: str
+    ordered_at: datetime
+
+
 @transaction.atomic
-def record_lab_order(
-    *,
-    sample_id: str,
-    test: Test,
-    indication: ClinicalIndication | None,
-    registered_sex: RegisteredSex,
-    age: int,
-    general_practitioner: str,
-    ordered_at: datetime,
-) -> LabOrder:
-    """Record a lab order (DF1) once, however often it arrives (R22, O18)."""
-    sample, _ = Sample.objects.get_or_create(sample_id=sample_id)
+def record_lab_order(*, client: str, details: LabOrderDetails) -> LabOrder:
+    """Record a lab order (DF1) from `client` once, however often it arrives (R22, O18)."""
+    sample, _ = Sample.objects.get_or_create(client=client, sample_id=details.sample_id)
     lab_order, _ = LabOrder.objects.get_or_create(
         sample=sample,
-        test=test,
+        test=details.test,
         defaults={
-            "indication": indication,
-            "registered_sex": registered_sex,
-            "age": age,
-            "general_practitioner": general_practitioner,
-            "ordered_at": ordered_at,
+            "indication": details.indication,
+            "registered_sex": details.registered_sex,
+            "age": details.age,
+            "general_practitioner": details.general_practitioner,
+            "ordered_at": details.ordered_at,
         },
     )
     return lab_order
@@ -65,8 +70,10 @@ def run_analyser(*, lab_order: LabOrder, now: datetime) -> LabOrder:
 
 
 @transaction.atomic
-def acknowledge_lab_reports(*, report_ids: list[int], now: datetime) -> None:
-    """The general practitioner's app has these lab reports: hand them out no more."""
+def acknowledge_lab_reports(
+    *, client: str, report_ids: list[int], now: datetime
+) -> None:
+    """`client` has these lab reports of its own: hand them out no more."""
     LabOrder.objects.filter(
-        pk__in=report_ids, report_acknowledged_at__isnull=True
+        sample__client=client, pk__in=report_ids, report_acknowledged_at__isnull=True
     ).update(report_acknowledged_at=now)

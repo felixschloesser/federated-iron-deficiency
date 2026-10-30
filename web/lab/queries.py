@@ -32,3 +32,16 @@ def lab_orders_analysed() -> QuerySet[LabOrder]:
         .select_related("sample")
         .order_by("-analysed_at", "-pk")
     )
+
+
+def lab_reports_to_send(client: str) -> QuerySet[LabOrder]:
+    """`client`'s analysed lab orders it has not acknowledged yet (R23, R24)."""
+    return (
+        LabOrder.objects.filter(
+            sample__client=client,
+            analysed_at__isnull=False,
+            report_acknowledged_at__isnull=True,
+        )
+        .select_related("sample")
+        .order_by("pk")
+    )

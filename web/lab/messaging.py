@@ -1,20 +1,20 @@
 """The hospital's messaging endpoint: gRPC with mutual TLS (spec §10, R22-R25)."""
 
 import functools
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 from concurrent import futures
+from typing import cast
 
 import grpc
 from django.db import close_old_connections
 from django.utils import timezone
 
-from web.lab import services
+from web.lab import queries, services
 from web.lab.forms import LabOrderForm
-from web.lab.models import LabOrder
 from web.messaging import messages_pb2, messages_pb2_grpc
 
 
-def request[**P, R](handler: Callable[P, R]) -> Callable[P, R]:
+def with_database[**P, R](handler: Callable[P, R]) -> Callable[P, R]:
     """Open and close the database connection around a call, as Django does per request."""
 
     @functools.wraps(handler)
@@ -28,10 +28,20 @@ def request[**P, R](handler: Callable[P, R]) -> Callable[P, R]:
     return handle
 
 
+def client_of(context: grpc.ServicerContext) -> str:
+    """The calling app: its client certificate's common name, which the
+    hospital's own certificate authority issued (R24)."""
+    # grpc-stubs types the values as bytes; gRPC gives an iterable of bytes,
+    # as its documentation and its own aio stubs say.
+    names = cast(Mapping[str, Iterable[bytes]], context.auth_context())
+    (name,) = names["x509_common_name"]
+    return name.decode()
+
+
 class Laboratory(messages_pb2_grpc.LaboratoryServicer):
     """Receives lab orders and hands out lab reports, like a view: form, service."""
 
-    @request
+    @with_database
     def SendLabOrder(
         self, request: messages_pb2.LabOrder, context: grpc.ServicerContext
     ) -> messages_pb2.Received:
@@ -48,16 +58,16 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
         )
         if not form.is_valid():
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, form.errors.as_json())
-        services.record_lab_order(**form.cleaned_data)
+        services.record_lab_order(
+            client=client_of(context),
+            details=services.LabOrderDetails(**form.cleaned_data),
+        )
         return messages_pb2.Received()
 
-    @request
+    @with_database
     def FetchNewLabReports(
         self, request: messages_pb2.FetchLabReports, context: grpc.ServicerContext
     ) -> messages_pb2.LabReports:
-        released = LabOrder.objects.filter(
-            analysed_at__isnull=False, report_acknowledged_at__isnull=True
-        ).select_related("sample")
         return messages_pb2.LabReports(
             reports=[
                 messages_pb2.LabReport(
@@ -65,19 +75,19 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
                     sample_id=lab_order.sample.sample_id,
                     test=lab_order.test,
                     results=lab_order.results or {},
-                    released_at=lab_order.analysed_at.isoformat()
-                    if lab_order.analysed_at
-                    else "",
+                    released_at=lab_order.analysed_at.isoformat(),
                 )
-                for lab_order in released
+                for lab_order in queries.lab_reports_to_send(client_of(context))
+                if lab_order.analysed_at is not None
             ]
         )
 
-    @request
+    @with_database
     def AcknowledgeLabReports(
         self, request: messages_pb2.Acknowledgement, context: grpc.ServicerContext
     ) -> messages_pb2.Received:
         services.acknowledge_lab_reports(
+            client=client_of(context),
             report_ids=[int(report_id) for report_id in request.report_ids],
             now=timezone.now(),
         )
