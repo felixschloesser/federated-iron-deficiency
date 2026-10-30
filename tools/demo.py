@@ -19,6 +19,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
+from types import FrameType
+from typing import NoReturn
 
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 from tools.certificates import issue, make_authority
@@ -256,11 +258,20 @@ def prepare(demo_dir: Path) -> None:
         prepare_web(practice, "PRACTICE_DIR", "seed_practice", partition)
 
 
+def stop(signum: int, frame: FrameType | None) -> NoReturn:
+    """Start the clean-up, ignoring later signals: `uv run` forwards a second
+    one, which must not cut the clean-up short and orphan the children."""
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    raise KeyboardInterrupt
+
+
 def up(demo_dir: Path) -> None:
     """Start every party; stop them all on Ctrl-C or when one exits."""
     prepare(demo_dir)
     # Stop the children on SIGTERM too, not only on Ctrl-C.
-    signal.signal(signal.SIGTERM, signal.default_int_handler)
+    signal.signal(signal.SIGINT, stop)
+    signal.signal(signal.SIGTERM, stop)
     running: list[subprocess.Popen[bytes]] = []
     try:
         for process in plan(demo_dir):
@@ -288,9 +299,6 @@ def up(demo_dir: Path) -> None:
     except KeyboardInterrupt:
         pass
     finally:
-        # A second signal (uv run forwards them) must not cut the clean-up short.
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-        signal.signal(signal.SIGTERM, signal.SIG_IGN)
         for child in running:
             child.terminate()
         for child in running:
