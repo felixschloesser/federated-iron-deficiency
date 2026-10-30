@@ -50,5 +50,9 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            messages.success(request, f"{lab_order} analysed.")
+            messages.success(
+                request,
+                f"Sample {lab_order.sample.sample_id}:"
+                f" {lab_order.get_test_display()} analysed.",
+            )
         return redirect("lab:samples")

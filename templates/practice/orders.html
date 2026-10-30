@@ -1,10 +1,7 @@
 {% extends "kit/base.html" %}
 {% block title %}Orders{% endblock %}
 {% block content %}
-{% include "kit/index_header.html" with title="Orders" %}
-{% if check_for_reports_url %}
-{% include "kit/action_button.html" with url=check_for_reports_url label="Check for reports" %}
-{% endif %}
+{% include "kit/index_header.html" with title="Orders" post_actions=post_actions %}
 {% if orders %}
 <table>
   <thead>

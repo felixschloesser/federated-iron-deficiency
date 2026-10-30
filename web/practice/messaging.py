@@ -1,5 +1,7 @@
 """The general practitioner's app as client: lab orders out, lab reports in (R22, R23)."""
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -35,31 +37,35 @@ def configured_connection() -> Connection | None:
     )
 
 
-def _laboratory(connection: Connection) -> messages_pb2_grpc.LaboratoryStub:
+@contextmanager
+def open_laboratory(
+    connection: Connection,
+) -> Iterator[messages_pb2_grpc.LaboratoryStub]:
+    """The hospital's endpoint over a channel that is closed afterwards."""
     credentials = grpc.ssl_channel_credentials(
         root_certificates=connection.root_certificate,
         private_key=connection.private_key,
         certificate_chain=connection.certificate,
     )
-    return messages_pb2_grpc.LaboratoryStub(
-        grpc.secure_channel(connection.address, credentials)
-    )
+    with grpc.secure_channel(connection.address, credentials) as channel:
+        yield messages_pb2_grpc.LaboratoryStub(channel)
 
 
 def send_lab_order(order: Order, connection: Connection) -> None:
     """Send an order's lab order (DF1): no name, no values (R25)."""
-    _laboratory(connection).SendLabOrder(
-        messages_pb2.LabOrder(
-            sample_id=order.sample_id,
-            test=order.test,
-            indication=order.indication or "",
-            registered_sex=order.registered_sex,
-            age=order.age,
-            general_practitioner=order.patient.general_practitioner.name,
-            ordered_at=order.ordered_at.isoformat(),
-        ),
-        timeout=TIMEOUT_SECONDS,
-    )
+    with open_laboratory(connection) as laboratory:
+        laboratory.SendLabOrder(
+            messages_pb2.LabOrder(
+                sample_id=order.sample_id,
+                test=order.test,
+                indication=order.indication or "",
+                registered_sex=order.registered_sex,
+                age=order.age,
+                general_practitioner=order.patient.general_practitioner.name,
+                ordered_at=order.ordered_at.isoformat(),
+            ),
+            timeout=TIMEOUT_SECONDS,
+        )
 
 
 def send_pending_lab_orders(connection: Connection, *, now: datetime) -> int:
@@ -76,15 +82,16 @@ def send_pending_lab_orders(connection: Connection, *, now: datetime) -> int:
 def check_for_lab_reports(connection: Connection, *, now: datetime) -> int:
     """Send pending orders, fetch new lab reports (DF20), store and acknowledge them."""
     send_pending_lab_orders(connection, now=now)
-    laboratory = _laboratory(connection)
-    reports = laboratory.FetchNewLabReports(
-        messages_pb2.FetchLabReports(), timeout=TIMEOUT_SECONDS
-    ).reports
-    stored = [report.report_id for report in reports if _store(report, now=now)]
-    if stored:
-        laboratory.AcknowledgeLabReports(
-            messages_pb2.Acknowledgement(report_ids=stored), timeout=TIMEOUT_SECONDS
-        )
+    with open_laboratory(connection) as laboratory:
+        reports = laboratory.FetchNewLabReports(
+            messages_pb2.FetchLabReports(), timeout=TIMEOUT_SECONDS
+        ).reports
+        stored = [report.report_id for report in reports if _store(report, now=now)]
+        if stored:
+            laboratory.AcknowledgeLabReports(
+                messages_pb2.Acknowledgement(report_ids=stored),
+                timeout=TIMEOUT_SECONDS,
+            )
     return len(stored)
 
 

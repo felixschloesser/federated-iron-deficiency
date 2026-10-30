@@ -62,7 +62,16 @@ def run_analyser(*, lab_order: LabOrder, now: datetime) -> LabOrder:
             "This test has already been analysed.", code="already_analysed"
         )
     # The tube's contents: the NHANES participant whose number is the sample ID.
-    tube = Participant.objects.get(seqn=int(lab_order.sample.sample_id))
+    sample_id = lab_order.sample.sample_id
+    tube = (
+        Participant.objects.filter(seqn=int(sample_id)).first()
+        if sample_id.isdigit()
+        else None
+    )
+    if tube is None:
+        raise ValidationError(
+            "The analyser has no tube for this sample ID.", code="no_tube"
+        )
     lab_order.results = tube.measure(Test(lab_order.test))
     lab_order.analysed_at = now
     lab_order.save(update_fields=["results", "analysed_at"])

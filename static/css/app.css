@@ -46,3 +46,13 @@ article[role="status"][data-level="error"] {
     max-width: 1200px;
   }
 }
+
+/* A page-level POST action beside the links of the index header: as wide as
+   its label, not the full width Pico gives buttons in forms. */
+.inline-form {
+  display: inline;
+}
+
+.inline-form button {
+  width: auto;
+}

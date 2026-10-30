@@ -21,8 +21,10 @@ ALLOWLIST = Path("tools") / "audit_allowlist.toml"
 SPEC = Path("docs") / "spec" / "requirements.md"
 # Generated folders: collected static files, and the demo deployment (tools/demo.py).
 BUILD_OUTPUT = {"staticfiles", "demo"}
-# The parts of the training package a hospital's web app may import (R21).
+# The parts of the training package a hospital's web app may import (R21);
+# everything else under web/ only the dataset's terms and loaders.
 HOSPITAL_SIDE = {"iron_deficiency.screening", "iron_deficiency.dataset"}
+SHARED_SIDE = {"iron_deficiency.dataset"}
 
 # Split so that this file does not match its own patterns.
 SUPPRESSIONS = (
@@ -219,12 +221,20 @@ def _web_imports(root: Path) -> Iterator[tuple[Path, int, str]]:
 
 
 def training_imports(root: Path) -> list[str]:
-    """Hospital software uses only the screening side of the training package (R21)."""
-    return [
-        f"{rel.as_posix()}:{line}: imports {module}, startup code"
-        for rel, line, module in _web_imports(root)
-        if module.split(".")[0] == "iron_deficiency" and module not in HOSPITAL_SIDE
-    ]
+    """Hospital software uses only the screening side of the training package,
+    the rest of web/ only the dataset (R21)."""
+    hospital = set(Party.HOSPITAL.apps())
+    findings = []
+    for rel, line, module in _web_imports(root):
+        if module.split(".")[0] != "iron_deficiency":
+            continue
+        if module not in HOSPITAL_SIDE:
+            findings.append(f"{rel.as_posix()}:{line}: imports {module}, startup code")
+        elif ".".join(rel.parts[:2]) not in hospital and module not in SHARED_SIDE:
+            findings.append(
+                f"{rel.as_posix()}:{line}: imports {module}, the hospital's code"
+            )
+    return findings
 
 
 def party_imports(root: Path) -> list[str]:

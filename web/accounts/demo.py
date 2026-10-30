@@ -15,11 +15,12 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
 from iron_deficiency.dataset import (
+    ELIGIBLE_AGES,
+    ELIGIBLE_SEX,
     FERRITIN_THRESHOLD,
     load_ferritin,
     load_new_samples,
 )
-from iron_deficiency.screening import ELIGIBLE_AGES, ELIGIBLE_SEX
 from web.accounts.models import User
 
 PASSWORD = "demo-pass-2026"

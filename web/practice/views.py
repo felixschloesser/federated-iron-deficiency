@@ -86,13 +86,18 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
         return orders.order_by("-ordered_at", "-pk")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        # Only a practice with a hospital to ask can check for reports (R23).
-        url = (
-            reverse("practice:check_for_reports")
+        # Only an app with a hospital to ask can check for reports (R23).
+        post_actions = (
+            [
+                {
+                    "url": reverse("practice:check_for_reports"),
+                    "label": "Check for reports",
+                }
+            ]
             if settings.MESSAGING_ADDRESS
-            else None
+            else []
         )
-        return {**super().get_context_data(**kwargs), "check_for_reports_url": url}
+        return {**super().get_context_data(**kwargs), "post_actions": post_actions}
 
 
 class CheckForReportsView(GeneralPractitionerRequiredMixin, View):

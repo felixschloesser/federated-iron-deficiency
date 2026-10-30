@@ -20,7 +20,7 @@ from tools.certificates import Authority, issue, make_authority
 from web.lab import services as lab_services
 from web.lab.messaging import serve
 from web.lab.models import LabOrder, Sample
-from web.messaging import messages_pb2, messages_pb2_grpc
+from web.messaging import messages_pb2
 from web.nhanes.models import Participant
 from web.practice import messaging
 from web.practice import services as practice_services
@@ -248,20 +248,10 @@ def other_app(world: World, name: str) -> None:
 
 @when("the other app checks for lab reports")
 def other_checks(world: World) -> None:
-    world["received"] = messaging_stub(world["other"]).FetchNewLabReports(
-        messages_pb2.FetchLabReports(), timeout=10
-    )
-
-
-def messaging_stub(connection: Connection) -> messages_pb2_grpc.LaboratoryStub:
-    credentials = grpc.ssl_channel_credentials(
-        root_certificates=connection.root_certificate,
-        private_key=connection.private_key,
-        certificate_chain=connection.certificate,
-    )
-    return messages_pb2_grpc.LaboratoryStub(
-        grpc.secure_channel(connection.address, credentials)
-    )
+    with messaging.open_laboratory(world["other"]) as laboratory:
+        world["received"] = laboratory.FetchNewLabReports(
+            messages_pb2.FetchLabReports(), timeout=10
+        )
 
 
 @then("it receives no lab reports")
@@ -288,10 +278,11 @@ def no_longer_new(world: World, patient: str, name: str) -> None:
 
 @when(parsers.parse('the other app acknowledges the lab report of "{patient}"'))
 def other_acknowledges(world: World, patient: str) -> None:
-    messaging_stub(world["other"]).AcknowledgeLabReports(
-        messages_pb2.Acknowledgement(report_ids=[str(lab_order_of(world, patient).pk)]),
-        timeout=10,
-    )
+    with messaging.open_laboratory(world["other"]) as laboratory:
+        report_id = str(lab_order_of(world, patient).pk)
+        laboratory.AcknowledgeLabReports(
+            messages_pb2.Acknowledgement(report_ids=[report_id]), timeout=10
+        )
 
 
 @when(

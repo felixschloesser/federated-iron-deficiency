@@ -56,6 +56,9 @@ CBC_VARS = [
 ]
 FEATURES = CBC_VARS + ["RIDAGEYR"]
 FERRITIN_THRESHOLD = 15.0
+# Who is screened: women of reproductive age (R4).
+ELIGIBLE_SEX = "Female"
+ELIGIBLE_AGES = (18, 49)
 
 # Merged columns are named `{source_table}_{variable}` in lowercase.
 HF_COLUMNS = {

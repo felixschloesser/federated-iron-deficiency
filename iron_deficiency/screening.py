@@ -7,15 +7,13 @@ import numpy as np
 import pandas as pd
 import torch
 
-from iron_deficiency.dataset import CBC_VARS, FEATURES
+from iron_deficiency.dataset import CBC_VARS, ELIGIBLE_AGES, ELIGIBLE_SEX, FEATURES
 from iron_deficiency.task import Net
 
 # One lab export row: sample ID, registered sex, age, and the 13 CBC values.
 COLUMNS = ["sample_id", "sex", "age", *CBC_VARS]
 
 # The model was trained on women aged 18–49 only; nobody else gets a result.
-ELIGIBLE_SEX = "Female"
-ELIGIBLE_AGES = (18, 49)
 
 
 def save_deployment(
