@@ -5,7 +5,7 @@
 <p>{{ patient.get_registered_sex_display }}, aged {{ patient.age }}</p>
 <h2>Orders</h2>
 {% if orders %}
-<table>
+<div class="overflow-auto"><table>
   <thead>
     <tr><th scope="col">Ordered</th><th scope="col">Test</th><th scope="col">Clinical indication</th></tr>
   </thead>
@@ -18,7 +18,7 @@
     </tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% else %}
 <p>No orders yet.</p>
 {% endif %}

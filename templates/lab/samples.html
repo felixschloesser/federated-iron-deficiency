@@ -5,7 +5,7 @@
 
 <h2>Samples to receive</h2>
 {% if samples_to_receive %}
-<table>
+<div class="overflow-auto"><table>
   <thead>
     <tr><th scope="col">Sample ID</th><th scope="col">Tests</th><th scope="col">General practitioner</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
   </thead>
@@ -19,7 +19,7 @@
     </tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% else %}
 <p>No samples waiting.</p>
 {% endif %}
@@ -27,7 +27,7 @@
 <h2>To analyse</h2>
 <p>Tests on samples the laboratory holds, including later tests on a stored sample.</p>
 {% if lab_orders_to_analyse %}
-<table>
+<div class="overflow-auto"><table>
   <thead>
     <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Registered sex</th><th scope="col">Age</th><th scope="col">General practitioner</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
   </thead>
@@ -44,14 +44,14 @@
     </tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% else %}
 <p>Nothing to analyse.</p>
 {% endif %}
 
 <h2>Analysed</h2>
 {% if lab_orders_analysed %}
-<table>
+<div class="overflow-auto"><table>
   <thead>
     <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Analysed</th><th scope="col">General practitioner</th></tr>
   </thead>
@@ -65,7 +65,7 @@
     </tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% else %}
 <p>Nothing analysed yet.</p>
 {% endif %}

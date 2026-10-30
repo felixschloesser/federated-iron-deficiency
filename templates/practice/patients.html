@@ -3,7 +3,7 @@
 {% block content %}
 {% include "kit/index_header.html" with title="Patients" %}
 {% if patients %}
-<table>
+<div class="overflow-auto"><table>
   <thead>
     <tr><th scope="col">Name</th><th scope="col">Registered sex</th><th scope="col">Age</th></tr>
   </thead>
@@ -16,7 +16,7 @@
     </tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% else %}
 <p>No patients.</p>
 {% endif %}

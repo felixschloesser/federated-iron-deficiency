@@ -10,7 +10,7 @@
 <h2>Final models</h2>
 <p>Local validation is this hospital's validation split, at each final model's threshold.</p>
 {% if final_models %}
-<table>
+<div class="overflow-auto"><table>
   <thead>
     <tr><th scope="col">Run ID</th><th scope="col">Stored</th><th scope="col">Threshold</th><th scope="col">Local validation</th><th scope="col">Local AUROC</th><th scope="col">Federated AUROC</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
   </thead>
@@ -31,21 +31,21 @@
     </tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% else %}
 <p>No final models have arrived.</p>
 {% endif %}
 
 <h2>Deployment history</h2>
 {% if history %}
-<table>
+<div class="overflow-auto"><table>
   <thead><tr><th scope="col">Deployed</th><th scope="col">Run ID</th><th scope="col">Threshold</th></tr></thead>
   <tbody>
     {% for deployment in history %}
     <tr><td>{{ deployment.deployed_at|date:"j M Y, H:i" }}</td><td>{{ deployment.final_model.run_id }}</td><td>{{ deployment.final_model.threshold }}</td></tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% else %}
 <p>Nothing deployed yet.</p>
 {% endif %}
