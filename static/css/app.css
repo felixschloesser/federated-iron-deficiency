@@ -40,6 +40,11 @@ article[role="status"][data-level="error"] {
   white-space: nowrap;
 }
 
+/* Keeps an absolutely placed .visually-hidden inside the scroll box, not past the page edge. */
+.overflow-auto {
+  position: relative;
+}
+
 /* Pico's .container grows to 1450px on the widest screens; stop at its xl width. */
 @media (min-width: 1536px) {
   .container {

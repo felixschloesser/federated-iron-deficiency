@@ -102,3 +102,82 @@ message.
 - The demo runs with `DJANGO_DEBUG=1` (demo accounts share a password), so
   unknown URLs show Django's debug 404; the kit's 404 is covered by
   `test_missing_page_comes_from_the_kit`.
+
+## Table overflow check (038296f)
+
+A browser-check agent checked this on 2026-10-30 against the worktree's own
+development server (`DJANGO_DEBUG=1 runserver 127.0.0.1:8030`, database
+`slice-deploy.sqlite3`, `FINAL_MODELS_DIR` set to a copy of Heilig Hart
+Leuven's two final models). The rows were made in the shell: four CBC orders
+through `place_order` and `record_lab_order`, three of them received and one
+analysed, and one model deployed. Hospital pages were seen on
+localhost:8030 and practice pages on 127.0.0.1:8030.
+
+`resize_window` again did not change the viewport, which stayed at 1300px.
+So each page was fetched and rendered in a `srcdoc` iframe 606px or 1400px
+wide (`X-Frame-Options: DENY` blocks a plain iframe). The iframe's width is
+its viewport, so Pico's breakpoints apply as they would in a window of that
+width. The 1400px screenshots are cut at 1300px.
+
+| # | Item | Result | Note |
+|---|------|--------|------|
+| 1a | Samples at 606px | Fail, see defect 3 | All three tables sit in `div.overflow-auto` (510px box, `overflow-x: auto`). "To analyse" is 720px wide and scrolls inside its box, and scrolled fully right (210px) it shows "General practitioner" and Run analyser in full (`15`). "Samples to receive" and "Analysed" fit (510px). The page still scrolls sideways, though: document `scrollWidth` 652px against 606px. (`14`) |
+| 1b | Models at 606px | Fail, see defect 3 | "Final models" is 896px wide and scrolls inside its box, and Deploy can be reached. "Deployment history" fits. Document `scrollWidth` is 839px, so the page scrolls 233px sideways onto blank space (`16`). |
+| 1c | Patients, Orders, Test Patient 1 at 606px | Pass | Each table fits its 510px box, and document `scrollWidth` equals the 606px client width. Nothing is clipped. (`19`) |
+| 2 | All five pages at 1400px | Pass | `main` is 1200px. Each table fills its 1200px box exactly, with no horizontal or vertical scroll in the wrapper (scroll size equals client size), and the page does not scroll sideways. They look as before (`17`, `18`). |
+| 3 | Keyboard on Orders | Pass, button not shown | Tab order: Skip to content, Patients, Orders, Log out, Test Patient 3, Test Patient 1. Check for reports is absent because `MESSAGING_ADDRESS` is unset in development. The scroll wrapper adds no tab stop. |
+
+### Defects
+
+3. **Visually hidden "Action" headers still widen the page.** Repro: as lab-1
+   (or director-1 on Models) at a 606px viewport, with a row in "To analyse"
+   (or two final models). The table scrolls inside its box, but the page also
+   scrolls sideways (Samples 652px, Models 839px). Cause: the
+   `<th><span class="visually-hidden">Action</span></th>` in
+   `templates/lab/samples.html` and `templates/deployment/models.html`.
+   `.visually-hidden` (`static/css/app.css`) is `position: absolute`, and
+   `div.overflow-auto` is not positioned. So the span's containing block is
+   the page, not the scroll box: it is not clipped, and it sits at its static
+   position at the table's right end (x 651 on Samples). Adding
+   `.overflow-auto { position: relative; }` to the iframe brought document
+   `scrollWidth` down to 606px on both pages. Making the wrapper (or the
+   table) positioned in `static/css/app.css` would fix it.
+
+### New observations
+
+- The scroll box has no visible scrollbar with macOS overlay scrollbars. The
+  only sign that more columns exist is the column cut off mid-word at the
+  right edge ("Gen… prac…" in `14`).
+- In development every page's title and header say "Demo hospital", the
+  practice pages too ("Orders · Demo hospital"). The demo deployment names
+  each party separately, so this only affects the dev server.
+
+### Not checked
+
+- A real 606px or 1400px browser window, since the window could not be
+  resized. Scrollbar appearance, touch scrolling and window-level behaviour
+  were therefore not seen.
+- Keyboard focus moving into a scrolled box at a narrow width (for example
+  tabbing to Run analyser when it is out of view).
+- Check for reports in the tab order, because `MESSAGING_ADDRESS` is unset
+  in development.
+- Widths other than 606px and 1400px, other browsers, and screen readers.
+
+### Re-check after `.overflow-auto { position: relative; }`
+
+A browser-check agent re-checked this on 2026-10-30 against the uncommitted
+rule in `static/css/app.css`, using the same server, database and rows. This
+time a new tab did open at a real 606px viewport, so 606px was checked in the
+window itself and 1400px in a `srcdoc` iframe as before. Chrome first served
+`app.css` from its cache (transfer size 0, wrapper `position: static`, page
+still 652px), so the file was refetched with `cache: 'reload'` and the page
+reloaded. After that the wrapper computed to `position: relative`.
+
+| # | Item | Result | Note |
+|---|------|--------|------|
+| 1 | Samples at 606px | Pass, defect 3 fixed | Document `scrollWidth` 606px = client width (was 652px). "To analyse" still scrolls inside its box (510px box, 720px content), and the other two fit. (`20`) |
+| 2 | Models at 606px | Pass, defect 3 fixed | Document `scrollWidth` 606px = client width (was 839px). "Final models" scrolls inside its box (510px, 896px content). Scrolled fully right (386px), Deploy ends at x 541, inside the box's right edge at 558. (`21`) |
+| 3 | Both pages at 1400px | Pass, unchanged | `main` 1200px. Every table fills its 1200px box exactly, with no horizontal or vertical scroll in the wrapper, and the page does not scroll sideways. |
+
+Anyone re-checking after a CSS change needs a hard reload, because
+`runserver` lets the browser reuse a cached `app.css`.
