@@ -1,7 +1,11 @@
-"""Create demo accounts and NHANES patients for manual and browser checks."""
+"""Demo seeding both parties share: accounts, and which NHANES participants.
+
+Each party seeds the same participants for the same seed: the practice its
+patients (seed_practice), the hospital what their tubes would measure
+(seed_hospital)."""
 
 import enum
-from collections.abc import Hashable, Mapping
+from collections.abc import Hashable
 from pathlib import Path
 from typing import Any, assert_never
 
@@ -11,19 +15,12 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
 from iron_deficiency.dataset import (
-    CBC_VARS,
     FERRITIN_THRESHOLD,
     load_ferritin,
     load_new_samples,
 )
 from iron_deficiency.screening import ELIGIBLE_AGES, ELIGIBLE_SEX
 from web.accounts.models import User
-from web.deployment.models import LaboratoryDirector
-from web.lab.models import LaboratoryStaffMember
-from web.nhanes.models import Participant
-from web.party import Party
-from web.practice.models import GeneralPractitioner, Patient
-from web.vocabulary import RegisteredSex
 
 PASSWORD = "demo-pass-2026"
 PER_GROUP = 3
@@ -79,64 +76,9 @@ def user(username: str) -> User:
     return account
 
 
-def general_practitioner(username: str, name: str) -> GeneralPractitioner:
-    practitioner, _ = GeneralPractitioner.objects.get_or_create(
-        user=user(username), defaults={"name": name}
-    )
-    return practitioner
+class SeedCommand(BaseCommand):
+    """Seeds one party's records for the chosen participants; `seed` says which."""
 
-
-def participant(row: Mapping[Hashable, Any]) -> None:
-    """The hospital's analyser stand-in: what this patient's tube would measure."""
-    ferritin = row["LBXFER"]
-    Participant.objects.get_or_create(
-        seqn=int(row["sample_id"]),
-        defaults={
-            "cbc": {var: float(row[var]) for var in CBC_VARS},
-            "ferritin": None if pd.isna(ferritin) else float(ferritin),
-        },
-    )
-
-
-def patient(
-    row: Mapping[Hashable, Any], name: str, owner: GeneralPractitioner
-) -> Patient:
-    record, _ = Patient.objects.get_or_create(
-        sample_id=str(int(row["sample_id"])),
-        defaults={
-            "general_practitioner": owner,
-            "name": name,
-            "registered_sex": RegisteredSex(str(row["sex"]).lower()),
-            "age": int(row["age"]),
-        },
-    )
-    return record
-
-
-def seed_hospital(rows: list[dict[Hashable, Any]]) -> list[str]:
-    LaboratoryStaffMember.objects.get_or_create(
-        user=user("lab-1"), defaults={"name": "Laboratory Staff 1"}
-    )
-    LaboratoryDirector.objects.get_or_create(
-        user=user("director-1"), defaults={"name": "Laboratory Director 1"}
-    )
-    for row in rows:
-        participant(row)
-    return ["lab-1", "director-1"]
-
-
-def seed_practice(rows: list[dict[Hashable, Any]]) -> list[str]:
-    practitioners = [
-        general_practitioner("doctor-a", "Dr. Demo A"),
-        general_practitioner("doctor-b", "Dr. Demo B"),
-    ]
-    for number, row in enumerate(rows, start=1):
-        owner = practitioners[(number - 1) % len(practitioners)]
-        patient(row, f"Test Patient {number}", owner)
-    return ["doctor-a", "doctor-b"]
-
-
-class Command(BaseCommand):
     help = __doc__
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -147,25 +89,19 @@ class Command(BaseCommand):
             "--nhanes", type=Path, help="a CSV of load_nhanes() instead of the network"
         )
 
+    def seed(self, rows: list[dict[Hashable, Any]]) -> list[str]:
+        """Create this party's accounts and records; return the usernames."""
+        raise NotImplementedError
+
     def handle(self, *args: Any, **options: Any) -> None:
         if not settings.DEBUG:
             raise CommandError(
                 "Demo accounts share a known password; run with DJANGO_DEBUG=1."
             )
         nhanes = pd.read_csv(options["nhanes"]) if options["nhanes"] else load_nhanes()
-        # Both parties seed the same participants: the practice their patients,
-        # the hospital what their tubes would measure.
         rows = choose(nhanes, seed=options["seed"]).to_dict("records")
-        party = settings.PARTY
         with transaction.atomic():
-            accounts = [
-                *(
-                    seed_hospital(rows)
-                    if party is not Party.GENERAL_PRACTITIONER
-                    else []
-                ),
-                *(seed_practice(rows) if party is not Party.HOSPITAL else []),
-            ]
+            accounts = self.seed(rows)
             user("no-role")  # Has no role: for the refusal at login.
         self.stdout.write(
             f"Accounts {', '.join(accounts)} and no-role, password {PASSWORD};"

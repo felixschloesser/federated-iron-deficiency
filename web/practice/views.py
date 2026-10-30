@@ -15,8 +15,7 @@ from django.views.generic import DetailView, FormView, ListView, View
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
-from web.messaging import client
-from web.practice import services
+from web.practice import messaging, services
 from web.practice.forms import OrderForm
 from web.practice.models import GeneralPractitioner, Order, OrderQuerySet, Patient
 from web.vocabulary import Test
@@ -100,11 +99,11 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
     """Sends pending lab orders and fetches new lab reports now (R23)."""
 
     def post(self, request: HttpRequest) -> HttpResponse:
-        connection = client.configured_connection()
+        connection = messaging.configured_connection()
         if connection is None:
             raise Http404
         try:
-            fetched = client.check_for_lab_reports(connection, now=timezone.now())
+            fetched = messaging.check_for_lab_reports(connection, now=timezone.now())
         except grpc.RpcError:
             messages.error(
                 request, "The hospital could not be reached. Try again later."
@@ -151,9 +150,9 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
                 form.add_error(field if field in form.fields else None, errors)
             return self.form_invalid(form)
         messages.success(self.request, "Order placed.")
-        if (connection := client.configured_connection()) is not None:
+        if (connection := messaging.configured_connection()) is not None:
             try:
-                client.send_pending_lab_orders(connection, now=timezone.now())
+                messaging.send_pending_lab_orders(connection, now=timezone.now())
             except grpc.RpcError:
                 messages.warning(
                     self.request,

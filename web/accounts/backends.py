@@ -9,11 +9,11 @@ class RoleBackend(ModelBackend):
     """Django's backend, loading each request's user with their role record."""
 
     def get_user(self, user_id: Any) -> User | None:
-        user = (
-            User.objects.select_related(
-                "general_practitioner", "laboratory_staff_member", "laboratory_director"
-            )
-            .filter(pk=user_id)
-            .first()
-        )
+        # The role records of the apps this party installs (web.party).
+        roles = [
+            relation.name
+            for relation in User._meta.related_objects
+            if relation.one_to_one
+        ]
+        user = User.objects.select_related(*roles).filter(pk=user_id).first()
         return user if self.user_can_authenticate(user) else None

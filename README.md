@@ -155,8 +155,14 @@ Hospitals have `lab-1` and `director-1`, practices `doctor-a` and
 NHANES participants whose tubes its hospital's analyser stand-in measures.
 The first `up` downloads the cohorts and the 2021–2023 cycle from Hugging
 Face; set `HF_TOKEN` if it refuses. A `demo/` from before the practices
-still holds patients in the hospitals' databases: delete
-`demo/hospitals/*/web.sqlite3` once.
+has databases from before the split: delete `demo/hospitals/*/web.sqlite3`
+once (the cohorts and final models stay).
+
+Each party installs only its own apps: a hospital's database has no table
+for patients, a practice's none for lab orders, analyser values or final
+models. A development checkout (neither `HOSPITAL_DIR` nor `PRACTICE_DIR`)
+serves both parties from one database; seed it with
+`DJANGO_DEBUG=1 uv run python manage.py seed_hospital` and `seed_practice`.
 
 ## Screen new blood counts
 

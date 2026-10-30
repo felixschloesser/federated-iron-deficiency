@@ -191,12 +191,12 @@ def from_hub[T](load: Callable[[], T], attempts: int = 4) -> T:
     return load()
 
 
-def prepare_web(folder: Path, party: str, partition: int) -> None:
+def prepare_web(folder: Path, party: str, seed_command: str, partition: int) -> None:
     """Migrate the party's database and seed its demo accounts."""
     env = {**os.environ, party: str(folder), "DJANGO_DEBUG": "1"}
     subprocess.run(manage("migrate", "-v0"), env=env, check=True)
     seed = ("--seed", str(partition), "--nhanes", str(folder / "nhanes.csv"))
-    subprocess.run(manage("seed_demo", *seed), env=env, check=True)
+    subprocess.run(manage(seed_command, *seed), env=env, check=True)
 
 
 def prepare(demo_dir: Path) -> None:
@@ -252,8 +252,8 @@ def prepare(demo_dir: Path) -> None:
                         )
                     )
                 nhanes.to_csv(folder / "nhanes.csv", index=False)
-        prepare_web(hospital, "HOSPITAL_DIR", partition)
-        prepare_web(practice, "PRACTICE_DIR", partition)
+        prepare_web(hospital, "HOSPITAL_DIR", "seed_hospital", partition)
+        prepare_web(practice, "PRACTICE_DIR", "seed_practice", partition)
 
 
 def up(demo_dir: Path) -> None:

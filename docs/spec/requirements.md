@@ -125,7 +125,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R18 | The laboratory director deploys any final model that can be deployed, including an older one (rollback). The app keeps the deployment history (final model, deployed at) and nothing else: no account, no reason. Past screening results are never re-screened. | `deployment.feature` |
 | R19 | Before each screening the deployed model's file is hashed; if it no longer matches the SHA-256 recorded at deployment, there is no usable deployed model (R8). | `deployment.feature`, `screening.feature` |
 | R20 | A final model's metadata holds only this hospital's local validation and the federated aggregate the ServerApp computed; never another hospital's metrics. | `tests/test_final_models.py` |
-| R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), a practice's only its own (`PRACTICE_DIR`), and each serves only its own party's pages, and code under `web/` imports from the training package only `iron_deficiency.screening` and `iron_deficiency.dataset` (audit check). | `tests/test_settings.py`, `tools/audit.py` |
+| R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), a practice's only its own (`PRACTICE_DIR`), and each installs, migrates and serves only its own party's apps: a hospital's database has no table for patients, a practice's none for lab orders, analyser values or final models (test and audit check), and code under `web/` imports from the training package only `iron_deficiency.screening` and `iron_deficiency.dataset` (audit check). | `tests/test_settings.py`, `tools/audit.py` |
 
 ## 3. Agents
 
@@ -143,7 +143,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | Analyser | Software, stand-in | Returns the patient's NHANES 2021–2023 values (R3, R12) |
 | Final models | Environment | Written by the ClientApp (R16) into the hospital's `final-models/` folder (§9) |
 | Launcher (`tools/demo.py`) | Software | Starts each party as its own process (§9, R21) |
-| Seed command (`seed_demo`) | Software | Creates general practitioners, laboratory staff, a laboratory director and patients from NHANES 2021–2023 with obviously synthetic names |
+| Seed commands (`seed_hospital`, `seed_practice`) | Software | Each party's demo accounts from the same NHANES 2021–2023 participants: laboratory staff, a laboratory director and the analyser stand-in's values at the hospital; general practitioners and patients with obviously synthetic names at the practice |
 
 ## 4. Obstacles
 

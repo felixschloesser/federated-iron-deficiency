@@ -9,9 +9,9 @@ from django.db import close_old_connections
 from django.utils import timezone
 
 from web.lab import services
+from web.lab.forms import LabOrderForm
 from web.lab.models import LabOrder
 from web.messaging import messages_pb2, messages_pb2_grpc
-from web.messaging.forms import LabOrderForm
 
 
 def request[**P, R](handler: Callable[P, R]) -> Callable[P, R]:

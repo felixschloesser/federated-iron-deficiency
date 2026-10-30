@@ -18,12 +18,12 @@ from pytest_django.fixtures import Settings
 from tests.conftest import World, make_general_practitioner, make_patient
 from tools.certificates import Authority, issue, make_authority
 from web.lab import services as lab_services
+from web.lab.messaging import serve
 from web.lab.models import LabOrder
-from web.messaging import client as messaging
 from web.messaging import messages_pb2
-from web.messaging.client import Connection
-from web.messaging.server import serve
+from web.practice import messaging
 from web.practice import services as practice_services
+from web.practice.messaging import Connection
 from web.practice.models import GeneralPractitioner, LabReport, Order, Patient
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest

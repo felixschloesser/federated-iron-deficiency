@@ -81,10 +81,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "web.accounts",
-    "web.practice",
-    "web.nhanes",
-    "web.lab",
-    "web.deployment",
+    *(app for party in ([PARTY] if PARTY else Party) for app in party.apps()),
 ]
 
 AUTH_USER_MODEL = "accounts.User"

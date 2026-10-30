@@ -1,4 +1,5 @@
-"""The demo data command used for manual and browser checks."""
+"""The demo data commands used for manual and browser checks: seed_hospital
+and seed_practice, both run in a development checkout."""
 
 from pathlib import Path
 
@@ -8,15 +9,15 @@ from django.core.management import CommandError, call_command
 from pytest_django.fixtures import Settings
 
 from iron_deficiency.dataset import CBC_VARS
+from web.accounts import demo
 from web.accounts.models import User
 from web.accounts.roles import Role, role_of
 from web.nhanes.models import Participant
-from web.practice.management.commands import seed_demo
 from web.practice.models import GeneralPractitioner, Patient
 
 pytestmark = pytest.mark.django_db
 
-# (sex, age, ferritin) per group, in the order seed_demo.GROUPS lists them.
+# (sex, age, ferritin) per group, in the order demo.Group lists them.
 PEOPLE = [
     ("Female", 30, 8.0),  # eligible, ferritin below 15
     ("Female", 25, 40.0),  # eligible, ferritin 15 or more
@@ -42,11 +43,16 @@ def nhanes_rows() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def seed(*args: str) -> None:
+    call_command("seed_hospital", *args)
+    call_command("seed_practice", *args)
+
+
 @pytest.fixture
 def seeded(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
     settings.DEBUG = True
-    monkeypatch.setattr(seed_demo, "load_nhanes", nhanes_rows)
-    call_command("seed_demo")
+    monkeypatch.setattr(demo, "load_nhanes", nhanes_rows)
+    seed()
 
 
 def test_seeds_accounts_of_every_role(seeded: None) -> None:
@@ -80,7 +86,7 @@ def test_patients_are_shared_between_the_general_practitioners(seeded: None) -> 
 
 
 def test_running_twice_changes_nothing(seeded: None) -> None:
-    call_command("seed_demo")
+    seed()
     assert User.objects.count() == 5
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
@@ -88,7 +94,7 @@ def test_running_twice_changes_nothing(seeded: None) -> None:
 def test_refuses_outside_development(settings: Settings) -> None:
     settings.DEBUG = False
     with pytest.raises(CommandError, match="DJANGO_DEBUG=1"):
-        call_command("seed_demo")
+        seed()
     assert not User.objects.exists()
 
 
@@ -96,10 +102,10 @@ def test_each_hospital_seeds_other_participants(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     settings.DEBUG = True
-    monkeypatch.setattr(seed_demo, "load_nhanes", nhanes_rows)
+    monkeypatch.setattr(demo, "load_nhanes", nhanes_rows)
     rows = nhanes_rows()
-    assert not seed_demo.choose(rows, seed=0).equals(seed_demo.choose(rows, seed=1))
-    call_command("seed_demo", "--seed", "1")
+    assert not demo.choose(rows, seed=0).equals(demo.choose(rows, seed=1))
+    seed("--seed", "1")
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
 
@@ -107,7 +113,7 @@ def test_reads_participants_from_a_csv(settings: Settings, tmp_path: Path) -> No
     settings.DEBUG = True
     csv = tmp_path / "nhanes.csv"
     nhanes_rows().to_csv(csv, index=False)
-    call_command("seed_demo", "--nhanes", str(csv))
+    seed("--nhanes", str(csv))
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
 
@@ -115,13 +121,9 @@ def test_a_hospital_seeds_no_patients(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     settings.DEBUG = True
-    from web.party import Party
-
-    settings.PARTY = Party.HOSPITAL
-    monkeypatch.setattr(seed_demo, "load_nhanes", nhanes_rows)
-    call_command("seed_demo")
+    monkeypatch.setattr(demo, "load_nhanes", nhanes_rows)
+    call_command("seed_hospital")
     assert not Patient.objects.exists()
-    assert not GeneralPractitioner.objects.exists()
     assert Participant.objects.count() == 3 * len(PEOPLE)
     assert {role_of(user) for user in User.objects.all()} == {
         Role.LABORATORY_STAFF,
@@ -134,11 +136,8 @@ def test_a_practice_seeds_no_analyser_values(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     settings.DEBUG = True
-    from web.party import Party
-
-    settings.PARTY = Party.GENERAL_PRACTITIONER
-    monkeypatch.setattr(seed_demo, "load_nhanes", nhanes_rows)
-    call_command("seed_demo")
+    monkeypatch.setattr(demo, "load_nhanes", nhanes_rows)
+    call_command("seed_practice")
     assert not Participant.objects.exists()
     assert Patient.objects.count() == 3 * len(PEOPLE)
     assert {role_of(user) for user in User.objects.all()} == {

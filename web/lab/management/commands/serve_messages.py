@@ -5,7 +5,7 @@ from typing import Any
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
-from web.messaging.server import serve
+from web.lab.messaging import serve
 
 
 class Command(BaseCommand):

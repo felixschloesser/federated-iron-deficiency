@@ -13,6 +13,8 @@ import tomllib
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
+from web.party import Party
+
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = Path("tools") / "audit_baseline.json"
 ALLOWLIST = Path("tools") / "audit_allowlist.toml"
@@ -199,9 +201,8 @@ def get_mutation(root: Path) -> list[str]:
     return findings
 
 
-def training_imports(root: Path) -> list[str]:
-    """Hospital software uses only the screening side of the training package (R21)."""
-    findings = []
+def _web_imports(root: Path) -> Iterator[tuple[Path, int, str]]:
+    """Each module imported by code under web/, with where."""
     for path in files(root, "*.py"):
         rel = path.relative_to(root)
         if rel.parts[0] != "web":
@@ -214,13 +215,30 @@ def training_imports(root: Path) -> list[str]:
             else:
                 continue
             for module in modules:
-                if (
-                    module.split(".")[0] == "iron_deficiency"
-                    and module not in HOSPITAL_SIDE
-                ):
-                    findings.append(
-                        f"{rel.as_posix()}:{node.lineno}: imports {module}, startup code"
-                    )
+                yield rel, node.lineno, module
+
+
+def training_imports(root: Path) -> list[str]:
+    """Hospital software uses only the screening side of the training package (R21)."""
+    return [
+        f"{rel.as_posix()}:{line}: imports {module}, startup code"
+        for rel, line, module in _web_imports(root)
+        if module.split(".")[0] == "iron_deficiency" and module not in HOSPITAL_SIDE
+    ]
+
+
+def party_imports(root: Path) -> list[str]:
+    """A party's apps never import the other party's; shared code imports neither (R21)."""
+    owner = {app: party for party in Party for app in party.apps()}
+    findings = []
+    for rel, line, module in _web_imports(root):
+        app = ".".join(module.split(".")[:2])
+        imported = owner.get(app)
+        importer = owner.get(".".join(rel.parts[:2]))
+        if imported is None or imported is importer:
+            continue
+        who = f"the {importer.value}'s code" if importer else "shared code"
+        findings.append(f"{rel.as_posix()}:{line}: {who} imports {app}")
     return findings
 
 
@@ -256,6 +274,7 @@ CHECKS: dict[str, Callable[[Path], list[str]]] = {
         get_mutation,
         glossary_sources,
         training_imports,
+        party_imports,
     )
 }
 

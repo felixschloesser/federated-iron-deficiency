@@ -7,7 +7,7 @@ import grpc
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
-from web.messaging import client
+from web.practice import messaging
 
 
 class Command(BaseCommand):
@@ -19,13 +19,15 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
-        connection = client.configured_connection()
+        connection = messaging.configured_connection()
         if connection is None:
             raise CommandError("Set PRACTICE_DIR and MESSAGING_ADDRESS first.")
         every = options["every"]
         while True:
             try:
-                fetched = client.check_for_lab_reports(connection, now=timezone.now())
+                fetched = messaging.check_for_lab_reports(
+                    connection, now=timezone.now()
+                )
             except grpc.RpcError as error:
                 if every is None:
                     raise CommandError(f"The hospital: {error.code()}") from error
