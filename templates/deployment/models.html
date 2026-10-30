@@ -20,7 +20,7 @@
       <td>{{ model.run_id }}</td>
       <td>{{ model.stored_at|date:"j M Y, H:i"|default:"—" }}</td>
       <td>{{ model.threshold|default_if_none:"—" }}</td>
-      <td>{% if model.local_validation %}found {{ model.deficient_found }} of {{ model.deficient_total }} deficient, {{ model.unnecessary_suggestions }} unnecessary suggestions{% else %}—{% endif %}</td>
+      <td>{% if model.local_validation %}found {{ model.deficient_found }} of {{ model.deficient_total }} deficient, {{ model.unnecessary_suggestions }} unnecessary suggestion{{ model.unnecessary_suggestions|pluralize }}{% else %}—{% endif %}</td>
       <td>{{ model.local_auroc|floatformat:2|default:"—" }}</td>
       <td>{{ model.federated_auroc|floatformat:2|default:"—" }}</td>
       <td>

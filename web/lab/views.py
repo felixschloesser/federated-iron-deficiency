@@ -64,7 +64,7 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
             if reason is not None and NotScreened(reason).is_model_problem():
                 messages.warning(
                     request,
-                    f"{analysed} and released not screened:"
+                    f"{analysed} and released, not screened:"
                     f" {NotScreened(reason).label}. Tell the laboratory director.",
                 )
             else:

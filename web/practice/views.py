@@ -135,7 +135,10 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
                 request, "The hospital could not be reached. Try again later."
             )
         else:
-            messages.success(request, f"{fetched} new lab report{pluralize(fetched)}.")
+            messages.success(
+                request,
+                f"{fetched or 'No'} new lab report{pluralize(fetched)}.",
+            )
         return redirect("practice:orders")
 
 

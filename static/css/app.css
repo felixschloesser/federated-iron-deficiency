@@ -22,8 +22,9 @@ article[role="status"][data-level="success"] {
   border-color: var(--pico-ins-color);
 }
 
+/* Pico's mark colour is too pale for a border; this amber keeps 3:1 on light and dark. */
 article[role="status"][data-level="warning"] {
-  border-color: var(--pico-mark-background-color);
+  border-color: #b86e00;
 }
 
 article[role="status"][data-level="error"] {

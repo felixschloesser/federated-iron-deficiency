@@ -173,7 +173,7 @@ def test_a_cbc_not_screened_for_a_model_problem_warns(
     assertContains(response, 'data-level="warning"')
     assertContains(
         response,
-        f"Sample {lab_order.sample.sample_id}: CBC analysed and released not"
+        f"Sample {lab_order.sample.sample_id}: CBC analysed and released, not"
         " screened: no model deployed. Tell the laboratory director.",
     )
 
