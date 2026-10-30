@@ -47,8 +47,14 @@ article[role="status"][data-level="error"] {
   }
 }
 
-/* A page-level POST action beside the links of the index header: as wide as
-   its label, not the full width Pico gives buttons in forms. */
+/* The index header's actions: links and POST buttons in one row (a form
+   cannot sit in a <p>), spaced like a paragraph. */
+.action-row {
+  margin-bottom: var(--pico-typography-spacing-vertical);
+}
+
+/* A page-level POST action: as wide as its label, not the full width Pico
+   gives buttons in forms. */
 .inline-form {
   display: inline;
 }
