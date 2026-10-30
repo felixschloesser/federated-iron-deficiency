@@ -4,7 +4,7 @@ from typing import assert_never
 
 from django.db import models
 
-from web.practice.models import Test
+from web.vocabulary import Test
 
 FERRITIN = "LBXFER"  # NHANES variable name, as the CBC keys (CBC_VARS)
 

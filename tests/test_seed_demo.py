@@ -65,8 +65,9 @@ def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
         for participant in participants:
             assert participant.ferritin == ferritin
             assert participant.cbc == dict.fromkeys(CBC_VARS, float(group))
-            assert participant.patient.registered_sex == sex.lower()
-            assert participant.patient.age == age
+            patient = Patient.objects.get(sample_id=str(participant.seqn))
+            assert patient.registered_sex == sex.lower()
+            assert patient.age == age
 
 
 def test_patients_are_shared_between_the_general_practitioners(seeded: None) -> None:

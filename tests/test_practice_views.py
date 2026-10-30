@@ -12,9 +12,10 @@ from pytest_django.fixtures import Settings
 
 from tests.conftest import make_general_practitioner, make_patient
 from web.accounts.models import User
-from web.practice.models import GeneralPractitioner, Order, Patient, RegisteredSex
-from web.practice.models import Test as OrderedTest
+from web.practice.models import GeneralPractitioner, Order, Patient
 from web.views import ServerErrorView
+from web.vocabulary import RegisteredSex
+from web.vocabulary import Test as OrderedTest
 
 pytestmark = pytest.mark.django_db
 
@@ -112,12 +113,12 @@ def test_patient_page_queries(
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     logged_in(client, general_practitioner)
-    for _ in range(3):
-        client.post(order_url(patient, OrderedTest.FERRITIN))
+    client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
+    client.post(order_url(patient, OrderedTest.FERRITIN))
     # Session, user with general practitioner, patient, orders.
     with django_assert_num_queries(4):
         response = client.get(patient_url(patient))
-    assert len(response.context["orders"]) == 3
+    assert len(response.context["orders"]) == 2
 
 
 def test_another_general_practitioners_patient_is_not_found(
@@ -193,8 +194,11 @@ def test_orders_queries(
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     logged_in(client, general_practitioner)
-    for _ in range(4):
-        client.post(order_url(patient, OrderedTest.FERRITIN))
+    other = make_patient(general_practitioner, "Test Patient 3", RegisteredSex.MALE, 60)
+    for each in (patient, other):
+        client.post(order_url(each, OrderedTest.CBC), {"indication": "other"})
+        client.post(order_url(each, OrderedTest.FERRITIN))
+    assert Order.objects.count() == 4
     # Session, user with general practitioner, orders with their patients.
     with django_assert_num_queries(3):
         assert client.get(reverse("practice:orders")).status_code == 200
@@ -238,3 +242,24 @@ def test_error_page_names_the_hospital(settings: Settings) -> None:
 def test_form_error_is_shown_once_in_the_summary(client: Client) -> None:
     response = client.post(reverse("login"), {"username": "x", "password": "y"})
     assert response.content.decode().count("Please enter a correct username") == 1
+
+
+def test_patient_page_offers_only_tests_not_yet_ordered(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    logged_in(client, general_practitioner)
+    client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
+    response = client.get(patient_url(patient))
+    assert [action["label"] for action in response.context["actions"]] == [
+        "Order ferritin"
+    ]
+
+
+def test_a_test_already_ordered_is_refused_in_the_summary(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    logged_in(client, general_practitioner)
+    client.post(order_url(patient, OrderedTest.FERRITIN))
+    response = client.post(order_url(patient, OrderedTest.FERRITIN))
+    errors = response.context["form"].non_field_errors().as_data()
+    assert [error.code for error in errors] == ["already_ordered"]

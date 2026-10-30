@@ -4,12 +4,12 @@ another general practitioner's patient (features/access.feature)."""
 from datetime import UTC, datetime
 
 from django.core.exceptions import ValidationError
-from pytest_bdd import parsers, scenario, scenarios, then, when
+from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from tests.conftest import World
 from web.practice import services
-from web.practice.models import ClinicalIndication, RegisteredSex
-from web.practice.models import Test as OrderedTest
+from web.vocabulary import ClinicalIndication, RegisteredSex
+from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 29, 9, 0, tzinfo=UTC)
 TESTS = {"a CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
@@ -79,3 +79,32 @@ def order_copies_patient(world: World, sex: str, age: int) -> None:
 def order_refused(world: World, code: str, field: str) -> None:
     assert "order" not in world
     assert [error.code for error in world["error"].error_dict[field]] == [code]
+
+
+@given(
+    parsers.re(
+        r'"(?P<general_practitioner>[^"]+)" ordered a CBC for "(?P<patient>[^"]+)"'
+        r" with indication (?P<indication>.+)$"
+    )
+)
+def ordered_before(
+    world: World, general_practitioner: str, patient: str, indication: str
+) -> None:
+    services.place_order(
+        general_practitioner=world["general_practitioners"][general_practitioner],
+        patient=world["patients"][patient],
+        test=OrderedTest.CBC,
+        indication=indication_named(indication),
+        now=NOW,
+    )
+
+
+@then(parsers.parse('the order carries the sample ID of "{patient}"'))
+def order_carries_sample_id(world: World, patient: str) -> None:
+    assert world["order"].sample_id == world["patients"][patient].sample_id
+
+
+@then(parsers.parse('both orders carry the sample ID of "{patient}"'))
+def both_carry_sample_id(world: World, patient: str) -> None:
+    record = world["patients"][patient]
+    assert [order.sample_id for order in record.orders.all()] == [record.sample_id] * 2

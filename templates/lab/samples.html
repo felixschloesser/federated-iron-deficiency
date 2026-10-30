@@ -3,43 +3,19 @@
 {% block content %}
 {% include "kit/index_header.html" with title="Samples" %}
 
-<h2>Orders to receive</h2>
-{% if orders_to_receive %}
+<h2>Samples to receive</h2>
+{% if samples_to_receive %}
 <table>
   <thead>
-    <tr><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Registered sex</th><th scope="col">Age</th><th scope="col">General practitioner</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
+    <tr><th scope="col">Sample ID</th><th scope="col">Tests</th><th scope="col">General practitioner</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
   </thead>
   <tbody>
-    {% for row in orders_to_receive %}
+    {% for sample in samples_to_receive %}
     <tr>
-      <td>{{ row.test }}</td>
-      <td>{{ row.indication|default:"—" }}</td>
-      <td>{{ row.registered_sex }}</td>
-      <td>{{ row.age }}</td>
-      <td>{{ row.general_practitioner }}</td>
-      <td>{% url "lab:receive" row.order as receive_url %}{% include "kit/action_button.html" with url=receive_url label="Receive" %}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p>No orders waiting.</p>
-{% endif %}
-
-<h2>Samples to analyse</h2>
-{% if samples_to_analyse %}
-<table>
-  <thead>
-    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Received</th><th scope="col">General practitioner</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
-  </thead>
-  <tbody>
-    {% for row in samples_to_analyse %}
-    <tr>
-      <td>{{ row.sample_id }}</td>
-      <td>{{ row.test }}</td>
-      <td>{{ row.received_at|date:"j M Y, H:i" }}</td>
-      <td>{{ row.general_practitioner }}</td>
-      <td>{% url "lab:run_analyser" row.sample as analyse_url %}{% include "kit/action_button.html" with url=analyse_url label="Run analyser" %}</td>
+      <td>{{ sample.sample_id }}</td>
+      <td>{% for lab_order in sample.lab_orders.all %}{{ lab_order.get_test_display }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+      <td>{% for lab_order in sample.lab_orders.all %}{% if forloop.first %}{{ lab_order.general_practitioner }}{% endif %}{% endfor %}</td>
+      <td>{% url "lab:receive" sample.pk as receive_url %}{% include "kit/action_button.html" with url=receive_url label="Receive" %}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -48,24 +24,49 @@
 <p>No samples waiting.</p>
 {% endif %}
 
-<h2>Analysed</h2>
-{% if samples_analysed %}
+<h2>To analyse</h2>
+<p>Tests on samples the laboratory holds, including later tests on a stored sample.</p>
+{% if lab_orders_to_analyse %}
 <table>
   <thead>
-    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Analysed</th><th scope="col">General practitioner</th></tr>
+    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Registered sex</th><th scope="col">Age</th><th scope="col">General practitioner</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
   </thead>
   <tbody>
-    {% for row in samples_analysed %}
+    {% for lab_order in lab_orders_to_analyse %}
     <tr>
-      <td>{{ row.sample_id }}</td>
-      <td>{{ row.test }}</td>
-      <td>{{ row.analysed_at|date:"j M Y, H:i" }}</td>
-      <td>{{ row.general_practitioner }}</td>
+      <td>{{ lab_order.sample.sample_id }}</td>
+      <td>{{ lab_order.get_test_display }}</td>
+      <td>{{ lab_order.get_indication_display|default:"—" }}</td>
+      <td>{{ lab_order.get_registered_sex_display }}</td>
+      <td>{{ lab_order.age }}</td>
+      <td>{{ lab_order.general_practitioner }}</td>
+      <td>{% url "lab:run_analyser" lab_order.pk as analyse_url %}{% include "kit/action_button.html" with url=analyse_url label="Run analyser" %}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 {% else %}
-<p>No samples analysed yet.</p>
+<p>Nothing to analyse.</p>
+{% endif %}
+
+<h2>Analysed</h2>
+{% if lab_orders_analysed %}
+<table>
+  <thead>
+    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Analysed</th><th scope="col">General practitioner</th></tr>
+  </thead>
+  <tbody>
+    {% for lab_order in lab_orders_analysed %}
+    <tr>
+      <td>{{ lab_order.sample.sample_id }}</td>
+      <td>{{ lab_order.get_test_display }}</td>
+      <td>{{ lab_order.analysed_at|date:"j M Y, H:i" }}</td>
+      <td>{{ lab_order.general_practitioner }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Nothing analysed yet.</p>
 {% endif %}
 {% endblock %}

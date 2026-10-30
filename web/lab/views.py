@@ -11,8 +11,7 @@ from django.views.generic import TemplateView
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
 from web.lab import queries, services
-from web.lab.models import Sample
-from web.practice.models import Order
+from web.lab.models import LabOrder, Sample
 
 
 class LaboratoryStaffRequiredMixin(RoleRequiredMixin):
@@ -25,17 +24,17 @@ class SamplesView(LaboratoryStaffRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         return {
             **super().get_context_data(**kwargs),
-            "orders_to_receive": queries.orders_to_receive(),
-            "samples_to_analyse": queries.samples_to_analyse(),
-            "samples_analysed": queries.samples_analysed(),
+            "samples_to_receive": queries.samples_to_receive(),
+            "lab_orders_to_analyse": queries.lab_orders_to_analyse(),
+            "lab_orders_analysed": queries.lab_orders_analysed(),
         }
 
 
 class ReceiveView(LaboratoryStaffRequiredMixin, View):
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
-        order = get_object_or_404(Order, pk=pk)
+        sample = get_object_or_404(Sample, pk=pk)
         try:
-            sample = services.receive(order=order, now=timezone.now())
+            services.receive(sample=sample, now=timezone.now())
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
@@ -45,11 +44,11 @@ class ReceiveView(LaboratoryStaffRequiredMixin, View):
 
 class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
-        sample = get_object_or_404(Sample.objects.select_related("order"), pk=pk)
+        lab_order = get_object_or_404(LabOrder.objects.select_related("sample"), pk=pk)
         try:
-            services.run_analyser(sample=sample, now=timezone.now())
+            services.run_analyser(lab_order=lab_order, now=timezone.now())
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            messages.success(request, f"Sample {sample.sample_id} analysed.")
+            messages.success(request, f"{lab_order} analysed.")
         return redirect("lab:samples")

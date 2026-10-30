@@ -1,34 +1,9 @@
 """General practitioners, their patients, and orders (terms: docs/spec/requirements.md §1)."""
 
-from typing import assert_never
-
 from django.conf import settings
 from django.db import models
 
-
-class RegisteredSex(models.TextChoices):
-    FEMALE = "female", "Female"
-    MALE = "male", "Male"
-
-
-class Test(models.TextChoices):
-    CBC = "cbc", "CBC"
-    FERRITIN = "ferritin", "ferritin"
-
-    def takes_indication(self) -> bool:
-        """Whether an order for this test states a clinical indication."""
-        match self:
-            case Test.CBC:
-                return True
-            case Test.FERRITIN:
-                return False
-            case _:
-                assert_never(self)
-
-
-class ClinicalIndication(models.TextChoices):
-    NON_SPECIFIC_COMPLAINT = "non_specific_complaint", "Non-specific complaint"
-    OTHER = "other", "Other"
+from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
 class GeneralPractitioner(models.Model):
@@ -50,10 +25,9 @@ class Patient(models.Model):
     name = models.CharField(max_length=100)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
-    # Demo data: the NHANES participant whose values the analyser returns.
-    participant = models.OneToOneField(
-        "nhanes.Participant", on_delete=models.PROTECT, related_name="patient"
-    )
+    # On the tube's label at the first order; in the demo the patient's NHANES
+    # number, which the hospital's analyser stand-in looks up (spec §8).
+    sample_id = models.CharField(max_length=20, unique=True)
 
     def __str__(self) -> str:
         return self.name
@@ -79,6 +53,15 @@ class Order(models.Model):
     # Copied at ordering: all the lab learns about the patient (R1, R14).
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
+    sample_id = models.CharField(max_length=20)
     ordered_at = models.DateTimeField()
 
     objects = OrderQuerySet.as_manager()
+
+    class Meta:
+        # One sample per patient, each test at most once (R26).
+        constraints = (
+            models.UniqueConstraint(
+                fields=["patient", "test"], name="one_test_per_patient"
+            ),
+        )

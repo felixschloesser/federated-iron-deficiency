@@ -1,6 +1,6 @@
 """URL converter: `<test:test>` matches only the tests one can order."""
 
-from web.practice.models import Test
+from web.vocabulary import Test
 
 
 class TestConverter:

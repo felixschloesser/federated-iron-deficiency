@@ -10,7 +10,8 @@ from pytest_bdd import given, parsers
 if TYPE_CHECKING:
     from web.deployment.models import LaboratoryDirector
     from web.lab.models import LaboratoryStaffMember
-    from web.practice.models import GeneralPractitioner, Patient, RegisteredSex
+    from web.practice.models import GeneralPractitioner, Patient
+from web.vocabulary import RegisteredSex
 
 World = dict[str, Any]
 
@@ -35,7 +36,8 @@ def make_patient(
     sex: "RegisteredSex",
     age: int,
 ) -> "Patient":
-    """A patient with an NHANES participant of placeholder values and no ferritin."""
+    """A patient whose sample ID is a new NHANES number; the hospital's analyser
+    stand-in holds placeholder values for it and no ferritin."""
     from iron_deficiency.dataset import CBC_VARS
     from web.nhanes.models import Participant
     from web.practice.models import Patient
@@ -48,7 +50,7 @@ def make_patient(
         name=name,
         registered_sex=sex,
         age=age,
-        participant=participant,
+        sample_id=str(participant.seqn),
     )
 
 
@@ -66,7 +68,7 @@ def general_practitioner_with_patient(
     sex: str | None,
     age: str | None,
 ) -> None:
-    from web.practice.models import RegisteredSex
+    from web.vocabulary import RegisteredSex
 
     owner = world["general_practitioners"].get(
         general_practitioner

@@ -5,13 +5,9 @@ from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from web.practice.models import (
-    ClinicalIndication,
-    GeneralPractitioner,
-    Order,
-    Patient,
-    Test,
-)
+from web.messaging.client import send_lab_order
+from web.practice.models import GeneralPractitioner, Order, Patient
+from web.vocabulary import ClinicalIndication, Test
 
 
 @transaction.atomic
@@ -23,7 +19,7 @@ def place_order(
     indication: ClinicalIndication | None,
     now: datetime,
 ) -> Order:
-    """Order one test for one of the general practitioner's patients (R1, R13)."""
+    """Order one test for one of the general practitioner's patients (R1, R13, R26)."""
     errors: dict[str, ValidationError] = {}
     if patient.general_practitioner_id != general_practitioner.pk:
         errors["patient"] = ValidationError(
@@ -37,13 +33,21 @@ def place_order(
         errors["indication"] = ValidationError(
             "Ferritin takes no clinical indication.", code="indication_not_applicable"
         )
+    if patient.orders.filter(test=test).exists():
+        errors["test"] = ValidationError(
+            "This patient already has this test; a sample is tested once per test.",
+            code="already_ordered",
+        )
     if errors:
         raise ValidationError(errors)
-    return Order.objects.create(
+    order = Order.objects.create(
         patient=patient,
         test=test,
         indication=indication,
         registered_sex=patient.registered_sex,
         age=patient.age,
+        sample_id=patient.sample_id,
         ordered_at=now,
     )
+    send_lab_order(order)
+    return order

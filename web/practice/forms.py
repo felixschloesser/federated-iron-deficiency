@@ -2,7 +2,7 @@ from typing import Any
 
 from django import forms
 
-from web.practice.models import ClinicalIndication, Test
+from web.vocabulary import ClinicalIndication, Test
 
 
 class OrderForm(forms.Form):

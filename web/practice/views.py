@@ -14,7 +14,8 @@ from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
 from web.practice import services
 from web.practice.forms import OrderForm
-from web.practice.models import GeneralPractitioner, Order, OrderQuerySet, Patient, Test
+from web.practice.models import GeneralPractitioner, Order, OrderQuerySet, Patient
+from web.vocabulary import Test
 
 
 class GeneralPractitionerRequiredMixin(RoleRequiredMixin):
@@ -51,6 +52,9 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         patient = self.object
+        orders = list(patient.orders.order_by("-ordered_at", "-pk"))
+        ordered = {order.test for order in orders}
+        # One sample per patient, each test at most once (R26): offer only the others.
         actions = [
             {
                 "url": reverse(
@@ -59,8 +63,8 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
                 "label": f"Order {test.label}",
             }
             for test in Test
+            if test not in ordered
         ]
-        orders = patient.orders.order_by("-ordered_at", "-pk")
         return {
             **super().get_context_data(**kwargs),
             "actions": actions,
@@ -111,7 +115,9 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
                 now=timezone.now(),
             )
         except ValidationError as error:
-            form.add_error(None, error)
+            for field, errors in error.error_dict.items():
+                # An error on a field this form does not show goes to the summary.
+                form.add_error(field if field in form.fields else None, errors)
             return self.form_invalid(form)
         messages.success(self.request, "Order placed.")
         return super().form_valid(form)

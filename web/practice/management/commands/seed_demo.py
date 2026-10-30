@@ -21,7 +21,8 @@ from web.accounts.models import User
 from web.deployment.models import LaboratoryDirector
 from web.lab.models import LaboratoryStaffMember
 from web.nhanes.models import Participant
-from web.practice.models import GeneralPractitioner, Patient, RegisteredSex
+from web.practice.models import GeneralPractitioner, Patient
+from web.vocabulary import RegisteredSex
 
 PASSWORD = "demo-pass-2026"
 PER_GROUP = 3
@@ -88,15 +89,17 @@ def patient(
     row: Mapping[Hashable, Any], name: str, owner: GeneralPractitioner
 ) -> Patient:
     ferritin = row["LBXFER"]
-    participant, _ = Participant.objects.get_or_create(
-        seqn=int(row["sample_id"]),
+    seqn = int(row["sample_id"])
+    # The hospital's analyser stand-in: what this patient's tube would measure.
+    Participant.objects.get_or_create(
+        seqn=seqn,
         defaults={
             "cbc": {var: float(row[var]) for var in CBC_VARS},
             "ferritin": None if pd.isna(ferritin) else float(ferritin),
         },
     )
     record, _ = Patient.objects.get_or_create(
-        participant=participant,
+        sample_id=str(seqn),
         defaults={
             "general_practitioner": owner,
             "name": name,

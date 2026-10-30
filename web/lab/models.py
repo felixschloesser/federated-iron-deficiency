@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 
 from web.nhanes.models import FERRITIN
+from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
 class LaboratoryStaffMember(models.Model):
@@ -19,18 +20,43 @@ class LaboratoryStaffMember(models.Model):
 
 
 class Sample(models.Model):
-    order = models.OneToOneField(
-        "practice.Order", on_delete=models.PROTECT, related_name="sample"
-    )
-    # Assigned by the laboratory on receipt (WHO LQMS 5-4, p. 66).
+    """A tube, known by the sample ID on its label (R2)."""
+
     sample_id = models.CharField(max_length=20, unique=True)
-    received_at = models.DateTimeField()
+    # Absent until the tube has arrived; a later test uses the stored sample.
+    received_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return self.sample_id
+
+
+class LabOrder(models.Model):
+    """One test on a sample, as the lab order (DF1) said: no patient field (R14)."""
+
+    sample = models.ForeignKey(
+        Sample, on_delete=models.PROTECT, related_name="lab_orders"
+    )
+    test = models.CharField(max_length=8, choices=Test.choices)
+    indication = models.CharField(
+        max_length=22, choices=ClinicalIndication.choices, null=True, blank=True
+    )
+    registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
+    age = models.PositiveSmallIntegerField()
+    general_practitioner = models.CharField(max_length=100)
+    ordered_at = models.DateTimeField()
     # Absent until the analyser has run.
     analysed_at = models.DateTimeField(null=True, blank=True)
     results = models.JSONField(null=True, blank=True)
 
+    class Meta:
+        constraints = (
+            models.UniqueConstraint(
+                fields=["sample", "test"], name="one_test_per_sample"
+            ),
+        )
+
     def __str__(self) -> str:
-        return self.sample_id
+        return f"{self.sample.sample_id} {self.test}"
 
     @property
     def ferritin(self) -> float | None:
