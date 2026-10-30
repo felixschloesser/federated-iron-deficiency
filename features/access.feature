@@ -1,19 +1,12 @@
 Feature: Who sees what
   A general practitioner sees only their own patients; the lab never learns a patient's name;
-  demo login exists only in development. Covers R13–R15.
+  demo login exists only in development. Covers R13–R15. A lab report shows only
+  on its patient's page, so another general practitioner's lab report is as
+  unreachable as their patient (view tests: tests/test_practice_views.py).
 
   Background:
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1"
     And general practitioner "Dr. Demo B" with patient "Test Patient 2"
-
-  Scenario: A general practitioner sees only their own lab reports
-    Given lab reports for "Test Patient 1" and "Test Patient 2"
-    Then "Dr. Demo A"'s lab reports contain only the one for "Test Patient 1"
-
-  Scenario: A general practitioner cannot open another general practitioner's lab report
-    Given a lab report for "Test Patient 2"
-    When "Dr. Demo A" opens that lab report
-    Then it is not found
 
   Scenario: A general practitioner cannot order for another general practitioner's patient
     When "Dr. Demo A" orders a CBC for "Test Patient 2" with indication other
