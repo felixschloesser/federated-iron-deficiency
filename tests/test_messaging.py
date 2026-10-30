@@ -19,8 +19,9 @@ from tests.conftest import World, make_general_practitioner, make_patient
 from tools.certificates import Authority, issue, make_authority
 from web.lab import services as lab_services
 from web.lab.messaging import serve
-from web.lab.models import LabOrder
-from web.messaging import messages_pb2
+from web.lab.models import LabOrder, Sample
+from web.messaging import messages_pb2, messages_pb2_grpc
+from web.nhanes.models import Participant
 from web.practice import messaging
 from web.practice import services as practice_services
 from web.practice.messaging import Connection
@@ -49,17 +50,18 @@ def hospital(tmp_path: Path) -> Iterator[dict[str, object]]:
     server.stop(grace=None)
 
 
-def connection(hospital: dict[str, object], authority: Authority | None) -> Connection:
-    """A client of the hospital, holding a certificate from `authority`, if any."""
+def connection(
+    hospital: dict[str, object], authority: Authority | None, name: str = "client"
+) -> Connection:
+    """A client of the hospital, holding a certificate named `name` from
+    `authority`, if any."""
     server_authority = hospital["authority"]
     assert isinstance(server_authority, Authority)
     tmp = hospital["tmp"]
     assert isinstance(tmp, Path)
     certificate = key = None
     if authority is not None:
-        certificate, key = issue(
-            authority, tmp / authority.name, "client", server=False
-        )
+        certificate, key = issue(authority, tmp / name, name, server=False)
     return Connection(
         address=str(hospital["address"]),
         root_certificate=server_authority.certificate.read_bytes(),
@@ -85,7 +87,7 @@ def general_practitioner(
     world["general_practitioners"][name] = make_general_practitioner(name)
     hospital = world["hospital"]
     authority = hospital["authority"]
-    world["connection"] = connection(hospital, authority)
+    world["connection"] = connection(hospital, authority, practice)
 
 
 @given(
@@ -231,6 +233,101 @@ def has_lab_report(world: World, owner: str, patient: str) -> None:
 def has_one_lab_report(world: World, owner: str, patient: str) -> None:
     reports = LabReport.objects.filter(order__patient=world["patients"][patient])
     assert reports.count() == 1
+
+
+@given(
+    parsers.parse(
+        'another general practitioner\'s app with a client certificate from "{name}"'
+    )
+)
+def other_app(world: World, name: str) -> None:
+    world["other"] = connection(
+        world["hospital"], world["hospital"]["authority"], "Other app"
+    )
+
+
+@when("the other app checks for lab reports")
+def other_checks(world: World) -> None:
+    world["received"] = messaging_stub(world["other"]).FetchNewLabReports(
+        messages_pb2.FetchLabReports(), timeout=10
+    )
+
+
+def messaging_stub(connection: Connection) -> messages_pb2_grpc.LaboratoryStub:
+    credentials = grpc.ssl_channel_credentials(
+        root_certificates=connection.root_certificate,
+        private_key=connection.private_key,
+        certificate_chain=connection.certificate,
+    )
+    return messages_pb2_grpc.LaboratoryStub(
+        grpc.secure_channel(connection.address, credentials)
+    )
+
+
+@then("it receives no lab reports")
+def receives_none(world: World) -> None:
+    assert list(world["received"].reports) == []
+
+
+def lab_order_of(world: World, patient: str) -> LabOrder:
+    return LabOrder.objects.get(
+        sample__sample_id=world["patients"][patient].sample_id,
+        test=world["order"].test,
+    )
+
+
+@then(parsers.parse('the lab report of "{patient}" is still new at "{name}"'))
+def still_new(world: World, patient: str, name: str) -> None:
+    assert lab_order_of(world, patient).report_acknowledged_at is None
+
+
+@then(parsers.parse('the lab report of "{patient}" is no longer new at "{name}"'))
+def no_longer_new(world: World, patient: str, name: str) -> None:
+    assert lab_order_of(world, patient).report_acknowledged_at is not None
+
+
+@when(parsers.parse('the other app acknowledges the lab report of "{patient}"'))
+def other_acknowledges(world: World, patient: str) -> None:
+    messaging_stub(world["other"]).AcknowledgeLabReports(
+        messages_pb2.Acknowledgement(report_ids=[str(lab_order_of(world, patient).pk)]),
+        timeout=10,
+    )
+
+
+@when(
+    parsers.parse('the other app sends a lab order with the sample ID of "{patient}"')
+)
+def other_sends(world: World, patient: str) -> None:
+    messaging.send_lab_order(world["order"], world["other"])
+
+
+@then(parsers.parse('"{name}" has two samples with the sample ID of "{patient}"'))
+def two_samples(world: World, name: str, patient: str) -> None:
+    sample_id = world["patients"][patient].sample_id
+    assert Sample.objects.filter(sample_id=sample_id).count() == 2
+
+
+@given(
+    parsers.parse('"{name}" released a lab report for a sample "{owner}" never ordered')
+)
+def released_unknown(world: World, name: str, owner: str) -> None:
+    """A lab order from this app the app itself has no order for."""
+    Participant.objects.create(seqn=999999, cbc={})
+    stranger = Order(
+        sample_id="999999",
+        test=OrderedTest.FERRITIN,
+        indication=None,
+        registered_sex=RegisteredSex.FEMALE,
+        age=30,
+        ordered_at=NOW,
+    )
+    stranger.patient = world["patients"]["Test Patient 1"]
+    messaging.send_lab_order(stranger, world["connection"])
+    lab_order = LabOrder.objects.select_related("sample").get(
+        sample__sample_id="999999"
+    )
+    lab_services.receive(sample=lab_order.sample, now=NOW)
+    lab_services.run_analyser(lab_order=lab_order, now=NOW)
 
 
 @then("the lab order has no field for a patient's name or blood values")
