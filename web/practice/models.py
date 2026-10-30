@@ -78,6 +78,11 @@ class ResultValue:
     unit: str
     value: float
 
+    @property
+    def shown(self) -> str:
+        """The value as measured, without a padded or trailing zero: 7, 4.16, 10.7."""
+        return f"{self.value:g}"
+
 
 class LabReport(models.Model):
     """A lab report fetched from the hospital (DF20): results, and whether

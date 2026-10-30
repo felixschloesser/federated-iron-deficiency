@@ -140,3 +140,12 @@ def test_every_cbc_value_and_ferritin_has_a_name_in_cbc_order() -> None:
     from web.vocabulary import RESULT_NAMES
 
     assert list(RESULT_NAMES) == [*CBC_VARS, "LBXFER"]
+
+
+@pytest.mark.parametrize(
+    ("value", "shown"), [(7.0, "7"), (4.16, "4.16"), (10.7, "10.7"), (363.0, "363")]
+)
+def test_a_value_shows_as_measured(value: float, shown: str) -> None:
+    from web.practice.models import ResultValue
+
+    assert ResultValue("LBXHGB", "Hemoglobin", "g/dL", value).shown == shown
