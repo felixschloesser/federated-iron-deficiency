@@ -107,3 +107,60 @@ def test_a_party_holds_only_its_own_tables(
         }
     assert own in tables
     assert not [table for table in tables if table.startswith(others)]
+
+
+# Each seeded account opens its role's pages in the party's own deployment.
+SMOKE = """
+from django.test import Client
+from django.urls import reverse
+from web.accounts.models import User
+from web.accounts.roles import Role, role_of
+
+for user in User.objects.order_by("username"):
+    role = role_of(user)
+    if role is None:
+        continue
+    client = Client()
+    client.force_login(user)
+    urls = [link["url"] for link in role.nav_links()]
+    if role is Role.GENERAL_PRACTITIONER:
+        patient = user.general_practitioner.patients.first()
+        urls.append(reverse("practice:patient", kwargs={"pk": patient.pk}))
+    for url in urls:
+        status = client.get(url, secure=True).status_code
+        print(user.username, url, status)
+"""
+
+
+@pytest.mark.parametrize(
+    ("folder", "command", "users"),
+    [
+        ("HOSPITAL_DIR", "seed_hospital", {"director-1", "lab-1"}),
+        ("PRACTICE_DIR", "seed_practice", {"doctor-a", "doctor-b"}),
+    ],
+)
+def test_every_page_of_a_party_loads_in_its_own_deployment(
+    tmp_path: Path, folder: str, command: str, users: set[str]
+) -> None:
+    """Development serves every party from one database; this runs each party's
+    pages with only its own apps installed (R21)."""
+    from tests.test_seed_demo import nhanes_rows
+
+    nhanes = tmp_path / "nhanes.csv"
+    nhanes_rows().to_csv(nhanes, index=False)
+    env = {folder: str(tmp_path)}
+    run_manage(env, "migrate", "-v0")
+    run_manage(env, command, "--nhanes", str(nhanes))
+    result = subprocess.run(
+        [sys.executable, "manage.py", "shell", "-c", SMOKE],
+        check=True,
+        cwd=ROOT,
+        env={**BASE_ENV, "DJANGO_ALLOWED_HOSTS": "testserver", **env},
+        capture_output=True,
+        text=True,
+    )
+    pages = [
+        line.split() for line in result.stdout.splitlines() if line.count(" ") == 2
+    ]
+    assert {username for username, _, _ in pages} == users
+    assert [page for page in pages if page[2] != "200"] == []
