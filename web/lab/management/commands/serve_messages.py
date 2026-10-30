@@ -26,4 +26,6 @@ class Command(BaseCommand):
             client_authority=(folder / "ca" / "ca.crt").read_bytes(),
         )
         self.stdout.write(f"Messaging endpoint on {options['address']}")
+        # The demo sends stdout to a file, which would hold the line until exit.
+        self.stdout.flush()
         server.wait_for_termination()

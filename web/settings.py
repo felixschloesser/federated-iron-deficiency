@@ -1,4 +1,4 @@
-"""Settings for one hospital's deployment, secure unless DJANGO_DEBUG=1."""
+"""Settings for one party's deployment, secure unless DJANGO_DEBUG=1."""
 
 import os
 from pathlib import Path
@@ -27,21 +27,16 @@ if HOSPITAL_DIR is not None and PRACTICE_DIR is not None:
     raise ImproperlyConfigured("Set HOSPITAL_DIR or PRACTICE_DIR, not both.")
 PARTY_DIR = HOSPITAL_DIR or PRACTICE_DIR
 # None: a development checkout, serving every party's pages from one database.
-PARTY = (
-    Party.HOSPITAL
-    if HOSPITAL_DIR
-    else Party.GENERAL_PRACTITIONER
-    if PRACTICE_DIR
-    else None
-)
+PARTY: Party | None = None
 # The hospital's final models (R16); without HOSPITAL_DIR, an optional folder.
-FINAL_MODELS_DIR = (
-    HOSPITAL_DIR / "final-models"
-    if HOSPITAL_DIR
-    else Path(os.environ["FINAL_MODELS_DIR"])
-    if "FINAL_MODELS_DIR" in os.environ
-    else None
+FINAL_MODELS_DIR: Path | None = (
+    Path(os.environ["FINAL_MODELS_DIR"]) if "FINAL_MODELS_DIR" in os.environ else None
 )
+if HOSPITAL_DIR is not None:
+    PARTY = Party.HOSPITAL
+    FINAL_MODELS_DIR = HOSPITAL_DIR / "final-models"
+elif PRACTICE_DIR is not None:
+    PARTY = Party.GENERAL_PRACTITIONER
 # Shown in the title bar and header; never the screening's name.
 PARTY_NAME = (
     os.environ.get("PRACTICE_NAME", "Demo practice")
