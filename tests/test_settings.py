@@ -1,9 +1,12 @@
 """Settings keep a hospital's web app inside its own folder (spec R21)."""
 
 import os
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE_ENV = {
@@ -58,3 +61,48 @@ def test_only_a_practice_sends_messages(tmp_path: Path) -> None:
     )
     assert result.returncode != 0
     assert "MESSAGING_ADDRESS" in result.stderr
+
+
+def run_manage(env: dict[str, str], *args: str) -> None:
+    subprocess.run(
+        [sys.executable, "manage.py", *args],
+        check=True,
+        cwd=ROOT,
+        env={**BASE_ENV, "DJANGO_DEBUG": "1", **env},
+        capture_output=True,
+    )
+
+
+@pytest.mark.parametrize(
+    ("folder", "command", "own", "others"),
+    [
+        ("HOSPITAL_DIR", "seed_hospital", "lab_laborder", ("practice_",)),
+        (
+            "PRACTICE_DIR",
+            "seed_practice",
+            "practice_patient",
+            ("lab_", "nhanes_", "deployment_"),
+        ),
+    ],
+)
+def test_a_party_holds_only_its_own_tables(
+    tmp_path: Path, folder: str, command: str, own: str, others: tuple[str, ...]
+) -> None:
+    """A hospital has no table for patients; a practice none for lab orders,
+    analyser values or final models (R21)."""
+    from tests.test_seed_demo import nhanes_rows
+
+    nhanes = tmp_path / "nhanes.csv"
+    nhanes_rows().to_csv(nhanes, index=False)
+    env = {folder: str(tmp_path)}
+    run_manage(env, "migrate", "-v0")
+    run_manage(env, command, "--nhanes", str(nhanes))
+    with sqlite3.connect(tmp_path / "web.sqlite3") as database:
+        tables = {
+            name
+            for (name,) in database.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+    assert own in tables
+    assert not [table for table in tables if table.startswith(others)]

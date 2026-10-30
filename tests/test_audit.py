@@ -166,3 +166,23 @@ def test_web_imports_only_the_screening_side(tmp_path: Path) -> None:
         "web/lab/services.py:3: imports iron_deficiency.client_app, startup code",
         "web/lab/services.py:4: imports iron_deficiency.server_app, startup code",
     ]
+
+
+def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
+    root = tree(
+        tmp_path,
+        {
+            "web/practice/views.py": "from web.practice.models import Order\n"
+            "from web.vocabulary import Test\n"
+            "from web.lab.models import LabOrder\n",
+            "web/lab/services.py": "import web.practice.models\n",
+            "web/accounts/backends.py": "from web.deployment import models\n",
+            "web/messaging/messages_pb2.py": "import grpc\n",
+            "tools/demo.py": "from web.lab.models import LabOrder\n",
+        },
+    )
+    assert audit.run(root)["party_imports"] == [
+        "web/accounts/backends.py:1: shared code imports web.deployment",
+        "web/lab/services.py:1: the hospital's code imports web.practice",
+        "web/practice/views.py:3: the general practitioner's code imports web.lab",
+    ]
