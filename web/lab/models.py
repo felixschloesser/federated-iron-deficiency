@@ -47,6 +47,8 @@ class LabOrder(models.Model):
     # Absent until the analyser has run.
     analysed_at = models.DateTimeField(null=True, blank=True)
     results = models.JSONField(null=True, blank=True)
+    # Absent until the general practitioner's app confirmed it has the lab report.
+    report_acknowledged_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = (

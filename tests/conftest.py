@@ -9,8 +9,8 @@ from pytest_bdd import given, parsers
 # the tests that use it.
 if TYPE_CHECKING:
     from web.deployment.models import LaboratoryDirector
-    from web.lab.models import LaboratoryStaffMember
-    from web.practice.models import GeneralPractitioner, Patient
+    from web.lab.models import LaboratoryStaffMember, LabOrder
+    from web.practice.models import GeneralPractitioner, Order, Patient
 from web.vocabulary import RegisteredSex
 
 World = dict[str, Any]
@@ -93,3 +93,19 @@ def make_laboratory_director(name: str) -> "LaboratoryDirector":
 
     user = User.objects.create_user(username=name.lower().replace(" ", "-"))
     return LaboratoryDirector.objects.create(user=user, name=name)
+
+
+def deliver(order: "Order") -> "LabOrder":
+    """The lab order (DF1) arriving at the hospital, as its messaging endpoint records it."""
+    from web.lab.services import record_lab_order
+    from web.vocabulary import ClinicalIndication, RegisteredSex, Test
+
+    return record_lab_order(
+        sample_id=order.sample_id,
+        test=Test(order.test),
+        indication=ClinicalIndication(order.indication) if order.indication else None,
+        registered_sex=RegisteredSex(order.registered_sex),
+        age=order.age,
+        general_practitioner=order.patient.general_practitioner.name,
+        ordered_at=order.ordered_at,
+    )

@@ -62,3 +62,11 @@ def run_analyser(*, lab_order: LabOrder, now: datetime) -> LabOrder:
     lab_order.analysed_at = now
     lab_order.save(update_fields=["results", "analysed_at"])
     return lab_order
+
+
+@transaction.atomic
+def acknowledge_lab_reports(*, report_ids: list[int], now: datetime) -> None:
+    """The general practitioner's app has these lab reports: hand them out no more."""
+    LabOrder.objects.filter(
+        pk__in=report_ids, report_acknowledged_at__isnull=True
+    ).update(report_acknowledged_at=now)

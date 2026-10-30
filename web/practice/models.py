@@ -55,6 +55,8 @@ class Order(models.Model):
     age = models.PositiveSmallIntegerField()
     sample_id = models.CharField(max_length=20)
     ordered_at = models.DateTimeField()
+    # Absent until the hospital confirmed the lab order (DF1); then never sent again.
+    sent_at = models.DateTimeField(null=True, blank=True)
 
     objects = OrderQuerySet.as_manager()
 
@@ -65,3 +67,15 @@ class Order(models.Model):
                 fields=["patient", "test"], name="one_test_per_patient"
             ),
         )
+
+
+class LabReport(models.Model):
+    """A lab report fetched from the hospital (DF20): results and the comment only."""
+
+    order = models.OneToOneField(
+        Order, on_delete=models.PROTECT, related_name="lab_report"
+    )
+    results = models.JSONField()
+    comment = models.TextField(blank=True)
+    released_at = models.DateTimeField()
+    fetched_at = models.DateTimeField()

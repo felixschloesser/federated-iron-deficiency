@@ -9,6 +9,7 @@ from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains, assertNotContains
 
 from tests.conftest import (
+    deliver,
     make_general_practitioner,
     make_laboratory_staff_member,
     make_patient,
@@ -31,13 +32,14 @@ def lab_order() -> LabOrder:
     """A ferritin ordered by a general practitioner, as the lab received it (DF1)."""
     owner = make_general_practitioner("Dr. Demo A")
     patient = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
-    services.place_order(
+    order = services.place_order(
         general_practitioner=owner,
         patient=patient,
         test=OrderedTest.FERRITIN,
         indication=None,
         now=datetime(2026, 10, 29, 9, 0, tzinfo=UTC),
     )
+    deliver(order)
     return LabOrder.objects.select_related("sample").get()
 
 

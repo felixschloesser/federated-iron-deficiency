@@ -5,7 +5,6 @@ from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from web.messaging.client import send_lab_order
 from web.practice.models import GeneralPractitioner, Order, Patient
 from web.vocabulary import ClinicalIndication, Test
 
@@ -49,5 +48,4 @@ def place_order(
         sample_id=patient.sample_id,
         ordered_at=now,
     )
-    send_lab_order(order)
     return order

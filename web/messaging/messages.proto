@@ -1,0 +1,47 @@
+// Messages between the general practitioner's app and the hospital (spec §10).
+// The general practitioner's app is always the client (R23); the hospital
+// accepts only a client certificate from its own authority (R24).
+syntax = "proto3";
+
+package iron_deficiency.messaging.v1;
+
+// DF1. No patient name, no blood values (R25): the tube's values are measured
+// at the hospital. Choices are the values of web.vocabulary, checked by the
+// hospital's form.
+message LabOrder {
+  string sample_id = 1;
+  string test = 2;                  // web.vocabulary.Test
+  string indication = 3;            // web.vocabulary.ClinicalIndication; empty: none
+  string registered_sex = 4;        // web.vocabulary.RegisteredSex
+  uint32 age = 5;
+  string general_practitioner = 6;  // the ordering general practitioner's name
+  string ordered_at = 7;            // ISO 8601
+}
+
+// DF20. Results and the comment only (R25): no score, no screening result.
+message LabReport {
+  string report_id = 1;
+  string sample_id = 2;
+  string test = 3;
+  map<string, double> results = 4;
+  string comment = 5;               // only for ferritin suggested (R9)
+  string released_at = 6;           // ISO 8601
+}
+
+message Received {}
+
+message FetchLabReports {}
+
+message LabReports {
+  repeated LabReport reports = 1;
+}
+
+message Acknowledgement {
+  repeated string report_ids = 1;
+}
+
+service Laboratory {
+  rpc SendLabOrder(LabOrder) returns (Received);
+  rpc FetchNewLabReports(FetchLabReports) returns (LabReports);
+  rpc AcknowledgeLabReports(Acknowledgement) returns (Received);
+}

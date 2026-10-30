@@ -104,6 +104,9 @@ DATABASES = {
         "NAME": HOSPITAL_DIR / "web.sqlite3"
         if HOSPITAL_DIR
         else BASE_DIR / f"{DATABASE_NAME}.sqlite3",
+        # A file, not memory: Django never closes an in-memory database, so the
+        # messaging endpoint's threads would leave their connections open in tests.
+        "TEST": {"NAME": BASE_DIR / f"test-{DATABASE_NAME}.sqlite3"},
     }
 }
 

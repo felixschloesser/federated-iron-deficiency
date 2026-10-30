@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from iron_deficiency.dataset import CBC_VARS
-from tests.conftest import World
+from tests.conftest import World, deliver
 from web.lab import queries, services
 from web.lab.models import LabOrder, Sample
 from web.nhanes.models import Participant
@@ -49,9 +49,7 @@ def place(world: World, test: str, patient: str) -> None:
         indication=indication,
         now=NOW,
     )
-    world["lab_order"] = LabOrder.objects.get(
-        sample__sample_id=record.sample_id, test=ordered
-    )
+    world["lab_order"] = deliver(world["order"])
 
 
 @given(

@@ -101,14 +101,15 @@ def order(
         if indication
         else None
     )
-    world["order"] = practice_services.place_order(
+    placed: Order = practice_services.place_order(
         general_practitioner=record.general_practitioner,
         patient=record,
         test=test,
         indication=choice,
         now=NOW,
     )
-    return world["order"]
+    world["order"] = placed
+    return placed
 
 
 @when(
