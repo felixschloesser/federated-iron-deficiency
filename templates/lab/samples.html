@@ -53,7 +53,7 @@
 {% if lab_orders_analysed %}
 <div class="overflow-auto"><table>
   <thead>
-    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Analysed</th><th scope="col">General practitioner</th></tr>
+    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Analysed</th><th scope="col">Screening result</th><th scope="col">General practitioner</th></tr>
   </thead>
   <tbody>
     {% for lab_order in lab_orders_analysed %}
@@ -61,6 +61,7 @@
       <td>{{ lab_order.sample.sample_id }}</td>
       <td>{{ lab_order.get_test_display }}</td>
       <td>{{ lab_order.analysed_at|date:"j M Y, H:i" }}</td>
+      <td>{{ lab_order.get_screening_result_display|default:"—" }}{% if lab_order.not_screened_reason %}: {{ lab_order.get_not_screened_reason_display }}{% endif %}</td>
       <td>{{ lab_order.general_practitioner }}</td>
     </tr>
     {% endfor %}

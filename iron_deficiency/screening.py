@@ -1,6 +1,7 @@
 """Local screening of new blood counts with the deployed model."""
 
 import argparse
+from collections.abc import Mapping
 from pathlib import Path
 
 import numpy as np
@@ -70,6 +71,13 @@ def score(samples: pd.DataFrame, model_path: Path) -> tuple[pd.Series, float]:
     return pd.Series(probabilities, index=samples.index[eligible]), deployment[
         "threshold"
     ]
+
+
+def suggests_ferritin(cbc: Mapping[str, float], age: int, model_path: Path) -> bool:
+    """Whether the model scores one eligible woman's CBC at or above its threshold."""
+    sample = pd.DataFrame([{"sex": ELIGIBLE_SEX, "age": age, **cbc}])
+    probabilities, threshold = score(sample, model_path)
+    return bool(probabilities.to_numpy()[0] >= threshold)
 
 
 def screen(samples: pd.DataFrame, model_path: Path) -> pd.DataFrame:

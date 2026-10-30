@@ -3,6 +3,9 @@
 from django.conf import settings
 from django.db import models
 
+from iron_deficiency.dataset import ELIGIBLE_AGES
+from web.deployment.models import FinalModel
+from web.lab.domain import NotScreened, ScreeningResult
 from web.nhanes.models import FERRITIN
 from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
@@ -57,6 +60,22 @@ class LabOrder(models.Model):
     # Absent until the analyser has run.
     analysed_at = models.DateTimeField(null=True, blank=True)
     results = models.JSONField(null=True, blank=True)
+    # Absent for ferritin, which is never screened (R12), and until analysed.
+    screening_result = models.CharField(
+        max_length=22, choices=ScreeningResult.choices, null=True, blank=True
+    )
+    # Present only when not screened (R5); no score is ever stored (R7).
+    not_screened_reason = models.CharField(
+        max_length=22, choices=NotScreened.choices, null=True, blank=True
+    )
+    # The final model that screened this CBC (R6); absent when not screened.
+    screened_by = models.ForeignKey(
+        FinalModel,
+        on_delete=models.PROTECT,
+        related_name="screening_results",
+        null=True,
+        blank=True,
+    )
     # Absent until the general practitioner's app confirmed it has the lab report.
     report_acknowledged_at = models.DateTimeField(null=True, blank=True)
 
@@ -69,6 +88,23 @@ class LabOrder(models.Model):
 
     def __str__(self) -> str:
         return f"{self.sample.sample_id} {self.test}"
+
+    def not_eligible(self) -> NotScreened | None:
+        """The first condition R4 fails, in the order indication, sex, age."""
+        if self.indication != ClinicalIndication.NON_SPECIFIC_COMPLAINT:
+            return NotScreened.INDICATION
+        if self.registered_sex != RegisteredSex.FEMALE:
+            return NotScreened.SEX
+        if not ELIGIBLE_AGES[0] <= self.age <= ELIGIBLE_AGES[1]:
+            return NotScreened.AGE
+        return None
+
+    @property
+    def comment(self) -> str:
+        """The lab report's comment: only ferritin suggested has one (R9)."""
+        if self.screening_result == ScreeningResult.FERRITIN_SUGGESTED:
+            return "Ferritin suggested."
+        return ""
 
     @property
     def ferritin(self) -> float | None:

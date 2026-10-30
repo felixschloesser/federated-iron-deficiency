@@ -38,6 +38,7 @@ staff is replaced and the report's word moves to the rejected column.
 | received | WHO 5-4, "date and time the sample was received in the laboratory" (p. 66) | Moment the sample crosses into the hospital | registered, accessioned |
 | analysed | Report, P1 "Lab analysis" | The report's process name | examined, tested |
 | screening | Report, P7 | The report's process name | scoring, classification |
+| screening result | Report, DF18 "Sample ID and result", P7 | What screening records per CBC: one of the three below, with the reason when not screened (R5) and the final model when screened (R6) | flag, outcome, classification |
 | ferritin suggested / ferritin not suggested / not screened | Report, Use case "a comment to the lab report suggesting ferritin"; "not screened" from DF18 | Names the action for the general practitioner; avoids the lab meaning of *flag* | flagged / not flagged (report, DF18; in a lab a *flag* marks an out-of-range value), possible iron deficiency (names a diagnosis) |
 | final model | Report, DS4, DF6, DF9 "final model and threshold" | What one training run sends to every hospital; stored there with its run ID and local validation | release, model version |
 | deploy | Report, Use case: the model "is then deployed to every hospital" | The laboratory director's decision that a final model screens this hospital's patients | activate, release, roll out |
@@ -107,8 +108,8 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R5 | A CBC that is not screened records why: the first failing condition, in the order indication, registered sex, age; else that there is no usable deployed model (none deployed, or changed on disk). | `screening.feature` |
 | R6 | A screening result records the final model that produced it (run ID, SHA-256, threshold). | `screening.feature` |
 | R7 | No score, probability or standardized input is stored or shown. | `screening.feature` |
-| R8 | Running the analyser on a CBC screens it at once, and its lab report is released at once. Without a usable deployed model (R19) a CBC that meets R4 is *not screened* with that reason: the general practitioner's CBC never waits for the startup's model, and is not screened again later. | `screening.feature` |
-| R9 | The lab report shows the results; the comment appears only for *ferritin suggested*. *Ferritin not suggested* and *not screened* show nothing about screening. | `reports.feature` |
+| R8 | Running the analyser on a CBC screens it at once, and its lab report is released at once. Without a usable deployed model (R19) a CBC that meets R4 is *not screened* with that reason: the general practitioner's CBC never waits for the startup's model, and is not screened again later. Screening runs in the same transaction as the analysis, so an analysed lab order is a released lab report; there is no separate release step. | `screening.feature` |
+| R9 | The lab report shows the results; the comment appears only for *ferritin suggested*. *Ferritin not suggested* and *not screened* show nothing about screening. | `screening.feature` (the comment the hospital sends), `reports.feature` |
 | R10 | A general practitioner marks a lab report as read with a POST; the reports index shows unread ones. | `reports.feature` |
 | R11 | *Order ferritin* is offered on a lab report with *ferritin suggested* when the patient has no ferritin order after it; it opens the ferritin order page with the patient filled in. | `reports.feature` |
 | R12 | A ferritin sample is never screened; its lab report is visible once analysed. | `lab.feature`, `screening.feature`, `reports.feature` |

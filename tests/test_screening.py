@@ -14,8 +14,11 @@ from iron_deficiency.dataset import CBC_VARS, FEATURES
 from iron_deficiency.screening import save_deployment, screen
 from iron_deficiency.task import Net
 from tests.conftest import World
+from web.deployment import services as deployment_services
+from web.deployment.domain import NoUsableModel, sha256
 from web.lab import queries as lab_queries
 from web.lab import services as lab_services
+from web.lab.domain import NotScreened, ScreeningResult
 from web.lab.models import LabOrder, Sample
 from web.nhanes.models import Participant
 from web.vocabulary import ClinicalIndication, RegisteredSex
@@ -84,9 +87,9 @@ def final_model(world: World, tmp_path: Path, run_id: str, threshold: float) -> 
 
 @given(parsers.parse('the laboratory director deployed "{run_id}"'))
 def deployed(world: World, run_id: str) -> None:
-    from web.deployment import services
-
-    services.deploy(run_id=run_id, directory=world["final_models_dir"], now=NOW)
+    deployment_services.deploy(
+        run_id=run_id, directory=world["final_models_dir"], now=NOW
+    )
 
 
 @given("no final model has been deployed")
@@ -180,8 +183,7 @@ def run_analyser(world: World) -> None:
 
 
 def result_label(lab_order: LabOrder) -> str:
-    from web.lab.domain import ScreeningResult
-
+    assert lab_order.screening_result is not None
     return ScreeningResult(lab_order.screening_result).label.lower()
 
 
@@ -212,8 +214,6 @@ def screened(world: World) -> None:
     )
 )
 def records_final_model(world: World, run_id: str, threshold: float) -> None:
-    from web.deployment.domain import sha256
-
     final_model = world["lab_order"].screened_by
     assert final_model.run_id == run_id
     assert final_model.sha256 == sha256(world["final_models_dir"] / f"{run_id}.pt")
@@ -244,3 +244,10 @@ def released(world: World, comment: str) -> None:
     (lab_order,) = lab_queries.lab_reports_to_send(CLIENT)
     assert lab_order.pk == world["lab_order"].pk
     assert lab_order.comment == comment
+
+
+@pytest.mark.parametrize("reason", NoUsableModel)
+def test_every_reason_without_a_usable_model_is_a_not_screened_reason(
+    reason: NoUsableModel,
+) -> None:
+    assert NotScreened(reason) == reason.value

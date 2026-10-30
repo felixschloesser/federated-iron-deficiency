@@ -97,7 +97,7 @@ def a_received_sample(world: World, test: str, patient: str) -> None:
 )
 def an_analysed_sample(world: World, test: str, patient: str) -> None:
     a_received_order(world, test, patient)
-    services.run_analyser(lab_order=world["lab_order"], now=NOW)
+    services.run_analyser(lab_order=world["lab_order"], directory=None, now=NOW)
 
 
 @given(
@@ -122,7 +122,9 @@ def receive(world: World) -> None:
 def run_analyser(world: World) -> None:
     lab_order = LabOrder.objects.get(pk=world["lab_order"].pk)
     try:
-        world["lab_order"] = services.run_analyser(lab_order=lab_order, now=NOW)
+        world["lab_order"] = services.run_analyser(
+            lab_order=lab_order, directory=None, now=NOW
+        )
     except ValidationError as error:
         world["error"] = error
 

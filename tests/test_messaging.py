@@ -175,7 +175,7 @@ def released(world: World, name: str, patient: str) -> None:
         sample__sample_id=world["patients"][patient].sample_id
     )
     lab_services.receive(sample=lab_order.sample, now=NOW)
-    lab_services.run_analyser(lab_order=lab_order, now=NOW)
+    lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
 
 
 @when("the general practitioner's app checks for lab reports")
@@ -318,7 +318,7 @@ def released_unknown(world: World, name: str, owner: str) -> None:
         sample__sample_id="999999"
     )
     lab_services.receive(sample=lab_order.sample, now=NOW)
-    lab_services.run_analyser(lab_order=lab_order, now=NOW)
+    lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
 
 
 @then("the lab order has no field for a patient's name or blood values")
@@ -415,7 +415,7 @@ def released_ferritin(owner: GeneralPractitioner) -> Patient:
     messaging.send_pending_lab_orders(connection, now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get()
     lab_services.receive(sample=lab_order.sample, now=NOW)
-    lab_services.run_analyser(lab_order=lab_order, now=NOW)
+    lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
     return record
 
 
