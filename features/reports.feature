@@ -1,53 +1,44 @@
 Feature: Lab reports for the general practitioner
-  The general practitioner sees the results of their own orders, a comment only when ferritin is
-  suggested, and can order ferritin from such a report. Covers R9–R11.
+  The general practitioner reads a lab report on the patient's page: the
+  values under NHANES's names and units, no interpretation, a comment only when
+  ferritin is suggested, and Order ferritin beside that comment. Covers R9, R11,
+  R12.
 
   Background:
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1"
 
+  Scenario: A CBC lab report shows the 13 values with their names and units
+    Given a CBC lab report for "Test Patient 1" with ferritin suggested
+    Then the lab report shows "Hemoglobin" in "g/dL" with the analyser's value
+    And the lab report shows 13 values in the order of the CBC
+
   Scenario: Ferritin suggested shows the comment
-    Given a lab report for "Test Patient 1" with result "ferritin suggested"
-    Then the lab report shows the CBC values
-    And the lab report shows the comment suggesting ferritin
+    Given a CBC lab report for "Test Patient 1" with ferritin suggested
+    Then the lab report's comment is "Ferritin suggested."
 
-  Scenario Outline: No word about screening otherwise
-    Given a lab report for "Test Patient 1" with result "<result>"
-    Then the lab report shows the CBC values
-    And the lab report shows no comment and no screening result
+  Scenario: Without a suggestion the lab report says nothing about screening
+    Given a CBC lab report for "Test Patient 1" without ferritin suggested
+    Then the lab report has no comment
 
-    Examples:
-      | result                 |
-      | ferritin not suggested |
-      | not screened           |
-
-  Scenario: A new lab report is unread
-    Given a lab report for "Test Patient 1" that has just become visible
-    Then the lab report is unread in "Dr. Demo A"'s lab reports
-
-  Scenario: Marking a lab report as read
-    Given an unread lab report for "Test Patient 1"
-    When "Dr. Demo A" marks the lab report as read
-    Then the lab report is read at the current time
-
-  Scenario: Order ferritin is offered when ferritin is suggested
-    Given a lab report for "Test Patient 1" with result "ferritin suggested"
-    And no ferritin order for "Test Patient 1" after that order
+  Scenario: Order ferritin is offered beside the suggestion
+    Given a CBC lab report for "Test Patient 1" with ferritin suggested
     Then ordering ferritin is offered on the lab report
 
   Scenario: Order ferritin is not offered once ferritin was ordered
-    Given a lab report for "Test Patient 1" with result "ferritin suggested"
-    And a ferritin order for "Test Patient 1" after that order
+    Given a CBC lab report for "Test Patient 1" with ferritin suggested
+    And a ferritin order for "Test Patient 1"
     Then ordering ferritin is not offered on the lab report
 
-  Scenario Outline: Order ferritin is not offered without a suggestion
-    Given a lab report for "Test Patient 1" with result "<result>"
+  Scenario: Order ferritin is not offered without a suggestion
+    Given a CBC lab report for "Test Patient 1" without ferritin suggested
     Then ordering ferritin is not offered on the lab report
 
-    Examples:
-      | result                 |
-      | ferritin not suggested |
-      | not screened           |
+  Scenario: A ferritin lab report shows ferritin in ng/mL
+    Given a ferritin lab report for "Test Patient 1" with ferritin 12 ng/mL
+    Then the lab report shows "Ferritin" in "ng/mL" with the analyser's value
+    And the lab report has no comment
+    And ordering ferritin is not offered on the lab report
 
-  Scenario: A ferritin lab report is visible once analysed
-    Given an analysed ferritin sample for "Test Patient 1"
-    Then the lab report is visible to "Dr. Demo A"
+  Scenario: Ferritin that NHANES does not have
+    Given a ferritin lab report for "Test Patient 1" without a value
+    Then the lab report shows no values

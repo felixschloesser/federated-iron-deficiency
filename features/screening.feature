@@ -19,23 +19,23 @@ Feature: Screening a CBC
       | above | ferritin suggested      |
       | below | ferritin not suggested  |
 
-  Scenario Outline: Only ferritin suggested puts a comment on the lab report
+  Scenario Outline: The lab report says only whether ferritin is suggested
     Given the laboratory director deployed "run-1"
     And a received CBC sample of a woman aged 30 with indication non-specific complaint
     And the deployed model scores the sample <side> the threshold
     When laboratory staff run the analyser
-    Then the lab report is released with comment "<comment>"
+    Then the lab report is released <suggested> ferritin suggested
 
     Examples:
-      | side  | comment             |
-      | above | Ferritin suggested. |
-      | below |                     |
+      | side  | suggested |
+      | above | with      |
+      | below | without   |
 
   Scenario Outline: Each failing condition gives its own reason, with or without a deployed model
     Given a received CBC sample with indication <indication>, registered sex <sex>, aged <age>
     When laboratory staff run the analyser
     Then the screening result is "not screened" with reason "<reason>"
-    And the lab report is released with comment ""
+    And the lab report is released without ferritin suggested
 
     Examples:
       | indication             | sex    | age | reason     |
@@ -73,7 +73,7 @@ Feature: Screening a CBC
     And a received CBC sample of a woman aged 30 with indication non-specific complaint
     When laboratory staff run the analyser
     Then the screening result is "not screened" with reason "<reason>"
-    And the lab report is released with comment ""
+    And the lab report is released without ferritin suggested
 
     Examples:
       | state                                                | reason                  |
@@ -84,4 +84,4 @@ Feature: Screening a CBC
     Given a received ferritin sample of a woman aged 30
     When laboratory staff run the analyser
     Then the sample has no screening result
-    And the lab report is released with comment ""
+    And the lab report is released without ferritin suggested

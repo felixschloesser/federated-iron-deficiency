@@ -178,6 +178,36 @@ def released(world: World, name: str, patient: str) -> None:
     lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
 
 
+@given(
+    parsers.parse(
+        '"{name}" released a CBC lab report with ferritin suggested'
+        ' for the sample of "{patient}"'
+    )
+)
+def released_suggested(world: World, name: str, patient: str) -> None:
+    from web.lab.domain import ScreeningResult
+
+    order(world, patient, OrderedTest.CBC, "non-specific complaint")
+    messaging.send_pending_lab_orders(world["connection"], now=NOW)
+    lab_order = LabOrder.objects.select_related("sample").get(
+        sample__sample_id=world["patients"][patient].sample_id
+    )
+    lab_services.receive(sample=lab_order.sample, now=NOW)
+    lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
+    # As the deployed model would have decided (features/screening.feature).
+    LabOrder.objects.filter(pk=lab_order.pk).update(
+        screening_result=ScreeningResult.FERRITIN_SUGGESTED, not_screened_reason=None
+    )
+
+
+@then(
+    parsers.parse('the lab report of "{patient}" has ferritin suggested at "{owner}"')
+)
+def has_ferritin_suggested(world: World, patient: str, owner: str) -> None:
+    report = LabReport.objects.get(order__patient=world["patients"][patient])
+    assert report.ferritin_suggested is True
+
+
 @when("the general practitioner's app checks for lab reports")
 @given("the general practitioner's app checked for lab reports")
 def checks(world: World) -> None:
@@ -335,7 +365,9 @@ def lab_order_fields() -> None:
     }
 
 
-@then("the lab report has no field for a score or a screening result")
+@then(
+    "the lab report says only whether ferritin is suggested, nothing else of screening"
+)
 def lab_report_fields() -> None:
     fields = {field.name for field in messages_pb2.LabReport.DESCRIPTOR.fields}
     assert fields == {
@@ -343,7 +375,7 @@ def lab_report_fields() -> None:
         "sample_id",
         "test",
         "results",
-        "comment",
+        "ferritin_suggested",
         "released_at",
     }
 

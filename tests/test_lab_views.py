@@ -145,3 +145,44 @@ def test_general_practitioner_cannot_receive(
     client.post(receive_url(lab_order.sample))
     lab_order.sample.refresh_from_db()
     assert lab_order.sample.received_at is None
+
+
+def cbc_lab_order(sex: RegisteredSex) -> LabOrder:
+    """A CBC for a non-specific complaint, aged 32, as the lab received it (DF1)."""
+    from web.vocabulary import ClinicalIndication
+
+    owner = make_general_practitioner("Dr. Demo A")
+    patient = make_patient(owner, "Test Patient 1", sex, 32)
+    order = services.place_order(
+        general_practitioner=owner,
+        patient=patient,
+        test=OrderedTest.CBC,
+        indication=ClinicalIndication.NON_SPECIFIC_COMPLAINT,
+        now=datetime(2026, 10, 29, 9, 0, tzinfo=UTC),
+    )
+    deliver(order)
+    return LabOrder.objects.select_related("sample").get()
+
+
+def test_a_cbc_not_screened_for_a_model_problem_warns(
+    client: Client, staff_member: LaboratoryStaffMember
+) -> None:
+    lab_order = cbc_lab_order(RegisteredSex.FEMALE)
+    logged_in(client, staff_member).post(receive_url(lab_order.sample))
+    response = client.post(analyse_url(lab_order), follow=True)
+    assertContains(response, 'data-level="warning"')
+    assertContains(
+        response,
+        f"Sample {lab_order.sample.sample_id}: CBC analysed and released not"
+        " screened: no model deployed. Tell the laboratory director.",
+    )
+
+
+def test_a_cbc_not_screened_for_eligibility_does_not_warn(
+    client: Client, staff_member: LaboratoryStaffMember
+) -> None:
+    lab_order = cbc_lab_order(RegisteredSex.MALE)
+    logged_in(client, staff_member).post(receive_url(lab_order.sample))
+    response = client.post(analyse_url(lab_order), follow=True)
+    assertNotContains(response, 'data-level="warning"')
+    assertContains(response, f"Sample {lab_order.sample.sample_id}: CBC analysed.")

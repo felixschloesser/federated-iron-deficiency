@@ -37,6 +37,11 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
     When the general practitioner's app checks for lab reports
     Then "Dr. Demo A" has the lab report of "Test Patient 1"
 
+  Scenario: A suggestion of ferritin reaches the general practitioner
+    Given "AZ Diest" released a CBC lab report with ferritin suggested for the sample of "Test Patient 1"
+    When the general practitioner's app checks for lab reports
+    Then the lab report of "Test Patient 1" has ferritin suggested at "Dr. Demo A"
+
   Scenario: A lab report is fetched once
     Given "AZ Diest" released a lab report for the sample of "Test Patient 1"
     And the general practitioner's app checked for lab reports
@@ -71,4 +76,4 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
 
   Scenario: Neither message can carry a name or blood values
     Then the lab order has no field for a patient's name or blood values
-    And the lab report has no field for a score or a screening result
+    And the lab report says only whether ferritin is suggested, nothing else of screening

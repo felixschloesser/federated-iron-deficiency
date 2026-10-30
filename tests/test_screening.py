@@ -239,11 +239,15 @@ def no_screening_result(world: World) -> None:
     assert lab_order.screened_by is None
 
 
-@then(parsers.re(r'the lab report is released with comment "(?P<comment>[^"]*)"'))
-def released(world: World, comment: str) -> None:
+@then(
+    parsers.re(
+        r"the lab report is released (?P<suggested>with|without) ferritin suggested"
+    )
+)
+def released(world: World, suggested: str) -> None:
     (lab_order,) = lab_queries.lab_reports_to_send(CLIENT)
     assert lab_order.pk == world["lab_order"].pk
-    assert lab_order.comment == comment
+    assert lab_order.ferritin_suggested is (suggested == "with")
 
 
 @pytest.mark.parametrize("reason", NoUsableModel)
@@ -251,3 +255,10 @@ def test_every_reason_without_a_usable_model_is_a_not_screened_reason(
     reason: NoUsableModel,
 ) -> None:
     assert NotScreened(reason) == reason.value
+
+
+@pytest.mark.parametrize("reason", NotScreened)
+def test_only_a_reason_without_a_usable_model_is_a_model_problem(
+    reason: NotScreened,
+) -> None:
+    assert reason.is_model_problem() is (reason.value in NoUsableModel.values)
