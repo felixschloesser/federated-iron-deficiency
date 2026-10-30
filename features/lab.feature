@@ -26,6 +26,12 @@ Feature: Receiving and analysing samples
     When laboratory staff run the analyser
     Then running the analyser is refused with code "already_analysed"
 
+  Scenario: The analyser has no tube for the sample ID
+    Given a received CBC sample for "Test Patient 1"
+    And the analyser stand-in has no values for the sample of "Test Patient 1"
+    When laboratory staff run the analyser
+    Then running the analyser is refused with code "no_tube"
+
   Scenario: The analyser cannot run before the sample is received
     Given a CBC order for "Test Patient 1"
     Then running the analyser is not offered for the order

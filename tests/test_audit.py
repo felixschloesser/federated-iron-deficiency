@@ -186,3 +186,22 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
         "web/lab/services.py:1: the hospital's code imports web.practice",
         "web/practice/views.py:3: the general practitioner's code imports web.lab",
     ]
+
+
+def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
+    code = (
+        "from iron_deficiency.dataset import CBC_VARS\n"
+        "from iron_deficiency.screening import score\n"
+    )
+    root = tree(
+        tmp_path,
+        {
+            "web/lab/services.py": code,
+            "web/practice/views.py": code,
+            "web/accounts/demo.py": code,
+        },
+    )
+    assert audit.run(root)["training_imports"] == [
+        "web/accounts/demo.py:2: imports iron_deficiency.screening, the hospital's code",
+        "web/practice/views.py:2: imports iron_deficiency.screening, the hospital's code",
+    ]

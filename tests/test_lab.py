@@ -100,6 +100,15 @@ def an_analysed_sample(world: World, test: str, patient: str) -> None:
     services.run_analyser(lab_order=world["lab_order"], now=NOW)
 
 
+@given(
+    parsers.parse('the analyser stand-in has no values for the sample of "{patient}"')
+)
+def no_tube(world: World, patient: str) -> None:
+    from web.nhanes.models import Participant
+
+    Participant.objects.filter(seqn=int(world["patients"][patient].sample_id)).delete()
+
+
 @when("laboratory staff receive the order")
 def receive(world: World) -> None:
     sample = Sample.objects.get(pk=world["lab_order"].sample_id)

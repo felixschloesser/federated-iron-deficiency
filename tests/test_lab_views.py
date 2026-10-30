@@ -103,6 +103,10 @@ def test_running_the_analyser(
     logged_in(client, staff_member).post(receive_url(lab_order.sample))
     response = client.post(analyse_url(lab_order))
     assert response["Location"] == reverse("lab:samples")
+    assertContains(
+        client.get(response["Location"]),
+        f"Sample {lab_order.sample.sample_id}: ferritin analysed.",
+    )
     lab_order.refresh_from_db()
     assert lab_order.analysed_at is not None
 
