@@ -1,23 +1,30 @@
 """Scenarios: lab orders and lab reports between the general practitioner's app
 and the hospital, over gRPC with mutual TLS (features/messaging.feature)."""
 
+import shutil
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
 import grpc
 import pytest
+from django.core.management import CommandError, call_command
+from django.test import Client
+from django.urls import reverse
 from pytest_bdd import given, parsers, scenarios, then, when
+from pytest_django.asserts import assertContains, assertNotContains
+from pytest_django.fixtures import Settings
 
 from tests.conftest import World, make_general_practitioner, make_patient
 from tools.certificates import Authority, issue, make_authority
 from web.lab import services as lab_services
 from web.lab.models import LabOrder
-from web.messaging import client, messages_pb2
+from web.messaging import client as messaging
+from web.messaging import messages_pb2
 from web.messaging.client import Connection
 from web.messaging.server import serve
 from web.practice import services as practice_services
-from web.practice.models import LabReport, Order
+from web.practice.models import GeneralPractitioner, LabReport, Order, Patient
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
@@ -126,12 +133,12 @@ def order(
 )
 def orders_cbc(world: World, owner: str, patient: str, indication: str) -> None:
     order(world, patient, OrderedTest.CBC, indication)
-    client.send_pending_lab_orders(world["connection"], now=NOW)
+    messaging.send_pending_lab_orders(world["connection"], now=NOW)
 
 
 @when("the same lab order is sent again")
 def send_again(world: World) -> None:
-    client.send_lab_order(world["order"], world["connection"])
+    messaging.send_lab_order(world["order"], world["connection"])
 
 
 @given(parsers.parse("a client with {certificate}"))
@@ -153,7 +160,7 @@ def other_client(world: World, tmp_path: Path, certificate: str) -> None:
 def sends_lab_order(world: World) -> None:
     unsent = order(world, "Test Patient 1", OrderedTest.CBC, "other")
     try:
-        client.send_lab_order(unsent, world["connection"])
+        messaging.send_lab_order(unsent, world["connection"])
     except grpc.RpcError as error:
         world["refused"] = error
 
@@ -161,7 +168,7 @@ def sends_lab_order(world: World) -> None:
 @given(parsers.parse('"{name}" released a lab report for the sample of "{patient}"'))
 def released(world: World, name: str, patient: str) -> None:
     order(world, patient, OrderedTest.FERRITIN, None)
-    client.send_pending_lab_orders(world["connection"], now=NOW)
+    messaging.send_pending_lab_orders(world["connection"], now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id=world["patients"][patient].sample_id
     )
@@ -172,7 +179,7 @@ def released(world: World, name: str, patient: str) -> None:
 @when("the general practitioner's app checks for lab reports")
 @given("the general practitioner's app checked for lab reports")
 def checks(world: World) -> None:
-    client.check_for_lab_reports(world["connection"], now=NOW)
+    messaging.check_for_lab_reports(world["connection"], now=NOW)
 
 
 @then(parsers.parse('"{name}" has a lab order for the sample of "{patient}"'))
@@ -251,3 +258,107 @@ def lab_report_fields() -> None:
         "comment",
         "released_at",
     }
+
+
+# The general practitioner's app in use: its views and command talk to the endpoint.
+
+
+@pytest.fixture
+def practice(settings: Settings, hospital: dict[str, object]) -> Path:
+    """A practice folder holding the hospital's CA certificate and a client one."""
+    authority = hospital["authority"]
+    tmp = hospital["tmp"]
+    assert isinstance(authority, Authority)
+    assert isinstance(tmp, Path)
+    certificates = tmp / "practice" / "certificates"
+    issue(authority, certificates, "De Ceder", server=False)
+    shutil.copy(authority.certificate, certificates / "ca.crt")
+    settings.PARTY_DIR = tmp / "practice"
+    settings.MESSAGING_ADDRESS = hospital["address"]
+    return tmp / "practice"
+
+
+@pytest.fixture
+def owner() -> GeneralPractitioner:
+    return make_general_practitioner("Dr. Demo A")
+
+
+def new_order_url(record: Patient) -> str:
+    return reverse(
+        "practice:new_order",
+        kwargs={"patient": record.pk, "test": OrderedTest.FERRITIN},
+    )
+
+
+def test_placing_an_order_sends_its_lab_order(
+    client: Client, practice: Path, owner: GeneralPractitioner
+) -> None:
+    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    client.force_login(owner.user)
+    client.post(new_order_url(record))
+    assert LabOrder.objects.filter(sample__sample_id=record.sample_id).exists()
+    assert Order.objects.get().sent_at is not None
+
+
+def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
+    client: Client, settings: Settings, practice: Path, owner: GeneralPractitioner
+) -> None:
+    settings.MESSAGING_ADDRESS = "127.0.0.1:1"
+    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    client.force_login(owner.user)
+    response = client.post(new_order_url(record), follow=True)
+    assertContains(response, "Order placed.")
+    assertContains(response, "sent with the next check for reports")
+    assert Order.objects.get().sent_at is None
+
+
+def released_ferritin(owner: GeneralPractitioner) -> Patient:
+    """A patient whose ferritin the hospital has analysed and released."""
+    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    practice_services.place_order(
+        general_practitioner=owner,
+        patient=record,
+        test=OrderedTest.FERRITIN,
+        indication=None,
+        now=NOW,
+    )
+    messaging.send_pending_lab_orders(messaging.configured_connection(), now=NOW)
+    lab_order = LabOrder.objects.select_related("sample").get()
+    lab_services.receive(sample=lab_order.sample, now=NOW)
+    lab_services.run_analyser(lab_order=lab_order, now=NOW)
+    return record
+
+
+def test_check_for_reports_fetches_them(
+    client: Client, practice: Path, owner: GeneralPractitioner
+) -> None:
+    record = released_ferritin(owner)
+    client.force_login(owner.user)
+    response = client.post(reverse("practice:check_for_reports"))
+    assert response["Location"] == reverse("practice:orders")
+    assertContains(client.get(response["Location"]), "1 new lab report.")
+    assert LabReport.objects.filter(order__patient=record).exists()
+
+
+def test_check_for_reports_is_offered_only_with_a_hospital_to_ask(
+    client: Client, settings: Settings, practice: Path, owner: GeneralPractitioner
+) -> None:
+    client.force_login(owner.user)
+    assertContains(client.get(reverse("practice:orders")), "Check for reports")
+    settings.MESSAGING_ADDRESS = None
+    assertNotContains(client.get(reverse("practice:orders")), "Check for reports")
+    assert client.post(reverse("practice:check_for_reports")).status_code == 404
+
+
+def test_the_command_checks_for_reports(
+    practice: Path, owner: GeneralPractitioner
+) -> None:
+    record = released_ferritin(owner)
+    call_command("check_for_lab_reports")
+    assert LabReport.objects.filter(order__patient=record).exists()
+
+
+def test_the_command_needs_a_hospital_to_ask(settings: Settings) -> None:
+    settings.MESSAGING_ADDRESS = None
+    with pytest.raises(CommandError, match="MESSAGING_ADDRESS"):
+        call_command("check_for_lab_reports")

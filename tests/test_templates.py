@@ -16,7 +16,7 @@ def test_base_layout_renders() -> None:
 
 
 def test_title_and_header_name_only_the_hospital(settings: Settings) -> None:
-    settings.HOSPITAL_NAME = "AZ Diest"
+    settings.PARTY_NAME = "AZ Diest"
     template = engines["django"].from_string(
         '{% extends "kit/base.html" %}{% block title %}Probe{% endblock %}'
     )

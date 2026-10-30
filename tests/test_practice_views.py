@@ -233,7 +233,7 @@ def test_error_page_renders_without_a_request() -> None:
 
 
 def test_error_page_names_the_hospital(settings: Settings) -> None:
-    settings.HOSPITAL_NAME = "AZ Diest"
+    settings.PARTY_NAME = "AZ Diest"
     response = ServerErrorView.as_view()(RequestFactory().get("/"))
     assert isinstance(response, HttpResponseServerError)
     assert b"<title>Something went wrong \xc2\xb7 AZ Diest</title>" in response.content

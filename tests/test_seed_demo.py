@@ -109,3 +109,39 @@ def test_reads_participants_from_a_csv(settings: Settings, tmp_path: Path) -> No
     nhanes_rows().to_csv(csv, index=False)
     call_command("seed_demo", "--nhanes", str(csv))
     assert Patient.objects.count() == 3 * len(PEOPLE)
+
+
+def test_a_hospital_seeds_no_patients(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.DEBUG = True
+    from web.party import Party
+
+    settings.PARTY = Party.HOSPITAL
+    monkeypatch.setattr(seed_demo, "load_nhanes", nhanes_rows)
+    call_command("seed_demo")
+    assert not Patient.objects.exists()
+    assert not GeneralPractitioner.objects.exists()
+    assert Participant.objects.count() == 3 * len(PEOPLE)
+    assert {role_of(user) for user in User.objects.all()} == {
+        Role.LABORATORY_STAFF,
+        Role.LABORATORY_DIRECTOR,
+        None,
+    }
+
+
+def test_a_practice_seeds_no_analyser_values(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.DEBUG = True
+    from web.party import Party
+
+    settings.PARTY = Party.GENERAL_PRACTITIONER
+    monkeypatch.setattr(seed_demo, "load_nhanes", nhanes_rows)
+    call_command("seed_demo")
+    assert not Participant.objects.exists()
+    assert Patient.objects.count() == 3 * len(PEOPLE)
+    assert {role_of(user) for user in User.objects.all()} == {
+        Role.GENERAL_PRACTITIONER,
+        None,
+    }
