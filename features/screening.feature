@@ -1,12 +1,11 @@
 Feature: Screening a CBC
   The deployed model screens a CBC only for a non-specific complaint in a
   woman aged 18–49. Only the result, the not-screened reason and the final
-  model that produced it are stored, never a score. Covers R4–R8, R19.
+  model that produced it are stored, never a score. Covers R4–R9, R19.
   Every analysed CBC gets a result and its lab report at once.
 
   Background:
     Given final model "run-1" with threshold 0.5
-    And general practitioner "Dr. Demo A"
 
   Scenario Outline: The model's decision becomes the result
     Given the laboratory director deployed "run-1"
@@ -20,10 +19,23 @@ Feature: Screening a CBC
       | above | ferritin suggested      |
       | below | ferritin not suggested  |
 
+  Scenario Outline: Only ferritin suggested puts a comment on the lab report
+    Given the laboratory director deployed "run-1"
+    And a received CBC sample of a woman aged 30 with indication non-specific complaint
+    And the deployed model scores the sample <side> the threshold
+    When laboratory staff run the analyser
+    Then the lab report is released with comment "<comment>"
+
+    Examples:
+      | side  | comment             |
+      | above | Ferritin suggested. |
+      | below |                     |
+
   Scenario Outline: Each failing condition gives its own reason, with or without a deployed model
     Given a received CBC sample with indication <indication>, registered sex <sex>, aged <age>
     When laboratory staff run the analyser
     Then the screening result is "not screened" with reason "<reason>"
+    And the lab report is released with comment ""
 
     Examples:
       | indication             | sex    | age | reason     |
@@ -61,7 +73,7 @@ Feature: Screening a CBC
     And a received CBC sample of a woman aged 30 with indication non-specific complaint
     When laboratory staff run the analyser
     Then the screening result is "not screened" with reason "<reason>"
-    And the lab report is visible to "Dr. Demo A"
+    And the lab report is released with comment ""
 
     Examples:
       | state                                                | reason                  |
@@ -72,3 +84,4 @@ Feature: Screening a CBC
     Given a received ferritin sample of a woman aged 30
     When laboratory staff run the analyser
     Then the sample has no screening result
+    And the lab report is released with comment ""
