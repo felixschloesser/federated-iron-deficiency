@@ -34,6 +34,13 @@ def test_every_navigation_link_of_a_role_resolves(role: Role) -> None:
         assert resolve(link["url"])
 
 
+def test_role_of_a_laboratory_director() -> None:
+    from tests.conftest import make_laboratory_director
+
+    director = make_laboratory_director("Director One")
+    assert role_of(director.user) is Role.LABORATORY_DIRECTOR
+
+
 def test_role_of_an_account_without_one() -> None:
     assert role_of(User.objects.create_user(username="no-role")) is None
 

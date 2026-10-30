@@ -8,6 +8,7 @@ from pytest_bdd import given, parsers
 # The models are imported inside the builders too, so a missing app fails only
 # the tests that use it.
 if TYPE_CHECKING:
+    from web.deployment.models import LaboratoryDirector
     from web.lab.models import LaboratoryStaffMember
     from web.practice.models import GeneralPractitioner, Patient, RegisteredSex
 
@@ -82,3 +83,11 @@ def make_laboratory_staff_member(name: str) -> "LaboratoryStaffMember":
 
     user = User.objects.create_user(username=name.lower().replace(" ", "-"))
     return LaboratoryStaffMember.objects.create(user=user, name=name)
+
+
+def make_laboratory_director(name: str) -> "LaboratoryDirector":
+    from web.accounts.models import User
+    from web.deployment.models import LaboratoryDirector
+
+    user = User.objects.create_user(username=name.lower().replace(" ", "-"))
+    return LaboratoryDirector.objects.create(user=user, name=name)

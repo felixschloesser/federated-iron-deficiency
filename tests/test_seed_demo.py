@@ -80,7 +80,7 @@ def test_patients_are_shared_between_the_general_practitioners(seeded: None) -> 
 
 def test_running_twice_changes_nothing(seeded: None) -> None:
     call_command("seed_demo")
-    assert User.objects.count() == 4
+    assert User.objects.count() == 5
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
 
