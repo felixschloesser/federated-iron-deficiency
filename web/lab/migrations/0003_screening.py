@@ -32,11 +32,11 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 blank=True,
                 choices=[
-                    ("indication", "clinical indication"),
-                    ("sex", "registered sex"),
-                    ("age", "age"),
-                    ("no_deployed_model", "no final model is deployed"),
-                    ("deployed_model_changed", "the deployed model changed on disk"),
+                    ("indication", "not a non-specific complaint"),
+                    ("sex", "registered sex not female"),
+                    ("age", "age outside 18–49"),
+                    ("no_deployed_model", "no model deployed"),
+                    ("deployed_model_changed", "deployed model file changed"),
                 ],
                 max_length=22,
                 null=True,

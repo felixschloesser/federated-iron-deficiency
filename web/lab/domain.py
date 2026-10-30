@@ -2,6 +2,8 @@
 
 from django.db import models
 
+from iron_deficiency.dataset import ELIGIBLE_AGES
+
 
 class ScreeningResult(models.TextChoices):
     FERRITIN_SUGGESTED = "ferritin_suggested", "Ferritin suggested"
@@ -13,11 +15,11 @@ class NotScreened(models.TextChoices):
     """Why a CBC was not screened: the first failing condition (R5), else why
     there is no usable deployed model (web.deployment.domain.NoUsableModel)."""
 
-    INDICATION = "indication", "clinical indication"
-    SEX = "sex", "registered sex"
-    AGE = "age", "age"
-    NO_DEPLOYED_MODEL = "no_deployed_model", "no final model is deployed"
+    INDICATION = "indication", "not a non-specific complaint"
+    SEX = "sex", "registered sex not female"
+    AGE = "age", f"age outside {ELIGIBLE_AGES[0]}–{ELIGIBLE_AGES[1]}"
+    NO_DEPLOYED_MODEL = "no_deployed_model", "no model deployed"
     DEPLOYED_MODEL_CHANGED = (
         "deployed_model_changed",
-        "the deployed model changed on disk",
+        "deployed model file changed",
     )
