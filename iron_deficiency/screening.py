@@ -38,6 +38,20 @@ def save_deployment(
     )
 
 
+def read_final_model(path: Path) -> object:
+    """The contents of a final model file, as the ClientApp stored it."""
+    return torch.load(path)
+
+
+def fits_model(state_dict: dict[str, torch.Tensor]) -> bool:
+    """Whether weights fit this code's model, that is, were trained on FEATURES."""
+    try:
+        Net().load_state_dict(state_dict)
+    except RuntimeError:
+        return False
+    return True
+
+
 def score(samples: pd.DataFrame, model_path: Path) -> tuple[pd.Series, float]:
     """Return the eligible samples' probabilities of iron deficiency, and the threshold."""
     deployment = torch.load(model_path)

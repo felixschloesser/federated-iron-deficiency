@@ -18,6 +18,7 @@ from iron_deficiency.dataset import (
 )
 from iron_deficiency.screening import ELIGIBLE_AGES, ELIGIBLE_SEX
 from web.accounts.models import User
+from web.deployment.models import LaboratoryDirector
 from web.lab.models import LaboratoryStaffMember
 from web.nhanes.models import Participant
 from web.practice.models import GeneralPractitioner, Patient, RegisteredSex
@@ -132,11 +133,14 @@ class Command(BaseCommand):
             LaboratoryStaffMember.objects.get_or_create(
                 user=user("lab-1"), defaults={"name": "Laboratory Staff 1"}
             )
+            LaboratoryDirector.objects.get_or_create(
+                user=user("director-1"), defaults={"name": "Laboratory Director 1"}
+            )
             user("no-role")  # Has no role: for the refusal at login.
             for number, row in enumerate(rows.to_dict("records"), start=1):
                 owner = practitioners[(number - 1) % len(practitioners)]
                 patient(row, f"Test Patient {number}", owner)
         self.stdout.write(
-            f"Accounts doctor-a, doctor-b, lab-1 and no-role, password {PASSWORD};"
+            f"Accounts doctor-a, doctor-b, lab-1, director-1 and no-role, password {PASSWORD};"
             f" {len(rows)} NHANES patients"
         )

@@ -10,6 +10,7 @@ from django.urls import reverse
 class Role(enum.Enum):
     GENERAL_PRACTITIONER = "general practitioner"
     LABORATORY_STAFF = "laboratory staff"
+    LABORATORY_DIRECTOR = "laboratory director"
 
     def people(self) -> str:
         """The people of this role, as a sentence names them."""
@@ -18,6 +19,8 @@ class Role(enum.Enum):
                 return "general practitioners"
             case Role.LABORATORY_STAFF:
                 return "laboratory staff"
+            case Role.LABORATORY_DIRECTOR:
+                return "laboratory directors"
             case _:
                 assert_never(self)
 
@@ -28,6 +31,8 @@ class Role(enum.Enum):
                 return reverse("practice:patients")
             case Role.LABORATORY_STAFF:
                 return reverse("lab:samples")
+            case Role.LABORATORY_DIRECTOR:
+                return reverse("deployment:models")
             case _:
                 assert_never(self)
 
@@ -41,6 +46,8 @@ class Role(enum.Enum):
                 ]
             case Role.LABORATORY_STAFF:
                 return [{"url": reverse("lab:samples"), "label": "Samples"}]
+            case Role.LABORATORY_DIRECTOR:
+                return [{"url": reverse("deployment:models"), "label": "Models"}]
             case _:
                 assert_never(self)
 
@@ -52,4 +59,6 @@ def role_of(user: AbstractBaseUser | AnonymousUser | None) -> Role | None:
         return Role.GENERAL_PRACTITIONER
     if hasattr(user, "laboratory_staff_member"):
         return Role.LABORATORY_STAFF
+    if hasattr(user, "laboratory_director"):
+        return Role.LABORATORY_DIRECTOR
     return None

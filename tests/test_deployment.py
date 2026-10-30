@@ -16,6 +16,7 @@ from iron_deficiency.task import Net
 from tests.conftest import World, make_laboratory_staff_member
 
 NOW = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
+pytestmark = pytest.mark.django_db
 
 scenarios("deployment.feature")
 
@@ -98,7 +99,7 @@ def deployed_two(world: World, first: str, second: str) -> None:
     deploy(world, second)
 
 
-@given(parsers.parse('the laboratory director deployed "{run_id}"'))
+@given(parsers.re(r'the laboratory director deployed "(?P<run_id>[^"]+)"$'))
 def deployed_one(world: World, run_id: str) -> None:
     deploy(world, run_id)
 
@@ -192,7 +193,7 @@ def history(world: World, first: str, second: str, third: str) -> None:
 
 @then(
     parsers.re(
-        r'(?:the final models|they) show "(?P<run_id>[^"]+)", (?P<deployed>deployed, )?'
+        r'(?:the final models|they) show "(?P<run_id>[^"]+)", (?P<is_deployed>deployed, )?'
         r"finding (?P<found>\d+) of (?P<total>\d+) deficient with "
         r"(?P<unnecessary>\d+) unnecessary suggestions, AUROC (?P<auroc>[\d.]+)"
     )
@@ -200,7 +201,7 @@ def history(world: World, first: str, second: str, third: str) -> None:
 def shows_validation(
     world: World,
     run_id: str,
-    deployed: str | None,
+    is_deployed: str | None,
     found: str,
     total: str,
     unnecessary: str,
@@ -215,7 +216,7 @@ def shows_validation(
     assert model.unnecessary_suggestions == int(unnecessary)
     assert model.local_auroc == pytest.approx(float(auroc))
     final_model, _ = deployed(world)
-    assert (getattr(final_model, "run_id", None) == run_id) == bool(deployed)
+    assert (getattr(final_model, "run_id", None) == run_id) == bool(is_deployed)
 
 
 @then(

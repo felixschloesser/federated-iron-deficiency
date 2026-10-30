@@ -18,6 +18,14 @@ DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 HOSPITAL_DIR = (
     Path(os.environ["HOSPITAL_DIR"]) if "HOSPITAL_DIR" in os.environ else None
 )
+# The hospital's final models (R16); without HOSPITAL_DIR, an optional folder.
+FINAL_MODELS_DIR = (
+    HOSPITAL_DIR / "final-models"
+    if HOSPITAL_DIR
+    else Path(os.environ["FINAL_MODELS_DIR"])
+    if "FINAL_MODELS_DIR" in os.environ
+    else None
+)
 # Shown in the title bar and header; never the screening's name.
 HOSPITAL_NAME = os.environ.get("HOSPITAL_NAME", "Demo hospital")
 if HOSPITAL_DIR is not None and "DATABASE_NAME" in os.environ:
@@ -51,6 +59,7 @@ INSTALLED_APPS = [
     "web.practice",
     "web.nhanes",
     "web.lab",
+    "web.deployment",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
