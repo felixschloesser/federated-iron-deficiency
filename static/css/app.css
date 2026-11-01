@@ -68,3 +68,20 @@ article[role="status"][data-level="error"] {
 .inline-form button {
   width: auto;
 }
+
+/* A card's title with its action or state on the right; wraps on narrow screens. */
+.card-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--pico-spacing);
+}
+
+.card-header > * {
+  margin-bottom: 0;
+}
+
+.card-header button {
+  width: auto;
+}

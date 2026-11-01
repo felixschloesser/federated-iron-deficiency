@@ -11,7 +11,7 @@ from typing import Any
 from django.db import models
 
 from iron_deficiency.screening import fits_model, read_final_model
-from web.deployment.models import Deployment, FinalModel
+from web.deployment.models import Deployment, FinalModel, model_name
 
 UNREADABLE_ERRORS = (
     pickle.UnpicklingError,
@@ -30,7 +30,7 @@ class CannotDeploy(models.TextChoices):
 
 
 class NoUsableModel(models.TextChoices):
-    NO_DEPLOYED_MODEL = "no_deployed_model", "No final model is deployed"
+    NO_DEPLOYED_MODEL = "no_deployed_model", "No model is deployed"
     DEPLOYED_MODEL_CHANGED = (
         "deployed_model_changed",
         "The deployed model changed on disk since it was deployed",
@@ -47,6 +47,10 @@ class FinalModelFile:
     threshold: float | None = None
     federated_auroc: float | None = None
     local_validation: dict[str, float] = field(default_factory=dict)
+
+    @property
+    def name(self) -> str:
+        return model_name(self.stored_at, self.run_id)
 
     @property
     def deficient_found(self) -> int:

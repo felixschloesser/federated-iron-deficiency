@@ -40,11 +40,11 @@ class ModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
 class DeployView(LaboratoryDirectorRequiredMixin, View):
     def post(self, request: HttpRequest, run_id: str) -> HttpResponse:
         try:
-            services.deploy(
+            deployment = services.deploy(
                 run_id=run_id, directory=settings.FINAL_MODELS_DIR, now=timezone.now()
             )
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            messages.success(request, f"Final model {run_id} deployed.")
+            messages.success(request, f"{deployment.final_model.name} deployed.")
         return redirect("deployment:models")

@@ -1,7 +1,19 @@
 """Laboratory directors, and the final models they deployed (spec R18)."""
 
+from datetime import datetime
+
 from django.conf import settings
 from django.db import models
+from django.utils import formats, timezone
+
+
+def model_name(stored_at: datetime | None, run_id: str) -> str:
+    """How the laboratory director knows a model: when it arrived (spec §1, model)."""
+    if stored_at is None:
+        return f"Model of run {run_id}"
+    return (
+        f"Model of {formats.date_format(timezone.localtime(stored_at), 'j M Y, H:i')}"
+    )
 
 
 class LaboratoryDirector(models.Model):
@@ -36,6 +48,10 @@ class FinalModel(models.Model):
 
     def __str__(self) -> str:
         return self.run_id
+
+    @property
+    def name(self) -> str:
+        return model_name(self.stored_at, self.run_id)
 
 
 class Deployment(models.Model):

@@ -15,14 +15,14 @@ def deploy(*, run_id: str, directory: Path | None, now: datetime) -> Deployment:
     """Make a final model in the hospital's folder the deployed model, from `now`."""
     path = None if directory is None else directory / f"{run_id}.pt"
     if path is None or not path.is_file():
-        raise ValidationError(f"There is no final model {run_id}.", code="not_found")
+        raise ValidationError(f"There is no model of run {run_id}.", code="not_found")
     file = read_final_model_file(path)
     threshold = file.threshold
     if file.problem is not None or threshold is None:
         # Without a problem a file has a threshold; the second test only narrows the type.
         problem = file.problem or CannotDeploy.THRESHOLD_MISSING
         raise ValidationError(
-            f"Final model {run_id} cannot be deployed: {problem.label}.",
+            f"{file.name} cannot be deployed: {problem.label}.",
             code=problem.value,
         )
     final_model, _ = FinalModel.objects.get_or_create(
