@@ -196,3 +196,13 @@ def test_each_practice_and_its_hospital_seed_the_same_number_of_patients() -> No
     for partition, cycle in enumerate(PATIENTS):
         arguments = seed_arguments(partition, Path("nhanes.csv"))
         assert arguments[arguments.index("--patients") + 1] == str(PATIENTS[cycle])
+
+
+def test_up_refuses_while_a_demo_runs(tmp_path: Path) -> None:
+    import pytest
+
+    from tools.demo import up
+
+    with pytest.raises(SystemExit, match="already running"):
+        up(tmp_path, demo_running=lambda: True)
+    assert not any(tmp_path.iterdir())
