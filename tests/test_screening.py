@@ -153,7 +153,7 @@ def cbc(world: World, indication: str, sex: str, age: str) -> None:
     lab_sample(
         world,
         OrderedTest.CBC,
-        ClinicalIndication(indication.replace(" ", "_").replace("-", "_")),
+        {choice.label.lower(): choice for choice in ClinicalIndication}[indication],
         RegisteredSex(sex),
         int(age),
     )
@@ -260,3 +260,31 @@ def test_only_a_reason_without_a_usable_model_is_a_model_problem(
     reason: NotScreened,
 ) -> None:
     assert reason.is_model_problem() is (reason.value in NoUsableModel.values)
+
+
+@pytest.mark.parametrize(
+    ("indication", "screened"),
+    [
+        ("suspected_anaemia", True),
+        ("suspected_ibs", True),
+        ("unexplained_fatigue", True),
+        ("start_of_pregnancy", False),
+        ("ckd_follow_up", False),
+        ("other", False),
+    ],
+)
+def test_screened_indications_are_where_the_guidelines_order_a_cbc_without_ferritin(
+    indication: str, screened: bool
+) -> None:
+    assert ClinicalIndication(indication).is_screened() is screened
+
+
+def test_every_indication_is_answered() -> None:
+    assert {choice.value for choice in ClinicalIndication} == {
+        "suspected_anaemia",
+        "suspected_ibs",
+        "unexplained_fatigue",
+        "start_of_pregnancy",
+        "ckd_follow_up",
+        "other",
+    }

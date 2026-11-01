@@ -31,6 +31,18 @@ Feature: Screening a CBC
       | above | with      |
       | below | without   |
 
+  Scenario Outline: A CBC for an indication the guidelines answer without ferritin is screened
+    Given the laboratory director deployed "run-1"
+    And a CBC sample with indication <indication>, registered sex female, aged 30
+    When laboratory staff run the analyser
+    Then the sample is screened by the model
+
+    Examples:
+      | indication                         |
+      | suspected anaemia                  |
+      | suspected irritable bowel syndrome |
+      | unexplained fatigue                |
+
   Scenario Outline: Each failing condition gives its own reason, with or without a deployed model
     Given a CBC sample with indication <indication>, registered sex <sex>, aged <age>
     When laboratory staff run the analyser
@@ -44,6 +56,8 @@ Feature: Screening a CBC
       | non-specific complaint | female | 17  | age        |
       | non-specific complaint | female | 50  | age        |
       | other                  | male   | 70  | indication |
+      | start of pregnancy     | female | 30  | indication |
+      | chronic kidney disease follow-up | female | 30 | indication |
 
   Scenario Outline: The age range includes its ends
     Given the laboratory director deployed "run-1"
