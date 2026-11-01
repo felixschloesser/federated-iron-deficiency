@@ -398,3 +398,30 @@ def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
     assert [entry["order"].test for entry in sample["entries"]] == ["cbc", "ferritin"]
     assert sample["entries"][0]["order_ferritin_url"] is None
     assertContains(response, "Awaiting lab report.")
+
+
+def test_each_sample_is_a_details_block_and_only_the_newest_is_open(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    from web.practice.models import LabReport
+
+    logged_in(client, general_practitioner)
+    client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
+    LabReport.objects.create(
+        order=Order.objects.get(),
+        results={},
+        ferritin_suggested=True,
+        released_at="2026-10-30T12:00:00+00:00",
+        fetched_at="2026-10-30T12:05:00+00:00",
+    )
+    client.post(order_url(patient, OrderedTest.FERRITIN))
+    response = client.get(patient_url(patient))
+    newest, older = response.context["samples"]
+    assert (newest["open"], newest["tests"], newest["suggested"]) == (
+        True,
+        "ferritin",
+        False,
+    )
+    assert (older["open"], older["tests"], older["suggested"]) == (False, "CBC", True)
+    assert response.content.decode().count("<details open>") == 1
+    assertContains(response, "CBC · Ferritin suggested")

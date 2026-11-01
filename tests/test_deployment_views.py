@@ -59,9 +59,14 @@ def test_models_page(
     assertContains(
         response, 'aria-label="Deploy Screening model of 30 Oct 2026, 10:00"'
     )
-    assertContains(response, "Finds 7 of 10 iron-deficient women")
-    assertContains(response, "5 unnecessary ferritin suggestions")
-    assertContains(response, "AUROC 0.84 here")
+    for term, value in (
+        ("Iron-deficient women found", "7 of 10"),
+        ("Unnecessary ferritin suggestions", "5"),
+        ("AUROC here", "0.84"),
+        ("AUROC across hospitals", "0.87"),
+        ("Threshold", "0.5"),
+    ):
+        assertContains(response, f"<dt>{term}</dt><dd>{value}</dd>", html=True)
     assertContains(response, "Cannot be deployed: not a readable model file")
     assertContains(response, "No screening model is deployed")
 
