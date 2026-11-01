@@ -19,7 +19,7 @@ DESCRIPTOR: _descriptor.FileDescriptor
 
 @_typing.final
 class LabOrder(_message.Message):
-    """DF1. No patient name, no blood values (R25): the tube's values are measured
+    """DF23. No patient name, no blood values (R25): the tube's values are measured
     at the hospital. Choices are the values of web.vocabulary, checked by the
     hospital's form.
     """
@@ -81,7 +81,7 @@ type Global___LabOrder = LabOrder  # noqa: Y015
 
 @_typing.final
 class LabReport(_message.Message):
-    """DF20. Results and one bit of screening (R9, R25): no score, and nothing that
+    """DF25. Results and one bit of screening (R9, R25): no score, and nothing that
     tells ferritin not suggested from not screened.
     """
 

@@ -44,7 +44,7 @@ class Sample(models.Model):
 
 
 class LabOrder(models.Model):
-    """One test on a sample, as the lab order (DF1) said: no patient field (R14)."""
+    """One test on a sample, as the lab order (DF23) said: no patient field (R14)."""
 
     sample = models.ForeignKey(
         Sample, on_delete=models.PROTECT, related_name="lab_orders"

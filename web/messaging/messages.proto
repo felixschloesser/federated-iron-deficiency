@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package iron_deficiency.messaging.v1;
 
-// DF1. No patient name, no blood values (R25): the tube's values are measured
+// DF23. No patient name, no blood values (R25): the tube's values are measured
 // at the hospital. Choices are the values of web.vocabulary, checked by the
 // hospital's form.
 message LabOrder {
@@ -18,7 +18,7 @@ message LabOrder {
   string ordered_at = 7;            // ISO 8601
 }
 
-// DF20. Results and one bit of screening (R9, R25): no score, and nothing that
+// DF25. Results and one bit of screening (R9, R25): no score, and nothing that
 // tells ferritin not suggested from not screened.
 message LabReport {
   string report_id = 1;

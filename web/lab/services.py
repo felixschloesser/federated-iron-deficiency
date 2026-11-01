@@ -17,7 +17,7 @@ from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 @dataclass(frozen=True)
 class LabOrderDetails:
-    """What a lab order (DF1) says: no patient name, no values (R25)."""
+    """What a lab order (DF23) says: no patient name, no values (R25)."""
 
     sample_id: str
     test: Test
@@ -30,7 +30,7 @@ class LabOrderDetails:
 
 @transaction.atomic
 def record_lab_order(*, client: str, details: LabOrderDetails) -> LabOrder:
-    """Record a lab order (DF1) from `client` once, however often it arrives (R22, O18)."""
+    """Record a lab order (DF23) from `client` once, however often it arrives (R22, O18)."""
     sample, _ = Sample.objects.get_or_create(client=client, sample_id=details.sample_id)
     lab_order, _ = LabOrder.objects.get_or_create(
         sample=sample,

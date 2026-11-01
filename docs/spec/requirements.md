@@ -5,11 +5,11 @@ iron-deficiency screening in the PIA report (`report/report.typ`): a general
 practitioner orders a blood test, the hospital's laboratory receives and
 analyses the sample, the deployed model screens it, and the lab report reaches
 the ordering general practitioner. The same code runs as two kinds of
-deployment: each **hospital** (TB1: P1, P7, P8, DS1, the deployed model) and
-each **general practitioner's own app** (E3, outside TB1), which exchange the
-lab order (DF1) and the lab report (DF20) as messages (§10). It also covers
-the hospital's side of DF6/DF15: which final model the hospital deploys.
-Training itself (P3–P6) stays with Flower.
+deployment: each **hospital** (TB1: P5, P7–P9, DS1, DS5, DS6, DS8) and
+each **general practitioner's own app** (TB3: P6, DS7), which exchange the
+lab order (DF23) and the lab report (DF25) as messages (§10). It also covers
+the hospital's side of DF8/DF16: which final model the hospital deploys.
+Training itself (P2–P4) stays with Flower.
 
 Method: KAOS goal model (goals, agents, obstacles, operations), refined into
 the Gherkin scenarios under `features/`. Each requirement names the scenarios
@@ -27,27 +27,27 @@ staff is replaced and the report's word moves to the rejected column.
 | general practitioner | Report, Stakeholders table ("GP", spelled out) | The report's orderer and reader of the lab report; spelled out everywhere in the app | GP (abbreviation), requester, ordering physician (WHO 5-4, p. 66) |
 | laboratory staff | WHO LQMS, the handbook's word for the people who work in the laboratory (44 uses; e.g. ch. 5, Sample management) | Receive samples and run the analyser; one record per person (`LaboratoryStaffMember`) | lab technician ("technician" in WHO LQMS means equipment service only), technologist (a qualified grade), laboratorian, laboratory worker |
 | patient | Report, Use case | The report's word | participant (NHANES word; data origin only) |
-| order | Report, DF1 "lab order"; WHO glossary *path of workflow*, "physician's order" (p. 228) | Report and WHO agree | request, requisition (WHO), examination request (ISO 15189) |
+| order | Report, DF23 "lab order"; WHO glossary *path of workflow*, "physician's order" (p. 228) | Report and WHO agree | request, requisition (WHO), examination request (ISO 15189) |
 | test | Report, Use case "ferritin test" | Order picks one: CBC or ferritin | examination (ISO 15189) |
 | CBC (complete blood count) | Report, Use case | The report's word for the routine test | blood count (report uses both; one word only) |
 | clinical indication | Report, Data table | The report's word; drives screening | reason for testing |
 | non-specific complaint | Report, Data table and Use case | The one indication that is screened | fatigue work-up |
 | registered sex | Report, Data table | Distinguishes the record from the person (report, Information at risk) | gender, sex |
-| sample ID | Report, DF16 and Data table | The report's link between flag and lab report; on the tube's label when the first test is ordered. In the demo it is the patient's NHANES number (one sample per patient) | laboratory identification number, accession number (WHO 5-4, p. 66) |
+| sample ID | Report, DF23 and Data table | The report's link between lab order, results and lab report; on the tube's label when the first test is ordered. In the demo it is the patient's NHANES number (one sample per patient) | laboratory identification number, accession number (WHO 5-4, p. 66) |
 | stored sample | WHO LQMS 5-5, p. 68, "stored samples" | A sample the laboratory already holds: a later test is measured on it, without receiving it again | add-on test, retained sample |
 | received | WHO 5-4, "date and time the sample was received in the laboratory" (p. 66) | Moment the sample crosses into the hospital | registered, accessioned |
 | analysed | Report, P1 "Lab analysis" | The report's process name | examined, tested |
 | screening | Report, P7 | The report's process name | scoring, classification |
-| screening result | Report, DF18 "Sample ID and result", P7 | What screening records per CBC: one of the three below, with the reason when not screened (R5) and the final model when screened (R6) | flag, outcome, classification |
-| ferritin suggested / ferritin not suggested / not screened | Report, Use case "a comment to the lab report suggesting ferritin"; "not screened" from DF18 | Names the action for the general practitioner; avoids the lab meaning of *flag* | flagged / not flagged (report, DF18; in a lab a *flag* marks an out-of-range value), possible iron deficiency (names a diagnosis) |
-| final model | Report, DS4, DF6, DF9 "final model and threshold" | What one training run sends to every hospital; stored there with its run ID and local validation | release, model version |
+| screening result | Report, DF32 "screening result", P9 | What screening records per CBC: one of the three below, with the reason when not screened (R5) and the final model when screened (R6) | flag, outcome, classification |
+| ferritin suggested / ferritin not suggested / not screened | Report, Use case "a comment to the lab report suggesting ferritin"; "not screened" from Federated version | Names the action for the general practitioner; avoids the lab meaning of *flag* | flagged / not flagged (an earlier report draft; in a lab a *flag* marks an out-of-range value), possible iron deficiency (names a diagnosis) |
+| final model | Report, DS4, DF8 "final model, threshold" | What one training run sends to every hospital; stored there with its run ID and local validation | release, model version |
 | deploy | Report, Use case: the model "is then deployed to every hospital" | The laboratory director's decision that a final model screens this hospital's patients | activate, release, roll out |
 | deployment (of a party) | Flower documentation, "Deployment Engine": running the federation on real nodes, not in simulation | One party's running copy of the code, in its own folder (§9); never a final model being deployed | installation, instance |
-| deployed model | Report, DS5 | The final model this hospital deployed last; the only one that screens | active release, fingerprint |
+| deployed model | Report, DF30, DF31 "deployed final model" | The final model this hospital deployed last; the only one that screens | active release, fingerprint |
 | laboratory director | WHO LQMS ch. 2, p. 21: the director assesses "all potential risks … including services to patients" (20 uses) | Decides which final model screens patients | clinical biologist (not in either source), quality manager (WHO: runs the quality system, does not decide), laboratory manager |
-| local validation | Built from *validation* (report, DF8 "validation example count") | A final model on this hospital's own validation split: the confusion matrix at its threshold, as counts, then AUROC | local evaluation, shadow run, flag rate |
+| local validation | Built from *validation* (report, DF10 "validation example count") | A final model on this hospital's own validation split: the confusion matrix at its threshold, as counts, then AUROC | local evaluation, shadow run, flag rate |
 | threshold | Report, Design choices | The report's word | cutoff (reserved for ferritin's 15 ng/mL) |
-| lab report | Report, DF20 | The report's word | test report (WHO p. 193) |
+| lab report | Report, DF25 | The report's word | test report (WHO p. 193) |
 | comment | Report, Use case; WHO report contents "applicable comments" (p. 193) | Both sources | interpretive comment |
 | CBC value names and units, e.g. *Hemoglobin*, g/dL | NHANES 2021–2023 CBC_L codebook, SAS labels (`sources/nhanes-2021-2023-CBC_L.htm`) | The values are NHANES's own, in its units; no conversion | Hb, Ht and other report abbreviations (no source; other units) |
 | Ferritin, ng/mL | NHANES 2021–2023 FERTIN_L codebook (`sources/nhanes-2021-2023-FERTIN_L.htm`) | As above | µg/L (LBDFERSI) |
@@ -113,10 +113,10 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R13 | Every general practitioner query is scoped to the general practitioner's own patients; another general practitioner's order or lab report returns 404. | `access.feature` |
 | R14 | Lab queries select only sample ID, ordering general practitioner, registered sex, age, test, indication and results; never the patient's name. | `access.feature` |
 | R15 | `DEMO_LOGIN` (default off) shows one POST login button per seeded user. A deploy check fails when `DEMO_LOGIN` is on and `DEBUG` is off. | `access.feature` |
-| R22 | Placing an order sends a lab order (DF1) to the general practitioner's one hospital; the hospital records it once, however often the same message arrives. | `messaging.feature` |
-| R23 | The general practitioner's app fetches its new lab reports (DF20) from its hospital every 60 seconds and on *Check for reports*; it is always the client, the hospital never connects to it. | `messaging.feature` |
+| R22 | Placing an order sends a lab order (DF23) to the general practitioner's one hospital; the hospital records it once, however often the same message arrives. | `messaging.feature` |
+| R23 | The general practitioner's app fetches its new lab reports (DF25) from its hospital every 60 seconds and on *Check for reports*; it is always the client, the hospital never connects to it. | `messaging.feature` |
 | R24 | The hospital's messaging endpoint accepts only a client certificate issued by that hospital's own certificate authority, for its general practitioner's app; any other client, the startup's included, is refused before a message is read. The hospital tells apps apart by their certificate's name: a sample is known by app and sample ID, and an app fetches and acknowledges only the lab reports of its own lab orders. The app stores each lab report on its own: one it cannot match to an order stays unacknowledged and holds back no other. | `messaging.feature` |
-| R25 | DF1 and DF20 carry exactly the fields of `web/messaging/messages.proto` (§10): no patient name, no blood values in DF1. | `messaging.feature`, `tests/test_messages.py` |
+| R25 | DF23 and DF25 carry exactly the fields of `web/messaging/messages.proto` (§10): no patient name, no blood values in DF1. | `messaging.feature`, `tests/test_messages.py` |
 | R26 | A patient has one sample; ordering a test the patient already has is refused (`already_ordered`). | `ordering.feature` |
 | R16 | The ClientApp's deploy handler writes each final model as a new file named after its Flower run ID into the node's `final-models-path`, never overwriting one, with the threshold, the federated metrics the ServerApp sends, and its local validation on this hospital's validation split: the confusion matrix at the final model's threshold, as counts, and AUROC. Training results are unchanged. | `tests/test_final_models.py` |
 | R17 | The Models page lists every final model; one that is unreadable, trained on other features than `FEATURES`, or lacks a threshold or standardization is shown as *cannot be deployed* with the reason, and deploying it is refused with that reason's code. | `deployment.feature` |
@@ -165,7 +165,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | O16 | Hospital software reads another party's data, or carries startup code paths | P0 | R21 |
 | O17 | Someone other than the general practitioner's app sends orders or reads lab reports | P0 | R24; the hospital is its own CA, so the startup cannot issue a certificate |
 | O18 | A lab order is sent twice (retry after a lost reply) | R22 | Recorded once by sample ID and test; the repeat is acknowledged |
-| O19 | The laboratory links tests of the same patient | P0 | Accepted: only through the shared sample ID; real laboratories link through the national register number (report DF2: identified results) |
+| O19 | The laboratory links tests of the same patient | P0 | Accepted: only through the shared sample ID; real laboratories link through the national register number |
 
 ## 5. Operations
 
@@ -227,7 +227,7 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 
 ## 9. Demo deployment: one folder and one process per party
 
-The trust boundaries of the report's DFD (TB1 per hospital, TB2 the startup)
+The trust boundaries of the report's DFD (TB1 per hospital, TB2 the startup, TB3 per practice)
 are visible on disk and as processes. Everything lives under `demo/`
 (gitignored):
 
@@ -235,18 +235,18 @@ are visible on disk and as processes. Everything lives under `demo/`
 demo/
 ├── startup/                     TB2
 │   ├── superlink/               DS3 run state, configuration, messages
-│   └── final-models/            DS4 the startup's copy of every final model, one per run (DF22)
+│   └── final-models/            DS4 the startup's copy of every final model, one per run (DF13)
 └── hospitals/
     ├── uz-leuven/               TB1
     │   ├── cohort/              DS2 training cohort (2005–2006)
-    │   ├── final-models/        DF15 one file per training run (R16)
-    │   └── web.sqlite3          DS1 lab results, orders, screening results
+    │   ├── final-models/        DS5 one file per training run (R16)
+    │   └── web.sqlite3          DS1 lab records, DS6 deployment history
     ├── heilig-hart-leuven/      TB1 (2015–2016, 50%)
     └── az-diest/                TB1 (2017–2018, 25%)
-└── practices/                   E3, outside TB1: each general practitioner's own app
+└── practices/                   TB3: each general practitioner's own app
     ├── huisartsenpraktijk-de-akker/  Heverlee → UZ Leuven
     │   ├── certificates/        client certificate from UZ Leuven's CA, and that CA's certificate
-    │   └── web.sqlite3          patients, orders, fetched lab reports
+    │   └── web.sqlite3          DS7 patients, orders, fetched lab reports
     ├── huisartsenpraktijk-de-berk/   Kessel-Lo → Heilig Hart Leuven
     └── huisartsenpraktijk-de-ceder/  Diest → AZ Diest
 ```
@@ -258,7 +258,7 @@ startup); three `flower-supernode`s, each given only its hospital's `cohort/`
 and `final-models/` in its node config; and three web apps, one port per
 hospital, each with `HOSPITAL_DIR` set to its folder. Training is submitted
 with `flwr run` to this local deployment, not the simulation, so the only data
-crossing a boundary is Flower's messages (DF6–DF8). The web app refuses to
+crossing a boundary is Flower's messages (DF7–DF10). The web app refuses to
 start if its database or final models lie outside `HOSPITAL_DIR`.
 
 Each hospital also runs a messaging endpoint (UZ Leuven 8441, Heilig Hart
@@ -267,11 +267,11 @@ general practitioner's app runs on its own port (De Akker 8011, De Berk 8012,
 De Ceder 8013) with `PRACTICE_DIR` set to its folder and `MESSAGING_ADDRESS`
 to its hospital's endpoint, next to a process that checks for lab reports
 every 60 seconds (`check_for_lab_reports --every 60`). Each hospital folder
-gains `ca/` (its certificate authority) and `messaging/` (the endpoint's
+gains `ca/` (DS8, its certificate authority) and `messaging/` (the endpoint's
 server certificate, served by `serve_messages`). Without either folder set,
 a development checkout serves every party's pages from one database.
 
-## 10. Messages between the general practitioner and the hospital (DF1, DF20)
+## 10. Messages between the general practitioner and the hospital (DF23, DF25)
 
 The general practitioner's app is always the client (R23): it sends lab orders
 and fetches lab reports over gRPC with mutual TLS (R24). `web/messaging/messages.proto`
@@ -280,8 +280,8 @@ fails if they drift from it.
 
 | Message | Fields | Never |
 |---|---|---|
-| Lab order (DF1) | sample ID, test, clinical indication (CBC only), registered sex, age, ordering general practitioner's name | patient name, blood values |
-| Lab report (DF20) | sample ID, test, results, *ferritin suggested* (one bit), released at | score, screening result beyond that bit, not-screened reason, free text |
+| Lab order (DF23) | sample ID, test, clinical indication (CBC only), registered sex, age, ordering general practitioner's name | patient name, blood values |
+| Lab report (DF25) | sample ID, test, results, *ferritin suggested* (one bit), released at | score, screening result beyond that bit, not-screened reason, free text |
 
 The tube itself is not a message: the hospital's analyser stand-in looks up
 what a sample ID's tube would measure (§8).

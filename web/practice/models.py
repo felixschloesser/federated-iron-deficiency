@@ -57,7 +57,7 @@ class Order(models.Model):
     age = models.PositiveSmallIntegerField()
     sample_id = models.CharField(max_length=20)
     ordered_at = models.DateTimeField()
-    # Absent until the hospital confirmed the lab order (DF1); then never sent again.
+    # Absent until the hospital confirmed the lab order (DF23); then never sent again.
     sent_at = models.DateTimeField(null=True, blank=True)
 
     objects = OrderQuerySet.as_manager()
@@ -85,7 +85,7 @@ class ResultValue:
 
 
 class LabReport(models.Model):
-    """A lab report fetched from the hospital (DF20): results, and whether
+    """A lab report fetched from the hospital (DF25): results, and whether
     ferritin is suggested; nothing else of screening (R9, R25)."""
 
     order = models.OneToOneField(
