@@ -192,11 +192,11 @@ All are POSTs that redirect on success; services take `now`.
 |---|---|---|
 | Log in | Anyone | Django login form; refuses an account without a role; demo buttons when `DEMO_LOGIN`. Afterwards, and at `/`, the start page of the user's role |
 | Patients (start page) | general practitioner | Own patients: name, registered sex, age. Served by the general practitioner's app, not the hospital's |
-| Patient | general practitioner | Registered sex, age, the patient's orders with their sample ID, each with its lab report once fetched: values (R9), comment, *Order ferritin* beside a suggestion (R11, on that sample); *Order CBC*, *Order ferritin*, each on a new sample |
+| Patient | general practitioner | Registered sex, age, then one section per sample, newest first (sample ID, collected): each test on it in the order placed, with its clinical indication and its lab report once fetched (values, R9; comment; *Order ferritin* beside a suggestion, on that sample, R11) or *Awaiting lab report*; *Order CBC*, *Order ferritin*, each on a new sample |
 | Order CBC / Order ferritin for a patient | general practitioner | Whether it collects a new sample or goes on the lab report's sample; the clinical indication only for a test that takes one; ferritin is a confirmation |
 | Orders | general practitioner | Own orders, newest first, linked to their patient, with when their lab report was released; *Check for reports* |
 | Screening models (start page) | Laboratory director | One card per screening model, newest first: its name, how many iron-deficient women of the local validation it finds, its unnecessary ferritin suggestions, AUROC here and across hospitals, threshold and run ID; *Deployed*, *Deploy* or *Cannot be deployed: reason*. Deployment history: when, which model |
-| To analyse (start page) | Laboratory staff | Lab orders not yet analysed, oldest first; *Run analyser*. A CBC not screened because of the model (none deployed, or its file changed) gives a warning to tell the laboratory director (O3) |
+| To analyse (start page) | Laboratory staff | Lab orders not yet analysed, oldest first: sample ID (marked *stored sample* when another test on it was analysed), test, *Run analyser*, ordered, general practitioner; nothing else of the patient. A CBC not screened because of the model (none deployed, or its file changed) gives a warning to tell the laboratory director (O3) |
 | Analysed | Laboratory staff | Analysed lab orders, newest first, with their screening result |
 
 Index pages assert their query count. Conditional controls (*Order ferritin*,

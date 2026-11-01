@@ -2,22 +2,20 @@
 {% block title %}To analyse{% endblock %}
 {% block content %}
 {% include "kit/index_header.html" with title="To analyse" %}
-<p>Tests ordered on a sample, including a later test on a stored sample.</p>
+<p>Tests ordered on a sample. A stored sample is one the laboratory already holds.</p>
 {% if lab_orders %}
 <div class="overflow-auto"><table>
   <thead>
-    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Registered sex</th><th scope="col">Age</th><th scope="col">General practitioner</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
+    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col"><span class="visually-hidden">Action</span></th><th scope="col">Ordered</th><th scope="col">General practitioner</th></tr>
   </thead>
   <tbody>
     {% for lab_order in lab_orders %}
     <tr>
-      <td class="sample-id">{{ lab_order.sample.sample_id }}</td>
+      <td><span class="sample-id">{{ lab_order.sample.sample_id }}</span>{% if lab_order.stored_sample %} · stored sample{% endif %}</td>
       <td>{{ lab_order.get_test_display }}</td>
-      <td>{{ lab_order.get_indication_display|default:"—" }}</td>
-      <td>{{ lab_order.get_registered_sex_display }}</td>
-      <td>{{ lab_order.age }}</td>
-      <td>{{ lab_order.general_practitioner }}</td>
       <td>{% url "lab:run_analyser" lab_order.pk as analyse_url %}{% include "kit/action_button.html" with url=analyse_url label="Run analyser" accessible_label="Run analyser for sample "|add:lab_order.sample.sample_id %}</td>
+      <td>{{ lab_order.ordered_at|date:"j M Y, H:i" }}</td>
+      <td>{{ lab_order.general_practitioner }}</td>
     </tr>
     {% endfor %}
   </tbody>

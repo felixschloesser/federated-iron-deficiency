@@ -3,49 +3,37 @@
 {% block content %}
 {% include "kit/index_header.html" with title=patient.name actions=actions %}
 <p>{{ patient.get_registered_sex_display }}, aged {{ patient.age }}</p>
-<h2>Orders</h2>
-{% if entries %}
-<div class="overflow-auto"><table>
-  <thead>
-    <tr><th scope="col">Ordered</th><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Lab report</th></tr>
-  </thead>
-  <tbody>
-    {% for entry in entries %}
-    <tr>
-      <td>{{ entry.order.ordered_at|date:"j M Y, H:i" }}</td>
-      <td class="sample-id">{{ entry.order.sample.sample_id }}</td>
-      <td>{{ entry.order.get_test_display }}</td>
-      <td>{{ entry.order.get_indication_display|default:"—" }}</td>
-      <td>{% if entry.lab_report %}Released {{ entry.lab_report.released_at|date:"j M Y, H:i" }}{% else %}—{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table></div>
-{% for entry in entries %}{% if entry.lab_report %}
+{% for item in samples %}
 <section>
-  <h2>{{ entry.order.get_test_display|capfirst }} lab report, sample {{ entry.order.sample.sample_id }}</h2>
-  <p>Released {{ entry.lab_report.released_at|date:"j M Y, H:i" }}</p>
-  {% if entry.lab_report.comment %}<p><strong>{{ entry.lab_report.comment }}</strong></p>{% endif %}
-  {% if entry.order_ferritin_url %}<div class="action-row"><a href="{{ entry.order_ferritin_url }}" role="button" aria-label="Order ferritin on sample {{ entry.order.sample.sample_id }}">Order ferritin</a></div>{% endif %}
-  {% with values=entry.lab_report.values %}
-  {% if values %}
-  <div class="overflow-auto"><table>
-    <thead>
-      <tr><th scope="col">Value</th><th scope="col">Result</th><th scope="col">Unit</th></tr>
-    </thead>
-    <tbody>
-      {% for value in values %}
-      <tr><td>{{ value.name }}</td><td>{{ value.shown }}</td><td>{{ value.unit }}</td></tr>
-      {% endfor %}
-    </tbody>
-  </table></div>
-  {% else %}
-  <p>Not available in the demo data.</p>
-  {% endif %}
-  {% endwith %}
+  <h2>Sample <span class="sample-id">{{ item.sample.sample_id }}</span>, collected {{ item.sample.collected_at|date:"j M Y, H:i" }}</h2>
+  {% for entry in item.entries %}
+  <article>
+    <h3>{{ entry.order.get_test_display|capfirst }}{% if entry.order.indication %} ({{ entry.order.get_indication_display|lower }}){% endif %}</h3>
+    <p>Ordered {{ entry.order.ordered_at|date:"j M Y, H:i" }}.{% if entry.lab_report %} Lab report released {{ entry.lab_report.released_at|date:"j M Y, H:i" }}.{% else %} Awaiting lab report.{% endif %}</p>
+    {% if entry.lab_report %}
+    {% if entry.lab_report.comment %}<p><strong>{{ entry.lab_report.comment }}</strong></p>{% endif %}
+    {% if entry.order_ferritin_url %}<div class="action-row"><a href="{{ entry.order_ferritin_url }}" role="button" aria-label="Order ferritin on sample {{ entry.order.sample.sample_id }}">Order ferritin</a></div>{% endif %}
+    {% with values=entry.lab_report.values %}
+    {% if values %}
+    <div class="overflow-auto"><table>
+      <thead>
+        <tr><th scope="col">Value</th><th scope="col">Result</th><th scope="col">Unit</th></tr>
+      </thead>
+      <tbody>
+        {% for value in values %}
+        <tr><td>{{ value.name }}</td><td>{{ value.shown }}</td><td>{{ value.unit }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <p>Not available in the demo data.</p>
+    {% endif %}
+    {% endwith %}
+    {% endif %}
+  </article>
+  {% endfor %}
 </section>
-{% endif %}{% endfor %}
-{% else %}
+{% empty %}
 <p>No orders yet.</p>
-{% endif %}
+{% endfor %}
 {% endblock %}

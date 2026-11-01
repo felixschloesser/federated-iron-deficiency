@@ -48,17 +48,18 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            analysed = (
+            # Every analysis releases its lab report at once (R8).
+            released = (
                 f"Sample {lab_order.sample.sample_id}:"
-                f" {lab_order.get_test_display()} analysed"
+                f" {lab_order.get_test_display()} analysed, lab report released"
             )
             reason = lab_order.not_screened_reason
             if reason is not None and NotScreened(reason).is_model_problem():
                 messages.warning(
                     request,
-                    f"{analysed} and released, not screened:"
-                    f" {NotScreened(reason).label}. Tell the laboratory director.",
+                    f"{released} without screening: {NotScreened(reason).label}."
+                    " Tell the laboratory director.",
                 )
             else:
-                messages.success(request, f"{analysed}.")
+                messages.success(request, f"{released}.")
         return redirect("lab:to_analyse")

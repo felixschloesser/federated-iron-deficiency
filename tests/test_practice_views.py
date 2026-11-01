@@ -394,9 +394,7 @@ def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
     sample_id = patient.samples.get().sample_id
     assertContains(response, f"Ferritin ordered on sample {sample_id}.")
     (sample,) = response.context["samples"]
-    assert [entry["order"].test for entry in sample["entries"]] == [
-        OrderedTest.CBC,
-        OrderedTest.FERRITIN,
-    ]
+    # The CBC first, then the ferritin ordered beside its suggestion.
+    assert [entry["order"].test for entry in sample["entries"]] == ["cbc", "ferritin"]
     assert sample["entries"][0]["order_ferritin_url"] is None
     assertContains(response, "Awaiting lab report.")

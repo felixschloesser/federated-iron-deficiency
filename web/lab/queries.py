@@ -1,14 +1,28 @@
 """What laboratory staff see: lab orders, which hold no patient field (R14)."""
 
-from django.db.models import QuerySet
+from __future__ import annotations
+
+from typing import TypedDict
+
+from django.db.models import Exists, OuterRef, QuerySet
+from django_stubs_ext import WithAnnotations
 
 from web.lab.models import LabOrder
 
 
-def lab_orders_to_analyse() -> QuerySet[LabOrder]:
-    """Tests the analyser has not run yet; each sample arrives with its lab order."""
+class StoredSample(TypedDict):
+    stored_sample: bool
+
+
+def lab_orders_to_analyse() -> QuerySet[WithAnnotations[LabOrder, StoredSample]]:
+    """Tests the analyser has not run yet. A sample arrives with its lab order; it is
+    a stored sample once another test on it has been analysed (R2)."""
+    analysed_on_same_sample = LabOrder.objects.filter(
+        sample=OuterRef("sample"), analysed_at__isnull=False
+    )
     return (
         LabOrder.objects.filter(analysed_at__isnull=True)
+        .annotate(stored_sample=Exists(analysed_on_same_sample))
         .select_related("sample")
         .order_by("ordered_at", "pk")
     )

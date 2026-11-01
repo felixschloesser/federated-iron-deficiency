@@ -180,7 +180,7 @@ def test_run_analyser_names_its_sample_for_assistive_technology(
     response = logged_in(client, staff_member).get(reverse("lab:to_analyse"))
     sample_id = lab_order.sample.sample_id
     assertContains(response, f'aria-label="Run analyser for sample {sample_id}"')
-    assertContains(response, f'<td class="sample-id">{sample_id}</td>')
+    assertContains(response, f'<span class="sample-id">{sample_id}</span>')
 
 
 def test_to_analyse_shows_only_what_running_the_analyser_needs(
@@ -191,7 +191,7 @@ def test_to_analyse_shows_only_what_running_the_analyser_needs(
         assertContains(response, f'<th scope="col">{heading}</th>')
     for heading in ("Clinical indication", "Registered sex", "Age"):
         assertNotContains(response, f'<th scope="col">{heading}</th>')
-    assertNotContains(response, "stored sample")
+    assertNotContains(response, "· stored sample")
 
 
 def test_to_analyse_marks_a_stored_sample(
@@ -210,4 +210,5 @@ def test_to_analyse_marks_a_stored_sample(
     )
     deliver(later)
     response = client.get(reverse("lab:to_analyse"))
-    assertContains(response, f"{lab_order.sample.sample_id} · stored sample")
+    sample_id = lab_order.sample.sample_id
+    assertContains(response, f"{sample_id}</span> · stored sample")

@@ -5,10 +5,10 @@ import grpc
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import F, QuerySet
+from django.db.models import F, Prefetch, QuerySet
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.template.defaultfilters import pluralize
+from django.template.defaultfilters import capfirst, pluralize
 from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import DetailView, FormView, ListView, View
@@ -62,11 +62,14 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         patient = self.object
-        orders = list(
-            Order.objects.filter(sample__patient=patient)
-            .select_related("sample", "lab_report")
-            .order_by("-ordered_at", "-pk")
-        )
+        samples = patient.samples.prefetch_related(
+            Prefetch(
+                "orders",
+                queryset=Order.objects.select_related("lab_report").order_by(
+                    "ordered_at", "pk"
+                ),
+            )
+        ).order_by("-collected_at", "-pk")
         # Each order from here collects a new sample (R26).
         actions = [
             {
@@ -77,30 +80,38 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             }
             for test in Test
         ]
-        # Each order with its lab report, if fetched, and Order ferritin beside a
-        # suggestion (R9, R11).
-        entries = [
-            {
-                "order": order,
-                "lab_report": lab_report,
-                "order_ferritin_url": reverse(
-                    "practice:new_order_on_sample",
-                    kwargs={
-                        "patient": patient.pk,
-                        "sample": order.sample_id,
-                        "test": Test.FERRITIN,
-                    },
-                )
-                if lab_report is not None and ferritin_order_offered(lab_report)
-                else None,
-            }
-            for order in orders
-            for lab_report in [getattr(order, "lab_report", None)]
-        ]
+        # Each sample with the tests on it, in the order they were placed, so a
+        # ferritin ordered beside a suggestion shows right under it (R9, R11).
         return {
             **super().get_context_data(**kwargs),
             "actions": actions,
-            "entries": entries,
+            "samples": [
+                {
+                    "sample": sample,
+                    "entries": [self.entry(order) for order in sample.orders.all()],
+                }
+                for sample in samples
+            ],
+        }
+
+    def entry(self, order: Order) -> dict[str, Any]:
+        """An order with its lab report, if fetched, and Order ferritin beside a
+        suggestion."""
+        lab_report = getattr(order, "lab_report", None)
+        offered = lab_report is not None and ferritin_order_offered(lab_report)
+        return {
+            "order": order,
+            "lab_report": lab_report,
+            "order_ferritin_url": reverse(
+                "practice:new_order_on_sample",
+                kwargs={
+                    "patient": self.object.pk,
+                    "sample": order.sample_id,
+                    "test": Test.FERRITIN,
+                },
+            )
+            if offered
+            else None,
         }
 
 
@@ -194,16 +205,22 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
             "now": timezone.now(),
         }
         try:
-            if self.sample is None:
+            placed = (
                 services.place_order(patient=self.patient, **order)
-            else:
-                services.order_on_sample(sample=self.sample, **order)
+                if self.sample is None
+                else services.order_on_sample(sample=self.sample, **order)
+            )
         except ValidationError as error:
             for field, errors in error.error_dict.items():
                 # An error on a field this form does not show goes to the summary.
                 form.add_error(field if field in form.fields else None, errors)
             return self.form_invalid(form)
-        messages.success(self.request, "Order placed.")
+        on = "new sample" if self.sample is None else "sample"
+        messages.success(
+            self.request,
+            f"{capfirst(placed.get_test_display())} ordered on {on}"
+            f" {placed.sample.sample_id}.",
+        )
         if (connection := messaging.configured_connection()) is not None:
             try:
                 messaging.send_pending_lab_orders(connection, now=timezone.now())
