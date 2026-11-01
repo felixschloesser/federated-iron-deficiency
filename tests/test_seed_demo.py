@@ -86,7 +86,6 @@ def test_patients_are_shared_between_the_general_practitioners(seeded: None) -> 
         for practitioner in GeneralPractitioner.objects.all()
     ]
     assert sorted(counts) == [6, 6]
-    assert Patient.objects.filter(name="Test Patient 1").exists()
 
 
 def test_running_twice_changes_nothing(seeded: None) -> None:
@@ -163,3 +162,16 @@ def test_a_made_up_ferritin_is_reported_under_its_own_name() -> None:
     assert participant.measure(Test.FERRITIN) == {MADE_UP_FERRITIN: 60.0}
     assert RESULT_NAMES[MADE_UP_FERRITIN].name == "Ferritin (made up for the demo)"
     assert RESULT_NAMES[MADE_UP_FERRITIN].unit == "ng/mL"
+
+
+def test_patients_get_fictional_flemish_names_matching_their_sex(seeded: None) -> None:
+    for patient in Patient.objects.all():
+        first, last = patient.name.split(" ", 1)
+        assert first in demo.FIRST_NAMES[patient.registered_sex], patient.name
+        assert last in demo.SURNAMES, patient.name
+    assert Patient.objects.values("name").distinct().count() > 1
+
+
+def test_a_patients_name_is_the_same_on_every_seed() -> None:
+    assert demo.patient_name(135318, "female") == demo.patient_name(135318, "female")
+    assert demo.patient_name(135318, "female") != demo.patient_name(135319, "female")
