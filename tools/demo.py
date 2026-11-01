@@ -42,7 +42,8 @@ FIRST_WEB_PORT = 8001
 FIRST_PRACTICE_PORT = 8011
 FIRST_MESSAGING_PORT = 8441
 FIRST_RUNTIME_PORT = 9094
-REPORT_CHECK_SECONDS = 60
+# The demo squeezes hours into seconds; a real practice checks every 60.
+REPORT_CHECK_SECONDS = 5
 # Each practice sends its lab orders to one hospital (spec §9); fictional names.
 PRACTICES = dict(
     zip(
@@ -181,6 +182,7 @@ def plan(demo_dir: Path) -> list[Process]:
         party = {
             "PRACTICE_DIR": str(practice),
             "MESSAGING_ADDRESS": f"127.0.0.1:{FIRST_MESSAGING_PORT + partition}",
+            "REPORT_CHECK_SECONDS": str(REPORT_CHECK_SECONDS),
             "DJANGO_DEBUG": "1",
         }
         processes += [
@@ -201,7 +203,7 @@ def plan(demo_dir: Path) -> list[Process]:
             Process(
                 f"reports {slug}",
                 practice,
-                manage("check_for_lab_reports", "--every", str(REPORT_CHECK_SECONDS)),
+                manage("check_for_lab_reports", "--repeat"),
                 party,
             ),
         ]

@@ -80,6 +80,10 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             **super().get_context_data(**kwargs),
             "actions": [],
             "post_actions": [{"url": collect, "label": "Collect sample"}],
+            # Only an app with a hospital to ask fetches lab reports (R23).
+            "report_check_seconds": settings.REPORT_CHECK_SECONDS
+            if settings.MESSAGING_ADDRESS
+            else None,
             "samples": [
                 {
                     "sample": sample,
