@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 
 import pytest
-from pytest_bdd import given, parsers, scenarios, then
+from pytest_bdd import given, parsers, scenarios, then, when
 
 from iron_deficiency.dataset import CBC_VARS
 from tests.conftest import World, collect_and_order
@@ -89,6 +89,7 @@ def ferritin_order(world: World, patient: str) -> None:
     order(world["patients"][patient], OrderedTest.FERRITIN)
 
 
+@when("ferritin is ordered on the lab report's sample")
 @given("a ferritin order on the lab report's sample")
 def ferritin_on_the_sample(world: World) -> None:
     sample = world["lab_report"].order.sample
@@ -125,6 +126,31 @@ def no_values(world: World) -> None:
 @then(parsers.parse('the lab report\'s comment is "{comment}"'))
 def comment(world: World, comment: str) -> None:
     assert world["lab_report"].comment == comment
+
+
+@then(parsers.parse('the lab report\'s note is "{note}"'))
+def note(world: World, note: str) -> None:
+    assert world["lab_report"].note == note
+
+
+@then("the lab report has no note")
+def no_note(world: World) -> None:
+    assert world["lab_report"].note == ""
+
+
+@then(parsers.parse('"{name}" has the lab report among the ferritin suggestions'))
+def among_suggestions(world: World, name: str) -> None:
+    from web.practice.queries import ferritin_suggestions
+
+    owner = world["general_practitioners"][name]
+    assert list(ferritin_suggestions(owner)) == [world["lab_report"]]
+
+
+@then(parsers.parse('"{name}" has no ferritin suggestions'))
+def no_suggestions(world: World, name: str) -> None:
+    from web.practice.queries import ferritin_suggestions
+
+    assert not ferritin_suggestions(world["general_practitioners"][name]).exists()
 
 
 @then("the lab report has no comment")

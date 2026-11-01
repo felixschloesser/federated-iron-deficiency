@@ -187,3 +187,12 @@ def test_each_practice_checks_for_lab_reports_every_five_seconds() -> None:
         p for p in plan(DEMO) if p.name == "reports huisartsenpraktijk-de-akker"
     ]
     assert reports.command[-2:] == ["check_for_lab_reports", "--repeat"]
+
+
+def test_each_practice_and_its_hospital_seed_the_same_number_of_patients() -> None:
+    from tools.demo import PATIENTS, seed_arguments
+
+    assert [PATIENTS[cycle] for cycle in PATIENTS] == [40, 24, 12]
+    for partition, cycle in enumerate(PATIENTS):
+        arguments = seed_arguments(partition, Path("nhanes.csv"))
+        assert arguments[arguments.index("--patients") + 1] == str(PATIENTS[cycle])

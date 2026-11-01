@@ -81,12 +81,12 @@ def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
             assert patient.age == age
 
 
-def test_patients_are_shared_between_the_general_practitioners(seeded: None) -> None:
-    counts = [
-        practitioner.patients.count()
+def test_doctor_a_has_two_patients_for_every_one_of_doctor_b(seeded: None) -> None:
+    counts = {
+        practitioner.user.username: practitioner.patients.count()
         for practitioner in GeneralPractitioner.objects.all()
-    ]
-    assert sorted(counts) == [6, 6]
+    }
+    assert counts == {"doctor-a": 8, "doctor-b": 4}
 
 
 def test_running_twice_changes_nothing(seeded: None) -> None:
@@ -178,3 +178,16 @@ def test_a_patients_name_is_the_same_on_every_seed() -> None:
     female = RegisteredSex.FEMALE
     assert demo.patient_name(135318, female) == demo.patient_name(135318, female)
     assert demo.patient_name(135318, female) != demo.patient_name(135319, female)
+
+
+def test_the_number_of_patients_is_a_parameter(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.DEBUG = True
+    monkeypatch.setattr(demo, "load_nhanes", nhanes_rows)
+    seed("--patients", "6")
+    assert Patient.objects.count() == 6
+    assert Participant.objects.count() == 6
+    # Shared by the groups, the first ones rounding up: 2, 2, 1, 1.
+    assert Patient.objects.filter(age=30).count() == 2
+    assert Patient.objects.filter(age=70).count() == 1

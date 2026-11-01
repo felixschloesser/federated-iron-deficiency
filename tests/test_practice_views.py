@@ -7,7 +7,7 @@ from django.template.loader import render_to_string
 from django.test import Client, RequestFactory
 from django.urls import reverse
 from pytest_django import DjangoAssertNumQueries
-from pytest_django.asserts import assertContains
+from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
 
 from tests.conftest import make_general_practitioner, make_patient
@@ -95,8 +95,8 @@ def test_patients_lists_only_own_patients(
 ) -> None:
     make_patient(general_practitioner, "Test Patient 3", RegisteredSex.MALE, 60)
     logged_in(client, general_practitioner)
-    # Session, user with general practitioner, patients.
-    with django_assert_num_queries(3):
+    # Session, user with general practitioner, ferritin suggestions, patients.
+    with django_assert_num_queries(4):
         response = client.get(reverse("practice:patients"))
     names = [listed.name for listed in response.context["patients"]]
     assert names == ["Test Patient 1", "Test Patient 3"]
@@ -115,13 +115,16 @@ def test_patient_page_offers_collecting_a_sample(
 def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
-    response = logged_in(client, general_practitioner).post(
-        collect_url(patient), follow=True
-    )
+    response = logged_in(client, general_practitioner).post(collect_url(patient))
     sample = patient.samples.get()
-    assertContains(response, f"Sample {sample.sample_id} collected.")
-    assertContains(response, "No tests ordered yet.")
+    # Straight to the routine first test on the new sample.
+    assert response["Location"] == sample_order_url(patient, OrderedTest.CBC)
+    assertContains(
+        client.get(response["Location"]), f"Sample {sample.sample_id} collected."
+    )
     assert not Order.objects.exists()
+    response = client.get(patient_url(patient))
+    assertContains(response, "No tests ordered yet.")
     (item,) = response.context["samples"]
     assert [action["label"] for action in item["actions"]] == [
         "Order CBC",
@@ -194,7 +197,14 @@ def test_patient_page_offers_ferritin_beside_a_suggestion(
     assert entry["order_ferritin_url"] == sample_order_url(
         patient, OrderedTest.FERRITIN
     )
-    assertContains(response, "Ferritin suggested.")
+    assertContains(
+        response,
+        "Ferritin suggested by the hospital's screening of this CBC. Likely iron"
+        " deficiency; not a diagnosis.",
+    )
+    assertContains(
+        response, "Reference intervals are not shown: the demo has no laboratory's"
+    )
     assertContains(response, "Hemoglobin")
 
 
@@ -469,3 +479,47 @@ def test_each_sample_is_a_details_block_and_only_the_newest_is_open(
     assert (older["open"], older["tests"], older["suggested"]) == (False, "CBC", True)
     assert response.content.decode().count("<details open>") == 1
     assertContains(response, "CBC · Ferritin suggested")
+
+
+def test_a_patient_without_samples_is_told_how_to_start(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    response = logged_in(client, general_practitioner).get(patient_url(patient))
+    assertContains(response, "No samples yet. Collect a sample to order tests.")
+
+
+def test_patients_can_be_searched_by_name(
+    client: Client,
+    general_practitioner: GeneralPractitioner,
+    patient: Patient,
+    django_assert_num_queries: DjangoAssertNumQueries,
+) -> None:
+    make_patient(general_practitioner, "Maria Peeters", RegisteredSex.FEMALE, 30)
+    logged_in(client, general_practitioner)
+    with django_assert_num_queries(4):
+        response = client.get(reverse("practice:patients"), {"q": "peet"})
+    assert [listed.name for listed in response.context["patients"]] == ["Maria Peeters"]
+    assertContains(response, 'value="peet"')
+
+
+def test_the_patients_page_lists_ferritin_suggestions_with_order_ferritin(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    from web.practice.models import LabReport
+
+    logged_in(client, general_practitioner)
+    client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
+    LabReport.objects.create(
+        order=Order.objects.get(),
+        results={},
+        ferritin_suggested=True,
+        released_at="2026-10-30T12:00:00+00:00",
+        fetched_at="2026-10-30T12:05:00+00:00",
+    )
+    response = client.get(reverse("practice:patients"))
+    assertContains(response, "Ferritin suggested (1)")
+    assertContains(
+        response, f'href="{sample_order_url(patient, OrderedTest.FERRITIN)}"'
+    )
+    client.post(sample_order_url(patient, OrderedTest.FERRITIN))
+    assertNotContains(client.get(reverse("practice:patients")), "Ferritin suggested (")

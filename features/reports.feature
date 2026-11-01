@@ -14,11 +14,18 @@ Feature: Lab reports for the general practitioner
 
   Scenario: Ferritin suggested shows the comment
     Given a CBC lab report for "Test Patient 1" with ferritin suggested
-    Then the lab report's comment is "Ferritin suggested."
+    Then the lab report's comment is "Ferritin suggested by the hospital's screening of this CBC. Likely iron deficiency; not a diagnosis."
 
   Scenario: Without a suggestion the lab report says nothing about screening
     Given a CBC lab report for "Test Patient 1" without ferritin suggested
     Then the lab report has no comment
+    And the lab report's note is "No ferritin suggestion. This does not rule out iron deficiency."
+
+  Scenario: A suggestion awaits the general practitioner until ferritin is ordered
+    Given a CBC lab report for "Test Patient 1" with ferritin suggested
+    Then "Dr. Demo A" has the lab report among the ferritin suggestions
+    When ferritin is ordered on the lab report's sample
+    Then "Dr. Demo A" has no ferritin suggestions
 
   Scenario: Order ferritin is offered beside the suggestion
     Given a CBC lab report for "Test Patient 1" with ferritin suggested
@@ -42,6 +49,7 @@ Feature: Lab reports for the general practitioner
     Given a ferritin lab report for "Test Patient 1" with ferritin 12 ng/mL
     Then the lab report shows "Ferritin" in "ng/mL" with the analyser's value
     And the lab report has no comment
+    And the lab report has no note
     And ordering ferritin is not offered on the lab report
 
   Scenario: Ferritin that NHANES does not have
