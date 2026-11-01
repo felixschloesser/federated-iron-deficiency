@@ -199,7 +199,7 @@ def test_patient_page_offers_ferritin_beside_a_suggestion(
     )
     assertContains(
         response,
-        "Ferritin suggested by the hospital's screening of this CBC. Likely iron"
+        "Ferritin suggested by the hospital&#x27;s screening of this CBC. Likely iron"
         " deficiency; not a diagnosis.",
     )
     assertContains(

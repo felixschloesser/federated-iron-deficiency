@@ -59,7 +59,7 @@ staff is replaced and the report's word moves to the rejected column.
 | negative predictive value | WHO LQMS 3-3, p. 40: test methods are "evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)" | Women without a suggestion who were not iron deficient: what a silent lab report is worth (R9) | — |
 | threshold | Report, Design choices | The report's word | cutoff (reserved for ferritin's 15 ng/mL) |
 | lab report | Report, DF25 | The report's word | test report (WHO p. 193) |
-| comment | Report, Use case; WHO report contents "applicable comments" (p. 193) | Both sources | interpretive comment |
+| comment | Report, Use case; WHO report contents "applicable comments" (p. 193) | Both sources. The only comment is the suggestion: "Ferritin suggested by the hospital's screening of this CBC. Likely iron deficiency; not a diagnosis." ("likely iron deficient": report, Use case) | interpretive comment |
 | CBC value names and units, e.g. *Hemoglobin*, g/dL | NHANES 2021–2023 CBC_L codebook, SAS labels (`sources/nhanes-2021-2023-CBC_L.htm`) | The values are NHANES's own, in its units; no conversion | Hb, Ht and other report abbreviations (no source; other units) |
 | Ferritin, ng/mL | NHANES 2021–2023 FERTIN_L codebook (`sources/nhanes-2021-2023-FERTIN_L.htm`) | As above | µg/L (LBDFERSI) |
 | Ferritin (made up for the demo), ng/mL | User decision, 2026-11-01: NHANES has no ferritin for men and women outside 12–49 | Tells the general practitioner the value is not a measurement; kept apart from ferritin so it never feeds a suggestion or a label | ferritin (would pass a made-up value as measured), synthetic ferritin |
@@ -119,7 +119,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R6 | A screening result records the screening model that produced it (run ID, SHA-256, threshold). | `screening.feature` |
 | R7 | No score, probability or standardized input is stored or shown. | `screening.feature` |
 | R8 | Running the analyser on a CBC screens it at once, and its lab report is released at once. Without a usable deployed model (R19) a CBC that meets R4 is *not screened* with that reason: the general practitioner's CBC never waits for the startup's model, and is not screened again later. Screening runs in the same transaction as the analysis, so an analysed lab order is a released lab report; there is no separate release step. | `screening.feature` |
-| R9 | The lab report shows the values under NHANES's names and units, without reference ranges or any mark; the comment *Ferritin suggested.* appears only for *ferritin suggested*. The hospital sends one bit, *ferritin suggested*, so *ferritin not suggested* and *not screened* look the same at the practice and show nothing about screening. | `screening.feature` (the bit the hospital sends), `messaging.feature`, `reports.feature` |
+| R9 | The lab report shows the values under NHANES's names and units, without reference ranges or any mark; the comment *Ferritin suggested.* appears only for *ferritin suggested*. The hospital sends one bit, *ferritin suggested*, so *ferritin not suggested* and *not screened* look the same at the practice and show nothing about screening. Under a CBC lab report without a suggestion, whatever the reason, the same note: "No ferritin suggestion. This does not rule out iron deficiency." Under the values: "Reference intervals are not shown: the demo has no laboratory's intervals." (ISO 15189 lists them, WHO LQMS p. 193; no laboratory's intervals are sourced). | `screening.feature` (the bit the hospital sends), `messaging.feature`, `reports.feature` |
 | R11 | *Order ferritin* is offered beside the comment of a lab report with *ferritin suggested* while that lab report's sample has no ferritin order (R26); it opens the ferritin order page on that sample, so the laboratory measures ferritin on the stored sample (R2). It is never offered without a suggestion: ferritin is ordered on suspicion (report, Use case). A ferritin order from the patient page collects a new sample and does not count. | `reports.feature` |
 | R12 | A ferritin sample is never screened; its lab report is visible once analysed. | `lab.feature`, `screening.feature`, `reports.feature` |
 | R13 | Every general practitioner query is scoped to the general practitioner's own patients; another general practitioner's order or lab report returns 404. | `access.feature` |
@@ -186,7 +186,7 @@ All are POSTs that redirect on success; services take `now`.
 | Operation | Actor | Precondition | Postcondition | Requirements |
 |---|---|---|---|---|
 | Fetch lab reports | General practitioner's app | Every `REPORT_CHECK_SECONDS`, or *Check for reports* | New lab reports stored at the general practitioner's app | R23 |
-| Collect sample | general practitioner | Patient is the general practitioner's | A sample with the patient's next sample ID, collected at `now`; nothing sent | R13, R26 |
+| Collect sample | general practitioner | Patient is the general practitioner's | A sample with the patient's next sample ID, collected at `now`; nothing sent; then the sample's CBC order page | R13, R26 |
 | Place order | general practitioner | Sample is one of the general practitioner's patient's; indication given iff test is CBC; the test not yet on the sample | The order on the sample, sex and age copied; its lab order sent | R1, R13, R26 |
 | Run analyser | Laboratory staff | Lab order arrived, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |
 | Deploy | Laboratory director | Screening model can be deployed (R17) | It is the deployed model from `now` | R18 |
@@ -197,7 +197,7 @@ All are POSTs that redirect on success; services take `now`.
 | Page | Role | Content |
 |---|---|---|
 | Log in | Anyone | Django login form; refuses an account without a role; demo buttons when `DEMO_LOGIN`. Afterwards, and at `/`, the start page of the user's role |
-| Patients (start page) | general practitioner | Own patients: name, registered sex, age. Served by the general practitioner's app, not the hospital's |
+| Patients (start page) | general practitioner | *Ferritin suggested (n)*: lab reports suggesting ferritin whose sample has no ferritin order yet, newest first, each with patient, sample ID, release time and *Order ferritin*; then a search by name (contains, any case) and own patients: name, registered sex, age. Served by the general practitioner's app, not the hospital's |
 | Patient | general practitioner | Registered sex, age, *Collect sample*, then one collapsible section per sample, newest first and only the newest open (summary: sample ID, collected, its tests or *No tests ordered yet*, *Ferritin suggested* if a lab report in it says so). In each: *Order CBC* / *Order ferritin* for tests the sample does not have (ferritin not while it is offered beside a suggestion), then each test in the order placed, with its clinical indication and its lab report once fetched (values, R9; comment; *Order ferritin* beside a suggestion, R11) or *Awaiting lab report* |
 | Order CBC / Order ferritin on a sample | general practitioner | The sample and when it was collected; the clinical indication only for a test that takes one; ferritin is a confirmation |
 | Orders | general practitioner | Own orders, newest first, linked to their patient, with when their lab report was released; *Check for reports* |
@@ -211,6 +211,8 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 ## 7. Out of scope
 
 - Clinical-biologist review before release (O2 accepted)
+- Reference intervals and high/low marks on lab reports: no laboratory's intervals are sourced, and R9 keeps the report uninterpreted
+- Abbreviated value names (Hb, MCV): neither WHO LQMS nor the NHANES CBC_L codebook gives them
 - Receiving and rejecting samples (WHO 5-4): a sample arrives with its lab order, and nothing in the demo would make the laboratory refuse one
 - Access log of who viewed what (the report's adversaries attack the model, not this app)
 - Email or other notification outside the app
@@ -233,7 +235,7 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 
 ## 8. Data
 
-- Patients: NHANES 2021–2023 (`iron_deficiency.dataset.load_new_samples`), all sexes and ages, seeded at the general practitioner's app; each has a fictional Flemish name matching their registered sex (common Flemish first names, the ten most common family names of the Flemish Region, Statbel); each patient is one NHANES participant, whose number starts each of their sample IDs.
+- Patients: NHANES 2021–2023 (`iron_deficiency.dataset.load_new_samples`), all sexes and ages, seeded at the general practitioner's app (`--patients`, default 12, shared by the seeding groups; the demo seeds De Akker 40, De Berk 24, De Ceder 12, the same number at each practice's hospital; doctor-a gets two for every one of doctor-b's); each has a fictional Flemish name matching their registered sex (common Flemish first names, the ten most common family names of the Flemish Region, Statbel); each patient is one NHANES participant, whose number starts each of their sample IDs.
 - The hospital's analyser stand-in holds the same cycle's values (13 CBC values, ferritin from `load_ferritin`), looked up by the NHANES number in the sample ID: what the samples in its laboratory would measure. Every sample of one patient measures the same values, as NHANES measured each participant once. No values travel in a message.
 - NHANES measured ferritin only for women aged 12–49 (FERTIN_L, eligible sample). The demo seeds no woman aged 18–49 whom it did not measure; for men and other women the hospital's stand-in holds a made-up ferritin, the measured ferritin of an eligible woman at or above the cutoff picked by sample ID, reported as *Ferritin (made up for the demo)*, never as ferritin. A participant with neither gets *not available in the demo data*.
 - Age is the NHANES age at the survey and does not change.

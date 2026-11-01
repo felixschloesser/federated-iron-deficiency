@@ -58,6 +58,9 @@ PRACTICES = dict(
 )
 
 
+# Patients each practice, and so its hospital's analyser stand-in, seeds: sized
+# like the hospital it sends to (large, medium, small).
+PATIENTS = dict(zip(CYCLES, (40, 24, 12), strict=True))
 # Each hospital's Pico colour, and its practice's from the same family.
 COLOURS = dict(
     zip(
@@ -223,11 +226,25 @@ def from_hub[T](load: Callable[[], T], attempts: int = 4) -> T:
     return load()
 
 
+def seed_arguments(partition: int, nhanes: Path) -> list[str]:
+    """The same participants for a practice and its hospital: one seed and one
+    number of patients per partition."""
+    patients = PATIENTS[list(CYCLES)[partition]]
+    return [
+        "--seed",
+        str(partition),
+        "--nhanes",
+        str(nhanes),
+        "--patients",
+        str(patients),
+    ]
+
+
 def prepare_web(folder: Path, party: str, seed_command: str, partition: int) -> None:
     """Migrate the party's database and seed its demo accounts."""
     env = {**os.environ, party: str(folder), "DJANGO_DEBUG": "1"}
     subprocess.run(manage("migrate", "-v0"), env=env, check=True)
-    seed = ("--seed", str(partition), "--nhanes", str(folder / "nhanes.csv"))
+    seed = seed_arguments(partition, folder / "nhanes.csv")
     # Quiet: the summary at startup names the accounts once.
     subprocess.run(
         manage(seed_command, *seed), env=env, check=True, stdout=subprocess.DEVNULL

@@ -1,0 +1,6 @@
+{% comment %}A search box that filters an index page with GET.
+Include with: label, query (the current search, or empty).{% endcomment %}
+<form method="get" role="search">
+  <input type="search" name="q" value="{{ query }}" placeholder="{{ label }}" aria-label="{{ label }}">
+  <button type="submit">Search</button>
+</form>

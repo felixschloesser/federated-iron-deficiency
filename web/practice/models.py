@@ -113,8 +113,22 @@ class LabReport(models.Model):
 
     @property
     def comment(self) -> str:
-        """The comment the general practitioner reads: only for a suggestion (R9)."""
-        return "Ferritin suggested." if self.ferritin_suggested else ""
+        """The comment the general practitioner reads: only for a suggestion (R9),
+        saying where it comes from and that it is no diagnosis."""
+        if not self.ferritin_suggested:
+            return ""
+        return (
+            "Ferritin suggested by the hospital's screening of this CBC."
+            " Likely iron deficiency; not a diagnosis."
+        )
+
+    @property
+    def note(self) -> str:
+        """Under a screened test's report without a suggestion: the same words
+        whether it was not suggested or not screened, so silence reassures no one."""
+        if self.ferritin_suggested or not Test(self.order.test).is_screened():
+            return ""
+        return "No ferritin suggestion. This does not rule out iron deficiency."
 
     def values(self) -> list[ResultValue]:
         """The measured values under NHANES's names and units, uninterpreted;

@@ -25,7 +25,8 @@ from web.accounts.models import User
 from web.demo_accounts import PASSWORD
 from web.vocabulary import RegisteredSex
 
-PER_GROUP = 3
+# Patients per practice unless --patients says otherwise; the groups share them.
+PATIENTS = 12
 
 
 class Group(enum.Enum):
@@ -57,12 +58,17 @@ def load_nhanes() -> pd.DataFrame:
     return load_new_samples().merge(load_ferritin(), on="sample_id", how="left")
 
 
-def choose(rows: pd.DataFrame, seed: int) -> pd.DataFrame:
-    """PER_GROUP participants of each group, the same ones for the same seed."""
+def choose(rows: pd.DataFrame, seed: int, patients: int = PATIENTS) -> pd.DataFrame:
+    """`patients` participants shared by the groups, the first groups rounding up,
+    the same ones for the same seed."""
+    groups = list(Group)
     return pd.concat(
         [
-            rows[group.selects(rows)].sample(n=PER_GROUP, random_state=seed)
-            for group in Group
+            rows[group.selects(rows)].sample(
+                n=patients // len(groups) + (number < patients % len(groups)),
+                random_state=seed,
+            )
+            for number, group in enumerate(groups)
         ]
     )
 
@@ -147,6 +153,12 @@ class SeedCommand(BaseCommand):
         parser.add_argument(
             "--nhanes", type=Path, help="a CSV of load_nhanes() instead of the network"
         )
+        parser.add_argument(
+            "--patients",
+            type=int,
+            default=PATIENTS,
+            help="how many participants; the practice and its hospital need the same",
+        )
 
     def seed(self, rows: list[dict[Hashable, Any]]) -> list[str]:
         """Create this party's accounts and records; return the usernames."""
@@ -158,7 +170,7 @@ class SeedCommand(BaseCommand):
                 "Demo accounts share a known password; run with DJANGO_DEBUG=1."
             )
         nhanes = pd.read_csv(options["nhanes"]) if options["nhanes"] else load_nhanes()
-        chosen = choose(nhanes, seed=options["seed"])
+        chosen = choose(nhanes, seed=options["seed"], patients=options["patients"])
         rows = with_made_up_ferritin(chosen, nhanes).to_dict("records")
         with transaction.atomic():
             accounts = self.seed(rows)

@@ -24,7 +24,7 @@ from web.practice.models import (
     Patient,
     Sample,
 )
-from web.practice.queries import ferritin_order_offered
+from web.practice.queries import ferritin_order_offered, ferritin_suggestions
 from web.vocabulary import Test
 
 
@@ -48,7 +48,32 @@ class PatientIndexView(GeneralPractitionerRequiredMixin, ListView[Patient]):
     context_object_name = "patients"
 
     def get_queryset(self) -> QuerySet[Patient]:
-        return self.general_practitioner.patients.order_by("name", "pk")
+        patients = self.general_practitioner.patients.order_by("name", "pk")
+        if query := self.request.GET.get("q", "").strip():
+            patients = patients.filter(name__icontains=query)
+        return patients
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        suggestions = [
+            {
+                "lab_report": lab_report,
+                "patient": lab_report.order.sample.patient,
+                "order_ferritin_url": reverse(
+                    "practice:new_order",
+                    kwargs={
+                        "patient": lab_report.order.sample.patient_id,
+                        "sample": lab_report.order.sample_id,
+                        "test": Test.FERRITIN,
+                    },
+                ),
+            }
+            for lab_report in ferritin_suggestions(self.general_practitioner)
+        ]
+        return {
+            **super().get_context_data(**kwargs),
+            "suggestions": suggestions,
+            "query": self.request.GET.get("q", "").strip(),
+        }
 
 
 class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
@@ -197,7 +222,10 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, View):
             now=timezone.now(),
         )
         messages.success(request, f"Sample {sample.sample_id} collected.")
-        return redirect("practice:patient", pk=record.pk)
+        # Straight to the routine first test; any other is ordered from the sample.
+        return redirect(
+            "practice:new_order", patient=record.pk, sample=sample.pk, test=Test.CBC
+        )
 
 
 class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):

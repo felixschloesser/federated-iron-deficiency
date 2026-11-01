@@ -16,6 +16,16 @@ class Test(models.TextChoices):
     CBC = "cbc", "CBC"
     FERRITIN = "ferritin", "ferritin"
 
+    def is_screened(self) -> bool:
+        """Whether the hospital screens this test for iron deficiency (R4, R12)."""
+        match self:
+            case Test.CBC:
+                return True
+            case Test.FERRITIN:
+                return False
+            case _:
+                assert_never(self)
+
     def takes_indication(self) -> bool:
         """Whether an order for this test states a clinical indication."""
         match self:

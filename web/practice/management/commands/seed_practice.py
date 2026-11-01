@@ -31,7 +31,8 @@ class Command(SeedCommand):
             Patient.objects.get_or_create(
                 nhanes_number=str(seqn),
                 defaults={
-                    "general_practitioner": practitioners[number % len(practitioners)],
+                    # Two patients for doctor-a for every one of doctor-b.
+                    "general_practitioner": practitioners[number % 3 == 2],
                     "name": patient_name(seqn, sex),
                     "registered_sex": sex,
                     "age": int(row["age"]),
