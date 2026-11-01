@@ -24,12 +24,13 @@ class Command(SeedCommand):
         )
         for row in rows:
             # What this patient's tube would measure.
-            ferritin = row["LBXFER"]
+            ferritin, made_up = row["LBXFER"], row["made_up_ferritin"]
             Participant.objects.get_or_create(
                 seqn=int(row["sample_id"]),
                 defaults={
                     "cbc": {var: float(row[var]) for var in CBC_VARS},
                     "ferritin": None if pd.isna(ferritin) else float(ferritin),
+                    "made_up_ferritin": None if pd.isna(made_up) else float(made_up),
                 },
             )
         return ["lab-1", "director-1"]

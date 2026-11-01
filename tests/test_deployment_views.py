@@ -57,7 +57,7 @@ def test_models_page(
         html=True,
     )
     assertContains(
-        response, 'aria-label="Deploy screening model of 30 Oct 2026, 10:00"'
+        response, 'aria-label="Deploy Screening model of 30 Oct 2026, 10:00"'
     )
     assertContains(response, "Finds 7 of 10 iron-deficient women")
     assertContains(response, "5 unnecessary ferritin suggestions")

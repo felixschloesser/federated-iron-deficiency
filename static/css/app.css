@@ -91,3 +91,15 @@ article[role="status"][data-level="error"] {
 .sample-id {
   white-space: nowrap;
 }
+
+/* Text kept on one line, such as the date in a screening model's title. */
+.no-wrap {
+  white-space: nowrap;
+}
+
+/* Keyboard focus in the text colour, not the theme colour: Pico's amber and
+   pumpkin focus rings fall below 3:1 on white. */
+:where(a, button, input, select, textarea, [role="button"]):focus-visible {
+  outline: 2px solid var(--pico-color);
+  outline-offset: 2px;
+}

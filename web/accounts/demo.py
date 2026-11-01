@@ -32,7 +32,6 @@ class Group(enum.Enum):
 
     LOW_FERRITIN = "eligible women with ferritin below the cutoff"
     NORMAL_FERRITIN = "eligible women with ferritin at or above the cutoff"
-    NO_FERRITIN = "eligible women without ferritin in NHANES"
     MEN = "men"
     OUTSIDE_AGES = "women outside the eligible ages"
 
@@ -44,8 +43,6 @@ class Group(enum.Enum):
                 return eligible & (rows["LBXFER"] < FERRITIN_THRESHOLD)
             case Group.NORMAL_FERRITIN:
                 return eligible & (rows["LBXFER"] >= FERRITIN_THRESHOLD)
-            case Group.NO_FERRITIN:
-                return eligible & rows["LBXFER"].isna()
             case Group.MEN:
                 return ~women
             case Group.OUTSIDE_AGES:
@@ -67,6 +64,20 @@ def choose(rows: pd.DataFrame, seed: int) -> pd.DataFrame:
             for group in Group
         ]
     )
+
+
+def with_made_up_ferritin(chosen: pd.DataFrame, nhanes: pd.DataFrame) -> pd.DataFrame:
+    """Add a made-up ferritin for each chosen participant NHANES did not measure
+    (it measured women aged 12–49 only): the measured ferritin of an eligible woman
+    at or above the cutoff, picked by sample ID so it is the same on every seed."""
+    measured = nhanes[
+        (nhanes["sex"] == ELIGIBLE_SEX)
+        & nhanes["age"].between(*ELIGIBLE_AGES)
+        & (nhanes["LBXFER"] >= FERRITIN_THRESHOLD)
+    ]
+    pool = measured.sort_values("sample_id")["LBXFER"].to_list()
+    made_up = chosen["sample_id"].map(lambda seqn: pool[int(seqn) % len(pool)])
+    return chosen.assign(made_up_ferritin=made_up.where(chosen["LBXFER"].isna()))
 
 
 def user(username: str) -> User:
@@ -100,7 +111,8 @@ class SeedCommand(BaseCommand):
                 "Demo accounts share a known password; run with DJANGO_DEBUG=1."
             )
         nhanes = pd.read_csv(options["nhanes"]) if options["nhanes"] else load_nhanes()
-        rows = choose(nhanes, seed=options["seed"]).to_dict("records")
+        chosen = choose(nhanes, seed=options["seed"])
+        rows = with_made_up_ferritin(chosen, nhanes).to_dict("records")
         with transaction.atomic():
             accounts = self.seed(rows)
             user("no-role")  # Has no role: for the refusal at login.

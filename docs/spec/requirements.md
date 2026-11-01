@@ -58,6 +58,7 @@ staff is replaced and the report's word moves to the rejected column.
 | comment | Report, Use case; WHO report contents "applicable comments" (p. 193) | Both sources | interpretive comment |
 | CBC value names and units, e.g. *Hemoglobin*, g/dL | NHANES 2021–2023 CBC_L codebook, SAS labels (`sources/nhanes-2021-2023-CBC_L.htm`) | The values are NHANES's own, in its units; no conversion | Hb, Ht and other report abbreviations (no source; other units) |
 | Ferritin, ng/mL | NHANES 2021–2023 FERTIN_L codebook (`sources/nhanes-2021-2023-FERTIN_L.htm`) | As above | µg/L (LBDFERSI) |
+| Ferritin (made up for the demo), ng/mL | User decision, 2026-11-01: NHANES has no ferritin for men and women outside 12–49 | Tells the general practitioner the value is not a measurement; kept apart from ferritin so it never feeds a suggestion or a label | ferritin (would pass a made-up value as measured), synthetic ferritin |
 
 ## 2. Goal model
 
@@ -108,7 +109,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 |---|---|---|
 | R1 | An order is on one sample of the patient and records the test (CBC or ferritin) and, for a CBC only, the clinical indication. It copies the patient's registered sex and age, which is all the lab learns about the patient besides the sample ID. Ferritin orders have no indication (`None`). | `ordering.feature` |
 | R2 | A sample arrives with its lab order: its tests are ready to analyse at once, with no receiving step. A later test on the same sample is measured on the stored sample. | `lab.feature` |
-| R3 | Running the analyser on a sample records the patient's NHANES values: the 13 CBC values for a CBC, ferritin in ng/mL for ferritin, or *not available in the demo data* when NHANES has none. A sample is analysed at most once. | `lab.feature` |
+| R3 | Running the analyser on a sample records the patient's NHANES values: the 13 CBC values for a CBC, ferritin in ng/mL for ferritin, else the made-up ferritin (§8), else *not available in the demo data*. A sample is analysed at most once. | `lab.feature` |
 | R4 | A CBC is screened only when the clinical indication is screened (suspected anaemia, suspected irritable bowel syndrome, unexplained fatigue: where the guidelines order a CBC without ferritin), registered sex is female and age is 18–49. Each condition is its own branch. | `screening.feature` |
 | R5 | A CBC that is not screened records why: the first failing condition, in the order indication, registered sex, age; else that there is no usable deployed model (none deployed, or changed on disk). | `screening.feature` |
 | R6 | A screening result records the screening model that produced it (run ID, SHA-256, threshold). | `screening.feature` |
@@ -229,7 +230,7 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 
 - Patients: NHANES 2021–2023 (`iron_deficiency.dataset.load_new_samples`), all sexes and ages, seeded at the general practitioner's app; each patient is one NHANES participant, whose number starts each of their sample IDs.
 - The hospital's analyser stand-in holds the same cycle's values (13 CBC values, ferritin from `load_ferritin`), looked up by the NHANES number in the sample ID: what the samples in its laboratory would measure. Every sample of one patient measures the same values, as NHANES measured each participant once. No values travel in a message.
-- Ferritin exists in NHANES mainly for women aged 12–49; others get *not available in the demo data*.
+- NHANES measured ferritin only for women aged 12–49 (FERTIN_L, eligible sample). The demo seeds no woman aged 18–49 whom it did not measure; for men and other women the hospital's stand-in holds a made-up ferritin, the measured ferritin of an eligible woman at or above the cutoff picked by sample ID, reported as *Ferritin (made up for the demo)*, never as ferritin. A participant with neither gets *not available in the demo data*.
 - Age is the NHANES age at the survey and does not change.
 - Registered sex has the two NHANES values, female and male.
 

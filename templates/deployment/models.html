@@ -11,10 +11,10 @@
 {% for model in screening_models %}
 <article>
   <header class="card-header">
-    <h2>{{ model.name }}</h2>
+    <h2>{% if model.stored_at %}Screening model of <span class="no-wrap">{{ model.stored_at|date:"j M Y, H:i" }}</span>{% else %}{{ model.name }}{% endif %}</h2>
     {% if model.problem %}<p>Cannot be deployed: {{ model.problem.label }}</p>
     {% elif deployed and model.run_id == deployed.run_id %}<p><strong>Deployed</strong></p>
-    {% else %}{% url "deployment:deploy" model.run_id as deploy_url %}{% include "kit/action_button.html" with url=deploy_url label="Deploy" %}{% endif %}
+    {% else %}{% url "deployment:deploy" model.run_id as deploy_url %}{% include "kit/action_button.html" with url=deploy_url label="Deploy" accessible_label="Deploy "|add:model.name %}{% endif %}
   </header>
   {% if model.local_validation %}
   <p>Finds {{ model.deficient_found }} of {{ model.deficient_total }} iron-deficient women<br>

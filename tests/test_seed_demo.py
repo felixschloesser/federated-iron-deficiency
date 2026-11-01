@@ -85,7 +85,7 @@ def test_patients_are_shared_between_the_general_practitioners(seeded: None) -> 
         practitioner.patients.count()
         for practitioner in GeneralPractitioner.objects.all()
     ]
-    assert sorted(counts) == [7, 8]
+    assert sorted(counts) == [6, 6]
     assert Patient.objects.filter(name="Test Patient 1").exists()
 
 
