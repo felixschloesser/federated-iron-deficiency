@@ -112,3 +112,31 @@ def test_without_a_final_models_folder(
 ) -> None:
     settings.FINAL_MODELS_DIR = None
     assertContains(client.get(reverse("deployment:models")), "No models have arrived.")
+
+
+def status(settings: Settings) -> str:
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    out = StringIO()
+    call_command("screening_status", stdout=out)
+    return out.getvalue().strip()
+
+
+def test_screening_status_without_models(settings: Settings, tmp_path: Path) -> None:
+    settings.FINAL_MODELS_DIR = tmp_path / "final-models"
+    assert status(settings) == "no screening model yet"
+
+
+def test_screening_status_before_and_after_deploying(
+    client: Client,
+    director: LaboratoryDirector,
+    final_models_dir: Path,
+    settings: Settings,
+) -> None:
+    assert status(settings) == "2 screening models, none deployed"
+    client.post(reverse("deployment:deploy", kwargs={"run_id": "run-1"}))
+    assert (
+        status(settings) == "Screening model of 30 Oct 2026, 10:00 deployed (2 in all)"
+    )

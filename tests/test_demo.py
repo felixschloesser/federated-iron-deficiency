@@ -140,3 +140,39 @@ def test_reset_refuses_while_the_demo_runs(tmp_path: Path) -> None:
     with pytest.raises(SystemExit, match="Stop the demo"):
         reset(tmp_path, demo_running=lambda: True)
     assert database.exists()
+
+
+STATUSES = {
+    "uz-leuven": "2 screening models, none deployed",
+    "heilig-hart-leuven": "no screening model yet",
+    "az-diest": "Screening model of 29 Oct 2026, 20:55 deployed (1 in all)",
+}
+
+
+def test_the_summary_names_each_party_with_its_address_and_state() -> None:
+    from tools.demo import summary
+
+    text = summary(STATUSES)
+    assert "Password for every account: demo-pass-2026" in text
+    assert "laboratory staff: lab-1 · laboratory director: director-1" in text
+    assert "general practitioners: doctor-a, doctor-b" in text
+    for line in (
+        "UZ Leuven  ",
+        "http://127.0.0.1:8001/   2 screening models, none deployed",
+        "http://127.0.0.1:8002/   no screening model yet",
+        "Huisartsenpraktijk De Akker → UZ Leuven",
+        "http://127.0.0.1:8013/",
+        "Ctrl-C stops every party.",
+    ):
+        assert line in text, line
+    assert "Accounts" not in text
+
+
+def test_the_next_step_follows_the_hospitals_state() -> None:
+    from tools.demo import summary
+
+    assert "Next: train with `uv run python tools/demo.py train`" in summary(STATUSES)
+    trained = {**STATUSES, "heilig-hart-leuven": "1 screening model, none deployed"}
+    assert "Next: deploy a screening model as director-1" in summary(trained)
+    deployed = dict.fromkeys(STATUSES, "Screening model of … deployed (1 in all)")
+    assert "Next:" not in summary(deployed)
