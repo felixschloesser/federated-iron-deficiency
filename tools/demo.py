@@ -2,6 +2,7 @@
 
     python tools/demo.py up      # prepare demo/, start every party, Ctrl-C stops
     python tools/demo.py train   # in a second terminal: one training run over TLS
+    python tools/demo.py reset   # with the demo stopped: fresh web databases
 
 The startup runs the SuperLink; each hospital runs a SuperNode, a web app and
 its messaging endpoint; each general practitioner's practice runs its own web
@@ -12,6 +13,7 @@ import argparse
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -323,6 +325,22 @@ def up(demo_dir: Path) -> None:
             child.wait()
 
 
+def web_app_listening() -> bool:
+    """Whether the first hospital's web app answers: the demo is up."""
+    with socket.socket() as probe:
+        return probe.connect_ex(("127.0.0.1", FIRST_WEB_PORT)) == 0
+
+
+def reset(demo_dir: Path, demo_running: Callable[[], bool] = web_app_listening) -> None:
+    """Remove every party's web database, so the next `up` migrates and seeds
+    afresh. Certificates, cohorts, final models and NHANES data stay."""
+    if demo_running():
+        raise SystemExit("Stop the demo (Ctrl-C) before resetting it.")
+    for database in sorted(demo_dir.glob("*/*/web.sqlite3")):
+        database.unlink()
+        print(f"Removed {database.relative_to(demo_dir)}", flush=True)
+
+
 def train(demo_dir: Path) -> None:
     """Submit one training run to the demo SuperLink, over TLS."""
     subprocess.run(
@@ -342,11 +360,12 @@ def train(demo_dir: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["up", "train"])
+    parser.add_argument("action", choices=["up", "train", "reset"])
     parser.add_argument("--demo-dir", type=Path, default=ROOT / "demo")
     args = parser.parse_args()
     demo_dir = args.demo_dir.resolve()
-    up(demo_dir) if args.action == "up" else train(demo_dir)
+    actions = {"up": up, "train": train, "reset": reset}
+    actions[args.action](demo_dir)
 
 
 if __name__ == "__main__":
