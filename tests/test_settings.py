@@ -164,3 +164,9 @@ def test_every_page_of_a_party_loads_in_its_own_deployment(
     ]
     assert {username for username, _, _ in pages} == users
     assert [page for page in pages if page[2] != "200"] == []
+
+
+def test_a_colour_without_a_vendored_pico_theme_is_refused() -> None:
+    result = database_path({"PARTY_COLOUR": "chartreuse"})
+    assert result.returncode != 0
+    assert "PARTY_COLOUR" in result.stderr

@@ -93,3 +93,20 @@ def test_each_practice_talks_to_its_own_hospital() -> None:
         for process in plan(DEMO):
             if process.name.endswith(f" {hospital_slug(practice)}"):
                 assert process.env["MESSAGING_ADDRESS"] == address, process.name
+
+
+def test_each_web_app_has_its_own_colour_in_its_hospitals_family() -> None:
+    from tools.demo import COLOURS
+
+    colours = {
+        process.name: process.env["PARTY_COLOUR"]
+        for process in plan(DEMO)
+        if process.name.startswith("web ")
+    }
+    assert len(set(colours.values())) == len(colours) == 6
+    for cycle, (hospital, practice) in COLOURS.items():
+        assert colours[f"web {hospital_slug(HOSPITALS[cycle])}"] == hospital
+        assert colours[f"web {hospital_slug(PRACTICES[cycle])}"] == practice
+    vendor = Path(__file__).resolve().parents[1] / "static/css/vendor/pico-2.1.1"
+    for colour in colours.values():
+        assert (vendor / f"pico.{colour}.min.css").is_file(), colour

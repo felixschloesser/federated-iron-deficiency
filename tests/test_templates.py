@@ -29,3 +29,21 @@ def test_missing_variable_fails_the_render() -> None:
     template = engines["django"].from_string("{{ absent }}")
     with pytest.raises(AssertionError, match="absent"):
         template.render({})
+
+
+def test_a_party_colour_picks_its_pico_theme(settings: Settings) -> None:
+    settings.PARTY_COLOUR = "jade"
+    template = engines["django"].from_string(
+        '{% extends "kit/base.html" %}{% block title %}Probe{% endblock %}'
+    )
+    html = template.render({}, RequestFactory().get("/"))
+    assert "css/vendor/pico-2.1.1/pico.jade.min.css" in html
+    assert "pico-2.1.1/pico.min.css" not in html
+
+
+def test_without_a_party_colour_pico_keeps_its_default(settings: Settings) -> None:
+    settings.PARTY_COLOUR = None
+    template = engines["django"].from_string(
+        '{% extends "kit/base.html" %}{% block title %}Probe{% endblock %}'
+    )
+    assert "pico-2.1.1/pico.min.css" in template.render({}, RequestFactory().get("/"))
