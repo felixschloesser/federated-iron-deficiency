@@ -405,8 +405,14 @@ def stop(signum: int, frame: FrameType | None) -> NoReturn:
     raise KeyboardInterrupt
 
 
-def up(demo_dir: Path) -> None:
+def up(demo_dir: Path, demo_running: Callable[[], bool] | None = None) -> None:
     """Start every party; stop them all on Ctrl-C or when one exits."""
+    # A second demo would find every port taken and stop again at once.
+    if (demo_running or web_app_listening)():
+        raise SystemExit(
+            "The demo is already running (127.0.0.1:8001 answers)."
+            " Stop it with Ctrl-C in its terminal first."
+        )
     prepare(demo_dir)
     statuses = prepare_webs(demo_dir)
     # Stop the children on SIGTERM too, not only on Ctrl-C.
