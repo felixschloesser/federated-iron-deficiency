@@ -14,6 +14,7 @@ from web.accounts.models import User
 from web.accounts.roles import Role, role_of
 from web.nhanes.models import Participant
 from web.practice.models import GeneralPractitioner, Patient
+from web.vocabulary import RegisteredSex
 
 pytestmark = pytest.mark.django_db
 
@@ -167,11 +168,13 @@ def test_a_made_up_ferritin_is_reported_under_its_own_name() -> None:
 def test_patients_get_fictional_flemish_names_matching_their_sex(seeded: None) -> None:
     for patient in Patient.objects.all():
         first, last = patient.name.split(" ", 1)
-        assert first in demo.FIRST_NAMES[patient.registered_sex], patient.name
+        sex = RegisteredSex(patient.registered_sex)
+        assert first in demo.first_names(sex), patient.name
         assert last in demo.SURNAMES, patient.name
     assert Patient.objects.values("name").distinct().count() > 1
 
 
 def test_a_patients_name_is_the_same_on_every_seed() -> None:
-    assert demo.patient_name(135318, "female") == demo.patient_name(135318, "female")
-    assert demo.patient_name(135318, "female") != demo.patient_name(135319, "female")
+    female = RegisteredSex.FEMALE
+    assert demo.patient_name(135318, female) == demo.patient_name(135318, female)
+    assert demo.patient_name(135318, female) != demo.patient_name(135319, female)

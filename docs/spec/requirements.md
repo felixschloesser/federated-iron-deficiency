@@ -233,7 +233,7 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 
 ## 8. Data
 
-- Patients: NHANES 2021–2023 (`iron_deficiency.dataset.load_new_samples`), all sexes and ages, seeded at the general practitioner's app; each patient is one NHANES participant, whose number starts each of their sample IDs.
+- Patients: NHANES 2021–2023 (`iron_deficiency.dataset.load_new_samples`), all sexes and ages, seeded at the general practitioner's app; each has a fictional Flemish name matching their registered sex (common Flemish first names, the ten most common family names of the Flemish Region, Statbel); each patient is one NHANES participant, whose number starts each of their sample IDs.
 - The hospital's analyser stand-in holds the same cycle's values (13 CBC values, ferritin from `load_ferritin`), looked up by the NHANES number in the sample ID: what the samples in its laboratory would measure. Every sample of one patient measures the same values, as NHANES measured each participant once. No values travel in a message.
 - NHANES measured ferritin only for women aged 12–49 (FERTIN_L, eligible sample). The demo seeds no woman aged 18–49 whom it did not measure; for men and other women the hospital's stand-in holds a made-up ferritin, the measured ferritin of an eligible woman at or above the cutoff picked by sample ID, reported as *Ferritin (made up for the demo)*, never as ferritin. A participant with neither gets *not available in the demo data*.
 - Age is the NHANES age at the survey and does not change.
