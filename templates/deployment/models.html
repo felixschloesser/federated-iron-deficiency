@@ -1,14 +1,14 @@
 {% extends "kit/base.html" %}
-{% block title %}Models{% endblock %}
+{% block title %}Screening models{% endblock %}
 {% block content %}
-{% include "kit/index_header.html" with title="Models" %}
+{% include "kit/index_header.html" with title="Screening models" %}
 
 {% if no_usable_model %}
 <article role="status" data-level="error">{{ no_usable_model.label }}.</article>
 {% endif %}
 
-<p>Each model from a training run, newest first, checked on this hospital's own past patients at the model's threshold.</p>
-{% for model in final_models %}
+<p>Each screening model from a training run, newest first, checked on this hospital's own past patients at the model's threshold.</p>
+{% for model in screening_models %}
 <article>
   <header class="card-header">
     <h2>{{ model.name }}</h2>
@@ -33,7 +33,7 @@
   <thead><tr><th scope="col">Deployed</th><th scope="col">Model</th></tr></thead>
   <tbody>
     {% for deployment in history %}
-    <tr><td>{{ deployment.deployed_at|date:"j M Y, H:i" }}</td><td>{{ deployment.final_model.name }}</td></tr>
+    <tr><td>{{ deployment.deployed_at|date:"j M Y, H:i" }}</td><td>{{ deployment.screening_model.name }}</td></tr>
     {% endfor %}
   </tbody>
 </table></div>

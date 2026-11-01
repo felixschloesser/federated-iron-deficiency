@@ -51,12 +51,14 @@ def test_models_page(
     # Session, user with role, deployed model, deployment history.
     with django_assert_num_queries(4):
         response = client.get(reverse("deployment:models"))
-    assertContains(response, "<h2>Model of 30 Oct 2026, 10:00</h2>", html=True)
+    assertContains(
+        response, "<h2>Screening model of 30 Oct 2026, 10:00</h2>", html=True
+    )
     assertContains(response, "Finds 7 of 10 iron-deficient women")
     assertContains(response, "5 unnecessary ferritin suggestions")
     assertContains(response, "AUROC 0.84 here")
     assertContains(response, "Cannot be deployed: not a readable model file")
-    assertContains(response, "No model is deployed")
+    assertContains(response, "No screening model is deployed")
 
 
 def test_deploying_redirects_with_a_message(
@@ -65,8 +67,8 @@ def test_deploying_redirects_with_a_message(
     url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
     response = client.post(url, follow=True)
     assert response.redirect_chain == [(reverse("deployment:models"), 302)]
-    assertContains(response, "Model of 30 Oct 2026, 10:00 deployed.")
-    assert Deployment.objects.get().final_model.run_id == "run-1"
+    assertContains(response, "Screening model of 30 Oct 2026, 10:00 deployed.")
+    assert Deployment.objects.get().screening_model.run_id == "run-1"
 
 
 def test_a_refused_deployment_says_why(

@@ -50,7 +50,9 @@ class Role(enum.Enum):
                     {"url": reverse("lab:analysed"), "label": "Analysed"},
                 ]
             case Role.LABORATORY_DIRECTOR:
-                return [{"url": reverse("deployment:models"), "label": "Models"}]
+                return [
+                    {"url": reverse("deployment:models"), "label": "Screening models"}
+                ]
             case _:
                 assert_never(self)
 

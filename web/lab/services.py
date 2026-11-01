@@ -88,23 +88,23 @@ def screen(lab_order: LabOrder, directory: Path | None) -> None:
     screened with the first reason (R4, R5, R19). Nothing else of it is kept (R7)."""
     reason = lab_order.not_eligible()
     if reason is None:
-        final_model, no_usable_model = deployed_model(directory)
+        screening_model, no_usable_model = deployed_model(directory)
         if no_usable_model is not None:
             reason = NotScreened(no_usable_model)
-        elif final_model is not None and directory is not None:
+        elif screening_model is not None and directory is not None:
             # shortcut: the file is read again after deployed_model() hashed it; a
             # swap in between goes unseen. Hash and load one copy if that matters.
             suggested = suggests_ferritin(
                 lab_order.results or {},
                 lab_order.age,
-                directory / f"{final_model.run_id}.pt",
+                directory / f"{screening_model.run_id}.pt",
             )
             lab_order.screening_result = (
                 ScreeningResult.FERRITIN_SUGGESTED
                 if suggested
                 else ScreeningResult.FERRITIN_NOT_SUGGESTED
             )
-            lab_order.screened_by = final_model
+            lab_order.screened_by = screening_model
             return
     lab_order.screening_result = ScreeningResult.NOT_SCREENED
     lab_order.not_screened_reason = reason

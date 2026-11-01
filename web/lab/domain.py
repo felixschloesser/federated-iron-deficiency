@@ -20,7 +20,7 @@ class NotScreened(models.TextChoices):
     INDICATION = "indication", "clinical indication not screened"
     SEX = "sex", "registered sex not female"
     AGE = "age", f"age outside {ELIGIBLE_AGES[0]}–{ELIGIBLE_AGES[1]}"
-    NO_DEPLOYED_MODEL = "no_deployed_model", "no model deployed"
+    NO_DEPLOYED_MODEL = "no_deployed_model", "no screening model deployed"
     DEPLOYED_MODEL_CHANGED = (
         "deployed_model_changed",
         "deployed model file changed",

@@ -1,4 +1,4 @@
-"""Laboratory directors, and the final models they deployed (spec R18)."""
+"""Laboratory directors, and the screening models they deployed (spec R18)."""
 
 from datetime import datetime
 
@@ -10,10 +10,8 @@ from django.utils import formats, timezone
 def model_name(stored_at: datetime | None, run_id: str) -> str:
     """How the laboratory director knows a model: when it arrived (spec §1, model)."""
     if stored_at is None:
-        return f"Model of run {run_id}"
-    return (
-        f"Model of {formats.date_format(timezone.localtime(stored_at), 'j M Y, H:i')}"
-    )
+        return f"Screening model of run {run_id}"
+    return f"Screening model of {formats.date_format(timezone.localtime(stored_at), 'j M Y, H:i')}"
 
 
 class LaboratoryDirector(models.Model):
@@ -28,8 +26,8 @@ class LaboratoryDirector(models.Model):
         return self.name
 
 
-class FinalModel(models.Model):
-    """A final model as it was when deployed; the file itself stays on disk."""
+class ScreeningModel(models.Model):
+    """A screening model as it was when deployed; the file itself stays on disk."""
 
     run_id = models.CharField(max_length=64)
     sha256 = models.CharField(max_length=64)
@@ -57,7 +55,7 @@ class FinalModel(models.Model):
 class Deployment(models.Model):
     """One deployment; the latest names the deployed model. Nothing about who or why."""
 
-    final_model = models.ForeignKey(
-        FinalModel, on_delete=models.PROTECT, related_name="deployments"
+    screening_model = models.ForeignKey(
+        ScreeningModel, on_delete=models.PROTECT, related_name="deployments"
     )
     deployed_at = models.DateTimeField()

@@ -1,4 +1,4 @@
-"""Reading final models from the hospital's folder, and the deployed model (R17, R19)."""
+"""Reading screening models from the hospital's folder, and the deployed model (R17, R19)."""
 
 import hashlib
 import pickle
@@ -11,7 +11,7 @@ from typing import Any
 from django.db import models
 
 from iron_deficiency.screening import fits_model, read_final_model
-from web.deployment.models import Deployment, FinalModel, model_name
+from web.deployment.models import Deployment, ScreeningModel, model_name
 
 UNREADABLE_ERRORS = (
     pickle.UnpicklingError,
@@ -30,7 +30,7 @@ class CannotDeploy(models.TextChoices):
 
 
 class NoUsableModel(models.TextChoices):
-    NO_DEPLOYED_MODEL = "no_deployed_model", "No model is deployed"
+    NO_DEPLOYED_MODEL = "no_deployed_model", "No screening model is deployed"
     DEPLOYED_MODEL_CHANGED = (
         "deployed_model_changed",
         "The deployed model changed on disk since it was deployed",
@@ -38,8 +38,8 @@ class NoUsableModel(models.TextChoices):
 
 
 @dataclass(frozen=True)
-class FinalModelFile:
-    """A final model as its file says, and why it cannot be deployed, if it cannot."""
+class ScreeningModelFile:
+    """A screening model as its file says, and why it cannot be deployed, if it cannot."""
 
     run_id: str
     problem: CannotDeploy | None
@@ -83,16 +83,16 @@ def _problem(contents: dict[str, Any]) -> CannotDeploy | None:
     return None
 
 
-def read_final_model_file(path: Path) -> FinalModelFile:
+def read_screening_model_file(path: Path) -> ScreeningModelFile:
     try:
         contents = read_final_model(path)
     except UNREADABLE_ERRORS:
-        return FinalModelFile(run_id=path.stem, problem=CannotDeploy.UNREADABLE)
+        return ScreeningModelFile(run_id=path.stem, problem=CannotDeploy.UNREADABLE)
     if not isinstance(contents, dict):
-        return FinalModelFile(run_id=path.stem, problem=CannotDeploy.UNREADABLE)
+        return ScreeningModelFile(run_id=path.stem, problem=CannotDeploy.UNREADABLE)
     stored_at = contents.get("stored_at")
     threshold = contents.get("threshold")
-    return FinalModelFile(
+    return ScreeningModelFile(
         run_id=path.stem,
         problem=_problem(contents),
         stored_at=datetime.fromisoformat(stored_at) if stored_at else None,
@@ -102,11 +102,11 @@ def read_final_model_file(path: Path) -> FinalModelFile:
     )
 
 
-def final_models(directory: Path | None) -> list[FinalModelFile]:
-    """Every final model in the hospital's folder, newest first."""
+def screening_models(directory: Path | None) -> list[ScreeningModelFile]:
+    """Every screening model in the hospital's folder, newest first."""
     if directory is None or not directory.is_dir():
         return []
-    files = [read_final_model_file(path) for path in directory.glob("*.pt")]
+    files = [read_screening_model_file(path) for path in directory.glob("*.pt")]
     return sorted(
         files,
         key=lambda file: (file.stored_at is not None, file.stored_at),
@@ -121,17 +121,17 @@ def sha256(path: Path) -> str:
 
 def deployed_model(
     directory: Path | None,
-) -> tuple[FinalModel | None, NoUsableModel | None]:
+) -> tuple[ScreeningModel | None, NoUsableModel | None]:
     """The deployed model, and why it cannot screen if it cannot (R19)."""
     latest = (
-        Deployment.objects.select_related("final_model")
+        Deployment.objects.select_related("screening_model")
         .order_by("-deployed_at", "-pk")
         .first()
     )
     if latest is None:
         return None, NoUsableModel.NO_DEPLOYED_MODEL
-    final_model = latest.final_model
-    path = None if directory is None else directory / f"{final_model.run_id}.pt"
-    if path is None or not path.exists() or sha256(path) != final_model.sha256:
-        return final_model, NoUsableModel.DEPLOYED_MODEL_CHANGED
-    return final_model, None
+    screening_model = latest.screening_model
+    path = None if directory is None else directory / f"{screening_model.run_id}.pt"
+    if path is None or not path.exists() or sha256(path) != screening_model.sha256:
+        return screening_model, NoUsableModel.DEPLOYED_MODEL_CHANGED
+    return screening_model, None

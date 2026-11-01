@@ -44,15 +44,15 @@ staff is replaced and the report's word moves to the rejected column.
 | collected | WHO LQMS 5-3, p. 64: "the health care provider may collect a sample in a clinic setting"; 5-4, p. 66, register field "date and time of collection" | When the general practitioner's practice takes the blood; recorded on the sample | drawn, taken, venipuncture |
 | analysed | Report, P1 "Lab analysis" | The report's process name | examined, tested |
 | screening | Report, P7 | The report's process name | scoring, classification |
-| screening result | Report, DF31 "screening result", P10 | What screening records per CBC: one of the three below, with the reason when not screened (R5) and the final model when screened (R6) | flag, outcome, classification |
+| screening result | Report, DF31 "screening result", P10 | What screening records per CBC: one of the three below, with the reason when not screened (R5) and the screening model when screened (R6) | flag, outcome, classification |
 | ferritin suggested / ferritin not suggested / not screened | Report, Use case "a comment to the lab report suggesting ferritin"; "not screened" from Federated version | Names the action for the general practitioner; avoids the lab meaning of *flag* | flagged / not flagged (an earlier report draft; in a lab a *flag* marks an out-of-range value), possible iron deficiency (names a diagnosis) |
 | final model | Report, DS4, DF8 "final model, threshold" | What one training run sends to every hospital; stored there with its run ID and local validation | release, model version |
-| model | Report, Use case: "The model is trained once, jointly … It is then deployed to every hospital" | What the laboratory director compares and deploys, named by when it arrived ("Model of 30 Oct 2026, 14:02") with its run ID as a detail; the same thing as a final model, in the words of the person who decides | release, model version, final model (kept for training code and the report's DFD) |
-| deploy | Report, Use case: the model "is then deployed to every hospital" | The laboratory director's decision that a final model screens this hospital's patients | activate, release, roll out |
+| screening model | Built from the report's words: P10 *Screening* and "the model" (Use case) | Named after its purpose at the hospital: a model that can screen this hospital's CBCs. What the laboratory director compares and deploys, named by when it arrived ("Screening model of 30 Oct 2026, 14:02") with its run ID as a detail. A final model becomes a screening model when it reaches the hospital | model (too generic; Django's `Model`), final model (kept for training code and the report's DFD), release, model version |
+| deploy | Report, Use case: the model "is then deployed to every hospital" | The laboratory director's decision that a screening model screens this hospital's patients | activate, release, roll out |
 | deployment (of a party) | Flower documentation, "Deployment Engine": running the federation on real nodes, not in simulation | One party's running copy of the code, in its own folder (§9); never a final model being deployed | installation, instance |
-| deployed model | Report, DF29, DF30 "deployed final model" | The final model this hospital deployed last; the only one that screens | active release, fingerprint |
-| laboratory director | WHO LQMS ch. 2, p. 21: the director assesses "all potential risks … including services to patients" (20 uses) | Decides which final model screens patients | clinical biologist (not in either source), quality manager (WHO: runs the quality system, does not decide), laboratory manager |
-| local validation | Built from *validation* (report, DF10 "validation example count") | A final model on this hospital's own validation split: the confusion matrix at its threshold, as counts, then AUROC | local evaluation, shadow run, flag rate |
+| deployed model | Report, DF29, DF30 "deployed final model" | The screening model this hospital deployed last; the only one that screens | active release, fingerprint |
+| laboratory director | WHO LQMS ch. 2, p. 21: the director assesses "all potential risks … including services to patients" (20 uses) | Decides which screening model screens patients | clinical biologist (not in either source), quality manager (WHO: runs the quality system, does not decide), laboratory manager |
+| local validation | Built from *validation* (report, DF10 "validation example count") | A screening model on this hospital's own validation split: the confusion matrix at its threshold, as counts, then AUROC | local evaluation, shadow run, flag rate |
 | threshold | Report, Design choices | The report's word | cutoff (reserved for ferritin's 15 ng/mL) |
 | lab report | Report, DF25 | The report's word | test report (WHO p. 193) |
 | comment | Report, Use case; WHO report contents "applicable comments" (p. 193) | Both sources | interpretive comment |
@@ -78,7 +78,7 @@ G0 Achieve[Ferritin suggested to the general practitioner of a likely iron-defic
 ├── G3 Achieve[Screening result recorded for every analysed CBC]
 │   ├── R4 Maintain[Screened only for a screened indication, female, aged 18–49]       Lab app
 │   ├── R5 Maintain[Not-screened reason recorded]                                    Lab app
-│   ├── R6 Maintain[Result traceable to the final model that produced it]             Lab app
+│   ├── R6 Maintain[Result traceable to the screening model that produced it]             Lab app
 │   └── R7 Avoid[Score stored]                                                       Lab app
 ├── G4 Achieve[Lab report visible to the ordering general practitioner]
 │   ├── R8 Achieve[Lab report released at once, screened or not]                     Lab app
@@ -87,11 +87,11 @@ G0 Achieve[Ferritin suggested to the general practitioner of a likely iron-defic
     ├── R11 Achieve[Order ferritin offered when ferritin suggested and not yet ordered]  Practice app
     └── R12 Achieve[Ferritin result recorded, never screened]                         Lab app + Analyser
 
-G6 Maintain[Only a final model the hospital deployed screens its patients]
+G6 Maintain[Only a screening model the hospital deployed screens its patients]
 ├── R16 Achieve[Each final model stored at the hospital with run ID, threshold and local validation]  ClientApp
-├── R17 Maintain[A final model that cannot be deployed shows why, and has no Deploy]  Deploy app
+├── R17 Maintain[A screening model that cannot be deployed shows why, and has no Deploy]  Deploy app
 ├── E2 Expectation[Laboratory director deploys only after comparing local validation]  Laboratory director
-├── R18 Achieve[Deploying a final model makes it the deployed model; an older one rolls back]  Deploy app
+├── R18 Achieve[Deploying a screening model makes it the deployed model; an older one rolls back]  Deploy app
 └── R19 Maintain[Screening uses the deployed model only while its SHA-256 matches]   Lab app
 
 P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
@@ -111,7 +111,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R3 | Running the analyser on a sample records the patient's NHANES values: the 13 CBC values for a CBC, ferritin in ng/mL for ferritin, or *not available in the demo data* when NHANES has none. A sample is analysed at most once. | `lab.feature` |
 | R4 | A CBC is screened only when the clinical indication is screened (suspected anaemia, suspected irritable bowel syndrome, unexplained fatigue: where the guidelines order a CBC without ferritin), registered sex is female and age is 18–49. Each condition is its own branch. | `screening.feature` |
 | R5 | A CBC that is not screened records why: the first failing condition, in the order indication, registered sex, age; else that there is no usable deployed model (none deployed, or changed on disk). | `screening.feature` |
-| R6 | A screening result records the final model that produced it (run ID, SHA-256, threshold). | `screening.feature` |
+| R6 | A screening result records the screening model that produced it (run ID, SHA-256, threshold). | `screening.feature` |
 | R7 | No score, probability or standardized input is stored or shown. | `screening.feature` |
 | R8 | Running the analyser on a CBC screens it at once, and its lab report is released at once. Without a usable deployed model (R19) a CBC that meets R4 is *not screened* with that reason: the general practitioner's CBC never waits for the startup's model, and is not screened again later. Screening runs in the same transaction as the analysis, so an analysed lab order is a released lab report; there is no separate release step. | `screening.feature` |
 | R9 | The lab report shows the values under NHANES's names and units, without reference ranges or any mark; the comment *Ferritin suggested.* appears only for *ferritin suggested*. The hospital sends one bit, *ferritin suggested*, so *ferritin not suggested* and *not screened* look the same at the practice and show nothing about screening. | `screening.feature` (the bit the hospital sends), `messaging.feature`, `reports.feature` |
@@ -126,8 +126,8 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R25 | DF23 and DF25 carry exactly the fields of `web/messaging/messages.proto` (§10): no patient name, no blood values in DF1. | `messaging.feature`, `tests/test_messages.py` |
 | R26 | An order from the patient page collects a new sample, at `now`, with the patient's next sample ID; a patient may have any number of samples. A test is ordered at most once per sample; ordering it again on that sample is refused (`already_ordered`). | `ordering.feature` |
 | R16 | The ClientApp's deploy handler writes each final model as a new file named after its Flower run ID into the node's `final-models-path`, never overwriting one, with the threshold, the federated metrics the ServerApp sends, and its local validation on this hospital's validation split: the confusion matrix at the final model's threshold, as counts, and AUROC. Training results are unchanged. | `tests/test_final_models.py` |
-| R17 | The Models page lists every final model; one that is unreadable, trained on other features than `FEATURES`, or lacks a threshold or standardization is shown as *cannot be deployed* with the reason, and deploying it is refused with that reason's code. | `deployment.feature` |
-| R18 | The laboratory director deploys any final model that can be deployed, including an older one (rollback). The app keeps the deployment history (final model, deployed at) and nothing else: no account, no reason. Past screening results are never re-screened. | `deployment.feature` |
+| R17 | The Screening models page lists every screening model; one that is unreadable, trained on other features than `FEATURES`, or lacks a threshold or standardization is shown as *cannot be deployed* with the reason, and deploying it is refused with that reason's code. | `deployment.feature` |
+| R18 | The laboratory director deploys any screening model that can be deployed, including an older one (rollback). The app keeps the deployment history (screening model, deployed at) and nothing else: no account, no reason. Past screening results are never re-screened. | `deployment.feature` |
 | R19 | Before each screening the deployed model's file is hashed; if it no longer matches the SHA-256 recorded at deployment, there is no usable deployed model (R8). | `deployment.feature`, `screening.feature` |
 | R20 | A final model's metadata holds only this hospital's local validation and the federated aggregate the ServerApp computed; never another hospital's metrics. | `tests/test_final_models.py` |
 | R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), a practice's only its own (`PRACTICE_DIR`), and each installs, migrates and serves only its own party's apps: a hospital's database has no table for patients, a practice's none for lab orders, analyser values or final models (test and audit check), and code under `web/` imports from the training package only `iron_deficiency.screening` and `iron_deficiency.dataset` (audit check). | `tests/test_settings.py`, `tools/audit.py` |
@@ -160,13 +160,13 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | O4 | Model screens people it was not trained on | G0 | R4 |
 | O5 | A general practitioner opens another general practitioner's lab report by URL | P0 | R13 |
 | O6 | Lab sees who the patient is | P0 | R14, R1 (the order copies only sex and age) |
-| O7 | A new final model is deployed between screenings | R6 | R6, R18 (history) |
+| O7 | A new screening model is deployed between screenings | R6 | R6, R18 (history) |
 | O8 | NHANES has no ferritin for the patient | R12 | R3: *not available in the demo data* |
 | O9 | Demo login shipped to a deployment | P0 | R15 |
 | O10 | The score reveals more than the result | P0 | R7 |
 | O11 | A final model screens before anyone at the hospital looked at it | G6 | R18: only a deployed model screens |
 | O12 | A bad final model is deployed | G0 | R18: deploy an older one; no re-screening of past results |
-| O13 | A final model was trained on other features | G6 | R17 |
+| O13 | A screening model was trained on other features | G6 | R17 |
 | O14 | The deployed model's file is replaced on disk | G6 | R19 |
 | O15 | A hospital learns another hospital's metrics through the final model's metadata | P0 | R20 |
 | O16 | Hospital software reads another party's data, or carries startup code paths | P0 | R21 |
@@ -183,7 +183,7 @@ All are POSTs that redirect on success; services take `now`.
 | Fetch lab reports | General practitioner's app | Every 60 s, or *Check for reports* | New lab reports stored at the general practitioner's app | R23 |
 | Place order | general practitioner | Patient is the general practitioner's; indication given iff test is CBC; on a given sample, the test not yet on it | A new sample collected at `now`, or the given one; the order on it with sex and age copied | R1, R13, R26 |
 | Run analyser | Laboratory staff | Lab order arrived, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |
-| Deploy | Laboratory director | Final model can be deployed (R17) | It is the deployed model from `now` | R18 |
+| Deploy | Laboratory director | Screening model can be deployed (R17) | It is the deployed model from `now` | R18 |
 | Log in as (demo) | Anyone | `DEMO_LOGIN` on | Session for that seeded user | R15 |
 
 ## 6. Pages
@@ -195,7 +195,7 @@ All are POSTs that redirect on success; services take `now`.
 | Patient | general practitioner | Registered sex, age, the patient's orders with their sample ID, each with its lab report once fetched: values (R9), comment, *Order ferritin* beside a suggestion (R11, on that sample); *Order CBC*, *Order ferritin*, each on a new sample |
 | Order CBC / Order ferritin for a patient | general practitioner | Whether it collects a new sample or goes on the lab report's sample; the clinical indication only for a test that takes one; ferritin is a confirmation |
 | Orders | general practitioner | Own orders, newest first, linked to their patient, with when their lab report was released; *Check for reports* |
-| Models (start page) | Laboratory director | One card per model, newest first: its name, how many iron-deficient women of the local validation it finds, its unnecessary ferritin suggestions, AUROC here and across hospitals, threshold and run ID; *Deployed*, *Deploy* or *Cannot be deployed: reason*. Deployment history: when, which model |
+| Screening models (start page) | Laboratory director | One card per screening model, newest first: its name, how many iron-deficient women of the local validation it finds, its unnecessary ferritin suggestions, AUROC here and across hospitals, threshold and run ID; *Deployed*, *Deploy* or *Cannot be deployed: reason*. Deployment history: when, which model |
 | To analyse (start page) | Laboratory staff | Lab orders not yet analysed, oldest first; *Run analyser*. A CBC not screened because of the model (none deployed, or its file changed) gives a warning to tell the laboratory director (O3) |
 | Analysed | Laboratory staff | Analysed lab orders, newest first, with their screening result |
 

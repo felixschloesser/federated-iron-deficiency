@@ -4,7 +4,7 @@ from django.conf import settings
 from django.db import models
 
 from iron_deficiency.dataset import ELIGIBLE_AGES
-from web.deployment.models import FinalModel
+from web.deployment.models import ScreeningModel
 from web.lab.domain import NotScreened, ScreeningResult
 from web.nhanes.models import FERRITIN
 from web.vocabulary import ClinicalIndication, RegisteredSex, Test
@@ -67,9 +67,9 @@ class LabOrder(models.Model):
     not_screened_reason = models.CharField(
         max_length=22, choices=NotScreened.choices, null=True, blank=True
     )
-    # The final model that screened this CBC (R6); absent when not screened.
+    # The screening model that screened this CBC (R6); absent when not screened.
     screened_by = models.ForeignKey(
-        FinalModel,
+        ScreeningModel,
         on_delete=models.PROTECT,
         related_name="screening_results",
         null=True,

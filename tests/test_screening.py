@@ -79,8 +79,10 @@ def write_model(directory: Path, run_id: str, threshold: float) -> None:
     )
 
 
-@given(parsers.parse('final model "{run_id}" with threshold {threshold:g}'))
-def final_model(world: World, tmp_path: Path, run_id: str, threshold: float) -> None:
+@given(parsers.parse('screening model "{run_id}" with threshold {threshold:g}'))
+def screening_model(
+    world: World, tmp_path: Path, run_id: str, threshold: float
+) -> None:
     world["final_models_dir"] = tmp_path / "final-models"
     write_model(world["final_models_dir"], run_id, threshold)
 
@@ -92,7 +94,7 @@ def deployed(world: World, run_id: str) -> None:
     )
 
 
-@given("no final model has been deployed")
+@given("no screening model has been deployed")
 def nothing_deployed() -> None:
     pass
 
@@ -207,15 +209,15 @@ def screened(world: World) -> None:
 
 @then(
     parsers.parse(
-        'the screening result records final model "{run_id}",'
+        'the screening result records screening model "{run_id}",'
         " its SHA-256 and threshold {threshold:g}"
     )
 )
 def records_final_model(world: World, run_id: str, threshold: float) -> None:
-    final_model = world["lab_order"].screened_by
-    assert final_model.run_id == run_id
-    assert final_model.sha256 == sha256(world["final_models_dir"] / f"{run_id}.pt")
-    assert final_model.threshold == threshold
+    screening_model = world["lab_order"].screened_by
+    assert screening_model.run_id == run_id
+    assert screening_model.sha256 == sha256(world["final_models_dir"] / f"{run_id}.pt")
+    assert screening_model.threshold == threshold
 
 
 @then("no stored field of the sample or its screening result holds a score")

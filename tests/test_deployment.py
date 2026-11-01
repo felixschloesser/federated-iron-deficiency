@@ -1,4 +1,4 @@
-"""Scenarios: deploying a final model (features/deployment.feature)."""
+"""Scenarios: deploying a screening model (features/deployment.feature)."""
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -63,8 +63,8 @@ def laboratory_director(
     final_models_dir.mkdir(parents=True)
 
 
-@given(parsers.parse('final model "{run_id}" with local validation:'))
-def final_model(world: World, run_id: str, datatable: list[list[str]]) -> None:
+@given(parsers.parse('screening model "{run_id}" with local validation:'))
+def screening_model(world: World, run_id: str, datatable: list[list[str]]) -> None:
     rows = {row[0].strip(): row[1:] for row in datatable[1:]}
     world.setdefault("validation", {})[run_id] = {
         "true_positives": int(rows["deficient"][0]),
@@ -104,7 +104,7 @@ def deployed_one(world: World, run_id: str) -> None:
     deploy(world, run_id)
 
 
-@when(parsers.parse('the laboratory director deploys final model "{run_id}"'))
+@when(parsers.parse('the laboratory director deploys screening model "{run_id}"'))
 def deploys(world: World, run_id: str) -> None:
     deploy(world, run_id)
 
@@ -117,7 +117,7 @@ PROBLEMS = {
 }
 
 
-@given(parsers.parse('final model "{run_id}" that {problem}'))
+@given(parsers.parse('screening model "{run_id}" that {problem}'))
 def broken_final_model(world: World, run_id: str, problem: str) -> None:
     path = world["final_models_dir"] / f"{run_id}.pt"
     variant = PROBLEMS[problem]
@@ -142,7 +142,7 @@ def staff_member(world: World, name: str) -> None:
     world["staff_member"] = make_laboratory_staff_member(name)
 
 
-@when(parsers.parse('"{name}" tries to deploy final model "{run_id}"'))
+@when(parsers.parse('"{name}" tries to deploy screening model "{run_id}"'))
 def staff_tries(
     world: World, client: Client, settings: Settings, name: str, run_id: str
 ) -> None:
@@ -159,24 +159,26 @@ def deployed(world: World) -> tuple[object, object]:
 
 @then("there is no deployed model")
 def no_deployed_model(world: World) -> None:
-    final_model, reason = deployed(world)
-    assert final_model is None
+    screening_model, reason = deployed(world)
+    assert screening_model is None
     assert getattr(reason, "value", None) == "no_deployed_model"
 
 
-@then(parsers.parse('final models "{first}" and "{second}" can be deployed'))
+@then(parsers.parse('screening models "{first}" and "{second}" can be deployed'))
 def can_be_deployed(world: World, first: str, second: str) -> None:
-    from web.deployment.domain import final_models
+    from web.deployment.domain import screening_models
 
-    listed = {model.run_id: model for model in final_models(world["final_models_dir"])}
+    listed = {
+        model.run_id: model for model in screening_models(world["final_models_dir"])
+    }
     assert listed[first].problem is None
     assert listed[second].problem is None
 
 
 @then(parsers.parse('"{run_id}" is the deployed model'))
 def is_deployed(world: World, run_id: str) -> None:
-    final_model, reason = deployed(world)
-    assert getattr(final_model, "run_id", None) == run_id
+    screening_model, reason = deployed(world)
+    assert getattr(screening_model, "run_id", None) == run_id
     assert reason is None
 
 
@@ -185,7 +187,7 @@ def history(world: World, first: str, second: str, third: str) -> None:
     from web.deployment.models import Deployment
 
     runs = [
-        deployment.final_model.run_id
+        deployment.screening_model.run_id
         for deployment in Deployment.objects.order_by("deployed_at", "pk")
     ]
     assert runs == [first, second, third]
@@ -193,7 +195,7 @@ def history(world: World, first: str, second: str, third: str) -> None:
 
 @then(
     parsers.re(
-        r'(?:the final models|they) show "(?P<run_id>[^"]+)", (?P<is_deployed>deployed, )?'
+        r'(?:the screening models|they) show "(?P<run_id>[^"]+)", (?P<is_deployed>deployed, )?'
         r"finding (?P<found>\d+) of (?P<total>\d+) deficient with "
         r"(?P<unnecessary>\d+) unnecessary suggestions, AUROC (?P<auroc>[\d.]+)"
     )
@@ -207,33 +209,35 @@ def shows_validation(
     unnecessary: str,
     auroc: str,
 ) -> None:
-    from web.deployment.domain import final_models
+    from web.deployment.domain import screening_models
 
     (model,) = [
-        m for m in final_models(world["final_models_dir"]) if m.run_id == run_id
+        m for m in screening_models(world["final_models_dir"]) if m.run_id == run_id
     ]
     assert (model.deficient_found, model.deficient_total) == (int(found), int(total))
     assert model.unnecessary_suggestions == int(unnecessary)
     assert model.local_auroc == pytest.approx(float(auroc))
-    final_model, _ = deployed(world)
-    assert (getattr(final_model, "run_id", None) == run_id) == bool(is_deployed)
+    screening_model, _ = deployed(world)
+    assert (getattr(screening_model, "run_id", None) == run_id) == bool(is_deployed)
 
 
 @then(
     parsers.parse(
-        'final model "{run_id}" cannot be deployed, with reason code "{code}"'
+        'screening model "{run_id}" cannot be deployed, with reason code "{code}"'
     )
 )
 def cannot_be_deployed(world: World, run_id: str, code: str) -> None:
-    from web.deployment.domain import final_models
+    from web.deployment.domain import screening_models
 
     (model,) = [
-        m for m in final_models(world["final_models_dir"]) if m.run_id == run_id
+        m for m in screening_models(world["final_models_dir"]) if m.run_id == run_id
     ]
     assert getattr(model.problem, "value", None) == code
 
 
-@then(parsers.parse('deploying final model "{run_id}" is refused with code "{code}"'))
+@then(
+    parsers.parse('deploying screening model "{run_id}" is refused with code "{code}"')
+)
 def deploying_refused(world: World, run_id: str, code: str) -> None:
     world.pop("error", None)
     deploy(world, run_id)
