@@ -115,10 +115,11 @@ def test_patient_page_queries(
     logged_in(client, general_practitioner)
     client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
     client.post(order_url(patient, OrderedTest.FERRITIN))
-    # Session, user with general practitioner, patient, orders with lab reports.
-    with django_assert_num_queries(4):
+    # Session, user with general practitioner, patient, samples, their orders
+    # with lab reports.
+    with django_assert_num_queries(5):
         response = client.get(patient_url(patient))
-    assert len(response.context["entries"]) == 2
+    assert len(response.context["samples"]) == 2
 
 
 def test_patient_page_offers_ferritin_beside_a_suggestion(
@@ -138,10 +139,11 @@ def test_patient_page_offers_ferritin_beside_a_suggestion(
         released_at="2026-10-30T12:00:00+00:00",
         fetched_at="2026-10-30T12:05:00+00:00",
     )
-    # As above, and whether the patient has ferritin yet.
-    with django_assert_num_queries(5):
+    # As above, and whether the sample has ferritin yet.
+    with django_assert_num_queries(6):
         response = client.get(patient_url(patient))
-    (entry,) = response.context["entries"]
+    (sample,) = response.context["samples"]
+    (entry,) = sample["entries"]
     assert entry["order_ferritin_url"] == sample_order_url(
         patient, OrderedTest.FERRITIN
     )
@@ -190,7 +192,10 @@ def test_placing_an_order_returns_to_the_patient_and_confirms(
     )
     assert response.status_code == 302
     assert response["Location"] == patient_url(patient)
-    assertContains(client.get(response["Location"]), "Order placed.")
+    sample_id = patient.samples.get().sample_id
+    assertContains(
+        client.get(response["Location"]), f"CBC ordered on new sample {sample_id}."
+    )
     assert Order.objects.get().sample.patient == patient
 
 
@@ -369,3 +374,29 @@ def test_order_ferritin_names_its_sample_for_assistive_technology(
     assertContains(
         response, f'aria-label="Order ferritin on sample {order.sample.sample_id}"'
     )
+
+
+def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    from web.practice.models import LabReport
+
+    logged_in(client, general_practitioner)
+    client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
+    LabReport.objects.create(
+        order=Order.objects.get(),
+        results={},
+        ferritin_suggested=True,
+        released_at="2026-10-30T12:00:00+00:00",
+        fetched_at="2026-10-30T12:05:00+00:00",
+    )
+    response = client.post(sample_order_url(patient, OrderedTest.FERRITIN), follow=True)
+    sample_id = patient.samples.get().sample_id
+    assertContains(response, f"Ferritin ordered on sample {sample_id}.")
+    (sample,) = response.context["samples"]
+    assert [entry["order"].test for entry in sample["entries"]] == [
+        OrderedTest.CBC,
+        OrderedTest.FERRITIN,
+    ]
+    assert sample["entries"][0]["order_ferritin_url"] is None
+    assertContains(response, "Awaiting lab report.")

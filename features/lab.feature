@@ -9,6 +9,7 @@ Feature: Analysing samples
   Scenario: A lab order is ready to analyse as soon as it arrives
     Given a CBC order for "Test Patient 1"
     Then the CBC order is ready to analyse
+    And its sample is not a stored sample
 
   Scenario: Running the analyser records the patient's CBC
     Given a CBC order for "Test Patient 1"
@@ -41,6 +42,7 @@ Feature: Analysing samples
     Given an analysed CBC sample for "Test Patient 1"
     And a ferritin order on that sample
     Then the ferritin order is ready to analyse
+    And its sample is a stored sample
     When laboratory staff run the analyser
     Then the sample has ferritin 11.0 ng/mL
 

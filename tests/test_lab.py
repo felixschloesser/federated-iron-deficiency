@@ -136,6 +136,16 @@ def ready_to_analyse(world: World, test: str) -> None:
     assert world["lab_order"] in queries.lab_orders_to_analyse()
 
 
+@then(parsers.re(r"its sample is (?P<negated>not )?a stored sample"))
+def stored_sample(world: World, negated: str | None) -> None:
+    (row,) = [
+        row
+        for row in queries.lab_orders_to_analyse()
+        if row.pk == world["lab_order"].pk
+    ]
+    assert row.stored_sample is (negated is None)
+
+
 @then(parsers.parse("the sample has ferritin {ferritin:g} ng/mL"))
 def sample_has_ferritin(world: World, ferritin: float) -> None:
     assert world["lab_order"].ferritin == ferritin

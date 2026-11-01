@@ -438,7 +438,7 @@ def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
     response = client.post(new_order_url(record), follow=True)
-    assertContains(response, "Order placed.")
+    assertContains(response, "Ferritin ordered on new sample")
     assertContains(response, "sent with the next check for reports")
     assert Order.objects.get().sent_at is None
 

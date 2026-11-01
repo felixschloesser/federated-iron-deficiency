@@ -16,7 +16,7 @@ from tests.conftest import (
 )
 from web.lab.models import LaboratoryStaffMember, LabOrder
 from web.practice import services
-from web.vocabulary import RegisteredSex
+from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
 pytestmark = pytest.mark.django_db
@@ -90,7 +90,7 @@ def test_running_the_analyser(
     assert response["Location"] == reverse("lab:to_analyse")
     assertContains(
         client.get(response["Location"]),
-        f"Sample {lab_order.sample.sample_id}: ferritin analysed.",
+        f"Sample {lab_order.sample.sample_id}: ferritin analysed, lab report released.",
     )
     lab_order.refresh_from_db()
     assert lab_order.analysed_at is not None
@@ -156,8 +156,9 @@ def test_a_cbc_not_screened_for_a_model_problem_warns(
     assertContains(response, 'data-level="warning"')
     assertContains(
         response,
-        f"Sample {lab_order.sample.sample_id}: CBC analysed and released, not"
-        " screened: no screening model deployed. Tell the laboratory director.",
+        f"Sample {lab_order.sample.sample_id}: CBC analysed, lab report released"
+        " without screening: no screening model deployed. Tell the laboratory"
+        " director.",
     )
 
 
@@ -167,7 +168,10 @@ def test_a_cbc_not_screened_for_eligibility_does_not_warn(
     lab_order = cbc_lab_order(RegisteredSex.MALE)
     response = logged_in(client, staff_member).post(analyse_url(lab_order), follow=True)
     assertNotContains(response, 'data-level="warning"')
-    assertContains(response, f"Sample {lab_order.sample.sample_id}: CBC analysed.")
+    assertContains(
+        response,
+        f"Sample {lab_order.sample.sample_id}: CBC analysed, lab report released.",
+    )
 
 
 def test_run_analyser_names_its_sample_for_assistive_technology(
@@ -177,3 +181,33 @@ def test_run_analyser_names_its_sample_for_assistive_technology(
     sample_id = lab_order.sample.sample_id
     assertContains(response, f'aria-label="Run analyser for sample {sample_id}"')
     assertContains(response, f'<td class="sample-id">{sample_id}</td>')
+
+
+def test_to_analyse_shows_only_what_running_the_analyser_needs(
+    client: Client, staff_member: LaboratoryStaffMember, lab_order: LabOrder
+) -> None:
+    response = logged_in(client, staff_member).get(reverse("lab:to_analyse"))
+    for heading in ("Sample ID", "Test", "Ordered", "General practitioner"):
+        assertContains(response, f'<th scope="col">{heading}</th>')
+    for heading in ("Clinical indication", "Registered sex", "Age"):
+        assertNotContains(response, f'<th scope="col">{heading}</th>')
+    assertNotContains(response, "stored sample")
+
+
+def test_to_analyse_marks_a_stored_sample(
+    client: Client, staff_member: LaboratoryStaffMember, lab_order: LabOrder
+) -> None:
+    from web.practice.models import Order
+
+    logged_in(client, staff_member).post(analyse_url(lab_order))
+    order = Order.objects.get()
+    later = services.order_on_sample(
+        general_practitioner=order.sample.patient.general_practitioner,
+        sample=order.sample,
+        test=OrderedTest.CBC,
+        indication=ClinicalIndication.OTHER,
+        now=datetime(2026, 10, 29, 10, 0, tzinfo=UTC),
+    )
+    deliver(later)
+    response = client.get(reverse("lab:to_analyse"))
+    assertContains(response, f"{lab_order.sample.sample_id} · stored sample")
