@@ -11,7 +11,7 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
     And patient "Test Patient 1" of "Dr. Demo A", registered sex female, aged 32
 
   Scenario: A placed order reaches the hospital
-    When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication non-specific complaint
+    When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication unexplained fatigue
     Then "AZ Diest" has a lab order for the sample of "Test Patient 1"
     And the lab order holds sample ID, test, clinical indication, registered sex, age and "Dr. Demo A"
 

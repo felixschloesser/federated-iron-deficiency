@@ -37,9 +37,7 @@ def tube(patient: Patient) -> Participant:
 def place(world: World, test: str, patient: str) -> None:
     ordered = TESTS[test]
     indication = (
-        ClinicalIndication.NON_SPECIFIC_COMPLAINT
-        if ordered.takes_indication()
-        else None
+        ClinicalIndication.UNEXPLAINED_FATIGUE if ordered.takes_indication() else None
     )
     record = world["patients"][patient]
     world["order"] = practice_services.place_order(

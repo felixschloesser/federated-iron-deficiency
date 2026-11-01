@@ -130,14 +130,14 @@ def lab_sample(
 
 @given(
     parsers.parse(
-        "a CBC sample of a woman aged {age:d} with indication non-specific complaint"
+        "a CBC sample of a woman aged {age:d} with indication unexplained fatigue"
     )
 )
 def eligible_cbc(world: World, age: int) -> None:
     lab_sample(
         world,
         OrderedTest.CBC,
-        ClinicalIndication.NON_SPECIFIC_COMPLAINT,
+        ClinicalIndication.UNEXPLAINED_FATIGUE,
         RegisteredSex.FEMALE,
         age,
     )

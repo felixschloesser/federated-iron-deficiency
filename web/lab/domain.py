@@ -17,7 +17,7 @@ class NotScreened(models.TextChoices):
     """Why a CBC was not screened: the first failing condition (R5), else why
     there is no usable deployed model (web.deployment.domain.NoUsableModel)."""
 
-    INDICATION = "indication", "not a non-specific complaint"
+    INDICATION = "indication", "clinical indication not screened"
     SEX = "sex", "registered sex not female"
     AGE = "age", f"age outside {ELIGIBLE_AGES[0]}–{ELIGIBLE_AGES[1]}"
     NO_DEPLOYED_MODEL = "no_deployed_model", "no model deployed"

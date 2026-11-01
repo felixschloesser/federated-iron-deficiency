@@ -28,8 +28,34 @@ class Test(models.TextChoices):
 
 
 class ClinicalIndication(models.TextChoices):
-    NON_SPECIFIC_COMPLAINT = "non_specific_complaint", "Non-specific complaint"
+    """Why a general practitioner orders a CBC, in the guidelines' words
+    (docs/spec/requirements.md §1)."""
+
+    SUSPECTED_ANAEMIA = "suspected_anaemia", "Suspected anaemia"
+    SUSPECTED_IBS = "suspected_ibs", "Suspected irritable bowel syndrome"
+    UNEXPLAINED_FATIGUE = "unexplained_fatigue", "Unexplained fatigue"
+    START_OF_PREGNANCY = "start_of_pregnancy", "Start of pregnancy"
+    CKD_FOLLOW_UP = "ckd_follow_up", "Chronic kidney disease follow-up"
     OTHER = "other", "Other"
+
+    def is_screened(self) -> bool:
+        """Whether a CBC for this indication is screened (R4): the guidelines order
+        a CBC without ferritin first, so a suggestion can add something."""
+        match self:
+            case (
+                ClinicalIndication.SUSPECTED_ANAEMIA
+                | ClinicalIndication.SUSPECTED_IBS
+                | ClinicalIndication.UNEXPLAINED_FATIGUE
+            ):
+                return True
+            case (
+                ClinicalIndication.START_OF_PREGNANCY
+                | ClinicalIndication.CKD_FOLLOW_UP
+                | ClinicalIndication.OTHER
+            ):
+                return False
+            case _:
+                assert_never(self)
 
 
 @dataclass(frozen=True)

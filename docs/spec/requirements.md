@@ -30,8 +30,13 @@ staff is replaced and the report's word moves to the rejected column.
 | order | Report, DF23 "lab order"; WHO glossary *path of workflow*, "physician's order" (p. 228) | Report and WHO agree | request, requisition (WHO), examination request (ISO 15189) |
 | test | Report, Use case "ferritin test" | Order picks one: CBC or ferritin | examination (ISO 15189) |
 | CBC (complete blood count) | Report, Use case | The report's word for the routine test | blood count (report uses both; one word only) |
-| clinical indication | Report, Data table | The report's word; drives screening | reason for testing |
-| non-specific complaint | Report, Data table and Use case | The one indication that is screened | fatigue work-up |
+| clinical indication | Report, Data table | The report's word; decides screening (R4). One of the six below, in the guidelines' words | reason for testing |
+| suspected anaemia | Domus Medica, *Aanvraag van laboratoriumtests door huisartsen*, key messages, Huisarts Nu 2012;41(4), S6: "Bepaal Hb om de diagnose van anemie te stellen"; NHG-Standaard Anemie 2014, H&W 57(10) p. 528: Hb for "moeheid, duizeligheid, algemene malaise, bleekheid of hevig menstrueel bloedverlies" | Screened: ferritin follows only once anaemia is found (Domus S6), so a woman who is iron deficient without anaemia is missed | anaemia work-up |
+| suspected irritable bowel syndrome | Domus Medica, *Aanvraag van laboratoriumtests door huisartsen*, key messages, Huisarts Nu 2012;41(4), S8: "rode bloedcellen, hematocriet, hemoglobine, witte bloedcellen, sedimentatie, CRP" | Screened: a CBC without ferritin | IBS (abbreviation) |
+| unexplained fatigue | Domus Medica, *Aanvraag van laboratoriumtests door huisartsen*, key messages, Huisarts Nu 2012;41(4), S8: lab tests "wanneer de moeheid meer dan een maand aanhoudt … Bepaal ook ferritine bij vrouwen op vruchtbare leeftijd" | Screened, though the guideline already adds ferritin for women of childbearing age: the suggestion helps only where ferritin was left out | non-specific complaint (no source; the report's earlier word), fatigue work-up |
+| start of pregnancy | Domus Medica, *Aanvraag van laboratoriumtests door huisartsen*, key messages, Huisarts Nu 2012;41(4), S9: "Bepaal Hb, RBC en Hct … bij Hb <9,5 g/100 ml … ferritinebepaling" | Not screened: pregnancy has its own Hb rule, and the cohort was not checked for pregnancy | pregnancy check |
+| chronic kidney disease follow-up | WOREL, *Aanvraag van laboratoriumtests (deel 1)*, 2026, p. 42: "Bepaal minstens jaarlijks het hemoglobinegehalte … om te screenen op renale anemie" | Not screened: monitoring a known disease, whose anaemia has another cause | CKD (abbreviation) |
+| other | User decision, 2026-11-01: the guidelines are organised by indication and name no catch-all | Not screened | — |
 | registered sex | Report, Data table | Distinguishes the record from the person (report, Information at risk) | gender, sex |
 | sample ID | Report, DF23 and Data table | The report's link between lab order, results and lab report; on the sample's label. In the demo the patient's NHANES number and the sample's number for that patient, e.g. 135318-2 | laboratory identification number, accession number (WHO 5-4, p. 66) |
 | stored sample | WHO LQMS 5-5, p. 68, "stored samples" | A sample the laboratory already holds: a later test is measured on it | add-on test, retained sample |
@@ -70,7 +75,7 @@ G0 Achieve[Ferritin suggested to the general practitioner of a likely iron-defic
 │   ├── R2 Achieve[Sample arrives with its lab order; a later test uses the stored sample]  Lab app
 │   └── R3 Achieve[Analyser result recorded]                                         Laboratory staff + Analyser
 ├── G3 Achieve[Screening result recorded for every analysed CBC]
-│   ├── R4 Maintain[Screened only if non-specific complaint, female, aged 18–49]       Lab app
+│   ├── R4 Maintain[Screened only for a screened indication, female, aged 18–49]       Lab app
 │   ├── R5 Maintain[Not-screened reason recorded]                                    Lab app
 │   ├── R6 Maintain[Result traceable to the final model that produced it]             Lab app
 │   └── R7 Avoid[Score stored]                                                       Lab app
@@ -103,7 +108,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R1 | An order is on one sample of the patient and records the test (CBC or ferritin) and, for a CBC only, the clinical indication. It copies the patient's registered sex and age, which is all the lab learns about the patient besides the sample ID. Ferritin orders have no indication (`None`). | `ordering.feature` |
 | R2 | A sample arrives with its lab order: its tests are ready to analyse at once, with no receiving step. A later test on the same sample is measured on the stored sample. | `lab.feature` |
 | R3 | Running the analyser on a sample records the patient's NHANES values: the 13 CBC values for a CBC, ferritin in ng/mL for ferritin, or *not available in the demo data* when NHANES has none. A sample is analysed at most once. | `lab.feature` |
-| R4 | A CBC is screened only when the indication is non-specific complaint, registered sex is female and age is 18–49. Each condition is its own branch. | `screening.feature` |
+| R4 | A CBC is screened only when the clinical indication is screened (suspected anaemia, suspected irritable bowel syndrome, unexplained fatigue: where the guidelines order a CBC without ferritin), registered sex is female and age is 18–49. Each condition is its own branch. | `screening.feature` |
 | R5 | A CBC that is not screened records why: the first failing condition, in the order indication, registered sex, age; else that there is no usable deployed model (none deployed, or changed on disk). | `screening.feature` |
 | R6 | A screening result records the final model that produced it (run ID, SHA-256, threshold). | `screening.feature` |
 | R7 | No score, probability or standardized input is stored or shown. | `screening.feature` |

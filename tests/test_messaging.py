@@ -193,7 +193,7 @@ def released(world: World, name: str, patient: str) -> None:
 def released_suggested(world: World, name: str, patient: str) -> None:
     from web.lab.domain import ScreeningResult
 
-    order(world, patient, OrderedTest.CBC, "non-specific complaint")
+    order(world, patient, OrderedTest.CBC, "unexplained fatigue")
     messaging.send_pending_lab_orders(world["connection"], now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id=latest_sample_id(world["patients"][patient])

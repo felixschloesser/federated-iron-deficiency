@@ -8,8 +8,8 @@ Feature: Ordering a test
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1", registered sex female, aged 32
 
   Scenario: A CBC order records the indication and copies sex and age
-    When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication non-specific complaint
-    Then the order has test CBC and indication non-specific complaint
+    When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication unexplained fatigue
+    Then the order has test CBC and indication unexplained fatigue
     And the order has registered sex female and age 32
 
   Scenario: A CBC order without an indication is refused
@@ -25,12 +25,12 @@ Feature: Ordering a test
     Then the order is refused with code "indication_not_applicable" on field "indication"
 
   Scenario: An order collects a new sample with its own sample ID
-    When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication non-specific complaint
+    When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication unexplained fatigue
     Then the order is on sample 1 of "Test Patient 1", collected at the current time
 
   Scenario: A second CBC collects another sample
     Given "Dr. Demo A" ordered a CBC for "Test Patient 1" with indication other
-    When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication non-specific complaint
+    When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication unexplained fatigue
     Then the order is on sample 2 of "Test Patient 1", collected at the current time
 
   Scenario: Ferritin on the CBC's sample goes to the same sample
@@ -40,5 +40,5 @@ Feature: Ordering a test
 
   Scenario: A test the sample already has is refused
     Given "Dr. Demo A" ordered a CBC for "Test Patient 1" with indication other
-    When "Dr. Demo A" orders a CBC on that CBC's sample with indication non-specific complaint
+    When "Dr. Demo A" orders a CBC on that CBC's sample with indication unexplained fatigue
     Then the order is refused with code "already_ordered" on field "test"

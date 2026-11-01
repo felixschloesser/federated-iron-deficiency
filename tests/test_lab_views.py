@@ -132,7 +132,7 @@ def test_general_practitioner_cannot_run_the_analyser(
 
 
 def cbc_lab_order(sex: RegisteredSex) -> LabOrder:
-    """A CBC for a non-specific complaint, aged 32, as the lab received it (DF23)."""
+    """A CBC for a unexplained fatigue, aged 32, as the lab received it (DF23)."""
     from web.vocabulary import ClinicalIndication
 
     owner = make_general_practitioner("Dr. Demo A")
@@ -141,7 +141,7 @@ def cbc_lab_order(sex: RegisteredSex) -> LabOrder:
         general_practitioner=owner,
         patient=patient,
         test=OrderedTest.CBC,
-        indication=ClinicalIndication.NON_SPECIFIC_COMPLAINT,
+        indication=ClinicalIndication.UNEXPLAINED_FATIGUE,
         now=datetime(2026, 10, 29, 9, 0, tzinfo=UTC),
     )
     deliver(order)

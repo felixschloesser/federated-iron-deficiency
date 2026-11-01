@@ -186,7 +186,7 @@ def test_placing_an_order_returns_to_the_patient_and_confirms(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
     response = logged_in(client, general_practitioner).post(
-        order_url(patient, OrderedTest.CBC), {"indication": "non_specific_complaint"}
+        order_url(patient, OrderedTest.CBC), {"indication": "unexplained_fatigue"}
     )
     assert response.status_code == 302
     assert response["Location"] == patient_url(patient)

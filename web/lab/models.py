@@ -50,7 +50,7 @@ class LabOrder(models.Model):
     )
     test = models.CharField(max_length=8, choices=Test.choices)
     indication = models.CharField(
-        max_length=22, choices=ClinicalIndication.choices, null=True, blank=True
+        max_length=24, choices=ClinicalIndication.choices, null=True, blank=True
     )
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
@@ -90,7 +90,10 @@ class LabOrder(models.Model):
 
     def not_eligible(self) -> NotScreened | None:
         """The first condition R4 fails, in the order indication, sex, age."""
-        if self.indication != ClinicalIndication.NON_SPECIFIC_COMPLAINT:
+        if (
+            self.indication is None
+            or not ClinicalIndication(self.indication).is_screened()
+        ):
             return NotScreened.INDICATION
         if self.registered_sex != RegisteredSex.FEMALE:
             return NotScreened.SEX

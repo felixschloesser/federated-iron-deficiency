@@ -66,7 +66,7 @@ class Order(models.Model):
     test = models.CharField(max_length=8, choices=Test.choices)
     # Absent for a test that takes none (Test.takes_indication).
     indication = models.CharField(
-        max_length=22, choices=ClinicalIndication.choices, null=True, blank=True
+        max_length=24, choices=ClinicalIndication.choices, null=True, blank=True
     )
     # Copied at ordering: all the lab learns about the patient (R1, R14).
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)

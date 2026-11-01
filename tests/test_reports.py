@@ -25,7 +25,7 @@ def order(patient: Patient, test: OrderedTest) -> Order:
         general_practitioner=patient.general_practitioner,
         patient=patient,
         test=test,
-        indication=ClinicalIndication.NON_SPECIFIC_COMPLAINT
+        indication=ClinicalIndication.UNEXPLAINED_FATIGUE
         if test.takes_indication()
         else None,
         now=NOW,
