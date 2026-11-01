@@ -1,4 +1,4 @@
-"""Views of deploying final models: who may, what the Models page shows."""
+"""Views of deploying models: who may, what the Models page shows."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -51,9 +51,12 @@ def test_models_page(
     # Session, user with role, deployed model, deployment history.
     with django_assert_num_queries(4):
         response = client.get(reverse("deployment:models"))
-    assertContains(response, "found 7 of 10 deficient")
+    assertContains(response, "<h2>Model of 30 Oct 2026, 10:00</h2>", html=True)
+    assertContains(response, "Finds 7 of 10 iron-deficient women")
+    assertContains(response, "5 unnecessary ferritin suggestions")
+    assertContains(response, "AUROC 0.84 here")
     assertContains(response, "Cannot be deployed: not a readable model file")
-    assertContains(response, "No final model is deployed")
+    assertContains(response, "No model is deployed")
 
 
 def test_deploying_redirects_with_a_message(
@@ -62,7 +65,7 @@ def test_deploying_redirects_with_a_message(
     url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
     response = client.post(url, follow=True)
     assert response.redirect_chain == [(reverse("deployment:models"), 302)]
-    assertContains(response, "Final model run-1 deployed.")
+    assertContains(response, "Model of 30 Oct 2026, 10:00 deployed.")
     assert Deployment.objects.get().final_model.run_id == "run-1"
 
 
@@ -94,4 +97,4 @@ def test_without_a_final_models_folder(
     client: Client, director: LaboratoryDirector, settings: Settings
 ) -> None:
     settings.FINAL_MODELS_DIR = None
-    assertContains(client.get(reverse("deployment:models")), "No final models")
+    assertContains(client.get(reverse("deployment:models")), "No models have arrived.")
