@@ -8,9 +8,9 @@ Feature: Who sees what
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1"
     And general practitioner "Dr. Demo B" with patient "Test Patient 2"
 
-  Scenario: A general practitioner cannot order for another general practitioner's patient
-    When "Dr. Demo A" orders a CBC for "Test Patient 2" with indication other
-    Then the order is refused with code "not_your_patient" on field "patient"
+  Scenario: A general practitioner cannot collect a sample from another general practitioner's patient
+    When "Dr. Demo A" collects a sample from "Test Patient 2"
+    Then the collection is refused with code "not_your_patient" on field "patient"
 
   Scenario: The lab never sees a patient's name
     Given a CBC order for "Test Patient 1"

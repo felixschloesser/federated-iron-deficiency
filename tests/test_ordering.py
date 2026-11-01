@@ -12,7 +12,6 @@ from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 29, 9, 0, tzinfo=UTC)
-EARLIER = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
 TESTS = {"a CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
 
 scenarios("ordering.feature")
@@ -20,9 +19,10 @@ scenarios("ordering.feature")
 
 @scenario(
     "access.feature",
-    "A general practitioner cannot order for another general practitioner's patient",
+    "A general practitioner cannot collect a sample from another general"
+    " practitioner's patient",
 )
-def test_a_general_practitioner_cannot_order_for_another_general_practitioners_patient() -> (
+def test_a_general_practitioner_cannot_collect_from_another_general_practitioners_patient() -> (
     None
 ):
     pass
@@ -30,6 +30,19 @@ def test_a_general_practitioner_cannot_order_for_another_general_practitioners_p
 
 def indication_named(text: str) -> ClinicalIndication:
     return {choice.label.lower(): choice for choice in ClinicalIndication}[text]
+
+
+@given(parsers.parse('"{general_practitioner}" collected a sample from "{patient}"'))
+@when(parsers.parse('"{general_practitioner}" collects a sample from "{patient}"'))
+def collect(world: World, general_practitioner: str, patient: str) -> None:
+    try:
+        world["sample"] = services.collect_sample(
+            general_practitioner=world["general_practitioners"][general_practitioner],
+            patient=world["patients"][patient],
+            now=NOW,
+        )
+    except ValidationError as error:
+        world["error"] = error
 
 
 @when(
@@ -45,10 +58,11 @@ def place_order(
     patient: str,
     indication: str | None,
 ) -> None:
+    """An order on the patient's latest sample."""
     try:
         world["order"] = services.place_order(
             general_practitioner=world["general_practitioners"][general_practitioner],
-            patient=world["patients"][patient],
+            sample=world["patients"][patient].samples.latest("pk"),
             test=TESTS[test],
             indication=indication_named(indication) if indication else None,
             now=NOW,
@@ -91,46 +105,30 @@ def order_refused(world: World, code: str, field: str) -> None:
 def ordered_before(
     world: World, general_practitioner: str, patient: str, indication: str
 ) -> None:
-    world["cbc"] = services.place_order(
+    services.place_order(
         general_practitioner=world["general_practitioners"][general_practitioner],
-        patient=world["patients"][patient],
+        sample=world["patients"][patient].samples.latest("pk"),
         test=OrderedTest.CBC,
         indication=indication_named(indication),
-        now=EARLIER,
+        now=NOW,
     )
 
 
-@when(
-    parsers.re(
-        r'"(?P<general_practitioner>[^"]+)" orders (?P<test>a CBC|ferritin)'
-        r" on that CBC's sample(?: with indication (?P<indication>.+))?$"
-    )
-)
-def order_on_sample(
-    world: World, general_practitioner: str, test: str, indication: str | None
-) -> None:
-    try:
-        world["order"] = services.order_on_sample(
-            general_practitioner=world["general_practitioners"][general_practitioner],
-            sample=world["cbc"].sample,
-            test=TESTS[test],
-            indication=indication_named(indication) if indication else None,
-            now=NOW,
-        )
-    except ValidationError as error:
-        world["error"] = error
+@then(parsers.parse('the collection is refused with code "{code}" on field "{field}"'))
+def collection_refused(world: World, code: str, field: str) -> None:
+    assert [error.code for error in world["error"].error_dict[field]] == [code]
 
 
 @then(
     parsers.re(
-        r'the order is on sample (?P<number>\d+) of "(?P<patient>[^"]+)"'
+        r'the (?P<what>sample|order) is (?:on )?sample (?P<number>\d+) of "(?P<patient>[^"]+)"'
         r"(?P<now>, collected at the current time)?$"
     )
 )
-def order_on_numbered_sample(
-    world: World, number: str, patient: str, now: str | None
+def numbered_sample(
+    world: World, what: str, number: str, patient: str, now: str | None
 ) -> None:
-    sample = world["order"].sample
+    sample = world["sample"] if what == "sample" else world["order"].sample
     record = world["patients"][patient]
     assert sample.patient == record
     assert sample.sample_id == f"{record.nhanes_number}-{number}"

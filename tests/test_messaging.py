@@ -15,7 +15,12 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
 
-from tests.conftest import World, make_general_practitioner, make_patient
+from tests.conftest import (
+    World,
+    collect_and_order,
+    make_general_practitioner,
+    make_patient,
+)
 from tools.certificates import Authority, issue, make_authority
 from web.lab import services as lab_services
 from web.lab.messaging import serve
@@ -23,7 +28,6 @@ from web.lab.models import LabOrder, Sample
 from web.messaging import messages_pb2
 from web.nhanes.models import Participant
 from web.practice import messaging
-from web.practice import services as practice_services
 from web.practice.messaging import Connection
 from web.practice.models import GeneralPractitioner, LabReport, Order, Patient
 from web.practice.models import Sample as PracticeSample
@@ -117,7 +121,7 @@ def order(
         if indication
         else None
     )
-    placed: Order = practice_services.place_order(
+    placed: Order = collect_and_order(
         general_practitioner=record.general_practitioner,
         patient=record,
         test=test,
@@ -414,10 +418,16 @@ def owner() -> GeneralPractitioner:
     return make_general_practitioner("Dr. Demo A")
 
 
-def new_order_url(record: Patient) -> str:
+def new_order_url(client: Client, record: Patient) -> str:
+    """Collect a sample from the patient; the ferritin order page on it."""
+    client.post(reverse("practice:collect_sample", kwargs={"patient": record.pk}))
     return reverse(
         "practice:new_order",
-        kwargs={"patient": record.pk, "test": OrderedTest.FERRITIN},
+        kwargs={
+            "patient": record.pk,
+            "sample": record.samples.latest("pk").pk,
+            "test": OrderedTest.FERRITIN,
+        },
     )
 
 
@@ -426,7 +436,7 @@ def test_placing_an_order_sends_its_lab_order(
 ) -> None:
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
-    client.post(new_order_url(record))
+    client.post(new_order_url(client, record))
     assert LabOrder.objects.filter(sample__sample_id=latest_sample_id(record)).exists()
     assert Order.objects.get().sent_at is not None
 
@@ -437,8 +447,8 @@ def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
     settings.MESSAGING_ADDRESS = "127.0.0.1:1"
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
-    response = client.post(new_order_url(record), follow=True)
-    assertContains(response, "Ferritin ordered on new sample")
+    response = client.post(new_order_url(client, record), follow=True)
+    assertContains(response, "Ferritin ordered on sample")
     assertContains(response, "sent with the next check for reports")
     assert Order.objects.get().sent_at is None
 
@@ -446,7 +456,7 @@ def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
 def released_ferritin(owner: GeneralPractitioner) -> Patient:
     """A patient whose ferritin the hospital has analysed and released."""
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
-    practice_services.place_order(
+    collect_and_order(
         general_practitioner=owner,
         patient=record,
         test=OrderedTest.FERRITIN,

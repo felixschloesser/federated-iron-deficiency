@@ -1,4 +1,4 @@
-"""Placing orders."""
+"""Collecting samples and ordering tests on them."""
 
 from datetime import datetime
 
@@ -10,27 +10,26 @@ from web.vocabulary import ClinicalIndication, Test
 
 
 @transaction.atomic
-def place_order(
-    *,
-    general_practitioner: GeneralPractitioner,
-    patient: Patient,
-    test: Test,
-    indication: ClinicalIndication | None,
-    now: datetime,
-) -> Order:
-    """Collect a new sample from one of the general practitioner's patients and
-    order one test on it (R1, R13, R26)."""
-    errors = order_errors(general_practitioner, patient, test, indication)
-    if errors:
-        raise ValidationError(errors)
-    sample = Sample.objects.create(
+def collect_sample(
+    *, general_practitioner: GeneralPractitioner, patient: Patient, now: datetime
+) -> Sample:
+    """Record blood collected from one of the general practitioner's patients,
+    with the patient's next sample ID; tests are ordered on it afterwards (R26)."""
+    if patient.general_practitioner_id != general_practitioner.pk:
+        raise ValidationError(
+            {
+                "patient": ValidationError(
+                    "This is not one of your patients.", code="not_your_patient"
+                )
+            }
+        )
+    return Sample.objects.create(
         patient=patient, sample_id=patient.next_sample_id(), collected_at=now
     )
-    return create_order(sample, test, indication, now)
 
 
 @transaction.atomic
-def order_on_sample(
+def place_order(
     *,
     general_practitioner: GeneralPractitioner,
     sample: Sample,
@@ -38,8 +37,8 @@ def order_on_sample(
     indication: ClinicalIndication | None,
     now: datetime,
 ) -> Order:
-    """Order one more test on a sample the laboratory holds, such as ferritin
-    beside a suggestion (R2, R11, R26)."""
+    """Order one test on a collected sample, also a later one such as ferritin
+    beside a suggestion (R1, R2, R11, R13, R26)."""
     errors = order_errors(general_practitioner, sample.patient, test, indication)
     if sample.orders.filter(test=test).exists():
         errors["test"] = ValidationError(

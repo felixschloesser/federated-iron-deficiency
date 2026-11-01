@@ -8,9 +8,12 @@ from pytest_bdd import given, parsers
 # The models are imported inside the builders too, so a missing app fails only
 # the tests that use it.
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from web.deployment.models import LaboratoryDirector
     from web.lab.models import LaboratoryStaffMember, LabOrder
     from web.practice.models import GeneralPractitioner, Order, Patient
+    from web.vocabulary import ClinicalIndication, Test
 from web.vocabulary import RegisteredSex
 
 World = dict[str, Any]
@@ -113,4 +116,27 @@ def deliver(order: "Order") -> "LabOrder":
             general_practitioner=order.sample.patient.general_practitioner.name,
             ordered_at=order.ordered_at,
         ),
+    )
+
+
+def collect_and_order(
+    *,
+    general_practitioner: "GeneralPractitioner",
+    patient: "Patient",
+    test: "Test",
+    indication: "ClinicalIndication | None",
+    now: "datetime",
+) -> "Order":
+    """Collect a sample from the patient and order one test on it."""
+    from web.practice import services
+
+    sample = services.collect_sample(
+        general_practitioner=general_practitioner, patient=patient, now=now
+    )
+    return services.place_order(
+        general_practitioner=general_practitioner,
+        sample=sample,
+        test=test,
+        indication=indication,
+        now=now,
     )

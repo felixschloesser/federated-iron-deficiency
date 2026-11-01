@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from iron_deficiency.dataset import CBC_VARS
-from tests.conftest import World, deliver
+from tests.conftest import World, collect_and_order, deliver
 from web.lab import queries, services
 from web.lab.models import LabOrder, Sample
 from web.nhanes.models import Participant
@@ -40,7 +40,7 @@ def place(world: World, test: str, patient: str) -> None:
         ClinicalIndication.UNEXPLAINED_FATIGUE if ordered.takes_indication() else None
     )
     record = world["patients"][patient]
-    world["order"] = practice_services.place_order(
+    world["order"] = collect_and_order(
         general_practitioner=record.general_practitioner,
         patient=record,
         test=ordered,
@@ -78,7 +78,7 @@ def an_order(world: World, test: str, patient: str) -> None:
 @given("a ferritin order on that sample")
 def ferritin_on_that_sample(world: World) -> None:
     sample = world["order"].sample
-    world["order"] = practice_services.order_on_sample(
+    world["order"] = practice_services.place_order(
         general_practitioner=sample.patient.general_practitioner,
         sample=sample,
         test=OrderedTest.FERRITIN,

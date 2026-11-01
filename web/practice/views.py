@@ -70,27 +70,23 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
                 ),
             )
         ).order_by("-collected_at", "-pk")
-        # Each order from here collects a new sample (R26).
-        actions = [
-            {
-                "url": reverse(
-                    "practice:new_order", kwargs={"patient": patient.pk, "test": test}
-                ),
-                "label": f"Order {test.label}",
-            }
-            for test in Test
-        ]
+        # Blood is collected first; tests are ordered on a sample afterwards (R26).
+        collect = reverse("practice:collect_sample", kwargs={"patient": patient.pk})
         # Each sample with the tests on it, in the order they were placed, so a
         # ferritin ordered beside a suggestion shows right under it (R9, R11).
         # Only the newest opens; the others summarise their tests and whether a
         # lab report in them suggests ferritin.
         return {
             **super().get_context_data(**kwargs),
-            "actions": actions,
+            "actions": [],
+            "post_actions": [{"url": collect, "label": "Collect sample"}],
             "samples": [
                 {
                     "sample": sample,
-                    "entries": [self.entry(order) for order in sample.orders.all()],
+                    "entries": (
+                        entries := [self.entry(o) for o in sample.orders.all()]
+                    ),
+                    "actions": self.sample_actions(sample, entries),
                     "open": number == 0,
                     "tests": ", ".join(
                         order.get_test_display() for order in sample.orders.all()
@@ -105,6 +101,25 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             ],
         }
 
+    def sample_actions(
+        self, sample: Sample, entries: list[dict[str, Any]]
+    ) -> list[dict[str, str]]:
+        """The tests a sample does not have yet; ferritin not while it is offered
+        beside a suggestion, where it matters (R11)."""
+        ordered = {entry["order"].test for entry in entries}
+        beside = any(entry["order_ferritin_url"] for entry in entries)
+        return [
+            {"url": self.order_url(sample, test), "label": f"Order {test.label}"}
+            for test in Test
+            if test not in ordered and not (test == Test.FERRITIN and beside)
+        ]
+
+    def order_url(self, sample: Sample, test: Test) -> str:
+        return reverse(
+            "practice:new_order",
+            kwargs={"patient": self.object.pk, "sample": sample.pk, "test": test},
+        )
+
     def entry(self, order: Order) -> dict[str, Any]:
         """An order with its lab report, if fetched, and Order ferritin beside a
         suggestion."""
@@ -113,14 +128,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
         return {
             "order": order,
             "lab_report": lab_report,
-            "order_ferritin_url": reverse(
-                "practice:new_order_on_sample",
-                kwargs={
-                    "patient": self.object.pk,
-                    "sample": order.sample_id,
-                    "test": Test.FERRITIN,
-                },
-            )
+            "order_ferritin_url": self.order_url(order.sample, Test.FERRITIN)
             if offered
             else None,
         }
@@ -174,9 +182,22 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
         return redirect("practice:orders")
 
 
+class CollectSampleView(GeneralPractitionerRequiredMixin, View):
+    """Records a sample collected from one of the general practitioner's patients."""
+
+    def post(self, request: HttpRequest, patient: int) -> HttpResponse:
+        record = get_object_or_404(self.general_practitioner.patients, pk=patient)
+        sample = services.collect_sample(
+            general_practitioner=self.general_practitioner,
+            patient=record,
+            now=timezone.now(),
+        )
+        messages.success(request, f"Sample {sample.sample_id} collected.")
+        return redirect("practice:patient", pk=record.pk)
+
+
 class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
-    """Orders one test for one patient, on a new sample or on one of theirs:
-    all chosen before the form."""
+    """Orders one test on one of a patient's samples: both chosen before the form."""
 
     template_name = "practice/new_order.html"
     form_class = OrderForm
@@ -188,9 +209,7 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
         )
 
     @cached_property
-    def sample(self) -> Sample | None:
-        if "sample" not in self.kwargs:
-            return None
+    def sample(self) -> Sample:
         return get_object_or_404(self.patient.samples, pk=self.kwargs["sample"])
 
     def get_form_kwargs(self) -> dict[str, Any]:
@@ -209,27 +228,22 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
         return reverse("practice:patient", kwargs={"pk": self.patient.pk})
 
     def form_valid(self, form: OrderForm) -> HttpResponse:
-        order = {
-            "general_practitioner": self.general_practitioner,
-            "test": self.kwargs["test"],
-            "indication": form.cleaned_data.get("indication"),
-            "now": timezone.now(),
-        }
         try:
-            placed = (
-                services.place_order(patient=self.patient, **order)
-                if self.sample is None
-                else services.order_on_sample(sample=self.sample, **order)
+            placed = services.place_order(
+                general_practitioner=self.general_practitioner,
+                sample=self.sample,
+                test=self.kwargs["test"],
+                indication=form.cleaned_data.get("indication"),
+                now=timezone.now(),
             )
         except ValidationError as error:
             for field, errors in error.error_dict.items():
                 # An error on a field this form does not show goes to the summary.
                 form.add_error(field if field in form.fields else None, errors)
             return self.form_invalid(form)
-        on = "new sample" if self.sample is None else "sample"
         messages.success(
             self.request,
-            f"{capfirst(placed.get_test_display())} ordered on {on}"
+            f"{capfirst(placed.get_test_display())} ordered on sample"
             f" {placed.sample.sample_id}.",
         )
         if (connection := messaging.configured_connection()) is not None:

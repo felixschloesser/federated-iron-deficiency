@@ -1,11 +1,13 @@
 {% extends "kit/base.html" %}
 {% block title %}{{ patient.name }}{% endblock %}
 {% block content %}
-{% include "kit/index_header.html" with title=patient.name actions=actions %}
+{% include "kit/index_header.html" with title=patient.name actions=actions post_actions=post_actions %}
 <p>{{ patient.get_registered_sex_display }}, aged {{ patient.age }}</p>
 {% for item in samples %}
 <details{% if item.open %} open{% endif %}>
-  <summary><h2>Sample <span class="sample-id">{{ item.sample.sample_id }}</span>, collected {{ item.sample.collected_at|date:"j M Y, H:i" }}</h2><small>{{ item.tests }}{% if item.suggested %} · Ferritin suggested{% endif %}</small></summary>
+  <summary><h2>Sample <span class="sample-id">{{ item.sample.sample_id }}</span>, collected {{ item.sample.collected_at|date:"j M Y, H:i" }}</h2><small>{{ item.tests|default:"No tests ordered yet" }}{% if item.suggested %} · Ferritin suggested{% endif %}</small></summary>
+  {% if item.actions %}<div class="action-row">{% for action in item.actions %}<a href="{{ action.url }}" role="button" class="secondary" aria-label="{{ action.label }} on sample {{ item.sample.sample_id }}">{{ action.label }}</a> {% endfor %}</div>{% endif %}
+  {% if not item.entries %}<p>No tests ordered yet.</p>{% endif %}
   {% for entry in item.entries %}
   <article>
     <h3>{{ entry.order.get_test_display|capfirst }}{% if entry.order.indication %} ({{ entry.order.get_indication_display|lower }}){% endif %}</h3>
