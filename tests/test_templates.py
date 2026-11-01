@@ -47,3 +47,20 @@ def test_without_a_party_colour_pico_keeps_its_default(settings: Settings) -> No
         '{% extends "kit/base.html" %}{% block title %}Probe{% endblock %}'
     )
     assert "pico-2.1.1/pico.min.css" in template.render({}, RequestFactory().get("/"))
+
+
+DISCLAIMER = (
+    "Research prototype for a privacy impact assessment. Patients are fictional;"
+    " their blood values come from the NHANES 2021–2023 survey. Not for clinical use."
+)
+
+
+def test_every_page_says_it_is_a_prototype_with_fictional_patients() -> None:
+    from django.template.loader import render_to_string
+
+    template = engines["django"].from_string(
+        '{% extends "kit/base.html" %}{% block title %}Probe{% endblock %}'
+    )
+    assert DISCLAIMER in template.render({}, RequestFactory().get("/"))
+    # Django renders 500.html with no context at all.
+    assert DISCLAIMER in render_to_string("500.html")
