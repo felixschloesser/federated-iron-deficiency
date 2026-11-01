@@ -52,7 +52,7 @@ def open_laboratory(
 
 
 def send_lab_order(order: Order, connection: Connection) -> None:
-    """Send an order's lab order (DF24): no name, no values (R25)."""
+    """Send an order's lab order (DF23): no name, no values (R25)."""
     with open_laboratory(connection) as laboratory:
         laboratory.SendLabOrder(
             messages_pb2.LabOrder(
@@ -80,7 +80,7 @@ def send_pending_lab_orders(connection: Connection, *, now: datetime) -> int:
 
 
 def check_for_lab_reports(connection: Connection, *, now: datetime) -> int:
-    """Send pending orders, fetch new lab reports (DF26), store and acknowledge them."""
+    """Send pending orders, fetch new lab reports (DF25), store and acknowledge them."""
     send_pending_lab_orders(connection, now=now)
     with open_laboratory(connection) as laboratory:
         reports = laboratory.FetchNewLabReports(
