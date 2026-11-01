@@ -39,7 +39,13 @@ Feature: Analysing samples
 
   Scenario: A later test is measured on the stored sample
     Given an analysed CBC sample for "Test Patient 1"
-    And a ferritin order for "Test Patient 1"
+    And a ferritin order on that sample
     Then the ferritin order is ready to analyse
     When laboratory staff run the analyser
     Then the sample has ferritin 11.0 ng/mL
+
+  Scenario: Every sample of a patient measures the patient's NHANES values
+    Given an analysed CBC sample for "Test Patient 1"
+    And a CBC order for "Test Patient 1"
+    When laboratory staff run the analyser
+    Then the sample has the 13 NHANES CBC values of "Test Patient 1"

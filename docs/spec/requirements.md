@@ -33,8 +33,10 @@ staff is replaced and the report's word moves to the rejected column.
 | clinical indication | Report, Data table | The report's word; drives screening | reason for testing |
 | non-specific complaint | Report, Data table and Use case | The one indication that is screened | fatigue work-up |
 | registered sex | Report, Data table | Distinguishes the record from the person (report, Information at risk) | gender, sex |
-| sample ID | Report, DF24 and Data table | The report's link between lab order, results and lab report; on the tube's label when the first test is ordered. In the demo it is the patient's NHANES number (one sample per patient) | laboratory identification number, accession number (WHO 5-4, p. 66) |
+| sample ID | Report, DF24 and Data table | The report's link between lab order, results and lab report; on the sample's label. In the demo the patient's NHANES number and the sample's number for that patient, e.g. 135318-2 | laboratory identification number, accession number (WHO 5-4, p. 66) |
 | stored sample | WHO LQMS 5-5, p. 68, "stored samples" | A sample the laboratory already holds: a later test is measured on it | add-on test, retained sample |
+| sample | WHO LQMS ch. 5, *Sample management* (the handbook's word throughout) | Blood collected from one patient at one time; each order is on one sample, and one sample may carry a CBC and a later ferritin | specimen (ISO 15189), tube (the container), blood draw |
+| collected | WHO LQMS 5-3, p. 64: "the health care provider may collect a sample in a clinic setting"; 5-4, p. 66, register field "date and time of collection" | When the general practitioner's practice takes the blood; recorded on the sample | drawn, taken, venipuncture |
 | analysed | Report, P1 "Lab analysis" | The report's process name | examined, tested |
 | screening | Report, P7 | The report's process name | scoring, classification |
 | screening result | Report, DF33 "screening result", P10 | What screening records per CBC: one of the three below, with the reason when not screened (R5) and the final model when screened (R6) | flag, outcome, classification |
@@ -63,7 +65,7 @@ G0 Achieve[Ferritin suggested to the general practitioner of a likely iron-defic
 │   ├── E1 Expectation[general practitioner picks the true clinical indication]                         general practitioner
 │   ├── R1 Achieve[Order carries patient's registered sex, age, test, indication]      General practitioner's app
 │   ├── R22 Achieve[Lab order delivered to the general practitioner's hospital]       General practitioner's app + messaging
-│   └── R26 Maintain[One sample per patient; each test ordered at most once]          General practitioner's app
+│   └── R26 Maintain[Each order on one sample; each test at most once per sample]      General practitioner's app
 ├── G2 Achieve[Sample analysed]
 │   ├── R2 Achieve[Sample arrives with its lab order; a later test uses the stored sample]  Lab app
 │   └── R3 Achieve[Analyser result recorded]                                         Laboratory staff + Analyser
@@ -98,7 +100,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 
 | ID | Requirement | Scenarios |
 |---|---|---|
-| R1 | An order records the patient, the sample ID, the test (CBC or ferritin), and, for a CBC only, the clinical indication. It copies the patient's registered sex and age, which is all the lab learns about the patient. Ferritin orders have no indication (`None`). | `ordering.feature` |
+| R1 | An order is on one sample of the patient and records the test (CBC or ferritin) and, for a CBC only, the clinical indication. It copies the patient's registered sex and age, which is all the lab learns about the patient besides the sample ID. Ferritin orders have no indication (`None`). | `ordering.feature` |
 | R2 | A sample arrives with its lab order: its tests are ready to analyse at once, with no receiving step. A later test on the same sample is measured on the stored sample. | `lab.feature` |
 | R3 | Running the analyser on a sample records the patient's NHANES values: the 13 CBC values for a CBC, ferritin in ng/mL for ferritin, or *not available in the demo data* when NHANES has none. A sample is analysed at most once. | `lab.feature` |
 | R4 | A CBC is screened only when the indication is non-specific complaint, registered sex is female and age is 18–49. Each condition is its own branch. | `screening.feature` |
@@ -107,7 +109,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R7 | No score, probability or standardized input is stored or shown. | `screening.feature` |
 | R8 | Running the analyser on a CBC screens it at once, and its lab report is released at once. Without a usable deployed model (R19) a CBC that meets R4 is *not screened* with that reason: the general practitioner's CBC never waits for the startup's model, and is not screened again later. Screening runs in the same transaction as the analysis, so an analysed lab order is a released lab report; there is no separate release step. | `screening.feature` |
 | R9 | The lab report shows the values under NHANES's names and units, without reference ranges or any mark; the comment *Ferritin suggested.* appears only for *ferritin suggested*. The hospital sends one bit, *ferritin suggested*, so *ferritin not suggested* and *not screened* look the same at the practice and show nothing about screening. | `screening.feature` (the bit the hospital sends), `messaging.feature`, `reports.feature` |
-| R11 | *Order ferritin* is offered beside the comment of a lab report with *ferritin suggested* while the patient has no ferritin order (R26: at most one); it opens the ferritin order page for the patient. It is never offered without a suggestion: ferritin is ordered on suspicion (report, Use case). | `reports.feature` |
+| R11 | *Order ferritin* is offered beside the comment of a lab report with *ferritin suggested* while that lab report's sample has no ferritin order (R26); it opens the ferritin order page on that sample, so the laboratory measures ferritin on the stored sample (R2). It is never offered without a suggestion: ferritin is ordered on suspicion (report, Use case). A ferritin order from the patient page collects a new sample and does not count. | `reports.feature` |
 | R12 | A ferritin sample is never screened; its lab report is visible once analysed. | `lab.feature`, `screening.feature`, `reports.feature` |
 | R13 | Every general practitioner query is scoped to the general practitioner's own patients; another general practitioner's order or lab report returns 404. | `access.feature` |
 | R14 | Lab queries select only sample ID, ordering general practitioner, registered sex, age, test, indication and results; never the patient's name. | `access.feature` |
@@ -116,7 +118,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R23 | The general practitioner's app fetches its new lab reports (DF26) from its hospital every 60 seconds and on *Check for reports*; it is always the client, the hospital never connects to it. | `messaging.feature` |
 | R24 | The hospital's messaging endpoint accepts only a client certificate issued by that hospital's own certificate authority, for its general practitioner's app; any other client, the startup's included, is refused before a message is read. The hospital tells apps apart by their certificate's name: a sample is known by app and sample ID, and an app fetches and acknowledges only the lab reports of its own lab orders. The app stores each lab report on its own: one it cannot match to an order stays unacknowledged and holds back no other. | `messaging.feature` |
 | R25 | DF24 and DF26 carry exactly the fields of `web/messaging/messages.proto` (§10): no patient name, no blood values in DF1. | `messaging.feature`, `tests/test_messages.py` |
-| R26 | A patient has one sample; ordering a test the patient already has is refused (`already_ordered`). | `ordering.feature` |
+| R26 | An order from the patient page collects a new sample, at `now`, with the patient's next sample ID; a patient may have any number of samples. A test is ordered at most once per sample; ordering it again on that sample is refused (`already_ordered`). | `ordering.feature` |
 | R16 | The ClientApp's deploy handler writes each final model as a new file named after its Flower run ID into the node's `final-models-path`, never overwriting one, with the threshold, the federated metrics the ServerApp sends, and its local validation on this hospital's validation split: the confusion matrix at the final model's threshold, as counts, and AUROC. Training results are unchanged. | `tests/test_final_models.py` |
 | R17 | The Models page lists every final model; one that is unreadable, trained on other features than `FEATURES`, or lacks a threshold or standardization is shown as *cannot be deployed* with the reason, and deploying it is refused with that reason's code. | `deployment.feature` |
 | R18 | The laboratory director deploys any final model that can be deployed, including an older one (rollback). The app keeps the deployment history (final model, deployed at) and nothing else: no account, no reason. Past screening results are never re-screened. | `deployment.feature` |
@@ -173,7 +175,7 @@ All are POSTs that redirect on success; services take `now`.
 | Operation | Actor | Precondition | Postcondition | Requirements |
 |---|---|---|---|---|
 | Fetch lab reports | General practitioner's app | Every 60 s, or *Check for reports* | New lab reports stored at the general practitioner's app | R23 |
-| Place order | general practitioner | Patient is the general practitioner's; indication given iff test is CBC | Order with sex and age copied | R1, R13 |
+| Place order | general practitioner | Patient is the general practitioner's; indication given iff test is CBC; on a given sample, the test not yet on it | A new sample collected at `now`, or the given one; the order on it with sex and age copied | R1, R13, R26 |
 | Run analyser | Laboratory staff | Lab order arrived, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |
 | Deploy | Laboratory director | Final model can be deployed (R17) | It is the deployed model from `now` | R18 |
 | Log in as (demo) | Anyone | `DEMO_LOGIN` on | Session for that seeded user | R15 |
@@ -184,8 +186,8 @@ All are POSTs that redirect on success; services take `now`.
 |---|---|---|
 | Log in | Anyone | Django login form; refuses an account without a role; demo buttons when `DEMO_LOGIN`. Afterwards, and at `/`, the start page of the user's role |
 | Patients (start page) | general practitioner | Own patients: name, registered sex, age. Served by the general practitioner's app, not the hospital's |
-| Patient | general practitioner | Registered sex, age, the patient's orders, each with its lab report once fetched: values (R9), comment, *Order ferritin* beside a suggestion (R11); *Order CBC*, *Order ferritin* |
-| Order CBC / Order ferritin for a patient | general practitioner | The clinical indication only for a test that takes one; ferritin is a confirmation |
+| Patient | general practitioner | Registered sex, age, the patient's orders with their sample ID, each with its lab report once fetched: values (R9), comment, *Order ferritin* beside a suggestion (R11, on that sample); *Order CBC*, *Order ferritin*, each on a new sample |
+| Order CBC / Order ferritin for a patient | general practitioner | Whether it collects a new sample or goes on the lab report's sample; the clinical indication only for a test that takes one; ferritin is a confirmation |
 | Orders | general practitioner | Own orders, newest first, linked to their patient, with when their lab report was released; *Check for reports* |
 | Models (start page) | Laboratory director | Every final model: run ID, received, threshold, local confusion matrix (counts) and AUROC, federated AUROC; the deployed one marked; *Deploy* or *cannot be deployed: reason* |
 | To analyse (start page) | Laboratory staff | Lab orders not yet analysed, oldest first; *Run analyser*. A CBC not screened because of the model (none deployed, or its file changed) gives a warning to tell the laboratory director (O3) |
@@ -219,8 +221,8 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 
 ## 8. Data
 
-- Patients: NHANES 2021–2023 (`iron_deficiency.dataset.load_new_samples`), all sexes and ages, seeded at the general practitioner's app; each patient's NHANES number is their sample ID.
-- The hospital's analyser stand-in holds the same cycle's values (13 CBC values, ferritin from `load_ferritin`), looked up by sample ID: what the tubes in its laboratory would measure. No values travel in a message.
+- Patients: NHANES 2021–2023 (`iron_deficiency.dataset.load_new_samples`), all sexes and ages, seeded at the general practitioner's app; each patient is one NHANES participant, whose number starts each of their sample IDs.
+- The hospital's analyser stand-in holds the same cycle's values (13 CBC values, ferritin from `load_ferritin`), looked up by the NHANES number in the sample ID: what the samples in its laboratory would measure. Every sample of one patient measures the same values, as NHANES measured each participant once. No values travel in a message.
 - Ferritin exists in NHANES mainly for women aged 12–49; others get *not available in the demo data*.
 - Age is the NHANES age at the survey and does not change.
 - Registered sex has the two NHANES values, female and male.

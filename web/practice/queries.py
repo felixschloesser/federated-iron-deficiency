@@ -5,9 +5,9 @@ from web.vocabulary import Test
 
 
 def ferritin_order_offered(lab_report: LabReport) -> bool:
-    """Order ferritin beside a suggestion, until the patient has ferritin (R11, R26)."""
-    patient = lab_report.order.patient
+    """Order ferritin beside a suggestion, until its sample has ferritin (R11, R26)."""
+    sample = lab_report.order.sample
     return (
         lab_report.ferritin_suggested
-        and not patient.orders.filter(test=Test.FERRITIN).exists()
+        and not sample.orders.filter(test=Test.FERRITIN).exists()
     )

@@ -142,7 +142,9 @@ def test_patient_page_offers_ferritin_beside_a_suggestion(
     with django_assert_num_queries(5):
         response = client.get(patient_url(patient))
     (entry,) = response.context["entries"]
-    assert entry["order_ferritin_url"] == order_url(patient, OrderedTest.FERRITIN)
+    assert entry["order_ferritin_url"] == sample_order_url(
+        patient, OrderedTest.FERRITIN
+    )
     assertContains(response, "Ferritin suggested.")
     assertContains(response, "Hemoglobin")
 
@@ -189,7 +191,7 @@ def test_placing_an_order_returns_to_the_patient_and_confirms(
     assert response.status_code == 302
     assert response["Location"] == patient_url(patient)
     assertContains(client.get(response["Location"]), "Order placed.")
-    assert Order.objects.get().patient == patient
+    assert Order.objects.get().sample.patient == patient
 
 
 def test_ferritin_needs_only_a_confirmation(
@@ -270,22 +272,68 @@ def test_form_error_is_shown_once_in_the_summary(client: Client) -> None:
     assert response.content.decode().count("Please enter a correct username") == 1
 
 
-def test_patient_page_offers_only_tests_not_yet_ordered(
+def test_patient_page_offers_every_test_on_a_new_sample(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
     logged_in(client, general_practitioner)
     client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
     response = client.get(patient_url(patient))
     assert [action["label"] for action in response.context["actions"]] == [
-        "Order ferritin"
+        "Order CBC",
+        "Order ferritin",
     ]
+    client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
+    assert patient.samples.count() == 2
 
 
-def test_a_test_already_ordered_is_refused_in_the_summary(
+def sample_order_url(patient: Patient, test: OrderedTest) -> str:
+    return reverse(
+        "practice:new_order_on_sample",
+        kwargs={
+            "patient": patient.pk,
+            "sample": patient.samples.latest("pk").pk,
+            "test": test,
+        },
+    )
+
+
+def test_ordering_on_a_sample_says_so_and_adds_no_sample(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    logged_in(client, general_practitioner)
+    client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
+    url = sample_order_url(patient, OrderedTest.FERRITIN)
+    sample_id = patient.samples.get().sample_id
+    assertContains(client.get(url), f"On sample {sample_id}")
+    assert client.post(url).status_code == 302
+    assert patient.samples.count() == 1
+    assert Order.objects.filter(sample__sample_id=sample_id).count() == 2
+
+
+def test_a_test_the_sample_has_is_refused_in_the_summary(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
     logged_in(client, general_practitioner)
     client.post(order_url(patient, OrderedTest.FERRITIN))
-    response = client.post(order_url(patient, OrderedTest.FERRITIN))
+    response = client.post(sample_order_url(patient, OrderedTest.FERRITIN))
     errors = response.context["form"].non_field_errors().as_data()
     assert [error.code for error in errors] == ["already_ordered"]
+
+
+def test_another_patients_sample_is_not_found(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    other_patient = make_patient(
+        general_practitioner, "Test Patient 3", RegisteredSex.MALE, 60
+    )
+    logged_in(client, general_practitioner)
+    client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
+    url = reverse(
+        "practice:new_order_on_sample",
+        kwargs={
+            "patient": other_patient.pk,
+            "sample": patient.samples.get().pk,
+            "test": OrderedTest.FERRITIN,
+        },
+    )
+    assert client.post(url).status_code == 404

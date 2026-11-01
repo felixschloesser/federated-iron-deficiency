@@ -57,12 +57,11 @@ def run_analyser(
         raise ValidationError(
             "This test has already been analysed.", code="already_analysed"
         )
-    # The tube's contents: the NHANES participant whose number is the sample ID.
-    sample_id = lab_order.sample.sample_id
+    # The sample's contents: the NHANES participant whose number starts the
+    # sample ID, so every sample of one patient measures the same (spec §8).
+    seqn = lab_order.sample.sample_id.split("-")[0]
     tube = (
-        Participant.objects.filter(seqn=int(sample_id)).first()
-        if sample_id.isdigit()
-        else None
+        Participant.objects.filter(seqn=int(seqn)).first() if seqn.isdigit() else None
     )
     if tube is None:
         raise ValidationError(

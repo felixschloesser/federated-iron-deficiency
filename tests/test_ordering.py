@@ -12,6 +12,7 @@ from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 29, 9, 0, tzinfo=UTC)
+EARLIER = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
 TESTS = {"a CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
 
 scenarios("ordering.feature")
@@ -90,21 +91,48 @@ def order_refused(world: World, code: str, field: str) -> None:
 def ordered_before(
     world: World, general_practitioner: str, patient: str, indication: str
 ) -> None:
-    services.place_order(
+    world["cbc"] = services.place_order(
         general_practitioner=world["general_practitioners"][general_practitioner],
         patient=world["patients"][patient],
         test=OrderedTest.CBC,
         indication=indication_named(indication),
-        now=NOW,
+        now=EARLIER,
     )
 
 
-@then(parsers.parse('the order carries the sample ID of "{patient}"'))
-def order_carries_sample_id(world: World, patient: str) -> None:
-    assert world["order"].sample_id == world["patients"][patient].sample_id
+@when(
+    parsers.re(
+        r'"(?P<general_practitioner>[^"]+)" orders (?P<test>a CBC|ferritin)'
+        r" on that CBC's sample(?: with indication (?P<indication>.+))?$"
+    )
+)
+def order_on_sample(
+    world: World, general_practitioner: str, test: str, indication: str | None
+) -> None:
+    try:
+        world["order"] = services.order_on_sample(
+            general_practitioner=world["general_practitioners"][general_practitioner],
+            sample=world["cbc"].sample,
+            test=TESTS[test],
+            indication=indication_named(indication) if indication else None,
+            now=NOW,
+        )
+    except ValidationError as error:
+        world["error"] = error
 
 
-@then(parsers.parse('both orders carry the sample ID of "{patient}"'))
-def both_carry_sample_id(world: World, patient: str) -> None:
+@then(
+    parsers.re(
+        r'the order is on sample (?P<number>\d+) of "(?P<patient>[^"]+)"'
+        r"(?P<now>, collected at the current time)?$"
+    )
+)
+def order_on_numbered_sample(
+    world: World, number: str, patient: str, now: str | None
+) -> None:
+    sample = world["order"].sample
     record = world["patients"][patient]
-    assert [order.sample_id for order in record.orders.all()] == [record.sample_id] * 2
+    assert sample.patient == record
+    assert sample.sample_id == f"{record.nhanes_number}-{number}"
+    if now:
+        assert sample.collected_at == NOW

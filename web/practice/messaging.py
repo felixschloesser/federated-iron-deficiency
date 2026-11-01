@@ -56,12 +56,12 @@ def send_lab_order(order: Order, connection: Connection) -> None:
     with open_laboratory(connection) as laboratory:
         laboratory.SendLabOrder(
             messages_pb2.LabOrder(
-                sample_id=order.sample_id,
+                sample_id=order.sample.sample_id,
                 test=order.test,
                 indication=order.indication or "",
                 registered_sex=order.registered_sex,
                 age=order.age,
-                general_practitioner=order.patient.general_practitioner.name,
+                general_practitioner=order.sample.patient.general_practitioner.name,
                 ordered_at=order.ordered_at.isoformat(),
             ),
             timeout=TIMEOUT_SECONDS,
@@ -71,7 +71,7 @@ def send_lab_order(order: Order, connection: Connection) -> None:
 def send_pending_lab_orders(connection: Connection, *, now: datetime) -> int:
     """Send every order the hospital has not confirmed yet; it records each once."""
     pending = Order.objects.filter(sent_at__isnull=True).select_related(
-        "patient__general_practitioner"
+        "sample__patient__general_practitioner"
     )
     for order in pending:
         send_lab_order(order, connection)
@@ -100,7 +100,9 @@ def _store(report: messages_pb2.LabReport, *, now: datetime) -> bool:
 
     The hospital is another party: a report that cannot be stored stays
     unacknowledged instead of holding back the others."""
-    order = Order.objects.filter(sample_id=report.sample_id, test=report.test).first()
+    order = Order.objects.filter(
+        sample__sample_id=report.sample_id, test=report.test
+    ).first()
     try:
         released_at = datetime.fromisoformat(report.released_at)
     except ValueError:

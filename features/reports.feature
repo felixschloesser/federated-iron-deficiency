@@ -24,10 +24,15 @@ Feature: Lab reports for the general practitioner
     Given a CBC lab report for "Test Patient 1" with ferritin suggested
     Then ordering ferritin is offered on the lab report
 
-  Scenario: Order ferritin is not offered once ferritin was ordered
+  Scenario: Order ferritin is not offered once its sample has ferritin
+    Given a CBC lab report for "Test Patient 1" with ferritin suggested
+    And a ferritin order on the lab report's sample
+    Then ordering ferritin is not offered on the lab report
+
+  Scenario: Ferritin on another sample still offers Order ferritin
     Given a CBC lab report for "Test Patient 1" with ferritin suggested
     And a ferritin order for "Test Patient 1"
-    Then ordering ferritin is not offered on the lab report
+    Then ordering ferritin is offered on the lab report
 
   Scenario: Order ferritin is not offered without a suggestion
     Given a CBC lab report for "Test Patient 1" without ferritin suggested

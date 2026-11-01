@@ -17,7 +17,13 @@ from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
 from web.practice import messaging, services
 from web.practice.forms import OrderForm
-from web.practice.models import GeneralPractitioner, Order, OrderQuerySet, Patient
+from web.practice.models import (
+    GeneralPractitioner,
+    Order,
+    OrderQuerySet,
+    Patient,
+    Sample,
+)
 from web.practice.queries import ferritin_order_offered
 from web.vocabulary import Test
 
@@ -57,10 +63,11 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         patient = self.object
         orders = list(
-            patient.orders.select_related("lab_report").order_by("-ordered_at", "-pk")
+            Order.objects.filter(sample__patient=patient)
+            .select_related("sample", "lab_report")
+            .order_by("-ordered_at", "-pk")
         )
-        ordered = {order.test for order in orders}
-        # One sample per patient, each test at most once (R26): offer only the others.
+        # Each order from here collects a new sample (R26).
         actions = [
             {
                 "url": reverse(
@@ -69,7 +76,6 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
                 "label": f"Order {test.label}",
             }
             for test in Test
-            if test not in ordered
         ]
         # Each order with its lab report, if fetched, and Order ferritin beside a
         # suggestion (R9, R11).
@@ -78,8 +84,12 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
                 "order": order,
                 "lab_report": lab_report,
                 "order_ferritin_url": reverse(
-                    "practice:new_order",
-                    kwargs={"patient": patient.pk, "test": Test.FERRITIN},
+                    "practice:new_order_on_sample",
+                    kwargs={
+                        "patient": patient.pk,
+                        "sample": order.sample_id,
+                        "test": Test.FERRITIN,
+                    },
                 )
                 if lab_report is not None and ferritin_order_offered(lab_report)
                 else None,
@@ -101,7 +111,7 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
     def get_queryset(self) -> OrderQuerySet:
         orders = (
             Order.objects.of_general_practitioner(self.general_practitioner)
-            .select_related("patient")
+            .select_related("sample__patient")
             .annotate(lab_report_released_at=F("lab_report__released_at"))
         )
         return orders.order_by("-ordered_at", "-pk")
@@ -143,7 +153,8 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
 
 
 class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
-    """Orders one test for one patient: both chosen before the form."""
+    """Orders one test for one patient, on a new sample or on one of theirs:
+    all chosen before the form."""
 
     template_name = "practice/new_order.html"
     form_class = OrderForm
@@ -154,25 +165,39 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
             self.general_practitioner.patients, pk=self.kwargs["patient"]
         )
 
+    @cached_property
+    def sample(self) -> Sample | None:
+        if "sample" not in self.kwargs:
+            return None
+        return get_object_or_404(self.patient.samples, pk=self.kwargs["sample"])
+
     def get_form_kwargs(self) -> dict[str, Any]:
         return {**super().get_form_kwargs(), "test": self.kwargs["test"]}
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        return {**context, "patient": self.patient, "test": self.kwargs["test"]}
+        return {
+            **context,
+            "patient": self.patient,
+            "sample": self.sample,
+            "test": self.kwargs["test"],
+        }
 
     def get_success_url(self) -> str:
         return reverse("practice:patient", kwargs={"pk": self.patient.pk})
 
     def form_valid(self, form: OrderForm) -> HttpResponse:
+        order = {
+            "general_practitioner": self.general_practitioner,
+            "test": self.kwargs["test"],
+            "indication": form.cleaned_data.get("indication"),
+            "now": timezone.now(),
+        }
         try:
-            services.place_order(
-                general_practitioner=self.general_practitioner,
-                patient=self.patient,
-                test=self.kwargs["test"],
-                indication=form.cleaned_data.get("indication"),
-                now=timezone.now(),
-            )
+            if self.sample is None:
+                services.place_order(patient=self.patient, **order)
+            else:
+                services.order_on_sample(sample=self.sample, **order)
         except ValidationError as error:
             for field, errors in error.error_dict.items():
                 # An error on a field this form does not show goes to the summary.

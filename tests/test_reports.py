@@ -89,6 +89,18 @@ def ferritin_order(world: World, patient: str) -> None:
     order(world["patients"][patient], OrderedTest.FERRITIN)
 
 
+@given("a ferritin order on the lab report's sample")
+def ferritin_on_the_sample(world: World) -> None:
+    sample = world["lab_report"].order.sample
+    services.order_on_sample(
+        general_practitioner=sample.patient.general_practitioner,
+        sample=sample,
+        test=OrderedTest.FERRITIN,
+        indication=None,
+        now=NOW,
+    )
+
+
 @then(
     parsers.parse(
         'the lab report shows "{name}" in "{unit}" with the analyser\'s value'

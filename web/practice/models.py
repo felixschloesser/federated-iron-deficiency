@@ -27,12 +27,30 @@ class Patient(models.Model):
     name = models.CharField(max_length=100)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
-    # On the tube's label at the first order; in the demo the patient's NHANES
-    # number, which the hospital's analyser stand-in looks up (spec §8).
-    sample_id = models.CharField(max_length=20, unique=True)
+    # Demo only: the NHANES participant this patient is, which each of their
+    # sample IDs starts with so the analyser stand-in can measure it (spec §8).
+    nhanes_number = models.CharField(max_length=20, unique=True)
 
     def __str__(self) -> str:
         return self.name
+
+    def next_sample_id(self) -> str:
+        """The sample ID for this patient's next sample: 135318-1, 135318-2, …"""
+        return f"{self.nhanes_number}-{self.samples.count() + 1}"
+
+
+class Sample(models.Model):
+    """Blood collected from a patient at the practice; its tests are ordered on
+    it, and its sample ID goes on the label (R26)."""
+
+    patient = models.ForeignKey(
+        Patient, on_delete=models.PROTECT, related_name="samples"
+    )
+    sample_id = models.CharField(max_length=20, unique=True)
+    collected_at = models.DateTimeField()
+
+    def __str__(self) -> str:
+        return self.sample_id
 
 
 class OrderQuerySet(models.QuerySet["Order"]):
@@ -40,13 +58,11 @@ class OrderQuerySet(models.QuerySet["Order"]):
         self, general_practitioner: GeneralPractitioner
     ) -> "OrderQuerySet":
         """Only this general practitioner's orders (R13)."""
-        return self.filter(patient__general_practitioner=general_practitioner)
+        return self.filter(sample__patient__general_practitioner=general_practitioner)
 
 
 class Order(models.Model):
-    patient = models.ForeignKey(
-        Patient, on_delete=models.PROTECT, related_name="orders"
-    )
+    sample = models.ForeignKey(Sample, on_delete=models.PROTECT, related_name="orders")
     test = models.CharField(max_length=8, choices=Test.choices)
     # Absent for a test that takes none (Test.takes_indication).
     indication = models.CharField(
@@ -55,7 +71,6 @@ class Order(models.Model):
     # Copied at ordering: all the lab learns about the patient (R1, R14).
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
-    sample_id = models.CharField(max_length=20)
     ordered_at = models.DateTimeField()
     # Absent until the hospital confirmed the lab order (DF24); then never sent again.
     sent_at = models.DateTimeField(null=True, blank=True)
@@ -63,10 +78,10 @@ class Order(models.Model):
     objects = OrderQuerySet.as_manager()
 
     class Meta:
-        # One sample per patient, each test at most once (R26).
+        # Each test at most once per sample (R26).
         constraints = (
             models.UniqueConstraint(
-                fields=["patient", "test"], name="one_test_per_patient"
+                fields=["sample", "test"], name="one_order_per_sample_and_test"
             ),
         )
 

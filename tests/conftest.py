@@ -50,7 +50,7 @@ def make_patient(
         name=name,
         registered_sex=sex,
         age=age,
-        sample_id=str(participant.seqn),
+        nhanes_number=str(participant.seqn),
     )
 
 
@@ -103,14 +103,14 @@ def deliver(order: "Order") -> "LabOrder":
     return record_lab_order(
         client="client",
         details=LabOrderDetails(
-            sample_id=order.sample_id,
+            sample_id=order.sample.sample_id,
             test=Test(order.test),
             indication=ClinicalIndication(order.indication)
             if order.indication
             else None,
             registered_sex=RegisteredSex(order.registered_sex),
             age=order.age,
-            general_practitioner=order.patient.general_practitioner.name,
+            general_practitioner=order.sample.patient.general_practitioner.name,
             ordered_at=order.ordered_at,
         ),
     )

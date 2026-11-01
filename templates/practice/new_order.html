@@ -2,5 +2,6 @@
 {% block title %}Order {{ test.label }} for {{ patient.name }}{% endblock %}
 {% block content %}
 {% include "kit/index_header.html" with title="Order "|add:test.label|add:" for "|add:patient.name %}
+{% if sample %}<p>On sample {{ sample.sample_id }}, which the laboratory holds.</p>{% else %}<p>Collects a new sample.</p>{% endif %}
 {% include "kit/form.html" with form=form submit_label="Place order" %}
 {% endblock %}

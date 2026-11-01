@@ -7,12 +7,13 @@
 {% if entries %}
 <div class="overflow-auto"><table>
   <thead>
-    <tr><th scope="col">Ordered</th><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Lab report</th></tr>
+    <tr><th scope="col">Ordered</th><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Lab report</th></tr>
   </thead>
   <tbody>
     {% for entry in entries %}
     <tr>
       <td>{{ entry.order.ordered_at|date:"j M Y, H:i" }}</td>
+      <td>{{ entry.order.sample.sample_id }}</td>
       <td>{{ entry.order.get_test_display }}</td>
       <td>{{ entry.order.get_indication_display|default:"—" }}</td>
       <td>{% if entry.lab_report %}Released {{ entry.lab_report.released_at|date:"j M Y, H:i" }}{% else %}—{% endif %}</td>
@@ -22,7 +23,7 @@
 </table></div>
 {% for entry in entries %}{% if entry.lab_report %}
 <section>
-  <h2>{{ entry.order.get_test_display|capfirst }} lab report</h2>
+  <h2>{{ entry.order.get_test_display|capfirst }} lab report, sample {{ entry.order.sample.sample_id }}</h2>
   <p>Released {{ entry.lab_report.released_at|date:"j M Y, H:i" }}</p>
   {% if entry.lab_report.comment %}<p><strong>{{ entry.lab_report.comment }}</strong></p>{% endif %}
   {% if entry.order_ferritin_url %}<div class="action-row"><a href="{{ entry.order_ferritin_url }}" role="button">Order ferritin</a></div>{% endif %}

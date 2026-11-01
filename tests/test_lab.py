@@ -31,7 +31,7 @@ def test_the_lab_never_sees_a_patients_name() -> None:
 
 def tube(patient: Patient) -> Participant:
     """What the patient's tube would measure, at the hospital's analyser stand-in."""
-    return Participant.objects.get(seqn=int(patient.sample_id))
+    return Participant.objects.get(seqn=int(patient.nhanes_number))
 
 
 def place(world: World, test: str, patient: str) -> None:
@@ -77,6 +77,19 @@ def an_order(world: World, test: str, patient: str) -> None:
     place(world, test, patient)
 
 
+@given("a ferritin order on that sample")
+def ferritin_on_that_sample(world: World) -> None:
+    sample = world["order"].sample
+    world["order"] = practice_services.order_on_sample(
+        general_practitioner=sample.patient.general_practitioner,
+        sample=sample,
+        test=OrderedTest.FERRITIN,
+        indication=None,
+        now=NOW,
+    )
+    world["lab_order"] = deliver(world["order"])
+
+
 @given(
     parsers.re(r'an analysed (?P<test>CBC|ferritin) sample for "(?P<patient>[^"]+)"')
 )
@@ -91,7 +104,8 @@ def an_analysed_sample(world: World, test: str, patient: str) -> None:
 def no_tube(world: World, patient: str) -> None:
     from web.nhanes.models import Participant
 
-    Participant.objects.filter(seqn=int(world["patients"][patient].sample_id)).delete()
+    seqn = int(world["patients"][patient].nhanes_number)
+    Participant.objects.filter(seqn=seqn).delete()
 
 
 @when("laboratory staff run the analyser")
@@ -141,7 +155,7 @@ def ferritin_not_available(world: World) -> None:
 )
 def lab_rows_hold(world: World) -> None:
     (lab_order,) = queries.lab_orders_to_analyse()
-    assert lab_order.sample.sample_id == world["order"].sample_id
+    assert lab_order.sample.sample_id == world["order"].sample.sample_id
     assert lab_order.general_practitioner == "Dr. Demo A"
     assert lab_order.get_registered_sex_display() == "Female"
     assert lab_order.get_test_display() == "CBC"

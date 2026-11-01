@@ -26,12 +26,19 @@ from web.practice import messaging
 from web.practice import services as practice_services
 from web.practice.messaging import Connection
 from web.practice.models import GeneralPractitioner, LabReport, Order, Patient
+from web.practice.models import Sample as PracticeSample
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 30, 10, 0, tzinfo=UTC)
 # The server runs in its own threads, so the test may not hold a transaction.
 pytestmark = pytest.mark.django_db(transaction=True)
+
+
+def latest_sample_id(patient: Patient) -> str:
+    """The sample ID of the patient's latest sample."""
+    return patient.samples.latest("pk").sample_id
+
 
 scenarios("messaging.feature")
 
@@ -172,7 +179,7 @@ def released(world: World, name: str, patient: str) -> None:
     order(world, patient, OrderedTest.FERRITIN, None)
     messaging.send_pending_lab_orders(world["connection"], now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get(
-        sample__sample_id=world["patients"][patient].sample_id
+        sample__sample_id=latest_sample_id(world["patients"][patient])
     )
     lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
 
@@ -189,7 +196,7 @@ def released_suggested(world: World, name: str, patient: str) -> None:
     order(world, patient, OrderedTest.CBC, "non-specific complaint")
     messaging.send_pending_lab_orders(world["connection"], now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get(
-        sample__sample_id=world["patients"][patient].sample_id
+        sample__sample_id=latest_sample_id(world["patients"][patient])
     )
     lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
     # As the deployed model would have decided (features/screening.feature).
@@ -202,7 +209,7 @@ def released_suggested(world: World, name: str, patient: str) -> None:
     parsers.parse('the lab report of "{patient}" has ferritin suggested at "{owner}"')
 )
 def has_ferritin_suggested(world: World, patient: str, owner: str) -> None:
-    report = LabReport.objects.get(order__patient=world["patients"][patient])
+    report = LabReport.objects.get(order__sample__patient=world["patients"][patient])
     assert report.ferritin_suggested is True
 
 
@@ -214,13 +221,13 @@ def checks(world: World) -> None:
 
 @then(parsers.parse('"{name}" has a lab order for the sample of "{patient}"'))
 def has_lab_order(world: World, name: str, patient: str) -> None:
-    sample_id = world["patients"][patient].sample_id
+    sample_id = latest_sample_id(world["patients"][patient])
     assert LabOrder.objects.filter(sample__sample_id=sample_id).exists()
 
 
 @then(parsers.parse('"{name}" has one lab order for the sample of "{patient}"'))
 def has_one_lab_order(world: World, name: str, patient: str) -> None:
-    sample_id = world["patients"][patient].sample_id
+    sample_id = latest_sample_id(world["patients"][patient])
     assert LabOrder.objects.filter(sample__sample_id=sample_id).count() == 1
 
 
@@ -233,7 +240,7 @@ def has_one_lab_order(world: World, name: str, patient: str) -> None:
 def lab_order_holds(world: World, owner: str) -> None:
     lab_order = LabOrder.objects.select_related("sample").get()
     placed = world["order"]
-    assert lab_order.sample.sample_id == placed.sample_id
+    assert lab_order.sample.sample_id == placed.sample.sample_id
     assert (lab_order.test, lab_order.indication) == (placed.test, placed.indication)
     assert (lab_order.registered_sex, lab_order.age) == (
         placed.registered_sex,
@@ -254,12 +261,16 @@ def no_lab_order(world: World, name: str) -> None:
 
 @then(parsers.parse('"{owner}" has the lab report of "{patient}"'))
 def has_lab_report(world: World, owner: str, patient: str) -> None:
-    assert LabReport.objects.filter(order__patient=world["patients"][patient]).exists()
+    assert LabReport.objects.filter(
+        order__sample__patient=world["patients"][patient]
+    ).exists()
 
 
 @then(parsers.parse('"{owner}" has one lab report of "{patient}"'))
 def has_one_lab_report(world: World, owner: str, patient: str) -> None:
-    reports = LabReport.objects.filter(order__patient=world["patients"][patient])
+    reports = LabReport.objects.filter(
+        order__sample__patient=world["patients"][patient]
+    )
     assert reports.count() == 1
 
 
@@ -289,7 +300,7 @@ def receives_none(world: World) -> None:
 
 def lab_order_of(world: World, patient: str) -> LabOrder:
     return LabOrder.objects.get(
-        sample__sample_id=world["patients"][patient].sample_id,
+        sample__sample_id=latest_sample_id(world["patients"][patient]),
         test=world["order"].test,
     )
 
@@ -322,7 +333,7 @@ def other_sends(world: World, patient: str) -> None:
 
 @then(parsers.parse('"{name}" has two samples with the sample ID of "{patient}"'))
 def two_samples(world: World, name: str, patient: str) -> None:
-    sample_id = world["patients"][patient].sample_id
+    sample_id = latest_sample_id(world["patients"][patient])
     assert Sample.objects.filter(sample_id=sample_id).count() == 2
 
 
@@ -333,14 +344,17 @@ def released_unknown(world: World, name: str, owner: str) -> None:
     """A lab order from this app the app itself has no order for."""
     Participant.objects.create(seqn=999999, cbc={})
     stranger = Order(
-        sample_id="999999",
+        sample=PracticeSample(
+            patient=world["patients"]["Test Patient 1"],
+            sample_id="999999",
+            collected_at=NOW,
+        ),
         test=OrderedTest.FERRITIN,
         indication=None,
         registered_sex=RegisteredSex.FEMALE,
         age=30,
         ordered_at=NOW,
     )
-    stranger.patient = world["patients"]["Test Patient 1"]
     messaging.send_lab_order(stranger, world["connection"])
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id="999999"
@@ -413,7 +427,7 @@ def test_placing_an_order_sends_its_lab_order(
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
     client.post(new_order_url(record))
-    assert LabOrder.objects.filter(sample__sample_id=record.sample_id).exists()
+    assert LabOrder.objects.filter(sample__sample_id=latest_sample_id(record)).exists()
     assert Order.objects.get().sent_at is not None
 
 
@@ -455,7 +469,7 @@ def test_check_for_reports_fetches_them(
     response = client.post(reverse("practice:check_for_reports"))
     assert response["Location"] == reverse("practice:orders")
     assertContains(client.get(response["Location"]), "1 new lab report.")
-    assert LabReport.objects.filter(order__patient=record).exists()
+    assert LabReport.objects.filter(order__sample__patient=record).exists()
 
 
 def test_check_for_reports_is_offered_only_with_a_hospital_to_ask(
@@ -473,7 +487,7 @@ def test_the_command_checks_for_reports(
 ) -> None:
     record = released_ferritin(owner)
     call_command("check_for_lab_reports")
-    assert LabReport.objects.filter(order__patient=record).exists()
+    assert LabReport.objects.filter(order__sample__patient=record).exists()
 
 
 def test_the_command_needs_a_hospital_to_ask(settings: Settings) -> None:

@@ -14,6 +14,11 @@ urlpatterns = [
         views.NewOrderView.as_view(),
         name="new_order",
     ),
+    path(
+        "patients/<int:patient>/samples/<int:sample>/orders/new/<test:test>/",
+        views.NewOrderView.as_view(),
+        name="new_order_on_sample",
+    ),
     path("orders/", views.OrderIndexView.as_view(), name="orders"),
     path(
         "orders/check-for-reports/",

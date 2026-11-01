@@ -11,7 +11,7 @@
     {% for order in orders %}
     <tr>
       <td>{{ order.ordered_at|date:"j M Y, H:i" }}</td>
-      <td><a href="{% url 'practice:patient' order.patient.pk %}">{{ order.patient.name }}</a></td>
+      <td><a href="{% url 'practice:patient' order.sample.patient.pk %}">{{ order.sample.patient.name }}</a></td>
       <td>{{ order.get_test_display }}</td>
       <td>{{ order.get_indication_display|default:"—" }}</td>
       <td>{% if order.lab_report_released_at %}Released {{ order.lab_report_released_at|date:"j M Y, H:i" }}{% else %}—{% endif %}</td>

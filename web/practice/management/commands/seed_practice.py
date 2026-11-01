@@ -24,9 +24,9 @@ class Command(SeedCommand):
             general_practitioner("doctor-b", "Dr. Demo B"),
         ]
         for number, row in enumerate(rows, start=1):
-            # The sample ID is the participant's NHANES number (R26).
+            # Each patient is one NHANES participant; samples start with its number.
             Patient.objects.get_or_create(
-                sample_id=str(int(row["sample_id"])),
+                nhanes_number=str(int(row["sample_id"])),
                 defaults={
                     "general_practitioner": practitioners[
                         (number - 1) % len(practitioners)
