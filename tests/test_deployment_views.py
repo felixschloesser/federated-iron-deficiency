@@ -60,8 +60,10 @@ def test_models_page(
         response, 'aria-label="Deploy Screening model of 30 Oct 2026, 10:00"'
     )
     for term, value in (
-        ("Iron-deficient women found", "7 of 10"),
-        ("Unnecessary ferritin suggestions", "5"),
+        ("Sensitivity", "7 of 10 iron-deficient women (70%)"),
+        ("Specificity", "37 of 42 women without iron deficiency (88%)"),
+        ("Positive predictive value", "7 of 12 ferritin suggestions (58%)"),
+        ("Negative predictive value", "37 of 40 women without a suggestion (92%)"),
         ("AUROC here", "0.84"),
         ("AUROC across hospitals", "0.87"),
         ("Threshold", "0.5"),

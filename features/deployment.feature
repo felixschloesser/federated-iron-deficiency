@@ -32,8 +32,8 @@ Feature: Deploying a screening model
 
   Scenario: Local validation is shown next to the deployed model's
     Given the laboratory director deployed "run-1"
-    Then the screening models show "run-1", deployed, finding 7 of 10 deficient with 5 unnecessary suggestions, AUROC 0.84
-    And they show "run-2", finding 8 of 10 deficient with 6 unnecessary suggestions, AUROC 0.86
+    Then the screening models show "run-1", deployed, with sensitivity 7 of 10, specificity 37 of 42, positive predictive value 7 of 12, negative predictive value 37 of 40, AUROC 0.84
+    And they show "run-2", with sensitivity 8 of 10, specificity 36 of 42, positive predictive value 8 of 14, negative predictive value 36 of 38, AUROC 0.86
 
   Scenario Outline: A screening model that cannot be deployed says why
     Given screening model "run-3" that <problem>

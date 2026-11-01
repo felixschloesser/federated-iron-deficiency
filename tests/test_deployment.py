@@ -196,17 +196,19 @@ def history(world: World, first: str, second: str, third: str) -> None:
 @then(
     parsers.re(
         r'(?:the screening models|they) show "(?P<run_id>[^"]+)", (?P<is_deployed>deployed, )?'
-        r"finding (?P<found>\d+) of (?P<total>\d+) deficient with "
-        r"(?P<unnecessary>\d+) unnecessary suggestions, AUROC (?P<auroc>[\d.]+)"
+        r"with sensitivity (?P<sensitivity>\d+ of \d+), specificity (?P<specificity>\d+ of \d+),"
+        r" positive predictive value (?P<ppv>\d+ of \d+),"
+        r" negative predictive value (?P<npv>\d+ of \d+), AUROC (?P<auroc>[\d.]+)"
     )
 )
 def shows_validation(
     world: World,
     run_id: str,
     is_deployed: str | None,
-    found: str,
-    total: str,
-    unnecessary: str,
+    sensitivity: str,
+    specificity: str,
+    ppv: str,
+    npv: str,
     auroc: str,
 ) -> None:
     from web.deployment.domain import screening_models
@@ -214,8 +216,10 @@ def shows_validation(
     (model,) = [
         m for m in screening_models(world["final_models_dir"]) if m.run_id == run_id
     ]
-    assert (model.deficient_found, model.deficient_total) == (int(found), int(total))
-    assert model.unnecessary_suggestions == int(unnecessary)
+    assert str(model.sensitivity) == sensitivity
+    assert str(model.specificity) == specificity
+    assert str(model.positive_predictive_value) == ppv
+    assert str(model.negative_predictive_value) == npv
     assert model.local_auroc == pytest.approx(float(auroc))
     screening_model, _ = deployed(world)
     assert (getattr(screening_model, "run_id", None) == run_id) == bool(is_deployed)
