@@ -18,8 +18,10 @@
   </header>
   <dl>
     {% if model.local_validation %}
-    <dt>Iron-deficient women found</dt><dd>{{ model.deficient_found }} of {{ model.deficient_total }}</dd>
-    <dt>Unnecessary ferritin suggestions</dt><dd>{{ model.unnecessary_suggestions }}</dd>
+    {% with ratio=model.sensitivity %}<dt>Sensitivity</dt><dd>{{ ratio }} iron-deficient women{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</dd>{% endwith %}
+    {% with ratio=model.specificity %}<dt>Specificity</dt><dd>{{ ratio }} women without iron deficiency{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</dd>{% endwith %}
+    {% with ratio=model.positive_predictive_value %}<dt>Positive predictive value</dt><dd>{{ ratio }} ferritin suggestions{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</dd>{% endwith %}
+    {% with ratio=model.negative_predictive_value %}<dt>Negative predictive value</dt><dd>{{ ratio }} women without a suggestion{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</dd>{% endwith %}
     <dt>AUROC here</dt><dd>{{ model.local_auroc|floatformat:2|default:"—" }}</dd>
     {% endif %}
     {% if model.federated_auroc is not None %}<dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>{% endif %}

@@ -38,6 +38,22 @@ class NoUsableModel(models.TextChoices):
 
 
 @dataclass(frozen=True)
+class Ratio:
+    """Part of a whole, shown with both counts: 7 of 10."""
+
+    part: int
+    whole: int
+
+    def __str__(self) -> str:
+        return f"{self.part} of {self.whole}"
+
+    @property
+    def percent(self) -> str | None:
+        """The share as a whole percentage; None when there is no whole."""
+        return f"{self.part / self.whole:.0%}" if self.whole else None
+
+
+@dataclass(frozen=True)
 class ScreeningModelFile:
     """A screening model as its file says, and why it cannot be deployed, if it cannot."""
 
@@ -52,19 +68,31 @@ class ScreeningModelFile:
     def name(self) -> str:
         return model_name(self.stored_at, self.run_id)
 
+    def count(self, cell: str) -> int:
+        """One cell of the local validation's confusion matrix."""
+        return int(self.local_validation.get(cell, 0))
+
+    # The laboratory's measures of a method's ability to detect disease (WHO LQMS
+    # 3-3, p. 40), each as the counts it comes from.
     @property
-    def deficient_found(self) -> int:
-        return int(self.local_validation.get("true_positives", 0))
+    def sensitivity(self) -> "Ratio":
+        found = self.count("true_positives")
+        return Ratio(found, found + self.count("false_negatives"))
 
     @property
-    def deficient_total(self) -> int:
-        return self.deficient_found + int(
-            self.local_validation.get("false_negatives", 0)
-        )
+    def specificity(self) -> "Ratio":
+        cleared = self.count("true_negatives")
+        return Ratio(cleared, cleared + self.count("false_positives"))
 
     @property
-    def unnecessary_suggestions(self) -> int:
-        return int(self.local_validation.get("false_positives", 0))
+    def positive_predictive_value(self) -> "Ratio":
+        found = self.count("true_positives")
+        return Ratio(found, found + self.count("false_positives"))
+
+    @property
+    def negative_predictive_value(self) -> "Ratio":
+        cleared = self.count("true_negatives")
+        return Ratio(cleared, cleared + self.count("false_negatives"))
 
     @property
     def local_auroc(self) -> float | None:
