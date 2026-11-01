@@ -103,3 +103,23 @@ article[role="status"][data-level="error"] {
   outline: 2px solid var(--pico-color);
   outline-offset: 2px;
 }
+
+/* A sample's heading inside its summary, with its tests on the line below. */
+details > summary h2 {
+  display: inline;
+}
+
+details > summary small {
+  display: block;
+}
+
+/* A card's figures: each term beside its value. */
+article dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem var(--pico-spacing);
+}
+
+article dl dd {
+  margin: 0;
+}

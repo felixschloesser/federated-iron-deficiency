@@ -16,12 +16,16 @@
     {% elif deployed and model.run_id == deployed.run_id %}<p><strong>Deployed</strong></p>
     {% else %}{% url "deployment:deploy" model.run_id as deploy_url %}{% include "kit/action_button.html" with url=deploy_url label="Deploy" accessible_label="Deploy "|add:model.name %}{% endif %}
   </header>
-  {% if model.local_validation %}
-  <p>Finds {{ model.deficient_found }} of {{ model.deficient_total }} iron-deficient women<br>
-  {{ model.unnecessary_suggestions }} unnecessary ferritin suggestion{{ model.unnecessary_suggestions|pluralize }}<br>
-  AUROC {{ model.local_auroc|floatformat:2|default:"—" }} here{% if model.federated_auroc is not None %}, {{ model.federated_auroc|floatformat:2 }} across hospitals{% endif %}</p>
-  {% endif %}
-  <footer><small>{% if model.threshold is not None %}threshold {{ model.threshold }} · {% endif %}run {{ model.run_id }}</small></footer>
+  <dl>
+    {% if model.local_validation %}
+    <dt>Iron-deficient women found</dt><dd>{{ model.deficient_found }} of {{ model.deficient_total }}</dd>
+    <dt>Unnecessary ferritin suggestions</dt><dd>{{ model.unnecessary_suggestions }}</dd>
+    <dt>AUROC here</dt><dd>{{ model.local_auroc|floatformat:2|default:"—" }}</dd>
+    {% endif %}
+    {% if model.federated_auroc is not None %}<dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>{% endif %}
+    {% if model.threshold is not None %}<dt>Threshold</dt><dd>{{ model.threshold }}</dd>{% endif %}
+  </dl>
+  <footer><small>run {{ model.run_id }}</small></footer>
 </article>
 {% empty %}
 <p>No models have arrived.</p>

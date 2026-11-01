@@ -4,8 +4,8 @@
 {% include "kit/index_header.html" with title=patient.name actions=actions %}
 <p>{{ patient.get_registered_sex_display }}, aged {{ patient.age }}</p>
 {% for item in samples %}
-<section>
-  <h2>Sample <span class="sample-id">{{ item.sample.sample_id }}</span>, collected {{ item.sample.collected_at|date:"j M Y, H:i" }}</h2>
+<details{% if item.open %} open{% endif %}>
+  <summary><h2>Sample <span class="sample-id">{{ item.sample.sample_id }}</span>, collected {{ item.sample.collected_at|date:"j M Y, H:i" }}</h2><small>{{ item.tests }}{% if item.suggested %} · Ferritin suggested{% endif %}</small></summary>
   {% for entry in item.entries %}
   <article>
     <h3>{{ entry.order.get_test_display|capfirst }}{% if entry.order.indication %} ({{ entry.order.get_indication_display|lower }}){% endif %}</h3>
@@ -32,7 +32,7 @@
     {% endif %}
   </article>
   {% endfor %}
-</section>
+</details>
 {% empty %}
 <p>No orders yet.</p>
 {% endfor %}

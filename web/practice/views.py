@@ -82,6 +82,8 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
         ]
         # Each sample with the tests on it, in the order they were placed, so a
         # ferritin ordered beside a suggestion shows right under it (R9, R11).
+        # Only the newest opens; the others summarise their tests and whether a
+        # lab report in them suggests ferritin.
         return {
             **super().get_context_data(**kwargs),
             "actions": actions,
@@ -89,8 +91,17 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
                 {
                     "sample": sample,
                     "entries": [self.entry(order) for order in sample.orders.all()],
+                    "open": number == 0,
+                    "tests": ", ".join(
+                        order.get_test_display() for order in sample.orders.all()
+                    ),
+                    "suggested": any(
+                        getattr(order, "lab_report", None) is not None
+                        and order.lab_report.ferritin_suggested
+                        for order in sample.orders.all()
+                    ),
                 }
-                for sample in samples
+                for number, sample in enumerate(samples)
             ],
         }
 
