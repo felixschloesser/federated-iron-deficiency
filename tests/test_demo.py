@@ -110,3 +110,33 @@ def test_each_web_app_has_its_own_colour_in_its_hospitals_family() -> None:
     vendor = Path(__file__).resolve().parents[1] / "static/css/vendor/pico-2.1.1"
     for colour in colours.values():
         assert (vendor / f"pico.{colour}.min.css").is_file(), colour
+
+
+def test_reset_removes_only_the_web_databases(tmp_path: Path) -> None:
+    from tools.demo import hospital_dir, practice_dir, reset
+
+    kept = []
+    removed = []
+    for folder in (hospital_dir(tmp_path, "uz-leuven"), practice_dir(tmp_path, "a")):
+        (folder / "certificates").mkdir(parents=True)
+        for name in ("nhanes.csv", "certificates/ca.crt"):
+            (folder / name).write_text("keep")
+            kept.append(folder / name)
+        (folder / "web.sqlite3").write_text("old")
+        removed.append(folder / "web.sqlite3")
+    reset(tmp_path, demo_running=lambda: False)
+    assert all(path.exists() for path in kept)
+    assert not any(path.exists() for path in removed)
+
+
+def test_reset_refuses_while_the_demo_runs(tmp_path: Path) -> None:
+    import pytest
+
+    from tools.demo import hospital_dir, reset
+
+    database = hospital_dir(tmp_path, "uz-leuven") / "web.sqlite3"
+    database.parent.mkdir(parents=True)
+    database.write_text("in use")
+    with pytest.raises(SystemExit, match="Stop the demo"):
+        reset(tmp_path, demo_running=lambda: True)
+    assert database.exists()
