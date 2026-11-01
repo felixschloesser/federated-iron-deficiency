@@ -96,7 +96,7 @@ def make_laboratory_director(name: str) -> "LaboratoryDirector":
 
 
 def deliver(order: "Order") -> "LabOrder":
-    """The lab order (DF23) arriving at the hospital, as its messaging endpoint records it."""
+    """The lab order (DF24) arriving at the hospital, as its messaging endpoint records it."""
     from web.lab.services import LabOrderDetails, record_lab_order
     from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 

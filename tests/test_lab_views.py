@@ -29,7 +29,7 @@ def staff_member() -> LaboratoryStaffMember:
 
 @pytest.fixture
 def lab_order() -> LabOrder:
-    """A ferritin ordered by a general practitioner, as the lab received it (DF23)."""
+    """A ferritin ordered by a general practitioner, as the lab received it (DF24)."""
     owner = make_general_practitioner("Dr. Demo A")
     patient = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     order = services.place_order(
@@ -148,7 +148,7 @@ def test_general_practitioner_cannot_receive(
 
 
 def cbc_lab_order(sex: RegisteredSex) -> LabOrder:
-    """A CBC for a non-specific complaint, aged 32, as the lab received it (DF23)."""
+    """A CBC for a non-specific complaint, aged 32, as the lab received it (DF24)."""
     from web.vocabulary import ClinicalIndication
 
     owner = make_general_practitioner("Dr. Demo A")
