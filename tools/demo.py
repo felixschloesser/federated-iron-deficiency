@@ -24,6 +24,8 @@ from pathlib import Path
 from types import FrameType
 from typing import NoReturn
 
+from tqdm import tqdm
+
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 from tools.certificates import issue, make_authority
 from web.demo_accounts import (
@@ -283,28 +285,57 @@ def prepare(demo_dir: Path) -> None:
                         )
                     )
                 nhanes.to_csv(folder / "nhanes.csv", index=False)
-        prepare_web(hospital, "HOSPITAL_DIR", "seed_hospital", partition)
-        prepare_web(practice, "PRACTICE_DIR", "seed_practice", partition)
 
 
-def screening_statuses(demo_dir: Path) -> dict[str, str]:
-    """Each hospital's one-line screening model state, by folder name."""
-    statuses = {}
-    for _, slug in hospitals():
-        env = {
-            **os.environ,
-            "HOSPITAL_DIR": str(hospital_dir(demo_dir, slug)),
-            "DJANGO_DEBUG": "1",
-        }
-        result = subprocess.run(
-            manage("screening_status"),
-            env=env,
-            check=True,
-            capture_output=True,
-            text=True,
+def prepare_webs(demo_dir: Path) -> dict[str, str]:
+    """Migrate and seed every party's web database, then ask each hospital for
+    its screening model state, by folder name; a bar shows the slow steps."""
+    webs = [
+        (folder, party, seed, partition, name)
+        for (partition, hospital), (_, practice), cycle in zip(
+            hospitals(), practices(), CYCLES, strict=True
         )
-        statuses[slug] = result.stdout.strip()
+        for folder, party, seed, name in (
+            (
+                hospital_dir(demo_dir, hospital),
+                "HOSPITAL_DIR",
+                "seed_hospital",
+                HOSPITALS[cycle],
+            ),
+            (
+                practice_dir(demo_dir, practice),
+                "PRACTICE_DIR",
+                "seed_practice",
+                PRACTICES[cycle],
+            ),
+        )
+    ]
+    statuses = {}
+    # Every step's label as wide as the longest, so the bar does not jump.
+    width = len("Preparing ") + max(len(web[4]) for web in webs)
+    with tqdm(total=len(webs) + len(hospitals()), unit="step", leave=False) as bar:
+        for folder, party, seed, partition, name in webs:
+            bar.set_description_str(f"{'Preparing ' + name:<{width}}")
+            prepare_web(folder, party, seed, partition)
+            bar.update()
+        for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
+            bar.set_description_str(f"{'Checking ' + HOSPITALS[cycle]:<{width}}")
+            statuses[slug] = screening_status(demo_dir, slug)
+            bar.update()
     return statuses
+
+
+def screening_status(demo_dir: Path, slug: str) -> str:
+    """One hospital's one-line screening model state."""
+    env = {
+        **os.environ,
+        "HOSPITAL_DIR": str(hospital_dir(demo_dir, slug)),
+        "DJANGO_DEBUG": "1",
+    }
+    result = subprocess.run(
+        manage("screening_status"), env=env, check=True, capture_output=True, text=True
+    )
+    return result.stdout.strip()
 
 
 def summary(statuses: dict[str, str]) -> str:
@@ -358,7 +389,7 @@ def stop(signum: int, frame: FrameType | None) -> NoReturn:
 def up(demo_dir: Path) -> None:
     """Start every party; stop them all on Ctrl-C or when one exits."""
     prepare(demo_dir)
-    statuses = screening_statuses(demo_dir)
+    statuses = prepare_webs(demo_dir)
     # Stop the children on SIGTERM too, not only on Ctrl-C.
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)

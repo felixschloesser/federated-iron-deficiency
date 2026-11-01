@@ -57,7 +57,9 @@ dev = [
     "pytest-django>=4.14.0",
     "ruff>=0.17.3",
     "scipy-stubs>=1.18.1.1",
+    "tqdm>=4.70.1",
     "types-grpcio>=1.85.0.20261028",
+    "types-tqdm>=4.67",
 ]
 web = [
     "django>=5.2,<6",
