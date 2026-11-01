@@ -21,10 +21,11 @@ pytestmark = pytest.mark.django_db
 PEOPLE = [
     ("Female", 30, 8.0),  # eligible, ferritin below 15
     ("Female", 25, 40.0),  # eligible, ferritin 15 or more
-    ("Female", 40, None),  # eligible, no ferritin
     ("Male", 35, None),  # men
     ("Female", 70, None),  # women outside 18-49
 ]
+# Eligible women whom NHANES did not measure: never seeded.
+UNMEASURED = ("Female", 40, None)
 
 
 def nhanes_rows() -> pd.DataFrame:
@@ -37,7 +38,7 @@ def nhanes_rows() -> pd.DataFrame:
             **dict.fromkeys(CBC_VARS, float(group)),
             "LBXFER": ferritin,
         }
-        for group, (sex, age, ferritin) in enumerate(PEOPLE)
+        for group, (sex, age, ferritin) in enumerate([*PEOPLE, UNMEASURED])
         for copy in range(4)
     ]
     return pd.DataFrame(rows)
@@ -70,6 +71,9 @@ def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
         assert participants.count() == 3
         for participant in participants:
             assert participant.ferritin == ferritin
+            # NHANES did not measure them: a value made up from the women who
+            # were, at or above the cutoff (here the 25-year-olds' 40.0).
+            assert participant.made_up_ferritin == (40.0 if ferritin is None else None)
             assert participant.cbc == dict.fromkeys(CBC_VARS, float(group))
             patient = Patient.objects.get(nhanes_number=str(participant.seqn))
             assert patient.registered_sex == sex.lower()
@@ -144,3 +148,18 @@ def test_a_practice_seeds_no_analyser_values(
         Role.GENERAL_PRACTITIONER,
         None,
     }
+
+
+def test_eligible_women_without_ferritin_are_never_seeded(seeded: None) -> None:
+    assert not Participant.objects.filter(seqn__range=(1040, 1049)).exists()
+    assert not Patient.objects.filter(age=40).exists()
+
+
+def test_a_made_up_ferritin_is_reported_under_its_own_name() -> None:
+    from web.nhanes.models import MADE_UP_FERRITIN
+    from web.vocabulary import RESULT_NAMES, Test
+
+    participant = Participant(seqn=1, cbc={}, ferritin=None, made_up_ferritin=60.0)
+    assert participant.measure(Test.FERRITIN) == {MADE_UP_FERRITIN: 60.0}
+    assert RESULT_NAMES[MADE_UP_FERRITIN].name == "Ferritin (made up for the demo)"
+    assert RESULT_NAMES[MADE_UP_FERRITIN].unit == "ng/mL"

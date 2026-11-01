@@ -52,7 +52,12 @@ def test_models_page(
     with django_assert_num_queries(4):
         response = client.get(reverse("deployment:models"))
     assertContains(
-        response, "<h2>Screening model of 30 Oct 2026, 10:00</h2>", html=True
+        response,
+        '<h2>Screening model of <span class="no-wrap">30 Oct 2026, 10:00</span></h2>',
+        html=True,
+    )
+    assertContains(
+        response, 'aria-label="Deploy screening model of 30 Oct 2026, 10:00"'
     )
     assertContains(response, "Finds 7 of 10 iron-deficient women")
     assertContains(response, "5 unnecessary ferritin suggestions")
