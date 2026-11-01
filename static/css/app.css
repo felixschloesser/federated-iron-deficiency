@@ -85,3 +85,9 @@ article[role="status"][data-level="error"] {
 .card-header button {
   width: auto;
 }
+
+/* A sample ID such as 139264-2 never breaks at its hyphen: it is what matches a
+   sample to its lab report. */
+.sample-id {
+  white-space: nowrap;
+}

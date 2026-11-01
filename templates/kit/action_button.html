@@ -1,6 +1,7 @@
 {% comment %}One action as a POST button (POST-redirect-GET).
-Include with: url, label.{% endcomment %}
+Include with: url, label, and optionally accessible_label when several buttons
+on one page share a label.{% endcomment %}
 <form method="post" action="{{ url }}">
   {% csrf_token %}
-  <button type="submit">{{ label }}</button>
+  <button type="submit"{% if accessible_label %} aria-label="{{ accessible_label }}"{% endif %}>{{ label }}</button>
 </form>

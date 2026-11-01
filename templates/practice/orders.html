@@ -5,13 +5,14 @@
 {% if orders %}
 <div class="overflow-auto"><table>
   <thead>
-    <tr><th scope="col">Ordered</th><th scope="col">Patient</th><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Lab report</th></tr>
+    <tr><th scope="col">Ordered</th><th scope="col">Patient</th><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Lab report</th></tr>
   </thead>
   <tbody>
     {% for order in orders %}
     <tr>
       <td>{{ order.ordered_at|date:"j M Y, H:i" }}</td>
       <td><a href="{% url 'practice:patient' order.sample.patient.pk %}">{{ order.sample.patient.name }}</a></td>
+      <td class="sample-id">{{ order.sample.sample_id }}</td>
       <td>{{ order.get_test_display }}</td>
       <td>{{ order.get_indication_display|default:"—" }}</td>
       <td>{% if order.lab_report_released_at %}Released {{ order.lab_report_released_at|date:"j M Y, H:i" }}{% else %}—{% endif %}</td>
