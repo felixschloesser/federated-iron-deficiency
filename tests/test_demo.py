@@ -176,3 +176,14 @@ def test_the_next_step_follows_the_hospitals_state() -> None:
     assert "Next: deploy a screening model as director-1" in summary(trained)
     deployed = dict.fromkeys(STATUSES, "Screening model of … deployed (1 in all)")
     assert "Next:" not in summary(deployed)
+
+
+def test_each_practice_checks_for_lab_reports_every_five_seconds() -> None:
+    # The demo squeezes hours into seconds; a real practice checks every 60.
+    for process in plan(DEMO):
+        if "PRACTICE_DIR" in process.env:
+            assert process.env["REPORT_CHECK_SECONDS"] == "5", process.name
+    (reports,) = [
+        p for p in plan(DEMO) if p.name == "reports huisartsenpraktijk-de-akker"
+    ]
+    assert reports.command[-2:] == ["check_for_lab_reports", "--repeat"]

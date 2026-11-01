@@ -504,3 +504,21 @@ def test_the_command_needs_a_hospital_to_ask(settings: Settings) -> None:
     settings.MESSAGING_ADDRESS = None
     with pytest.raises(CommandError, match="MESSAGING_ADDRESS"):
         call_command("check_for_lab_reports")
+
+
+def test_an_awaited_lab_report_says_when_it_arrives(
+    client: Client, settings: Settings, practice: Path, owner: GeneralPractitioner
+) -> None:
+    settings.REPORT_CHECK_SECONDS = 5
+    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    client.force_login(owner.user)
+    client.post(new_order_url(client, record))
+    page = reverse("practice:patient", kwargs={"pk": record.pk})
+    assertContains(
+        client.get(page),
+        "Awaiting lab report. New reports arrive within 5 seconds; reload to see them.",
+    )
+    settings.MESSAGING_ADDRESS = None
+    response = client.get(page)
+    assertContains(response, "Awaiting lab report.")
+    assertNotContains(response, "New reports arrive")
