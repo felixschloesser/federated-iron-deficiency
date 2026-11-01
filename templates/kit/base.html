@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{% endblock %}{% if party_name %} · {{ party_name }}{% endif %}</title>
-  <link rel="stylesheet" href="{% static 'css/vendor/pico-2.1.1/pico.min.css' %}">
+  {# 500.html renders without context, so the party's theme may be absent. #}
+  <link rel="stylesheet" href="{% if party_stylesheet %}{% static party_stylesheet %}{% else %}{% static 'css/vendor/pico-2.1.1/pico.min.css' %}{% endif %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body>

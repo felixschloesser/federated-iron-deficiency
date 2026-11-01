@@ -279,6 +279,8 @@ gains `ca/` (its certificate authority) and `messaging/` (the endpoint's
 server certificate, served by `serve_messages`). Without either folder set,
 a development checkout serves every party's pages from one database.
 
+Each web app takes a Pico colour theme from `PARTY_COLOUR` (vendored themes only; absent: Pico's default), so the parties' pages are told apart at a glance: UZ Leuven jade and De Akker green, Heilig Hart Leuven pumpkin and De Berk amber, AZ Diest violet and De Ceder purple.
+
 ## 10. Messages between the general practitioner and the hospital (DF23, DF25)
 
 The general practitioner's app is always the client (R23): it sends lab orders

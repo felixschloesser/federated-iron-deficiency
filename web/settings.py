@@ -43,6 +43,17 @@ PARTY_NAME = (
     if PRACTICE_DIR
     else os.environ.get("HOSPITAL_NAME", "Demo hospital")
 )
+# A Pico colour theme per party, so its pages are told apart at a glance; absent:
+# Pico's default. Only a vendored theme will do.
+PICO_DIR = BASE_DIR / "static" / "css" / "vendor" / "pico-2.1.1"
+PARTY_COLOUR = os.environ.get("PARTY_COLOUR") or None
+if (
+    PARTY_COLOUR is not None
+    and not (PICO_DIR / f"pico.{PARTY_COLOUR}.min.css").is_file()
+):
+    raise ImproperlyConfigured(
+        f"PARTY_COLOUR {PARTY_COLOUR!r} has no Pico theme in {PICO_DIR}."
+    )
 if PARTY_DIR is not None and "DATABASE_NAME" in os.environ:
     raise ImproperlyConfigured(
         "DATABASE_NAME cannot be set with HOSPITAL_DIR or PRACTICE_DIR:"

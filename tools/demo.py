@@ -47,6 +47,16 @@ PRACTICES = dict(
 )
 
 
+# Each hospital's Pico colour, and its practice's from the same family.
+COLOURS = dict(
+    zip(
+        CYCLES,
+        (("jade", "green"), ("pumpkin", "amber"), ("violet", "purple")),
+        strict=True,
+    )
+)
+
+
 @dataclass(frozen=True)
 class Process:
     name: str
@@ -141,7 +151,11 @@ def plan(demo_dir: Path) -> list[Process]:
                 manage(
                     "runserver", "--noreload", f"127.0.0.1:{FIRST_WEB_PORT + partition}"
                 ),
-                {**party, "HOSPITAL_NAME": HOSPITALS[cycle]},
+                {
+                    **party,
+                    "HOSPITAL_NAME": HOSPITALS[cycle],
+                    "PARTY_COLOUR": COLOURS[cycle][0],
+                },
             ),
             Process(
                 f"messaging {slug}",
@@ -168,7 +182,11 @@ def plan(demo_dir: Path) -> list[Process]:
                     "--noreload",
                     f"127.0.0.1:{FIRST_PRACTICE_PORT + partition}",
                 ),
-                {**party, "PRACTICE_NAME": PRACTICES[cycle]},
+                {
+                    **party,
+                    "PRACTICE_NAME": PRACTICES[cycle],
+                    "PARTY_COLOUR": COLOURS[cycle][1],
+                },
             ),
             Process(
                 f"reports {slug}",
