@@ -170,3 +170,29 @@ def test_a_colour_without_a_vendored_pico_theme_is_refused() -> None:
     result = database_path({"PARTY_COLOUR": "chartreuse"})
     assert result.returncode != 0
     assert "PARTY_COLOUR" in result.stderr
+
+
+def setting(name: str, env: dict[str, str]) -> str:
+    code = f"from django.conf import settings; print(settings.{name})"
+    return subprocess.run(
+        [sys.executable, "-c", code],
+        check=True,
+        cwd=ROOT,
+        env={**BASE_ENV, "DJANGO_SETTINGS_MODULE": "web.settings", **env},
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+@pytest.mark.parametrize("party", ["HOSPITAL_DIR", "PRACTICE_DIR"])
+def test_each_party_has_its_own_cookies(tmp_path: Path, party: str) -> None:
+    # Browsers share cookies across ports, and the demo runs every party on
+    # 127.0.0.1: one party's login must not replace another's session or token.
+    env = {party: str(tmp_path / "uz-leuven")}
+    assert setting("SESSION_COOKIE_NAME", env) == "sessionid-uz-leuven"
+    assert setting("CSRF_COOKIE_NAME", env) == "csrftoken-uz-leuven"
+
+
+def test_a_development_checkout_keeps_djangos_cookie_names() -> None:
+    assert setting("SESSION_COOKIE_NAME", {}) == "sessionid"
+    assert setting("CSRF_COOKIE_NAME", {}) == "csrftoken"
