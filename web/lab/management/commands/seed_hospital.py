@@ -7,6 +7,7 @@ import pandas as pd
 
 from iron_deficiency.dataset import CBC_VARS
 from web.accounts.demo import SeedCommand, user
+from web.demo_accounts import LABORATORY_DIRECTOR, LABORATORY_STAFF
 from web.deployment.models import LaboratoryDirector
 from web.lab.models import LaboratoryStaffMember
 from web.nhanes.models import Participant
@@ -17,10 +18,10 @@ class Command(SeedCommand):
 
     def seed(self, rows: list[dict[Hashable, Any]]) -> list[str]:
         LaboratoryStaffMember.objects.get_or_create(
-            user=user("lab-1"), defaults={"name": "Laboratory Staff 1"}
+            user=user(LABORATORY_STAFF), defaults={"name": "Laboratory Staff 1"}
         )
         LaboratoryDirector.objects.get_or_create(
-            user=user("director-1"), defaults={"name": "Laboratory Director 1"}
+            user=user(LABORATORY_DIRECTOR), defaults={"name": "Laboratory Director 1"}
         )
         for row in rows:
             # What this patient's tube would measure.
@@ -33,4 +34,4 @@ class Command(SeedCommand):
                     "made_up_ferritin": None if pd.isna(made_up) else float(made_up),
                 },
             )
-        return ["lab-1", "director-1"]
+        return [LABORATORY_STAFF, LABORATORY_DIRECTOR]

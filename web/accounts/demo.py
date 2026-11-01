@@ -22,8 +22,8 @@ from iron_deficiency.dataset import (
     load_new_samples,
 )
 from web.accounts.models import User
+from web.demo_accounts import PASSWORD
 
-PASSWORD = "demo-pass-2026"
 PER_GROUP = 3
 
 

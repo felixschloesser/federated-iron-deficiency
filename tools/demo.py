@@ -26,6 +26,12 @@ from typing import NoReturn
 
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 from tools.certificates import issue, make_authority
+from web.demo_accounts import (
+    GENERAL_PRACTITIONERS,
+    LABORATORY_DIRECTOR,
+    LABORATORY_STAFF,
+    PASSWORD,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API over HTTPS on this one address.
@@ -218,7 +224,10 @@ def prepare_web(folder: Path, party: str, seed_command: str, partition: int) -> 
     env = {**os.environ, party: str(folder), "DJANGO_DEBUG": "1"}
     subprocess.run(manage("migrate", "-v0"), env=env, check=True)
     seed = ("--seed", str(partition), "--nhanes", str(folder / "nhanes.csv"))
-    subprocess.run(manage(seed_command, *seed), env=env, check=True)
+    # Quiet: the summary at startup names the accounts once.
+    subprocess.run(
+        manage(seed_command, *seed), env=env, check=True, stdout=subprocess.DEVNULL
+    )
 
 
 def prepare(demo_dir: Path) -> None:
@@ -278,6 +287,66 @@ def prepare(demo_dir: Path) -> None:
         prepare_web(practice, "PRACTICE_DIR", "seed_practice", partition)
 
 
+def screening_statuses(demo_dir: Path) -> dict[str, str]:
+    """Each hospital's one-line screening model state, by folder name."""
+    statuses = {}
+    for _, slug in hospitals():
+        env = {
+            **os.environ,
+            "HOSPITAL_DIR": str(hospital_dir(demo_dir, slug)),
+            "DJANGO_DEBUG": "1",
+        }
+        result = subprocess.run(
+            manage("screening_status"),
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        statuses[slug] = result.stdout.strip()
+    return statuses
+
+
+def summary(statuses: dict[str, str]) -> str:
+    """What the person starting the demo needs: where each party is, which
+    account to use, and what to do next."""
+    hospital_names = [HOSPITALS[cycle] for cycle in CYCLES]
+    practice_names = [f"{PRACTICES[cycle]} → {HOSPITALS[cycle]}" for cycle in CYCLES]
+    lines = [
+        f"Demo up. Password for every account: {PASSWORD}",
+        "",
+        (
+            f"Hospitals   laboratory staff: {LABORATORY_STAFF}"
+            f" · laboratory director: {LABORATORY_DIRECTOR}"
+        ),
+    ]
+    for (partition, slug), name in zip(hospitals(), hospital_names, strict=True):
+        url = f"http://127.0.0.1:{FIRST_WEB_PORT + partition}/"
+        width = max(map(len, hospital_names))
+        lines.append(f"  {name:<{width}}  {url}   {statuses[slug]}")
+    lines += [
+        "",
+        f"Practices   general practitioners: {', '.join(GENERAL_PRACTITIONERS)}",
+    ]
+    for (partition, _), name in zip(practices(), practice_names, strict=True):
+        lines.append(
+            f"  {name:<{max(map(len, practice_names))}}"
+            f"  http://127.0.0.1:{FIRST_PRACTICE_PORT + partition}/"
+        )
+    lines.append("")
+    if any(status == "no screening model yet" for status in statuses.values()):
+        lines.append(
+            "Next: train with `uv run python tools/demo.py train` in another"
+            f" terminal, then deploy as {LABORATORY_DIRECTOR}."
+        )
+    elif any(status.endswith("none deployed") for status in statuses.values()):
+        lines.append(
+            f"Next: deploy a screening model as {LABORATORY_DIRECTOR} where none is."
+        )
+    lines.append("Logs: demo/<party folder>/*.out · Ctrl-C stops every party.")
+    return "\n".join(lines)
+
+
 def stop(signum: int, frame: FrameType | None) -> NoReturn:
     """Start the clean-up, ignoring later signals: `uv run` forwards a second
     one, which must not cut the clean-up short and orphan the children."""
@@ -289,6 +358,7 @@ def stop(signum: int, frame: FrameType | None) -> NoReturn:
 def up(demo_dir: Path) -> None:
     """Start every party; stop them all on Ctrl-C or when one exits."""
     prepare(demo_dir)
+    statuses = screening_statuses(demo_dir)
     # Stop the children on SIGTERM too, not only on Ctrl-C.
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)
@@ -304,15 +374,7 @@ def up(demo_dir: Path) -> None:
                     stderr=subprocess.STDOUT,
                 )
             )
-        for partition, slug in hospitals():
-            print(f"{slug}: http://127.0.0.1:{FIRST_WEB_PORT + partition}/", flush=True)
-        for partition, slug in practices():
-            port = FIRST_PRACTICE_PORT + partition
-            print(f"{slug}: http://127.0.0.1:{port}/", flush=True)
-        print(
-            "Train with: python tools/demo.py train. Ctrl-C stops every party.",
-            flush=True,
-        )
+        print(summary(statuses), flush=True)
         while all(child.poll() is None for child in running):
             time.sleep(1)
         print("A party stopped; stopping the others.", file=sys.stderr)

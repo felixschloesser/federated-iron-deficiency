@@ -4,6 +4,7 @@ from collections.abc import Hashable
 from typing import Any
 
 from web.accounts.demo import SeedCommand, user
+from web.demo_accounts import GENERAL_PRACTITIONERS
 from web.practice.models import GeneralPractitioner, Patient
 from web.vocabulary import RegisteredSex
 
@@ -20,8 +21,8 @@ class Command(SeedCommand):
 
     def seed(self, rows: list[dict[Hashable, Any]]) -> list[str]:
         practitioners = [
-            general_practitioner("doctor-a", "Dr. Demo A"),
-            general_practitioner("doctor-b", "Dr. Demo B"),
+            general_practitioner(username, name)
+            for username, name in GENERAL_PRACTITIONERS.items()
         ]
         for number, row in enumerate(rows, start=1):
             # Each patient is one NHANES participant; samples start with its number.
@@ -36,4 +37,4 @@ class Command(SeedCommand):
                     "age": int(row["age"]),
                 },
             )
-        return ["doctor-a", "doctor-b"]
+        return list(GENERAL_PRACTITIONERS)
