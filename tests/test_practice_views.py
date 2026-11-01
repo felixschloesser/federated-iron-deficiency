@@ -337,3 +337,35 @@ def test_another_patients_sample_is_not_found(
         },
     )
     assert client.post(url).status_code == 404
+
+
+def test_orders_index_names_each_orders_sample(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    logged_in(client, general_practitioner)
+    for _ in range(2):
+        client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
+    response = client.get(reverse("practice:orders"))
+    for sample in patient.samples.all():
+        assertContains(response, f'<td class="sample-id">{sample.sample_id}</td>')
+
+
+def test_order_ferritin_names_its_sample_for_assistive_technology(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    from web.practice.models import LabReport
+
+    logged_in(client, general_practitioner)
+    client.post(order_url(patient, OrderedTest.CBC), {"indication": "other"})
+    order = Order.objects.get()
+    LabReport.objects.create(
+        order=order,
+        results={},
+        ferritin_suggested=True,
+        released_at="2026-10-30T12:00:00+00:00",
+        fetched_at="2026-10-30T12:05:00+00:00",
+    )
+    response = client.get(patient_url(patient))
+    assertContains(
+        response, f'aria-label="Order ferritin on sample {order.sample.sample_id}"'
+    )

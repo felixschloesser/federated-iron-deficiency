@@ -168,3 +168,12 @@ def test_a_cbc_not_screened_for_eligibility_does_not_warn(
     response = logged_in(client, staff_member).post(analyse_url(lab_order), follow=True)
     assertNotContains(response, 'data-level="warning"')
     assertContains(response, f"Sample {lab_order.sample.sample_id}: CBC analysed.")
+
+
+def test_run_analyser_names_its_sample_for_assistive_technology(
+    client: Client, staff_member: LaboratoryStaffMember, lab_order: LabOrder
+) -> None:
+    response = logged_in(client, staff_member).get(reverse("lab:to_analyse"))
+    sample_id = lab_order.sample.sample_id
+    assertContains(response, f'aria-label="Run analyser for sample {sample_id}"')
+    assertContains(response, f'<td class="sample-id">{sample_id}</td>')
