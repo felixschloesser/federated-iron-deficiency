@@ -174,7 +174,6 @@ def released(world: World, name: str, patient: str) -> None:
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id=world["patients"][patient].sample_id
     )
-    lab_services.receive(sample=lab_order.sample, now=NOW)
     lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
 
 
@@ -192,7 +191,6 @@ def released_suggested(world: World, name: str, patient: str) -> None:
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id=world["patients"][patient].sample_id
     )
-    lab_services.receive(sample=lab_order.sample, now=NOW)
     lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
     # As the deployed model would have decided (features/screening.feature).
     LabOrder.objects.filter(pk=lab_order.pk).update(
@@ -347,7 +345,6 @@ def released_unknown(world: World, name: str, owner: str) -> None:
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id="999999"
     )
-    lab_services.receive(sample=lab_order.sample, now=NOW)
     lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
 
 
@@ -446,7 +443,6 @@ def released_ferritin(owner: GeneralPractitioner) -> Patient:
     assert connection is not None
     messaging.send_pending_lab_orders(connection, now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get()
-    lab_services.receive(sample=lab_order.sample, now=NOW)
     lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
     return record
 

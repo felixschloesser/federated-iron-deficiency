@@ -30,7 +30,7 @@ class Role(enum.Enum):
             case Role.GENERAL_PRACTITIONER:
                 return reverse("practice:patients")
             case Role.LABORATORY_STAFF:
-                return reverse("lab:samples")
+                return reverse("lab:to_analyse")
             case Role.LABORATORY_DIRECTOR:
                 return reverse("deployment:models")
             case _:
@@ -45,7 +45,10 @@ class Role(enum.Enum):
                     {"url": reverse("practice:orders"), "label": "Orders"},
                 ]
             case Role.LABORATORY_STAFF:
-                return [{"url": reverse("lab:samples"), "label": "Samples"}]
+                return [
+                    {"url": reverse("lab:to_analyse"), "label": "To analyse"},
+                    {"url": reverse("lab:analysed"), "label": "Analysed"},
+                ]
             case Role.LABORATORY_DIRECTOR:
                 return [{"url": reverse("deployment:models"), "label": "Models"}]
             case _:

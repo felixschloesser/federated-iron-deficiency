@@ -1,0 +1,28 @@
+{% extends "kit/base.html" %}
+{% block title %}To analyse{% endblock %}
+{% block content %}
+{% include "kit/index_header.html" with title="To analyse" %}
+<p>Tests ordered on a sample, including a later test on a stored sample.</p>
+{% if lab_orders %}
+<div class="overflow-auto"><table>
+  <thead>
+    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Clinical indication</th><th scope="col">Registered sex</th><th scope="col">Age</th><th scope="col">General practitioner</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
+  </thead>
+  <tbody>
+    {% for lab_order in lab_orders %}
+    <tr>
+      <td>{{ lab_order.sample.sample_id }}</td>
+      <td>{{ lab_order.get_test_display }}</td>
+      <td>{{ lab_order.get_indication_display|default:"—" }}</td>
+      <td>{{ lab_order.get_registered_sex_display }}</td>
+      <td>{{ lab_order.age }}</td>
+      <td>{{ lab_order.general_practitioner }}</td>
+      <td>{% url "lab:run_analyser" lab_order.pk as analyse_url %}{% include "kit/action_button.html" with url=analyse_url label="Run analyser" %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p>Nothing to analyse.</p>
+{% endif %}
+{% endblock %}

@@ -23,14 +23,13 @@ class LaboratoryStaffMember(models.Model):
 
 
 class Sample(models.Model):
-    """A tube, known by the sample ID on its label and the general practitioner's
-    app that sent it (R2, R24): two apps may use the same sample ID."""
+    """A sample, known by the sample ID on its label and the general practitioner's
+    app that sent it (R2, R24): two apps may use the same sample ID. It arrives
+    with its lab order; a later test on it is measured on the stored sample."""
 
     # The common name of the app's client certificate, as the endpoint saw it.
     client = models.CharField(max_length=100)
     sample_id = models.CharField(max_length=20)
-    # Absent until the tube has arrived; a later test uses the stored sample.
-    received_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = (

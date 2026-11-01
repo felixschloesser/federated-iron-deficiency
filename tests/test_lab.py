@@ -1,4 +1,4 @@
-"""Scenarios: receiving and analysing samples (features/lab.feature), and the
+"""Scenarios: analysing samples (features/lab.feature), and the
 lab never seeing a patient's name (features/access.feature)."""
 
 from datetime import UTC, datetime
@@ -78,25 +78,10 @@ def an_order(world: World, test: str, patient: str) -> None:
 
 
 @given(
-    parsers.re(
-        r'a (?P<test>CBC|ferritin) order for "(?P<patient>[^"]+)" that has been received'
-    )
-)
-def a_received_order(world: World, test: str, patient: str) -> None:
-    place(world, test, patient)
-    services.receive(sample=world["lab_order"].sample, now=NOW)
-
-
-@given(parsers.re(r'a received (?P<test>CBC|ferritin) sample for "(?P<patient>[^"]+)"'))
-def a_received_sample(world: World, test: str, patient: str) -> None:
-    a_received_order(world, test, patient)
-
-
-@given(
     parsers.re(r'an analysed (?P<test>CBC|ferritin) sample for "(?P<patient>[^"]+)"')
 )
 def an_analysed_sample(world: World, test: str, patient: str) -> None:
-    a_received_order(world, test, patient)
+    place(world, test, patient)
     services.run_analyser(lab_order=world["lab_order"], directory=None, now=NOW)
 
 
@@ -109,15 +94,6 @@ def no_tube(world: World, patient: str) -> None:
     Participant.objects.filter(seqn=int(world["patients"][patient].sample_id)).delete()
 
 
-@when("laboratory staff receive the order")
-def receive(world: World) -> None:
-    sample = Sample.objects.get(pk=world["lab_order"].sample_id)
-    try:
-        services.receive(sample=sample, now=NOW)
-    except ValidationError as error:
-        world["error"] = error
-
-
 @when("laboratory staff run the analyser")
 def run_analyser(world: World) -> None:
     lab_order = LabOrder.objects.get(pk=world["lab_order"].pk)
@@ -127,12 +103,6 @@ def run_analyser(world: World) -> None:
         )
     except ValidationError as error:
         world["error"] = error
-
-
-@then(parsers.parse('the sample of "{patient}" is received at the current time'))
-def sample_received(world: World, patient: str) -> None:
-    sample = Sample.objects.get(sample_id=world["patients"][patient].sample_id)
-    assert sample.received_at == NOW
 
 
 @then(parsers.parse('{action} is refused with code "{code}"'))
@@ -148,16 +118,9 @@ def sample_has_cbc(world: World, patient: str) -> None:
     assert lab_order.analysed_at == NOW
 
 
-@then("running the analyser is not offered for the order")
-def analyser_not_offered(world: World) -> None:
-    lab_order = world["lab_order"]
-    assert lab_order not in queries.lab_orders_to_analyse()
-    assert lab_order.sample in queries.samples_to_receive()
-
-
-@then("the ferritin order is ready to analyse without being received")
-def ready_without_receiving(world: World) -> None:
-    assert world["lab_order"].test == OrderedTest.FERRITIN
+@then(parsers.re(r"the (?P<test>CBC|ferritin) order is ready to analyse"))
+def ready_to_analyse(world: World, test: str) -> None:
+    assert world["lab_order"].test == TESTS[test]
     assert world["lab_order"] in queries.lab_orders_to_analyse()
 
 

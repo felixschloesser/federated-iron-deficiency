@@ -103,7 +103,7 @@ def changed_on_disk(world: World, run_id: str) -> None:
     write_model(world["final_models_dir"], run_id, threshold=0.6)
 
 
-def received_sample(
+def lab_sample(
     world: World,
     test: OrderedTest,
     indication: ClinicalIndication | None,
@@ -126,17 +126,15 @@ def received_sample(
             ordered_at=NOW,
         ),
     )
-    lab_services.receive(sample=world["lab_order"].sample, now=NOW)
 
 
 @given(
     parsers.parse(
-        "a received CBC sample of a woman aged {age:d}"
-        " with indication non-specific complaint"
+        "a CBC sample of a woman aged {age:d} with indication non-specific complaint"
     )
 )
 def eligible_cbc(world: World, age: int) -> None:
-    received_sample(
+    lab_sample(
         world,
         OrderedTest.CBC,
         ClinicalIndication.NON_SPECIFIC_COMPLAINT,
@@ -147,12 +145,12 @@ def eligible_cbc(world: World, age: int) -> None:
 
 @given(
     parsers.re(
-        r"a received CBC sample with indication (?P<indication>[a-z -]+),"
+        r"a CBC sample with indication (?P<indication>[a-z -]+),"
         r" registered sex (?P<sex>\w+), aged (?P<age>\d+)"
     )
 )
 def cbc(world: World, indication: str, sex: str, age: str) -> None:
-    received_sample(
+    lab_sample(
         world,
         OrderedTest.CBC,
         ClinicalIndication(indication.replace(" ", "_").replace("-", "_")),
@@ -161,9 +159,9 @@ def cbc(world: World, indication: str, sex: str, age: str) -> None:
     )
 
 
-@given(parsers.parse("a received ferritin sample of a woman aged {age:d}"))
+@given(parsers.parse("a ferritin sample of a woman aged {age:d}"))
 def ferritin_sample(world: World, age: int) -> None:
-    received_sample(world, OrderedTest.FERRITIN, None, RegisteredSex.FEMALE, age)
+    lab_sample(world, OrderedTest.FERRITIN, None, RegisteredSex.FEMALE, age)
 
 
 @given(parsers.parse("the deployed model scores the sample {side} the threshold"))

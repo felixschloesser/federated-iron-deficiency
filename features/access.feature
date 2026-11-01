@@ -13,7 +13,7 @@ Feature: Who sees what
     Then the order is refused with code "not_your_patient" on field "patient"
 
   Scenario: The lab never sees a patient's name
-    Given a received CBC sample for "Test Patient 1"
+    Given a CBC order for "Test Patient 1"
     Then the lab's samples hold sample ID, ordering general practitioner, registered sex, age, test, indication and results
     And no lab query returns the patient's name
 

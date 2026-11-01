@@ -13,35 +13,27 @@ from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
 from web.lab import queries, services
 from web.lab.domain import NotScreened
-from web.lab.models import LabOrder, Sample
+from web.lab.models import LabOrder
 
 
 class LaboratoryStaffRequiredMixin(RoleRequiredMixin):
     role = Role.LABORATORY_STAFF
 
 
-class SamplesView(LaboratoryStaffRequiredMixin, TemplateView):
-    template_name = "lab/samples.html"
+class ToAnalyseView(LaboratoryStaffRequiredMixin, TemplateView):
+    template_name = "lab/to_analyse.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        return {
-            **super().get_context_data(**kwargs),
-            "samples_to_receive": queries.samples_to_receive(),
-            "lab_orders_to_analyse": queries.lab_orders_to_analyse(),
-            "lab_orders_analysed": queries.lab_orders_analysed(),
-        }
+        lab_orders = queries.lab_orders_to_analyse()
+        return {**super().get_context_data(**kwargs), "lab_orders": lab_orders}
 
 
-class ReceiveView(LaboratoryStaffRequiredMixin, View):
-    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
-        sample = get_object_or_404(Sample, pk=pk)
-        try:
-            services.receive(sample=sample, now=timezone.now())
-        except ValidationError as error:
-            messages.error(request, " ".join(error.messages))
-        else:
-            messages.success(request, f"Sample {sample.sample_id} received.")
-        return redirect("lab:samples")
+class AnalysedView(LaboratoryStaffRequiredMixin, TemplateView):
+    template_name = "lab/analysed.html"
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        lab_orders = queries.lab_orders_analysed()
+        return {**super().get_context_data(**kwargs), "lab_orders": lab_orders}
 
 
 class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
@@ -69,4 +61,4 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
                 )
             else:
                 messages.success(request, f"{analysed}.")
-        return redirect("lab:samples")
+        return redirect("lab:to_analyse")

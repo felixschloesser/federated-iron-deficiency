@@ -9,7 +9,7 @@ Feature: Screening a CBC
 
   Scenario Outline: The model's decision becomes the result
     Given the laboratory director deployed "run-1"
-    And a received CBC sample of a woman aged 30 with indication non-specific complaint
+    And a CBC sample of a woman aged 30 with indication non-specific complaint
     And the deployed model scores the sample <side> the threshold
     When laboratory staff run the analyser
     Then the screening result is "<result>"
@@ -21,7 +21,7 @@ Feature: Screening a CBC
 
   Scenario Outline: The lab report says only whether ferritin is suggested
     Given the laboratory director deployed "run-1"
-    And a received CBC sample of a woman aged 30 with indication non-specific complaint
+    And a CBC sample of a woman aged 30 with indication non-specific complaint
     And the deployed model scores the sample <side> the threshold
     When laboratory staff run the analyser
     Then the lab report is released <suggested> ferritin suggested
@@ -32,7 +32,7 @@ Feature: Screening a CBC
       | below | without   |
 
   Scenario Outline: Each failing condition gives its own reason, with or without a deployed model
-    Given a received CBC sample with indication <indication>, registered sex <sex>, aged <age>
+    Given a CBC sample with indication <indication>, registered sex <sex>, aged <age>
     When laboratory staff run the analyser
     Then the screening result is "not screened" with reason "<reason>"
     And the lab report is released without ferritin suggested
@@ -47,7 +47,7 @@ Feature: Screening a CBC
 
   Scenario Outline: The age range includes its ends
     Given the laboratory director deployed "run-1"
-    And a received CBC sample with indication non-specific complaint, registered sex female, aged <age>
+    And a CBC sample with indication non-specific complaint, registered sex female, aged <age>
     When laboratory staff run the analyser
     Then the sample is screened by the model
 
@@ -58,19 +58,19 @@ Feature: Screening a CBC
 
   Scenario: The result records the final model that produced it
     Given the laboratory director deployed "run-1"
-    And a received CBC sample of a woman aged 30 with indication non-specific complaint
+    And a CBC sample of a woman aged 30 with indication non-specific complaint
     When laboratory staff run the analyser
     Then the screening result records final model "run-1", its SHA-256 and threshold 0.5
 
   Scenario: No score is stored
     Given the laboratory director deployed "run-1"
-    And a received CBC sample of a woman aged 30 with indication non-specific complaint
+    And a CBC sample of a woman aged 30 with indication non-specific complaint
     When laboratory staff run the analyser
     Then no stored field of the sample or its screening result holds a score
 
   Scenario Outline: Without a usable deployed model the CBC is released not screened
     Given <state>
-    And a received CBC sample of a woman aged 30 with indication non-specific complaint
+    And a CBC sample of a woman aged 30 with indication non-specific complaint
     When laboratory staff run the analyser
     Then the screening result is "not screened" with reason "<reason>"
     And the lab report is released without ferritin suggested
@@ -81,7 +81,7 @@ Feature: Screening a CBC
       | the file of the deployed "run-1" has changed on disk | deployed_model_changed  |
 
   Scenario: A ferritin sample is never screened
-    Given a received ferritin sample of a woman aged 30
+    Given a ferritin sample of a woman aged 30
     When laboratory staff run the analyser
     Then the sample has no screening result
     And the lab report is released without ferritin suggested

@@ -2,24 +2,13 @@
 
 from django.db.models import QuerySet
 
-from web.lab.models import LabOrder, Sample
-
-
-def samples_to_receive() -> QuerySet[Sample]:
-    """Samples with a lab order whose tube has not arrived yet."""
-    return (
-        Sample.objects.filter(received_at__isnull=True)
-        .prefetch_related("lab_orders")
-        .order_by("pk")
-    )
+from web.lab.models import LabOrder
 
 
 def lab_orders_to_analyse() -> QuerySet[LabOrder]:
-    """Tests on received samples that the analyser has not run yet."""
+    """Tests the analyser has not run yet; each sample arrives with its lab order."""
     return (
-        LabOrder.objects.filter(
-            sample__received_at__isnull=False, analysed_at__isnull=True
-        )
+        LabOrder.objects.filter(analysed_at__isnull=True)
         .select_related("sample")
         .order_by("ordered_at", "pk")
     )

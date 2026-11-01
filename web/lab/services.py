@@ -1,4 +1,4 @@
-"""Recording lab orders, receiving samples and running the analyser."""
+"""Recording lab orders and running the analyser."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -44,18 +44,6 @@ def record_lab_order(*, client: str, details: LabOrderDetails) -> LabOrder:
         },
     )
     return lab_order
-
-
-@transaction.atomic
-def receive(*, sample: Sample, now: datetime) -> Sample:
-    """Register that a sample's tube arrived in the laboratory (R2)."""
-    if sample.received_at is not None:
-        raise ValidationError(
-            "This sample has already been received.", code="already_received"
-        )
-    sample.received_at = now
-    sample.save(update_fields=["received_at"])
-    return sample
 
 
 @transaction.atomic
