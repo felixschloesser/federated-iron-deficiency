@@ -167,5 +167,11 @@ SECURE_SSL_REDIRECT = not DEBUG
 SECURE_HSTS_SECONDS = 0 if DEBUG else 60 * 60 * 24 * 365
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
+# Browsers share cookies between ports of one host, and the demo serves every
+# party from 127.0.0.1: without its own names, one party's login would replace
+# another's session and CSRF token (a 403 on its next form).
+if PARTY_DIR is not None:
+    SESSION_COOKIE_NAME = f"sessionid-{PARTY_DIR.name}"
+    CSRF_COOKIE_NAME = f"csrftoken-{PARTY_DIR.name}"
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG

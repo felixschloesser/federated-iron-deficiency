@@ -188,7 +188,9 @@ def setting(name: str, env: dict[str, str]) -> str:
 def test_each_party_has_its_own_cookies(tmp_path: Path, party: str) -> None:
     # Browsers share cookies across ports, and the demo runs every party on
     # 127.0.0.1: one party's login must not replace another's session or token.
-    env = {party: str(tmp_path / "uz-leuven")}
+    folder = tmp_path / "uz-leuven"
+    folder.mkdir()
+    env = {party: str(folder)}
     assert setting("SESSION_COOKIE_NAME", env) == "sessionid-uz-leuven"
     assert setting("CSRF_COOKIE_NAME", env) == "csrftoken-uz-leuven"
 
