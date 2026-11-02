@@ -10,7 +10,7 @@ import torch
 from django.db.models import DecimalField, FloatField
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from iron_deficiency.dataset import CBC_VARS, FEATURES
+from iron_deficiency.dataset import CBC_VARS, FEATURES, eligible
 from iron_deficiency.screening import (
     FinalModel,
     final_model_path,
@@ -310,3 +310,15 @@ def test_every_indication_is_answered() -> None:
         "ckd_follow_up",
         "other",
     }
+
+
+@pytest.mark.parametrize("sex", RegisteredSex)
+@pytest.mark.parametrize("age", [17, 18, 49, 50])
+def test_the_lab_screens_exactly_whom_the_model_was_trained_on(
+    sex: RegisteredSex, age: int
+) -> None:
+    lab_order = LabOrder(
+        indication=ClinicalIndication.SUSPECTED_ANAEMIA, registered_sex=sex, age=age
+    )
+    trained_on = eligible(pd.Series([sex.label]), pd.Series([age])).iloc[0]
+    assert (lab_order.not_eligible() is None) == trained_on

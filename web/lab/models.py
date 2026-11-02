@@ -3,7 +3,7 @@
 from django.conf import settings
 from django.db import models
 
-from iron_deficiency.dataset import ELIGIBLE_AGES
+from iron_deficiency.dataset import ELIGIBLE_AGES, ELIGIBLE_SEX
 from web.deployment.models import ScreeningModel
 from web.lab.domain import NotScreened, ScreeningResult
 from web.nhanes.models import FERRITIN
@@ -95,7 +95,7 @@ class LabOrder(models.Model):
             or not ClinicalIndication(self.indication).is_screened()
         ):
             return NotScreened.INDICATION
-        if self.registered_sex != RegisteredSex.FEMALE:
+        if self.registered_sex != RegisteredSex.of_nhanes(ELIGIBLE_SEX):
             return NotScreened.SEX
         if not ELIGIBLE_AGES[0] <= self.age <= ELIGIBLE_AGES[1]:
             return NotScreened.AGE

@@ -27,7 +27,7 @@ class Command(SeedCommand):
         for number, row in enumerate(rows):
             # Each patient is one NHANES participant; samples start with its number.
             seqn = int(row["sample_id"])
-            sex = RegisteredSex(str(row["sex"]).lower())
+            sex = RegisteredSex.of_nhanes(str(row["sex"]))
             Patient.objects.get_or_create(
                 nhanes_number=str(seqn),
                 defaults={

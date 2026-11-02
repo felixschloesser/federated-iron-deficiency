@@ -60,6 +60,13 @@ FERRITIN_THRESHOLD = 15.0
 ELIGIBLE_SEX = "Female"
 ELIGIBLE_AGES = (18, 49)
 
+
+def eligible(sex: pd.Series, age: pd.Series) -> "pd.Series[bool]":
+    """Who is screened, and whom the model is trained on: women aged 18–49 (R4).
+    `sex` holds NHANES's labels."""
+    return (sex == ELIGIBLE_SEX) & age.between(*ELIGIBLE_AGES)
+
+
 # Merged columns are named `{source_table}_{variable}` in lowercase.
 HF_COLUMNS = {
     "seqn": "SEQN",
@@ -76,8 +83,7 @@ def build_cohort(dataset_dict: datasets.DatasetDict) -> datasets.DatasetDict:
     merged = dataset_dict["train"].to_pandas().rename(columns=HF_COLUMNS)
     cohort = merged[
         merged["YEAR"].isin(CYCLES.values())
-        & (merged["RIAGENDR"] == "Female")
-        & merged["RIDAGEYR"].between(18, 49)
+        & eligible(merged["RIAGENDR"], merged["RIDAGEYR"])
     ]
     # SEQN order matches the CDC files and increases across cycles.
     cohort = cohort.dropna(subset=FEATURES + ["LBXFER"]).sort_values("SEQN")

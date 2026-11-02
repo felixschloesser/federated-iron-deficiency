@@ -17,7 +17,7 @@ import numpy.typing as npt
 import pandas as pd
 import torch
 
-from iron_deficiency.dataset import CBC_VARS, ELIGIBLE_AGES, ELIGIBLE_SEX, FEATURES
+from iron_deficiency.dataset import CBC_VARS, FEATURES, eligible
 from iron_deficiency.task import Net
 
 # One lab export row: sample ID, registered sex, age, and the 13 CBC values.
@@ -147,20 +147,20 @@ def score(samples: pd.DataFrame, model: FinalModel) -> tuple[pd.Series, float]:
     if model.threshold is None:
         raise ValueError(f"This final model cannot screen: {model.problem()}")
     features = samples[CBC_VARS].assign(RIDAGEYR=samples["age"])[FEATURES]
-    eligible = (
-        (samples["sex"] == ELIGIBLE_SEX)
-        & samples["age"].between(*ELIGIBLE_AGES)
-        & features.notna().all(axis=1)
-    )
-    probabilities = model.probabilities(features[eligible])
-    return pd.Series(probabilities, index=samples.index[eligible]), model.threshold
+    scored = eligible(samples["sex"], samples["age"]) & features.notna().all(axis=1)
+    probabilities = model.probabilities(features[scored])
+    return pd.Series(probabilities, index=samples.index[scored]), model.threshold
 
 
 def suggests_ferritin(cbc: Mapping[str, float], age: int, model: FinalModel) -> bool:
-    """Whether the model scores one eligible woman's CBC at or above its threshold."""
-    sample = pd.DataFrame([{"sex": ELIGIBLE_SEX, "age": age, **cbc}])
-    probabilities, threshold = score(sample, model)
-    return bool(probabilities.to_numpy()[0] >= threshold)
+    """Whether the model scores one CBC at or above its threshold. Who is screened
+    is the caller's decision (R4)."""
+    if model.threshold is None:
+        raise ValueError(f"This final model cannot screen: {model.problem()}")
+    features = pd.DataFrame([{**cbc, "RIDAGEYR": age}], columns=FEATURES)
+    if features.isna().any(axis=None):
+        raise ValueError("A CBC without all its values cannot be screened.")
+    return bool(model.probabilities(features)[0] >= model.threshold)
 
 
 def screen(samples: pd.DataFrame, model: FinalModel) -> pd.DataFrame:
