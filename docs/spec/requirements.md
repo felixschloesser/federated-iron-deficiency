@@ -181,7 +181,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 
 ## 5. Operations
 
-All are POSTs that redirect on success; services take `now`.
+All are POSTs that redirect on success; model and manager methods take `now`.
 
 | Operation | Actor | Precondition | Postcondition | Requirements |
 |---|---|---|---|---|
