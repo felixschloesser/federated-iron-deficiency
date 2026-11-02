@@ -28,7 +28,7 @@ from tqdm import tqdm
 
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 from tools.certificates import issue, make_authority
-from web.demo_accounts import (
+from web.seeding.accounts import (
     GENERAL_PRACTITIONERS,
     LABORATORY_DIRECTOR,
     LABORATORY_STAFF,

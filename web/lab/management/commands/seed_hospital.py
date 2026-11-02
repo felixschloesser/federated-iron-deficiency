@@ -6,11 +6,11 @@ from typing import Any
 import pandas as pd
 
 from iron_deficiency.dataset import CBC_VARS
-from web.accounts.demo import SeedCommand, user
-from web.demo_accounts import LABORATORY_DIRECTOR, LABORATORY_STAFF
 from web.deployment.models import LaboratoryDirector
 from web.lab.models import LaboratoryStaffMember
 from web.nhanes.models import Participant
+from web.seeding.accounts import LABORATORY_DIRECTOR, LABORATORY_STAFF
+from web.seeding.command import SeedCommand, user
 
 
 class Command(SeedCommand):

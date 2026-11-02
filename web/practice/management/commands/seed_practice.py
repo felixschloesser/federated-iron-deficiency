@@ -3,9 +3,9 @@
 from collections.abc import Hashable
 from typing import Any
 
-from web.accounts.demo import SeedCommand, patient_name, user
-from web.demo_accounts import GENERAL_PRACTITIONERS
 from web.practice.models import GeneralPractitioner, Patient
+from web.seeding.accounts import GENERAL_PRACTITIONERS
+from web.seeding.command import SeedCommand, patient_name, user
 from web.vocabulary import RegisteredSex
 
 

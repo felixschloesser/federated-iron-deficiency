@@ -17,7 +17,7 @@ class Participant(models.Model):
     cbc = models.JSONField()
     # NHANES measured ferritin for only some participants (spec §8).
     ferritin = models.FloatField(null=True, blank=True)
-    # Made up for the demo where NHANES has no ferritin (web.accounts.demo).
+    # Made up for the demo where NHANES has no ferritin (web.seeding.command).
     made_up_ferritin = models.FloatField(null=True, blank=True)
 
     def __str__(self) -> str:

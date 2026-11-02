@@ -22,7 +22,7 @@ from iron_deficiency.dataset import (
     load_new_samples,
 )
 from web.accounts.models import User
-from web.demo_accounts import PASSWORD
+from web.seeding.accounts import PASSWORD
 from web.vocabulary import RegisteredSex
 
 # Patients per practice unless --patients says otherwise; the groups share them.

@@ -238,10 +238,10 @@ def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
         {
             "web/lab/models.py": code,
             "web/practice/views.py": code,
-            "web/accounts/demo.py": code,
+            "web/seeding/command.py": code,
         },
     )
     assert audit.run(root)["training_imports"] == [
-        "web/accounts/demo.py:2: imports iron_deficiency.screening, the hospital's code",
         "web/practice/views.py:2: imports iron_deficiency.screening, the hospital's code",
+        "web/seeding/command.py:2: imports iron_deficiency.screening, the hospital's code",
     ]
