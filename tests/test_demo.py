@@ -171,7 +171,7 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
 def test_the_next_step_follows_the_hospitals_state() -> None:
     from tools.demo import summary
 
-    assert "Next: train with `uv run python tools/demo.py train`" in summary(STATUSES)
+    assert "Next: train with `docker compose run --rm train`" in summary(STATUSES)
     trained = {**STATUSES, "heilig-hart-leuven": "1 screening model, none deployed"}
     assert "Next: deploy a screening model as director-1" in summary(trained)
     deployed = dict.fromkeys(STATUSES, "Screening model of … deployed (1 in all)")
