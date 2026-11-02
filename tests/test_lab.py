@@ -1,7 +1,7 @@
 """Scenarios: analysing samples (features/lab.feature), and the
 lab never seeing a patient's name (features/access.feature)."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -115,6 +115,33 @@ def run_analyser(world: World) -> None:
         )
     except ValidationError as error:
         world["error"] = error
+
+
+PAGES = {"first": 0, "second": 1}
+
+
+@given("laboratory staff opened the CBC order on two pages")
+def two_pages(world: World) -> None:
+    """Two copies of the lab order as loaded, like two open tabs or two staff."""
+    world["pages"] = [LabOrder.objects.get(pk=world["lab_order"].pk) for _ in PAGES]
+
+
+@when(parsers.parse("laboratory staff run the analyser from the {page} page"))
+def run_analyser_from(world: World, page: str) -> None:
+    number = PAGES[page]
+    try:
+        services.run_analyser(
+            lab_order=world["pages"][number],
+            directory=None,
+            now=NOW + timedelta(minutes=number),
+        )
+    except ValidationError as error:
+        world["error"] = error
+
+
+@then("the CBC order keeps the analysis from the first page")
+def keeps_first_analysis(world: World) -> None:
+    assert LabOrder.objects.get(pk=world["lab_order"].pk).analysed_at == NOW
 
 
 @then(parsers.parse('{action} is refused with code "{code}"'))
