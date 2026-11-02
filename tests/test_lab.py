@@ -9,7 +9,6 @@ from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from iron_deficiency.dataset import CBC_VARS
 from tests.conftest import World, collect_and_order, deliver
-from web.lab import queries, services
 from web.lab.models import LabOrder, Sample
 from web.nhanes.models import FERRITIN, Participant
 from web.practice.models import Patient
@@ -91,7 +90,7 @@ def ferritin_on_that_sample(world: World) -> None:
 )
 def an_analysed_sample(world: World, test: str, patient: str) -> None:
     place(world, test, patient)
-    services.run_analyser(lab_order=world["lab_order"], directory=None, now=NOW)
+    world["lab_order"].run_analyser(directory=None, now=NOW)
 
 
 @given(
@@ -108,9 +107,7 @@ def no_tube(world: World, patient: str) -> None:
 def run_analyser(world: World) -> None:
     lab_order = LabOrder.objects.get(pk=world["lab_order"].pk)
     try:
-        world["lab_order"] = services.run_analyser(
-            lab_order=lab_order, directory=None, now=NOW
-        )
+        world["lab_order"] = lab_order.run_analyser(directory=None, now=NOW)
     except ValidationError as error:
         world["error"] = error
 
@@ -128,8 +125,7 @@ def two_pages(world: World) -> None:
 def run_analyser_from(world: World, page: str) -> None:
     number = PAGES[page]
     try:
-        services.run_analyser(
-            lab_order=world["pages"][number],
+        world["pages"][number].run_analyser(
             directory=None,
             now=NOW + timedelta(minutes=number),
         )
@@ -158,15 +154,13 @@ def sample_has_cbc(world: World, patient: str) -> None:
 @then(parsers.re(r"the (?P<test>CBC|ferritin) order is ready to analyse"))
 def ready_to_analyse(world: World, test: str) -> None:
     assert world["lab_order"].test == TESTS[test]
-    assert world["lab_order"] in queries.lab_orders_to_analyse()
+    assert world["lab_order"] in LabOrder.objects.to_analyse()
 
 
 @then(parsers.re(r"its sample is (?P<negated>not )?a stored sample"))
 def stored_sample(world: World, negated: str | None) -> None:
     (row,) = [
-        row
-        for row in queries.lab_orders_to_analyse()
-        if row.pk == world["lab_order"].pk
+        row for row in LabOrder.objects.to_analyse() if row.pk == world["lab_order"].pk
     ]
     assert row.stored_sample is (negated is None)
 
@@ -187,7 +181,7 @@ def ferritin_not_available(world: World) -> None:
     " age, test, indication and results"
 )
 def lab_rows_hold(world: World) -> None:
-    (lab_order,) = queries.lab_orders_to_analyse()
+    (lab_order,) = LabOrder.objects.to_analyse()
     assert lab_order.sample.sample_id == world["order"].sample.sample_id
     assert lab_order.general_practitioner == "Dr. Demo A"
     assert lab_order.get_registered_sex_display() == "Female"
@@ -200,5 +194,5 @@ def no_patient_name(world: World) -> None:
     for model in (Sample, LabOrder):
         related = {field.related_model for field in model._meta.get_fields()}
         assert not related & {Patient}, model
-    for lab_order in queries.lab_orders_to_analyse():
+    for lab_order in LabOrder.objects.to_analyse():
         assert "Test Patient" not in str(vars(lab_order))

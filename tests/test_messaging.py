@@ -22,7 +22,6 @@ from tests.conftest import (
     make_patient,
 )
 from tools.certificates import Authority, issue, make_authority
-from web.lab import services as lab_services
 from web.lab.messaging import serve
 from web.lab.models import LabOrder, Sample
 from web.messaging import messages_pb2
@@ -185,7 +184,7 @@ def released(world: World, name: str, patient: str) -> None:
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id=latest_sample_id(world["patients"][patient])
     )
-    lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
+    lab_order.run_analyser(directory=None, now=NOW)
 
 
 @given(
@@ -195,14 +194,14 @@ def released(world: World, name: str, patient: str) -> None:
     )
 )
 def released_suggested(world: World, name: str, patient: str) -> None:
-    from web.lab.domain import ScreeningResult
+    from web.lab.models import ScreeningResult
 
     order(world, patient, OrderedTest.CBC, "unexplained fatigue")
     messaging.send_pending_lab_orders(world["connection"], now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id=latest_sample_id(world["patients"][patient])
     )
-    lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
+    lab_order.run_analyser(directory=None, now=NOW)
     # As the deployed model would have decided (features/screening.feature).
     LabOrder.objects.filter(pk=lab_order.pk).update(
         screening_result=ScreeningResult.FERRITIN_SUGGESTED, not_screened_reason=None
@@ -363,7 +362,7 @@ def released_unknown(world: World, name: str, owner: str) -> None:
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id="999999"
     )
-    lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
+    lab_order.run_analyser(directory=None, now=NOW)
 
 
 @then("the lab order has no field for a patient's name or blood values")
@@ -467,7 +466,7 @@ def released_ferritin(owner: GeneralPractitioner) -> Patient:
     assert connection is not None
     messaging.send_pending_lab_orders(connection, now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get()
-    lab_services.run_analyser(lab_order=lab_order, directory=None, now=NOW)
+    lab_order.run_analyser(directory=None, now=NOW)
     return record
 
 

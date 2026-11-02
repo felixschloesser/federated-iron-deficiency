@@ -22,10 +22,13 @@ from iron_deficiency.task import Net
 from tests.conftest import World
 from web.deployment import services as deployment_services
 from web.deployment.domain import NoUsableModel, sha256
-from web.lab import queries as lab_queries
-from web.lab import services as lab_services
-from web.lab.domain import NotScreened, ScreeningResult
-from web.lab.models import LabOrder, Sample
+from web.lab.models import (
+    LabOrder,
+    LabOrderDetails,
+    NotScreened,
+    Sample,
+    ScreeningResult,
+)
 from web.nhanes.models import Participant
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
@@ -134,9 +137,9 @@ def lab_sample(
     Participant.objects.create(
         seqn=seqn, cbc={var: 0.0 for var in CBC_VARS}, ferritin=10.0
     )
-    world["lab_order"] = lab_services.record_lab_order(
+    world["lab_order"] = LabOrder.objects.record(
         client=CLIENT,
-        details=lab_services.LabOrderDetails(
+        details=LabOrderDetails(
             sample_id=str(seqn),
             test=test,
             indication=indication,
@@ -193,8 +196,7 @@ def scores(world: World, side: str) -> None:
 
 @when("laboratory staff run the analyser")
 def run_analyser(world: World) -> None:
-    world["lab_order"] = lab_services.run_analyser(
-        lab_order=LabOrder.objects.get(pk=world["lab_order"].pk),
+    world["lab_order"] = LabOrder.objects.get(pk=world["lab_order"].pk).run_analyser(
         directory=world["final_models_dir"],
         now=NOW,
     )
@@ -264,7 +266,7 @@ def no_screening_result(world: World) -> None:
     )
 )
 def released(world: World, suggested: str) -> None:
-    (lab_order,) = lab_queries.lab_reports_to_send(CLIENT)
+    (lab_order,) = LabOrder.objects.reports_to_send(CLIENT)
     assert lab_order.pk == world["lab_order"].pk
     assert lab_order.ferritin_suggested is (suggested == "with")
 

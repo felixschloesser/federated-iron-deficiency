@@ -9,8 +9,8 @@ import grpc
 from django.db import close_old_connections
 from django.utils import timezone
 
-from web.lab import queries, services
 from web.lab.forms import LabOrderForm
+from web.lab.models import LabOrder, LabOrderDetails
 from web.messaging import messages_pb2, messages_pb2_grpc
 
 
@@ -58,9 +58,9 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
         )
         if not form.is_valid():
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, form.errors.as_json())
-        services.record_lab_order(
+        LabOrder.objects.record(
             client=client_of(context),
-            details=services.LabOrderDetails(**form.cleaned_data),
+            details=LabOrderDetails(**form.cleaned_data),
         )
         return messages_pb2.Received()
 
@@ -78,7 +78,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
                     ferritin_suggested=lab_order.ferritin_suggested,
                     released_at=lab_order.analysed_at.isoformat(),
                 )
-                for lab_order in queries.lab_reports_to_send(client_of(context))
+                for lab_order in LabOrder.objects.reports_to_send(client_of(context))
                 if lab_order.analysed_at is not None
             ]
         )
@@ -87,7 +87,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
     def AcknowledgeLabReports(
         self, request: messages_pb2.Acknowledgement, context: grpc.ServicerContext
     ) -> messages_pb2.Received:
-        services.acknowledge_lab_reports(
+        LabOrder.objects.acknowledge(
             client=client_of(context),
             report_ids=[int(report_id) for report_id in request.report_ids],
             now=timezone.now(),
