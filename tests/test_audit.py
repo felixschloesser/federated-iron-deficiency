@@ -127,10 +127,11 @@ def test_calling_a_writing_model_method_outside_a_post_handler(
         tmp_path,
         {"web/practice/models.py": MODELS_WITH_A_WRITE, "web/practice/views.py": view},
     )
-    assert audit.run(root)["get_mutation"] == [
+    finding = (
         "web/practice/views.py:2: PatientView.get_context_data mutates outside a"
         " POST handler"
-    ]
+    )
+    assert audit.run(root)["get_mutation"] == [finding]
 
 
 def test_a_post_handler_may_call_a_writing_model_method(tmp_path: Path) -> None:
