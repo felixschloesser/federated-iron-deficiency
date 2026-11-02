@@ -9,9 +9,9 @@ from web.vocabulary import Test
 def ferritin_order_offered(lab_report: LabReport) -> bool:
     """Order ferritin beside a suggestion, until its sample has ferritin (R11, R26)."""
     sample = lab_report.order.sample
-    return (
-        lab_report.ferritin_suggested
-        and not sample.orders.filter(test=Test.FERRITIN).exists()
+    # .all(), not .filter(): uses the sample's orders when the page prefetched them.
+    return lab_report.ferritin_suggested and not any(
+        order.test == Test.FERRITIN for order in sample.orders.all()
     )
 
 
