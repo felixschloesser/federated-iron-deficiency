@@ -1,4 +1,5 @@
-"""Certificate authorities and certificates for the demo, made with openssl.
+"""Certificate authorities and certificates for the demo, made with openssl,
+and the SuperNodes' key pairs, made with ssh-keygen.
 
 Each hospital is its own authority (spec R24): it issues its messaging
 endpoint's server certificate and its general practitioner's client one.
@@ -21,6 +22,19 @@ class Authority:
 
 def _openssl(directory: Path, *args: str) -> None:
     subprocess.run(["openssl", *args], cwd=directory, check=True, capture_output=True)
+
+
+def make_key_pair(path: Path) -> Path:
+    """An ECDSA P-384 key pair, `path` and `path.pub` in OpenSSH format, as
+    Flower's SuperNode authentication takes them; returns the private key."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["ssh-keygen", "-q", "-t", "ecdsa", "-b", "384", "-N", "", "-C", ""]
+        + ["-f", str(path)],
+        check=True,
+        capture_output=True,
+    )
+    return path
 
 
 def make_authority(directory: Path, name: str) -> Authority:

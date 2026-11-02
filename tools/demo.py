@@ -10,6 +10,7 @@ app and fetches lab reports from its one hospital. Each sees only its own folder
 """
 
 import argparse
+import json
 import os
 import shutil
 import signal
@@ -27,7 +28,7 @@ from typing import NoReturn
 from tqdm import tqdm
 
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
-from tools.certificates import issue, make_authority
+from tools.certificates import issue, make_authority, make_key_pair
 from web.demo_accounts import (
     GENERAL_PRACTITIONERS,
     LABORATORY_DIRECTOR,
@@ -99,6 +100,16 @@ def hospitals() -> list[tuple[int, str]]:
     ]
 
 
+def supernode_key(hospital: Path) -> Path:
+    """The private key a hospital's SuperNode signs in with; it never leaves (R27)."""
+    return hospital / "supernode" / "key"
+
+
+def registered_key(demo_dir: Path, slug: str) -> Path:
+    """The startup's copy of a hospital's SuperNode public key, to register (R27)."""
+    return startup_dir(demo_dir) / "supernodes" / f"{slug}.pub"
+
+
 def practices() -> list[tuple[int, str]]:
     """Each practice's folder name, numbered as its hospital's partition."""
     return [
@@ -134,6 +145,8 @@ def plan(demo_dir: Path) -> list[Process]:
                     str(certificates / "superlink" / "certificate.pem"),
                 ),
                 *("--ssl-keyfile", str(certificates / "superlink" / "key.pem")),
+                # Only SuperNodes registered by `register_supernodes` get in (R27).
+                "--enable-supernode-auth",
             ],
             {"FLWR_HOME": str(startup / "flwr-home")},
         )
@@ -156,6 +169,7 @@ def plan(demo_dir: Path) -> list[Process]:
                     *("--host", "127.0.0.1"),
                     *("--port", str(FIRST_RUNTIME_PORT + partition)),
                     *("--node-config", node_config),
+                    *("--auth-supernode-private-key", str(supernode_key(hospital))),
                 ],
                 {"FLWR_HOME": str(hospital / "flwr-home")},
             ),
@@ -251,14 +265,10 @@ def prepare_web(folder: Path, party: str, seed_command: str, partition: int) -> 
     )
 
 
-def prepare(demo_dir: Path) -> None:
-    """Create what is missing: certificates, cohorts, connection, web databases."""
-    from iron_deficiency.dataset import (
-        load_federated_dataset,
-        load_ferritin,
-        load_new_samples,
-    )
-
+def prepare_flower(demo_dir: Path) -> None:
+    """Create what Flower needs and is missing: the SuperLink's certificate, the
+    startup's connection to it, and each hospital's copy of the startup's CA
+    certificate and its own SuperNode key pair, whose public key the startup gets."""
     startup = startup_dir(demo_dir)
     certificates = startup / "certificates"
     if not (certificates / "superlink" / "certificate.pem").exists():
@@ -272,6 +282,29 @@ def prepare(demo_dir: Path) -> None:
         f'address = "{SUPERLINK}"\n'
         f'root-certificates = "{certificates / "ca.crt"}"\n'
     )
+    for _, slug in hospitals():
+        hospital = hospital_dir(demo_dir, slug)
+        # The hospital holds its own copy of the startup's CA certificate.
+        (hospital / "certificates").mkdir(parents=True, exist_ok=True)
+        shutil.copy(certificates / "ca.crt", hospital / "certificates" / "ca.crt")
+        if not supernode_key(hospital).exists():
+            make_key_pair(supernode_key(hospital))
+        registered_key(demo_dir, slug).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(
+            supernode_key(hospital).with_suffix(".pub"), registered_key(demo_dir, slug)
+        )
+
+
+def prepare(demo_dir: Path) -> None:
+    """Create what is missing: Flower's keys and certificates, cohorts,
+    connection, web databases."""
+    from iron_deficiency.dataset import (
+        load_federated_dataset,
+        load_ferritin,
+        load_new_samples,
+    )
+
+    prepare_flower(demo_dir)
     federated_dataset = None
     nhanes = None
     for (partition, slug), (_, practice_slug), cycle in zip(
@@ -279,9 +312,6 @@ def prepare(demo_dir: Path) -> None:
     ):
         hospital = hospital_dir(demo_dir, slug)
         practice = practice_dir(demo_dir, practice_slug)
-        # The hospital holds its own copy of the startup's CA certificate.
-        (hospital / "certificates").mkdir(parents=True, exist_ok=True)
-        shutil.copy(certificates / "ca.crt", hospital / "certificates" / "ca.crt")
         # Each hospital is its own CA: its endpoint's certificate, its practice's.
         if not (practice / "certificates" / "certificate.pem").exists():
             authority = make_authority(hospital / "ca", HOSPITALS[cycle])
@@ -357,6 +387,36 @@ def screening_status(demo_dir: Path, slug: str) -> str:
     return result.stdout.strip()
 
 
+def register_supernodes(demo_dir: Path, wait_seconds: int = 60) -> None:
+    """Register each hospital's SuperNode public key with the SuperLink, waiting
+    for it to answer; a key registered by an earlier `up` stays registered (R27)."""
+    deadline = time.monotonic() + wait_seconds
+    for _, slug in hospitals():
+        while True:
+            registration = subprocess.run(
+                [
+                    str(Path(sys.executable).parent / "flwr"),
+                    *("supernode", "register", str(registered_key(demo_dir, slug))),
+                    *("demo", "--name", slug, "--format", "json"),
+                ],
+                env={
+                    **os.environ,
+                    "FLWR_HOME": str(startup_dir(demo_dir) / "flwr-home"),
+                },
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            outcome = json.loads(registration.stdout)
+            error = str(outcome.get("error-message", ""))
+            # Flower's error code 23: this public key is registered already.
+            if outcome["success"] or "[code: 23]" in error:
+                break
+            if "unavailable" not in error or time.monotonic() > deadline:
+                raise SystemExit(f"Registering the SuperNode of {slug} failed: {error}")
+            time.sleep(1)
+
+
 def summary(statuses: dict[str, str]) -> str:
     """What the person starting the demo needs: where each party is, which
     account to use, and what to do next."""
@@ -430,6 +490,9 @@ def up(demo_dir: Path, demo_running: Callable[[], bool] | None = None) -> None:
                     stderr=subprocess.STDOUT,
                 )
             )
+            # A SuperNode the SuperLink does not know exits at once (R27).
+            if process.name == "superlink":
+                register_supernodes(demo_dir)
         print(summary(statuses), flush=True)
         while all(child.poll() is None for child in running):
             time.sleep(1)

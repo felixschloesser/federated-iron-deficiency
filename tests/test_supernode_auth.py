@@ -14,8 +14,7 @@ from pathlib import Path
 import pytest
 
 from iron_deficiency.dataset import HOSPITALS, hospital_slug
-from tools import demo
-from tools import certificates
+from tools import certificates, demo
 
 DEMO = Path("/demo")
 HOSPITAL_SLUGS = sorted(hospital_slug(name) for name in HOSPITALS.values())
