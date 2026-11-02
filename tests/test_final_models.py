@@ -122,3 +122,18 @@ def test_a_file_that_is_no_model_reads_as_unreadable(tmp_path: Path) -> None:
     path = tmp_path / "11.pt"
     path.write_bytes(b"not a model")
     assert read(path).problem() is Problem.UNREADABLE
+
+
+def test_a_reader_never_sees_half_a_final_model(
+    tmp_path: Path, cohort: pd.DataFrame, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The web app lists the folder while the ClientApp writes into it."""
+
+    def save_half(contents: object, target: Path) -> None:
+        Path(target).write_bytes(b"PK half a zip")
+        raise OSError("disk full")
+
+    monkeypatch.setattr(torch, "save", save_half)
+    with pytest.raises(OSError, match="disk full"):
+        store(tmp_path, cohort, run_id=11)
+    assert list(tmp_path.iterdir()) == []
