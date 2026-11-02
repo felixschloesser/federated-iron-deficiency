@@ -49,10 +49,10 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
     assert "general practitioners: doctor-a, doctor-b" in text
     for line in (
         "UZ Leuven  ",
-        "http://127.0.0.1:8001/   2 screening models, none deployed",
-        "http://127.0.0.1:8002/   no screening model yet",
+        "https://127.0.0.1:8001/   2 screening models, none deployed",
+        "https://127.0.0.1:8002/   no screening model yet",
         "Huisartsenpraktijk De Akker → UZ Leuven",
-        "http://127.0.0.1:8013/",
+        "https://127.0.0.1:8013/",
         "Ctrl-C stops every party.",
     ):
         assert line in text, line
@@ -76,3 +76,46 @@ def test_each_practice_and_its_hospital_seed_the_same_number_of_patients() -> No
     for partition, cycle in enumerate(PATIENTS):
         arguments = seed_arguments(partition, Path("nhanes.csv"))
         assert arguments[arguments.index("--patients") + 1] == str(PATIENTS[cycle])
+
+
+def test_each_web_app_gets_a_certificate_from_the_browser_ca_kept_outside_every_party(
+    tmp_path: Path,
+) -> None:
+    import subprocess
+
+    from tools.certificates import covers
+    from tools.demo import browser_ca, hospitals, practices, prepare_browser, web_tls
+
+    prepare_browser(tmp_path)
+    authority = browser_ca(tmp_path)
+    folders = [tmp_path / "hospitals" / slug for _, slug in hospitals()]
+    folders += [tmp_path / "practices" / slug for _, slug in practices()]
+    for folder in folders:
+        certificate = web_tls(folder) / "certificate.pem"
+        subprocess.run(
+            [
+                "openssl",
+                "verify",
+                "-CAfile",
+                str(authority / "ca.crt"),
+                str(certificate),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        # The browser asks for 127.0.0.1; HSTS never pins an IP address.
+        assert covers(certificate, "localhost")
+        assert (web_tls(folder) / "key.pem").stat().st_mode & 0o777 == 0o600
+        assert not (folder / "ca.key").exists()
+    assert not authority.is_relative_to(tmp_path / "hospitals")
+    assert not authority.is_relative_to(tmp_path / "practices")
+
+
+def test_preparing_again_keeps_each_web_apps_certificate(tmp_path: Path) -> None:
+    from tools.demo import prepare_browser, web_tls
+
+    prepare_browser(tmp_path)
+    certificate = web_tls(tmp_path / "hospitals" / "uz-leuven") / "certificate.pem"
+    first = certificate.read_bytes()
+    prepare_browser(tmp_path)
+    assert certificate.read_bytes() == first

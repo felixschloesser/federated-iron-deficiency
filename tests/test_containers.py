@@ -1,4 +1,4 @@
-"""The running containers keep the trust boundaries (spec R27, R28).
+"""The running containers keep the trust boundaries (spec R27, R28, R29).
 
 One compose project in a temporary demo folder: the SuperLink, the
 registration of every hospital's SuperNode, and UZ Leuven's SuperNode and
@@ -63,6 +63,13 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
         yield run
     finally:
         run("down", "--volumes", "--remove-orphans", check=False)
+
+
+@pytest.fixture(scope="module")
+def compose_folder(compose: Compose) -> Path:
+    """The temporary folder the compose project runs in, holding its demo/."""
+    services = json.loads(compose("config", "--format", "json").stdout)["services"]
+    return Path(services["prepare"]["volumes"][0]["source"]).parent
 
 
 def start(run: Compose, folder: Path) -> None:
@@ -189,3 +196,67 @@ def test_the_superlink_admits_the_registered_hospital_and_refuses_any_other_node
     # Registering again, as every `up` does, keeps the registration.
     compose("run", "--rm", "--no-deps", "register")
     assert online_nodes(compose) == 1
+
+
+# Runs inside the web app's own container: starts the app as compose.yaml
+# declares it, then asks it for its login page, that page's stylesheet, and
+# the login page again over plain HTTP.
+FETCH = """
+import json, re, ssl, subprocess, sys, time, urllib.error, urllib.request
+server = subprocess.Popen(json.loads(sys.argv[1]))
+context = ssl.create_default_context(cafile="/browser-ca/ca.crt")
+def get(url):
+    try:
+        with urllib.request.urlopen(url, context=context, timeout=5) as response:
+            return response.status, response.headers.get("Content-Type"), response.read()
+    except (urllib.error.URLError, OSError) as error:
+        return None, type(error).__name__, b""
+deadline = time.monotonic() + 60
+while get("https://localhost:8000/login/")[0] is None and time.monotonic() < deadline:
+    time.sleep(1)
+status, _, page = get("https://localhost:8000/login/")
+stylesheet = re.search(rb'href="(/static/[^"]+[.]css)"', page)
+css = get("https://localhost:8000" + stylesheet[1].decode()) if stylesheet else (None, None, b"")
+plain = get("http://localhost:8000/login/")
+server.terminate()
+print(json.dumps({"login": status, "css": [css[0], css[1]], "plain": plain[0]}))
+"""
+
+
+def test_the_web_app_serves_its_pages_and_stylesheets_over_https_only(
+    compose: Compose, compose_folder: Path
+) -> None:
+    from tests.test_compose import service
+
+    name = f"{HOSPITAL}-web"
+    compose(
+        "run",
+        "--rm",
+        "--no-deps",
+        "--entrypoint",
+        "python",
+        "prepare",
+        "-c",
+        "from pathlib import Path; from tools.demo import prepare_browser;"
+        " prepare_browser(Path('/demo'))",
+    )
+    compose("run", "--rm", "--no-deps", name, "python", "manage.py", "migrate", "-v0")
+    authority = compose_folder / "demo" / "browser-ca"
+    result = compose(
+        "run",
+        "--rm",
+        "--no-deps",
+        "-v",
+        f"{authority}:/browser-ca:ro",
+        "--entrypoint",
+        "python",
+        name,
+        "-c",
+        FETCH,
+        json.dumps(service(name)["command"]),
+    )
+    report = json.loads(result.stdout.strip().splitlines()[-1])
+    assert report["login"] == 200, result.stderr[-2000:]
+    assert report["css"][0] == 200
+    assert report["css"][1].startswith("text/css")
+    assert report["plain"] is None

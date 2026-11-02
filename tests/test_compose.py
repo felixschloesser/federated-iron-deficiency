@@ -234,3 +234,23 @@ def test_the_superlink_keeps_its_state_with_the_startup() -> None:
         "startup/superlink",
         False,
     )
+
+
+@pytest.mark.parametrize("slug", HOSPITAL_SLUGS + PRACTICE_SLUGS)
+def test_every_web_app_serves_https_with_its_partys_own_certificate(slug: str) -> None:
+    name = f"{slug}-web"
+    folder = party_folder(name)
+    command = service(name)["command"]
+    assert command[:2] == ["gunicorn", "web.wsgi"]
+    assert f"--certfile=/demo/{folder}/web-tls/certificate.pem" in command
+    assert f"--keyfile=/demo/{folder}/web-tls/key.pem" in command
+
+
+def test_no_running_service_runs_with_debug() -> None:
+    # Only prepare seeds the demo accounts, which needs DJANGO_DEBUG (R15).
+    with_debug = {
+        name
+        for name, spec in config()["services"].items()
+        if "DJANGO_DEBUG" in (spec.get("environment") or {})
+    }
+    assert with_debug == set()
