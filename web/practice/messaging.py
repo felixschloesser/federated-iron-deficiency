@@ -91,6 +91,19 @@ def send_pending_lab_orders(connection: Connection, *, now: datetime) -> int:
         return _send_pending(laboratory, now=now)
 
 
+def failure(error: grpc.RpcError) -> str:
+    """What the general practitioner is told when an exchange with the hospital
+    fails: wait for a network problem, report anything else."""
+    code = error.code()
+    match code:
+        case grpc.StatusCode.UNAVAILABLE | grpc.StatusCode.DEADLINE_EXCEEDED:
+            return "The hospital could not be reached. Try again later."
+        case _:
+            return (
+                f"The hospital refused a message ({code.name}). Tell the administrator."
+            )
+
+
 def check_for_lab_reports(connection: Connection, *, now: datetime) -> int:
     """Send pending orders, fetch new lab reports (DF25), store and acknowledge them."""
     with open_laboratory(connection) as laboratory:
