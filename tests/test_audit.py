@@ -107,6 +107,45 @@ def test_form_valid_may_call_a_service(tmp_path: Path) -> None:
     assert counts(tree(tmp_path, {"web/practice/views.py": code}))["get_mutation"] == 0
 
 
+MODELS_WITH_A_WRITE = (
+    "class Patient(models.Model):\n"
+    "    @transaction.atomic\n"
+    "    def collect_sample(self, now):\n"
+    "        return self.samples.create(collected_at=now)\n"
+)
+
+
+def test_calling_a_writing_model_method_outside_a_post_handler(
+    tmp_path: Path,
+) -> None:
+    view = (
+        "class PatientView(DetailView):\n"
+        "    def get_context_data(self, **kwargs) -> dict:\n"
+        "        self.object.collect_sample(now)\n"
+    )
+    root = tree(
+        tmp_path,
+        {"web/practice/models.py": MODELS_WITH_A_WRITE, "web/practice/views.py": view},
+    )
+    assert audit.run(root)["get_mutation"] == [
+        "web/practice/views.py:2: PatientView.get_context_data mutates outside a"
+        " POST handler"
+    ]
+
+
+def test_a_post_handler_may_call_a_writing_model_method(tmp_path: Path) -> None:
+    view = (
+        "class CollectSampleView(View):\n"
+        "    def post(self, request) -> HttpResponse:\n"
+        "        patient.collect_sample(now)\n"
+    )
+    root = tree(
+        tmp_path,
+        {"web/practice/models.py": MODELS_WITH_A_WRITE, "web/practice/views.py": view},
+    )
+    assert counts(root)["get_mutation"] == 0
+
+
 def test_function_view(tmp_path: Path) -> None:
     code = "def index(request) -> HttpResponse:\n    return render(request, 'x.html')\n"
     assert audit.run(tree(tmp_path, {"web/lab/views.py": code}))["get_mutation"] == [
