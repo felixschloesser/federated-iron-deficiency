@@ -111,9 +111,17 @@ def write(path: Path, model: FinalModel) -> None:
         "local_validation": model.local_validation,
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {key: value for key, value in contents.items() if value is not None}, path
-    )
+    # Written beside it, then renamed: a reader of the folder never sees half a file,
+    # and "*.pt" never matches the partial one.
+    partial = path.with_name(f".{path.name}.partial")
+    try:
+        torch.save(
+            {key: value for key, value in contents.items() if value is not None},
+            partial,
+        )
+        partial.replace(path)
+    finally:
+        partial.unlink(missing_ok=True)
 
 
 def from_bytes(data: bytes) -> FinalModel:
