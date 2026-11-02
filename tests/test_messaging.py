@@ -514,11 +514,12 @@ def test_an_awaited_lab_report_says_when_it_arrives(
     client.force_login(owner.user)
     client.post(new_order_url(client, record))
     page = reverse("practice:patient", kwargs={"pk": record.pk})
+    response = client.get(page)
+    assertContains(response, "<mark>Awaiting lab report</mark>")
     assertContains(
-        client.get(page),
-        "Awaiting lab report. New reports arrive within 5 seconds; reload to see them.",
+        response, "<small>New reports arrive within 5 seconds; reload to see them.</small>"
     )
     settings.MESSAGING_ADDRESS = None
     response = client.get(page)
-    assertContains(response, "Awaiting lab report.")
+    assertContains(response, "<mark>Awaiting lab report</mark>")
     assertNotContains(response, "New reports arrive")

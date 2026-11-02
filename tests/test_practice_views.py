@@ -112,6 +112,14 @@ def test_patient_page_offers_collecting_a_sample(
     assert response.context["actions"] == []
 
 
+def test_patient_page_says_sex_and_age_under_the_name(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    response = logged_in(client, general_practitioner).get(patient_url(patient))
+    assert response.context["subtitle"] == "Female, aged 32"
+    assertContains(response, "<p>Female, aged 32</p>")
+
+
 def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
@@ -451,7 +459,7 @@ def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
     # The CBC first, then the ferritin ordered beside its suggestion.
     assert [entry["order"].test for entry in sample["entries"]] == ["cbc", "ferritin"]
     assert sample["entries"][0]["order_ferritin_url"] is None
-    assertContains(response, "Awaiting lab report.")
+    assertContains(response, "<mark>Awaiting lab report</mark>")
 
 
 def test_each_sample_is_a_details_block_and_only_the_newest_is_open(
