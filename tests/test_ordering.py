@@ -3,11 +3,13 @@ another general practitioner's patient (features/access.feature)."""
 
 from datetime import UTC, datetime
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
+from django.db import IntegrityError, transaction
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from tests.conftest import World
 from web.practice import services
+from web.practice.models import Order
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
@@ -90,10 +92,35 @@ def order_copies_patient(world: World, sex: str, age: int) -> None:
     assert world["order"].age == age
 
 
-@then(parsers.parse('the order is refused with code "{code}" on field "{field}"'))
-def order_refused(world: World, code: str, field: str) -> None:
+@then(parsers.parse('the order is refused with code "{code}"'))
+def order_refused(world: World, code: str) -> None:
+    """A condition across the order's fields: not one field's error (CLAUDE.md)."""
     assert "order" not in world
-    assert [error.code for error in world["error"].error_dict[field]] == [code]
+    errors = world["error"].error_dict
+    assert [error.code for error in errors[NON_FIELD_ERRORS]] == [code]
+    assert set(errors) == {NON_FIELD_ERRORS}
+
+
+@when("a CBC order without an indication is written straight to the database")
+def write_straight(world: World) -> None:
+    sample = world["sample"]
+    try:
+        with transaction.atomic():
+            Order.objects.create(
+                sample=sample,
+                test=OrderedTest.CBC,
+                indication=None,
+                registered_sex=sample.patient.registered_sex,
+                age=sample.patient.age,
+                ordered_at=NOW,
+            )
+    except IntegrityError as error:
+        world["integrity_error"] = error
+
+
+@then("the database refuses it")
+def database_refuses(world: World) -> None:
+    assert "integrity_error" in world
 
 
 @given(
