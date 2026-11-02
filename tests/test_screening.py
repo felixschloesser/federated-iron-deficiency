@@ -11,7 +11,13 @@ from django.db.models import DecimalField, FloatField
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from iron_deficiency.dataset import CBC_VARS, FEATURES
-from iron_deficiency.screening import save_deployment, screen
+from iron_deficiency.screening import (
+    FinalModel,
+    final_model_path,
+    screen,
+    standardization_tensor,
+    write,
+)
 from iron_deficiency.task import Net
 from tests.conftest import World
 from web.deployment import services as deployment_services
@@ -28,9 +34,13 @@ from web.vocabulary import Test as OrderedTest
 def test_screen_scores_only_eligible_women_and_returns_only_decisions(
     tmp_path: Path,
 ) -> None:
-    model = tmp_path / "model.pt"
     zeros = pd.Series(0.0, index=FEATURES)
-    save_deployment(model, Net().state_dict(), zeros, zeros + 1, threshold=0.5)
+    model = FinalModel(
+        state_dict=Net().state_dict(),
+        mean=standardization_tensor(zeros),
+        std=standardization_tensor(zeros + 1),
+        threshold=0.5,
+    )
     samples = pd.DataFrame(
         {
             "sample_id": [1, 2, 3],
@@ -74,8 +84,16 @@ def deciding_model() -> dict[str, torch.Tensor]:
 
 def write_model(directory: Path, run_id: str, threshold: float) -> None:
     zeros = pd.Series(0.0, index=FEATURES)
-    save_deployment(
-        directory / f"{run_id}.pt", deciding_model(), zeros, zeros + 1, threshold
+    path = final_model_path(directory, run_id)
+    path.unlink(missing_ok=True)  # "changed on disk" replaces the deployed file
+    write(
+        path,
+        FinalModel(
+            state_dict=deciding_model(),
+            mean=standardization_tensor(zeros),
+            std=standardization_tensor(zeros + 1),
+            threshold=threshold,
+        ),
     )
 
 
@@ -216,7 +234,8 @@ def screened(world: World) -> None:
 def records_final_model(world: World, run_id: str, threshold: float) -> None:
     screening_model = world["lab_order"].screened_by
     assert screening_model.run_id == run_id
-    assert screening_model.sha256 == sha256(world["final_models_dir"] / f"{run_id}.pt")
+    path = final_model_path(world["final_models_dir"], run_id)
+    assert screening_model.sha256 == sha256(path.read_bytes())
     assert screening_model.threshold == threshold
 
 
@@ -254,14 +273,15 @@ def released(world: World, suggested: str) -> None:
 def test_every_reason_without_a_usable_model_is_a_not_screened_reason(
     reason: NoUsableModel,
 ) -> None:
-    assert NotScreened(reason) == reason.value
+    assert NotScreened.because(reason).is_model_problem()
 
 
 @pytest.mark.parametrize("reason", NotScreened)
 def test_only_a_reason_without_a_usable_model_is_a_model_problem(
     reason: NotScreened,
 ) -> None:
-    assert reason.is_model_problem() is (reason.value in NoUsableModel.values)
+    is_because = any(NotScreened.because(each) is reason for each in NoUsableModel)
+    assert reason.is_model_problem() is is_because
 
 
 @pytest.mark.parametrize(

@@ -12,7 +12,7 @@ from django.views.generic import TemplateView
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
 from web.deployment import services
-from web.deployment.domain import deployed_model, screening_models
+from web.deployment.domain import NoUsableModel, screener, screening_models
 from web.deployment.models import Deployment
 
 
@@ -24,15 +24,19 @@ class ModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
     template_name = "deployment/models.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        deployed, no_usable_model = deployed_model(settings.FINAL_MODELS_DIR)
+        deployed = screener(settings.FINAL_MODELS_DIR)
         history = Deployment.objects.select_related("screening_model").order_by(
             "-deployed_at", "-pk"
         )
         return {
             **super().get_context_data(**kwargs),
             "screening_models": screening_models(settings.FINAL_MODELS_DIR),
-            "deployed": deployed if no_usable_model is None else None,
-            "no_usable_model": no_usable_model,
+            "deployed": None
+            if isinstance(deployed, NoUsableModel)
+            else deployed.screening_model,
+            "no_usable_model": deployed
+            if isinstance(deployed, NoUsableModel)
+            else None,
             "history": history,
         }
 

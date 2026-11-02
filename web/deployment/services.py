@@ -6,17 +6,20 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from web.deployment.domain import CannotDeploy, read_screening_model_file, sha256
+from iron_deficiency.screening import final_model_path
+from web.deployment.domain import CannotDeploy, screening_model_file, sha256
 from web.deployment.models import Deployment, ScreeningModel
 
 
 @transaction.atomic
 def deploy(*, run_id: str, directory: Path | None, now: datetime) -> Deployment:
     """Make a screening model in the hospital's folder the deployed model, from `now`."""
-    path = None if directory is None else directory / f"{run_id}.pt"
+    path = None if directory is None else final_model_path(directory, run_id)
     if path is None or not path.is_file():
         raise ValidationError(f"There is no model of run {run_id}.", code="not_found")
-    file = read_screening_model_file(path)
+    # One read: what is checked is what is hashed.
+    data = path.read_bytes()
+    file = screening_model_file(run_id, data)
     threshold = file.threshold
     if file.problem is not None or threshold is None:
         # Without a problem a file has a threshold; the second test only narrows the type.
@@ -27,7 +30,7 @@ def deploy(*, run_id: str, directory: Path | None, now: datetime) -> Deployment:
         )
     screening_model, _ = ScreeningModel.objects.get_or_create(
         run_id=run_id,
-        sha256=sha256(path),
+        sha256=sha256(data),
         defaults={
             "stored_at": file.stored_at,
             "threshold": threshold,

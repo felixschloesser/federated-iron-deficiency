@@ -7,8 +7,7 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from iron_deficiency.screening import suggests_ferritin
-from web.deployment.domain import deployed_model
+from web.deployment.domain import NoUsableModel, screener
 from web.lab.domain import NotScreened, ScreeningResult
 from web.lab.models import LabOrder, Sample
 from web.nhanes.models import Participant
@@ -90,23 +89,19 @@ def screen(lab_order: LabOrder, directory: Path | None) -> None:
     screened with the first reason (R4, R5, R19). Nothing else of it is kept (R7)."""
     reason = lab_order.not_eligible()
     if reason is None:
-        screening_model, no_usable_model = deployed_model(directory)
-        if no_usable_model is not None:
-            reason = NotScreened(no_usable_model)
-        elif screening_model is not None and directory is not None:
-            # shortcut: the file is read again after deployed_model() hashed it; a
-            # swap in between goes unseen. Hash and load one copy if that matters.
-            suggested = suggests_ferritin(
-                lab_order.results or {},
-                lab_order.age,
-                directory / f"{screening_model.run_id}.pt",
+        deployed = screener(directory)
+        if isinstance(deployed, NoUsableModel):
+            reason = NotScreened.because(deployed)
+        else:
+            suggested = deployed.suggests_ferritin(
+                lab_order.results or {}, lab_order.age
             )
             lab_order.screening_result = (
                 ScreeningResult.FERRITIN_SUGGESTED
                 if suggested
                 else ScreeningResult.FERRITIN_NOT_SUGGESTED
             )
-            lab_order.screened_by = screening_model
+            lab_order.screened_by = deployed.screening_model
             return
     lab_order.screening_result = ScreeningResult.NOT_SCREENED
     lab_order.not_screened_reason = reason

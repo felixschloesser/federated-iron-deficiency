@@ -5,6 +5,7 @@ from typing import assert_never
 from django.db import models
 
 from iron_deficiency.dataset import ELIGIBLE_AGES
+from web.deployment.domain import NoUsableModel
 
 
 class ScreeningResult(models.TextChoices):
@@ -25,6 +26,16 @@ class NotScreened(models.TextChoices):
         "deployed_model_changed",
         "deployed model file changed",
     )
+
+    @classmethod
+    def because(cls, no_usable_model: NoUsableModel) -> "NotScreened":
+        match no_usable_model:
+            case NoUsableModel.NO_DEPLOYED_MODEL:
+                return cls.NO_DEPLOYED_MODEL
+            case NoUsableModel.DEPLOYED_MODEL_CHANGED:
+                return cls.DEPLOYED_MODEL_CHANGED
+            case _:
+                assert_never(no_usable_model)
 
     def is_model_problem(self) -> bool:
         """Whether the hospital's model, not the patient, kept the CBC unscreened."""

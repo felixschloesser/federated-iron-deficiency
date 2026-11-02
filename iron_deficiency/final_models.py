@@ -1,12 +1,19 @@
 """Final models as each hospital stores them: one file per training run."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
 import torch
 
-from iron_deficiency.dataset import CYCLES, FEATURES, HOSPITALS, hospital_slug
+from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
+from iron_deficiency.screening import (
+    FinalModel,
+    final_model_path,
+    read,
+    standardization_tensor,
+    write,
+)
 from iron_deficiency.task import Net, load_data, standardization, test
 
 # Where final models live when no demo directory is configured.
@@ -26,7 +33,8 @@ def startup_final_models(demo_dir: Path) -> Path:
 
 def latest_final_model(directory: Path) -> Path:
     """The final model stored last in a folder."""
-    return max(directory.glob("*.pt"), key=lambda path: torch.load(path)["stored_at"])
+    unknown = datetime.min.replace(tzinfo=UTC)
+    return max(directory.glob("*.pt"), key=lambda path: read(path).stored_at or unknown)
 
 
 def local_validation(
@@ -63,22 +71,21 @@ def store_final_model(
     `federated` is what the ServerApp aggregated; no other hospital's metrics
     reach this file (spec R20). A final model is never overwritten (R16).
     """
-    path = directory / f"{run_id}.pt"
+    path = final_model_path(directory, run_id)
     if path.exists():
         raise FileExistsError(path)
     mean, std = standardization(cohort)
-    directory.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {
-            "state_dict": state_dict,
-            "mean": torch.tensor(mean[FEATURES].values, dtype=torch.float32),
-            "std": torch.tensor(std[FEATURES].values, dtype=torch.float32),
-            "threshold": threshold,
-            "run_id": run_id,
-            "stored_at": stored_at.isoformat(),
-            "federated": federated,
-            "local_validation": local_validation(state_dict, cohort, threshold),
-        },
+    write(
         path,
+        FinalModel(
+            state_dict=state_dict,
+            mean=standardization_tensor(mean),
+            std=standardization_tensor(std),
+            threshold=threshold,
+            run_id=run_id,
+            stored_at=stored_at,
+            federated=federated,
+            local_validation=local_validation(state_dict, cohort, threshold),
+        ),
     )
     return path

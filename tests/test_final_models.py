@@ -10,7 +10,7 @@ import torch
 
 from iron_deficiency.dataset import FEATURES
 from iron_deficiency.final_models import store_final_model
-from iron_deficiency.screening import score
+from iron_deficiency.screening import Problem, read, score
 from iron_deficiency.task import Net
 
 STORED_AT = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
@@ -102,6 +102,23 @@ def test_a_final_model_screens_like_a_deployment(
         .rename(columns={"RIDAGEYR": "age"})
         .assign(sex="Female", age=30)
     )
-    probabilities, threshold = score(samples, path)
+    probabilities, threshold = score(samples, read(path))
     assert threshold == 0.5
     assert len(probabilities) == len(samples)
+
+
+def test_a_stored_final_model_reads_back_whole(
+    tmp_path: Path, cohort: pd.DataFrame
+) -> None:
+    final_model = read(store(tmp_path, cohort, run_id=11))
+    assert final_model.problem() is None
+    assert final_model.stored_at == STORED_AT
+    assert final_model.threshold == 0.5
+    assert final_model.federated == FEDERATED
+    assert set(final_model.local_validation) >= {"true_positives", "auroc"}
+
+
+def test_a_file_that_is_no_model_reads_as_unreadable(tmp_path: Path) -> None:
+    path = tmp_path / "11.pt"
+    path.write_bytes(b"not a model")
+    assert read(path).problem() is Problem.UNREADABLE

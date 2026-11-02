@@ -1,12 +1,11 @@
 """Score one fixed model under different standardizations to see what moves the flags."""
 
 import argparse
-import tempfile
+import dataclasses
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import torch
 from evaluate_screening import evaluate
 
 from iron_deficiency.dataset import load_federated_dataset, load_ferritin
@@ -15,7 +14,7 @@ from iron_deficiency.final_models import (
     hospital_final_models,
     latest_final_model,
 )
-from iron_deficiency.screening import COLUMNS, save_deployment
+from iron_deficiency.screening import COLUMNS, read, standardization_tensor
 from iron_deficiency.task import standardization
 
 HOSPITALS = {0: "UZ Leuven", 1: "Heilig Hart Leuven", 2: "AZ Diest"}
@@ -32,7 +31,7 @@ parser.add_argument("--resamples", type=int, default=200)
 args = parser.parse_args()
 
 model = args.model or latest_final_model(hospital_final_models(DEFAULT_DEMO_DIR, 2))
-deployment = torch.load(model, weights_only=False)
+deployment = read(model)
 samples = pd.read_csv(args.input, usecols=COLUMNS)
 ferritin = load_ferritin()
 fds = load_federated_dataset()
@@ -43,12 +42,15 @@ rng = np.random.default_rng(0)
 def flags_with(cohort: pd.DataFrame) -> dict[str, float]:
     """Evaluate the fixed weights with the standardization of `cohort`'s training split."""
     mean, std = standardization(cohort)
-    with tempfile.TemporaryDirectory() as tmp:
-        path = Path(tmp) / "model.pt"
-        save_deployment(
-            path, deployment["state_dict"], mean, std, deployment["threshold"]
-        )
-        return evaluate(path, samples, ferritin)
+    return evaluate(
+        dataclasses.replace(
+            deployment,
+            mean=standardization_tensor(mean),
+            std=standardization_tensor(std),
+        ),
+        samples,
+        ferritin,
+    )
 
 
 def spread(results: list[dict[str, float]]) -> str:

@@ -5,7 +5,7 @@ from typing import Any
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from web.deployment.domain import deployed_model, screening_models
+from web.deployment.domain import NoUsableModel, screener, screening_models
 
 
 class Command(BaseCommand):
@@ -14,13 +14,13 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         directory = settings.FINAL_MODELS_DIR
         count = len(screening_models(directory))
-        deployed, no_usable_model = deployed_model(directory)
+        deployed = screener(directory)
         if count == 0:
             line = "no screening model yet"
-        elif deployed is None:
+        elif deployed is NoUsableModel.NO_DEPLOYED_MODEL:
             line = f"{count} screening model{'s' if count > 1 else ''}, none deployed"
-        elif no_usable_model is not None:
-            line = f"{no_usable_model.label} ({count} in all)"
+        elif isinstance(deployed, NoUsableModel):
+            line = f"{deployed.label} ({count} in all)"
         else:
-            line = f"{deployed.name} deployed ({count} in all)"
+            line = f"{deployed.screening_model.name} deployed ({count} in all)"
         self.stdout.write(line)
