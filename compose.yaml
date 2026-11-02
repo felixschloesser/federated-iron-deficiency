@@ -5,7 +5,8 @@
 #   docker compose up --build --abort-on-container-failure
 #   docker compose run --rm train
 #
-# Networks: startup (TB2), <hospital> (TB1), <hospital>-clientapp (TB4,
+# Browsers reach https://<party>.localhost through the proxy, the only
+# published port. Networks: startup (TB2), <hospital> (TB1), <hospital>-clientapp (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
 # <hospital>-lab-orders crosses TB3-TB1 (DF23, DF25).
 
@@ -47,6 +48,8 @@ services:
     environment:
       # Hugging Face may refuse unauthenticated downloads of the cohorts.
       HF_TOKEN: ${HF_TOKEN:-}
+      # Only for the summary's addresses.
+      DEMO_HTTPS_PORT: ${DEMO_HTTPS_PORT:-443}
     volumes: [./demo:/demo]
     networks: [setup]
 
@@ -151,7 +154,6 @@ services:
       HOSPITAL_DIR: /demo/hospitals/uz-leuven
       HOSPITAL_NAME: UZ Leuven
       PARTY_COLOUR: jade
-    ports: ["127.0.0.1:8001:8000"]
     volumes: &uz-leuven-hospital
       - ./demo/hospitals/uz-leuven:/demo/hospitals/uz-leuven
       - ./demo/hospitals/uz-leuven/final-models:/demo/hospitals/uz-leuven/final-models:ro
@@ -203,7 +205,6 @@ services:
       HOSPITAL_DIR: /demo/hospitals/heilig-hart-leuven
       HOSPITAL_NAME: Heilig Hart Leuven
       PARTY_COLOUR: pumpkin
-    ports: ["127.0.0.1:8002:8000"]
     volumes: &heilig-hart-leuven-hospital
       - ./demo/hospitals/heilig-hart-leuven:/demo/hospitals/heilig-hart-leuven
       - ./demo/hospitals/heilig-hart-leuven/final-models:/demo/hospitals/heilig-hart-leuven/final-models:ro
@@ -253,7 +254,6 @@ services:
       HOSPITAL_DIR: /demo/hospitals/az-diest
       HOSPITAL_NAME: AZ Diest
       PARTY_COLOUR: violet
-    ports: ["127.0.0.1:8003:8000"]
     volumes: &az-diest-hospital
       - ./demo/hospitals/az-diest:/demo/hospitals/az-diest
       - ./demo/hospitals/az-diest/final-models:/demo/hospitals/az-diest/final-models:ro
@@ -282,7 +282,6 @@ services:
       MESSAGING_ADDRESS: uz-leuven-lab-orders:8441
       # The demo squeezes hours into seconds; a real practice checks every 60.
       REPORT_CHECK_SECONDS: "5"
-    ports: ["127.0.0.1:8011:8000"]
     volumes: &de-akker-practice
       - ./demo/practices/huisartsenpraktijk-de-akker:/demo/practices/huisartsenpraktijk-de-akker
     networks: [huisartsenpraktijk-de-akker, uz-leuven-lab-orders]
@@ -305,7 +304,6 @@ services:
       PARTY_COLOUR: amber
       MESSAGING_ADDRESS: heilig-hart-leuven-lab-orders:8441
       REPORT_CHECK_SECONDS: "5"
-    ports: ["127.0.0.1:8012:8000"]
     volumes: &de-berk-practice
       - ./demo/practices/huisartsenpraktijk-de-berk:/demo/practices/huisartsenpraktijk-de-berk
     networks: [huisartsenpraktijk-de-berk, heilig-hart-leuven-lab-orders]
@@ -328,7 +326,6 @@ services:
       PARTY_COLOUR: purple
       MESSAGING_ADDRESS: az-diest-lab-orders:8441
       REPORT_CHECK_SECONDS: "5"
-    ports: ["127.0.0.1:8013:8000"]
     volumes: &de-ceder-practice
       - ./demo/practices/huisartsenpraktijk-de-ceder:/demo/practices/huisartsenpraktijk-de-ceder
     networks: [huisartsenpraktijk-de-ceder, az-diest-lab-orders]
@@ -339,6 +336,19 @@ services:
     environment: *de-ceder-env
     volumes: *de-ceder-practice
     networks: [huisartsenpraktijk-de-ceder, az-diest-lab-orders]
+
+  # Between the browser and the parties, like the internet: routes each
+  # <party>.localhost by SNI, never decrypting. The only published port.
+  proxy:
+    image: nginx:1.28-alpine
+    user: *user
+    depends_on:
+      prepare: {condition: service_completed_successfully}
+    ports: ["127.0.0.1:${DEMO_HTTPS_PORT:-443}:8443"]
+    volumes: ["./docker/sni-proxy.conf:/etc/nginx/nginx.conf:ro"]
+    networks:
+      [uz-leuven, heilig-hart-leuven, az-diest,
+       huisartsenpraktijk-de-akker, huisartsenpraktijk-de-berk, huisartsenpraktijk-de-ceder]
 
 networks:
   setup: {}

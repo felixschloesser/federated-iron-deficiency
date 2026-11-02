@@ -306,6 +306,9 @@ def test_the_proxy_routes_a_partys_name_to_its_web_app_without_decrypting(
         "-v0",
     )
     compose("up", "--detach", "--no-deps", "--no-build", f"{name}-web")
+    # compose.yaml mounts it relative to the project folder, here a temporary one.
+    (compose_folder / "docker").mkdir(exist_ok=True)
+    shutil.copy(ROOT / "docker" / "sni-proxy.conf", compose_folder / "docker")
     # Not `up`: run publishes no port, so a demo running on 443 is no matter.
     proxy = f"proxy-{uuid.uuid4().hex[:8]}"
     compose("run", "--detach", "--no-deps", "--name", proxy, "proxy")

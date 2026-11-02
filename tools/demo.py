@@ -37,9 +37,6 @@ ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API over HTTPS on this one address, the
 # SuperLink's service name in compose.yaml.
 SUPERLINK = "superlink:9092"
-# Where compose.yaml publishes each party's web app on the host.
-FIRST_WEB_PORT = 8001
-FIRST_PRACTICE_PORT = 8011
 # Each practice sends its lab orders to one hospital (spec §9); fictional names.
 PRACTICES = dict(
     zip(
@@ -215,9 +212,11 @@ def prepare_browser(demo_dir: Path) -> None:
     parties = [hospital_dir(demo_dir, slug) for _, slug in hospitals()]
     parties += [practice_dir(demo_dir, slug) for _, slug in practices()]
     for party in parties:
-        if fresh or not covers(web_tls(party) / "certificate.pem", "localhost"):
-            # The name constraint allows localhost and 127.0.0.1, nothing else.
-            issue(authority, web_tls(party), "localhost", server=True)
+        # The browser asks the proxy for <party>.localhost (RFC 6761); the
+        # name constraint allows localhost, its subdomains and 127.0.0.1 only.
+        host = f"{party.name}.localhost"
+        if fresh or not covers(web_tls(party) / "certificate.pem", host):
+            issue(authority, web_tls(party), host, server=True)
 
 
 def prepare(demo_dir: Path) -> None:
@@ -349,7 +348,13 @@ def register_supernodes(demo_dir: Path, wait_seconds: int = 60) -> None:
             time.sleep(1)
 
 
-def summary(statuses: dict[str, str]) -> str:
+def web_address(slug: str, https_port: int) -> str:
+    """Where a browser finds a party's web app, through the proxy."""
+    port = "" if https_port == 443 else f":{https_port}"
+    return f"https://{slug}.localhost{port}/"
+
+
+def summary(statuses: dict[str, str], https_port: int = 443) -> str:
     """What the person starting the demo needs: where each party is, which
     account to use, and what to do next."""
     hospital_names = [HOSPITALS[cycle] for cycle in CYCLES]
@@ -366,18 +371,17 @@ def summary(statuses: dict[str, str]) -> str:
             f" · laboratory director: {LABORATORY_DIRECTOR}"
         ),
     ]
-    for (partition, slug), name in zip(hospitals(), hospital_names, strict=True):
-        url = f"https://127.0.0.1:{FIRST_WEB_PORT + partition}/"
+    for (_, slug), name in zip(hospitals(), hospital_names, strict=True):
+        url = web_address(slug, https_port)
         width = max(map(len, hospital_names))
         lines.append(f"  {name:<{width}}  {url}   {statuses[slug]}")
     lines += [
         "",
         f"Practices   general practitioners: {', '.join(GENERAL_PRACTITIONERS)}",
     ]
-    for (partition, _), name in zip(practices(), practice_names, strict=True):
+    for (_, slug), name in zip(practices(), practice_names, strict=True):
         lines.append(
-            f"  {name:<{max(map(len, practice_names))}}"
-            f"  https://127.0.0.1:{FIRST_PRACTICE_PORT + partition}/"
+            f"  {name:<{max(map(len, practice_names))}}  {web_address(slug, https_port)}"
         )
     lines.append("")
     if any(status == "no screening model yet" for status in statuses.values()):
@@ -394,9 +398,10 @@ def summary(statuses: dict[str, str]) -> str:
 
 
 def web_app_listening() -> bool:
-    """Whether the first hospital's web app answers: the demo is up."""
+    """Whether the proxy answers on its port: the demo is up."""
     with socket.socket() as probe:
-        return probe.connect_ex(("127.0.0.1", FIRST_WEB_PORT)) == 0
+        port = int(os.environ.get("DEMO_HTTPS_PORT", "443"))
+        return probe.connect_ex(("127.0.0.1", port)) == 0
 
 
 def reset(demo_dir: Path, demo_running: Callable[[], bool] = web_app_listening) -> None:
@@ -417,7 +422,8 @@ def main() -> None:
     demo_dir = args.demo_dir.resolve()
     if args.action == "prepare":
         prepare(demo_dir)
-        print(summary(prepare_webs(demo_dir)), flush=True)
+        https_port = int(os.environ.get("DEMO_HTTPS_PORT", "443"))
+        print(summary(prepare_webs(demo_dir), https_port), flush=True)
     elif args.action == "register":
         register_supernodes(demo_dir)
     else:

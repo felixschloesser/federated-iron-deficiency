@@ -162,12 +162,19 @@ says otherwise, run once `echo "DEMO_USER=$(id -u):$(id -g)" > .env`.
 
 | Party | Web app |
 |---|---|
-| UZ Leuven | https://127.0.0.1:8001 |
-| Heilig Hart Leuven | https://127.0.0.1:8002 |
-| AZ Diest | https://127.0.0.1:8003 |
-| Huisartsenpraktijk De Akker → UZ Leuven | https://127.0.0.1:8011 |
-| Huisartsenpraktijk De Berk → Heilig Hart Leuven | https://127.0.0.1:8012 |
-| Huisartsenpraktijk De Ceder → AZ Diest | https://127.0.0.1:8013 |
+| UZ Leuven | https://uz-leuven.localhost |
+| Heilig Hart Leuven | https://heilig-hart-leuven.localhost |
+| AZ Diest | https://az-diest.localhost |
+| Huisartsenpraktijk De Akker → UZ Leuven | https://huisartsenpraktijk-de-akker.localhost |
+| Huisartsenpraktijk De Berk → Heilig Hart Leuven | https://huisartsenpraktijk-de-berk.localhost |
+| Huisartsenpraktijk De Ceder → AZ Diest | https://huisartsenpraktijk-de-ceder.localhost |
+
+One proxy publishes port 443 on `127.0.0.1` and routes each name to its
+party's web app without decrypting. If 443 is taken, put
+`DEMO_HTTPS_PORT=8443` in `.env` and add `:8443` to the addresses. Chrome,
+Firefox and Linux with systemd-resolved find every `*.localhost` themselves;
+Safari needs one line per party in `/etc/hosts`, for example
+`127.0.0.1 uz-leuven.localhost`.
 
 Hospitals have `lab-1` and `director-1`, practices `doctor-a` and
 `doctor-b` (password `demo-pass-2026`). A practice's patients are the same
