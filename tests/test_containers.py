@@ -37,7 +37,7 @@ def engine_running() -> bool:
 def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
     """A compose project of its own, built from this checkout, in a temporary folder."""
     if not engine_running():
-        pytest.fail("No Docker engine answers: start OrbStack (`orb start`).")
+        pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
     subprocess.run(
         ["docker", "compose", "build", "prepare", "serverapp"],
         cwd=ROOT,

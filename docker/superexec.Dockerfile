@@ -8,7 +8,7 @@ RUN python -m pip install --no-cache-dir uv \
     && uv export --project /tmp/lock --frozen --no-dev --no-default-groups \
        --no-emit-project --no-hashes --no-emit-package ray --no-emit-package flwr \
        -o /tmp/lock/requirements.txt \
-    # shortcut: CPU torch from PyTorch's index; a GPU hospital needs another image.
+    # torch==…+cpu, as locked for Linux, lives on PyTorch's CPU index.
     && python -m pip install --no-cache-dir -r /tmp/lock/requirements.txt \
        --extra-index-url https://download.pytorch.org/whl/cpu \
     && python -m pip uninstall -y uv && rm -rf /tmp/lock

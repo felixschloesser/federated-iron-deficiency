@@ -52,9 +52,20 @@ def covers(certificate: Path, host: str) -> bool:
     return "does match" in check.stdout and "does NOT match" not in check.stdout
 
 
-def make_authority(directory: Path, name: str) -> Authority:
-    """A self-signed certificate authority in `directory`."""
+# The only names a browser should ever accept from a demo CA (RFC 5280 name
+# constraints): trusting it then lends its key no power over real sites.
+LOOPBACK = "permitted;DNS:localhost,permitted;IP:127.0.0.1/255.255.255.255"
+
+
+def make_authority(
+    directory: Path, name: str, *, loopback_only: bool = False
+) -> Authority:
+    """A self-signed certificate authority in `directory`; with `loopback_only`,
+    one that may vouch only for localhost and 127.0.0.1."""
     directory.mkdir(parents=True, exist_ok=True)
+    constraints = (
+        ("-addext", f"nameConstraints=critical,{LOOPBACK}") if loopback_only else ()
+    )
     _openssl(
         directory,
         *("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", DAYS),
@@ -62,6 +73,7 @@ def make_authority(directory: Path, name: str) -> Authority:
         # Stated, not left to the openssl build: strict verifiers require them.
         *("-addext", "basicConstraints=critical,CA:TRUE"),
         *("-addext", "keyUsage=critical,keyCertSign,cRLSign"),
+        *constraints,
         *("-keyout", "ca.key", "-out", "ca.crt"),
     )
     # Owner only, whatever the openssl build's default.

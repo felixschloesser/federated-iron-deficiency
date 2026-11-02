@@ -141,7 +141,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), a practice's only its own (`PRACTICE_DIR`), and each installs, migrates and serves only its own party's apps: a hospital's database has no table for patients, a practice's none for lab orders, analyser values or final models (test and audit check), and code under `web/` imports from the training package only `iron_deficiency.screening` and `iron_deficiency.dataset` (audit check). | `tests/test_settings.py`, `tools/audit.py` |
 | R27 | The SuperLink admits only SuperNodes registered with it (Flower's SuperNode authentication, which needs TLS). Each hospital makes its own key pair in its own folder and hands the startup only the public key; the startup registers each hospital's public key before any SuperNode starts. A node with another key, or none, is refused and gets no global model, no final model and no run configuration (DF7, DF8). | `tests/test_supernode_auth.py`, `tests/test_containers.py` |
 | R28 | The ClientApp, the startup's code at each hospital (DF7, TB4), runs in a container of its own that mounts only the hospital's `cohort/` (read-only) and `final-models/`, on a network it shares only with its hospital's SuperNode: it sees no database, no key and no other party's folder, and reaches neither the hospital's web app nor anything outside the deployment, so what it sends leaves only through DF9 and DF10. | `tests/test_compose.py`, `tests/test_containers.py` |
-| R29 | Each of the six web apps runs gunicorn with `DEBUG` off, so Django's deploy settings apply (HTTPS redirect, secure cookies, HSTS), serving HTTPS with a certificate from the demo's one browser CA, which names `127.0.0.1`, `localhost` and its compose service; WhiteNoise serves the stylesheets. The browser CA's key stays in `demo/browser-ca/`, in no party's folder; the person running the demo trusts its certificate once. Only `prepare`, which seeds the demo accounts, runs with `DJANGO_DEBUG` (R15). | `tests/test_compose.py`, `tests/test_containers.py`, `tests/test_demo.py` |
+| R29 | Each of the six web apps runs gunicorn with `DEBUG` off, so Django's deploy settings apply (HTTPS redirect, secure cookies, HSTS), serving HTTPS with a certificate from the demo's one browser CA, which names `localhost` and `127.0.0.1` and may name nothing else (X.509 name constraints), so trusting it lends its key no power over real sites; WhiteNoise serves the stylesheets. The browser CA's key stays in `demo/browser-ca/`, in no party's folder; the person running the demo trusts it once with `CAROOT=demo/browser-ca mkcert -install`, on macOS, Arch and Ubuntu alike; mkcert finds `rootCA.pem` but no key, so it installs and never issues. Only `prepare`, which seeds the demo accounts, runs with `DJANGO_DEBUG` (R15). | `tests/test_compose.py`, `tests/test_containers.py`, `tests/test_demo.py` |
 
 ## 3. Agents
 
@@ -305,7 +305,8 @@ setup, the one container that sees every party's folder: certificates, keys,
 cohorts, the NHANES data, migrated and seeded databases. `register` registers
 each hospital's public key once the SuperLink answers, before any SuperNode
 starts. `train` is the data scientist (E1), submitting a run from inside TB2:
-`docker compose run --rm train`. The web apps run gunicorn with `DEBUG` off
+`docker compose run --rm train`. Every container runs as `DEMO_USER` (default
+`1000:1000`), so on Linux `demo/` belongs to one user. The web apps run gunicorn with `DEBUG` off
 and HTTPS (R29), each with a certificate under its folder's `web-tls/` from
 the browser CA in `demo/browser-ca/`, which belongs to no party.
 

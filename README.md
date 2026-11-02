@@ -145,12 +145,20 @@ docker compose run --rm train                             # in a second terminal
 ```
 
 The web apps serve HTTPS with Django's deploy settings, each with a
-certificate from the demo's own browser CA. Trust that CA once, after the
-first `up` has made it (macOS; your password is asked):
+certificate from the demo's own CA, which may vouch only for `localhost` and
+`127.0.0.1`. After the first `up` has made it, trust it once with
+[mkcert](https://github.com/FiloSottile/mkcert), which puts it into the system
+store, Firefox and Chrome; `mkcert -uninstall` with the same `CAROOT` removes it:
 
 ```shell
-security add-trusted-cert -r trustRoot -k ~/Library/Keychains/login.keychain-db demo/browser-ca/ca.crt
+brew install mkcert nss                # macOS
+sudo pacman -S mkcert nss              # Arch
+sudo apt install mkcert libnss3-tools  # Ubuntu
+CAROOT=$PWD/demo/browser-ca mkcert -install
 ```
+
+On Linux every container writes `demo/` as user `1000:1000`. If `id -u`
+says otherwise, run once `echo "DEMO_USER=$(id -u):$(id -g)" > .env`.
 
 | Party | Web app |
 |---|---|

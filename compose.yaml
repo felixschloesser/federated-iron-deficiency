@@ -13,16 +13,26 @@ name: iron-deficiency
 
 # Each image is built once, by the first service that names it (prepare,
 # serverapp); every other service uses it as built.
+# Every container runs as one user, so on Linux, where a bind mount keeps
+# numeric IDs, demo/ never mixes the images' own users (49999, 1000). Set
+# DEMO_USER=$(id -u):$(id -g) in .env if your account is not 1000:1000.
+x-user: &user "${DEMO_USER:-1000:1000}"
+
 x-web: &web
   image: iron-deficiency-web
+  user: *user
   depends_on:
     prepare: {condition: service_completed_successfully}
 
 x-superexec: &superexec
   image: iron-deficiency-superexec
+  user: *user
 
 x-supernode: &supernode
   image: flwr/supernode:1.40.0
+  user: *user
+  environment:
+    FLWR_HOME: /tmp/flwr
   depends_on:
     register: {condition: service_completed_successfully}
 
@@ -43,6 +53,9 @@ services:
   # TB2, the startup.
   superlink:
     image: flwr/superlink:1.40.0
+    user: *user
+    environment:
+      FLWR_HOME: /tmp/flwr
     depends_on:
       prepare: {condition: service_completed_successfully}
     command:

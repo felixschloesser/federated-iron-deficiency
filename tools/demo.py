@@ -203,18 +203,21 @@ def prepare_flower(demo_dir: Path) -> None:
 
 
 def prepare_browser(demo_dir: Path) -> None:
-    """Create the browser CA and each web app's certificate, if missing."""
+    """Create the browser CA and each web app's certificate, if missing (R29)."""
     folder = browser_ca(demo_dir)
-    if not (folder / "ca.crt").exists():
-        make_authority(folder, "Demo browser")
+    # mkcert's name for the CA certificate; a CA without it predates the name
+    # constraint, so it is replaced and every web certificate reissued.
+    fresh = not (folder / "rootCA.pem").exists()
+    if fresh:
+        make_authority(folder, "Demo browser", loopback_only=True)
+        shutil.copy(folder / "ca.crt", folder / "rootCA.pem")
     authority = Authority("Demo browser", folder / "ca.crt", folder / "ca.key")
     parties = [hospital_dir(demo_dir, slug) for _, slug in hospitals()]
     parties += [practice_dir(demo_dir, slug) for _, slug in practices()]
     for party in parties:
-        # Named as its compose service too, so containers can check it.
-        host = f"{party.name}-web"
-        if not covers(web_tls(party) / "certificate.pem", host):
-            issue(authority, web_tls(party), host, server=True)
+        if fresh or not covers(web_tls(party) / "certificate.pem", "localhost"):
+            # The name constraint allows localhost and 127.0.0.1, nothing else.
+            issue(authority, web_tls(party), "localhost", server=True)
 
 
 def prepare(demo_dir: Path) -> None:
@@ -354,8 +357,8 @@ def summary(statuses: dict[str, str]) -> str:
     lines = [
         f"Demo prepared. Password for every account: {PASSWORD}",
         (
-            "Trust the demo's browser CA once: security add-trusted-cert -r trustRoot"
-            " -k ~/Library/Keychains/login.keychain-db demo/browser-ca/ca.crt"
+            "Trust the demo's browser CA once (it vouches for localhost only):"
+            " CAROOT=$PWD/demo/browser-ca mkcert -install"
         ),
         "",
         (
