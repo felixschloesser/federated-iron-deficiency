@@ -86,10 +86,12 @@ def local_auroc(world: World, auroc: float) -> None:
 
 
 def deploy(world: World, run_id: str) -> None:
-    from web.deployment import services
+    from web.deployment.models import Deployment
 
     try:
-        services.deploy(run_id=run_id, directory=world["final_models_dir"], now=NOW)
+        Deployment.objects.deploy(
+            run_id=run_id, directory=world["final_models_dir"], now=NOW
+        )
     except ValidationError as error:
         world["error"] = error
 
@@ -154,29 +156,29 @@ def staff_tries(
 
 def deployed_run(world: World) -> str | None:
     """The run ID of the model that screens now, if one can."""
-    from web.deployment.domain import Screener, screener
+    from web.deployment.models import Deployment, Screener
 
-    deployed = screener(world["final_models_dir"])
+    deployed = Deployment.objects.screener(world["final_models_dir"])
     return deployed.screening_model.run_id if isinstance(deployed, Screener) else None
 
 
 def no_usable_model(world: World) -> object:
-    from web.deployment.domain import Screener, screener
+    from web.deployment.models import Deployment, Screener
 
-    deployed = screener(world["final_models_dir"])
+    deployed = Deployment.objects.screener(world["final_models_dir"])
     return None if isinstance(deployed, Screener) else deployed
 
 
 @then("there is no deployed model")
 def no_deployed_model(world: World) -> None:
-    from web.deployment.domain import NoUsableModel
+    from web.deployment.models import NoUsableModel
 
     assert no_usable_model(world) is NoUsableModel.NO_DEPLOYED_MODEL
 
 
 @then(parsers.parse('screening models "{first}" and "{second}" can be deployed'))
 def can_be_deployed(world: World, first: str, second: str) -> None:
-    from web.deployment.domain import screening_models
+    from web.deployment.model_files import screening_models
 
     listed = {
         model.run_id: model for model in screening_models(world["final_models_dir"])
@@ -219,7 +221,7 @@ def shows_validation(
     npv: str,
     auroc: str,
 ) -> None:
-    from web.deployment.domain import screening_models
+    from web.deployment.model_files import screening_models
 
     (model,) = [
         m for m in screening_models(world["final_models_dir"]) if m.run_id == run_id
@@ -238,7 +240,7 @@ def shows_validation(
     )
 )
 def cannot_be_deployed(world: World, run_id: str, code: str) -> None:
-    from web.deployment.domain import screening_models
+    from web.deployment.model_files import screening_models
 
     (model,) = [
         m for m in screening_models(world["final_models_dir"]) if m.run_id == run_id
@@ -269,7 +271,7 @@ def page_says_changed(world: World) -> None:
 def test_every_problem_of_a_file_is_a_reason_it_cannot_be_deployed(
     problem: Problem,
 ) -> None:
-    from web.deployment.domain import CannotDeploy
+    from web.deployment.model_files import CannotDeploy
 
     # The reason code is what the scenarios and the refusal's error code name.
     assert CannotDeploy.because(problem).value == problem.value

@@ -11,9 +11,8 @@ from django.views.generic import TemplateView
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
-from web.deployment import services
-from web.deployment.domain import NoUsableModel, screener, screening_models
-from web.deployment.models import Deployment
+from web.deployment.model_files import screening_models
+from web.deployment.models import Deployment, NoUsableModel
 
 
 class LaboratoryDirectorRequiredMixin(RoleRequiredMixin):
@@ -24,7 +23,7 @@ class ModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
     template_name = "deployment/models.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        deployed = screener(settings.FINAL_MODELS_DIR)
+        deployed = Deployment.objects.screener(settings.FINAL_MODELS_DIR)
         history = Deployment.objects.select_related("screening_model").order_by(
             "-deployed_at", "-pk"
         )
@@ -44,7 +43,7 @@ class ModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
 class DeployView(LaboratoryDirectorRequiredMixin, View):
     def post(self, request: HttpRequest, run_id: str) -> HttpResponse:
         try:
-            deployment = services.deploy(
+            deployment = Deployment.objects.deploy(
                 run_id=run_id, directory=settings.FINAL_MODELS_DIR, now=timezone.now()
             )
         except ValidationError as error:

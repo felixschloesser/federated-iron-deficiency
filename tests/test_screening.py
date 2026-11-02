@@ -20,8 +20,8 @@ from iron_deficiency.screening import (
 )
 from iron_deficiency.task import Net
 from tests.conftest import World
-from web.deployment import services as deployment_services
-from web.deployment.domain import NoUsableModel, sha256
+from web.deployment.model_files import sha256
+from web.deployment.models import Deployment, NoUsableModel
 from web.lab.models import (
     LabOrder,
     LabOrderDetails,
@@ -110,7 +110,7 @@ def screening_model(
 
 @given(parsers.parse('the laboratory director deployed "{run_id}"'))
 def deployed(world: World, run_id: str) -> None:
-    deployment_services.deploy(
+    Deployment.objects.deploy(
         run_id=run_id, directory=world["final_models_dir"], now=NOW
     )
 

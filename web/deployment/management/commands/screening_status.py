@@ -5,7 +5,8 @@ from typing import Any
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from web.deployment.domain import NoUsableModel, screener, screening_models
+from web.deployment.model_files import screening_models
+from web.deployment.models import Deployment, NoUsableModel
 
 
 class Command(BaseCommand):
@@ -14,7 +15,7 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         directory = settings.FINAL_MODELS_DIR
         count = len(screening_models(directory))
-        deployed = screener(directory)
+        deployed = Deployment.objects.screener(directory)
         if count == 0:
             line = "no screening model yet"
         elif deployed is NoUsableModel.NO_DEPLOYED_MODEL:

@@ -14,8 +14,7 @@ from django.db.models import Exists, OuterRef
 from django_stubs_ext import WithAnnotations
 
 from iron_deficiency.dataset import ELIGIBLE_AGES, ELIGIBLE_SEX
-from web.deployment.domain import NoUsableModel, screener
-from web.deployment.models import ScreeningModel
+from web.deployment.models import Deployment, NoUsableModel, ScreeningModel
 from web.nhanes.models import Participant
 from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
@@ -28,7 +27,7 @@ class ScreeningResult(models.TextChoices):
 
 class NotScreened(models.TextChoices):
     """Why a CBC was not screened: the first failing condition (R5), else why
-    there is no usable deployed model (web.deployment.domain.NoUsableModel)."""
+    there is no usable deployed model (web.deployment.models.NoUsableModel)."""
 
     INDICATION = "indication", "clinical indication not screened"
     SEX = "sex", "registered sex not female"
@@ -284,7 +283,7 @@ class LabOrder(models.Model):
         screened with the first reason (R4, R5, R19). Nothing else of it is kept (R7)."""
         reason = self.not_eligible()
         if reason is None:
-            deployed = screener(directory)
+            deployed = Deployment.objects.screener(directory)
             if isinstance(deployed, NoUsableModel):
                 reason = NotScreened.because(deployed)
             else:
