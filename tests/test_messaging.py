@@ -517,7 +517,8 @@ def test_an_awaited_lab_report_says_when_it_arrives(
     response = client.get(page)
     assertContains(response, "<mark>Awaiting lab report</mark>")
     assertContains(
-        response, "<small>New reports arrive within 5 seconds; reload to see them.</small>"
+        response,
+        "<small>New reports arrive within 5 seconds; reload to see them.</small>",
     )
     settings.MESSAGING_ADDRESS = None
     response = client.get(page)

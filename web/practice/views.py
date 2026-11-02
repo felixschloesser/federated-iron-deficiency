@@ -103,6 +103,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
         # lab report in them suggests ferritin.
         return {
             **super().get_context_data(**kwargs),
+            "subtitle": f"{patient.get_registered_sex_display()}, aged {patient.age}",
             "actions": [],
             "post_actions": [{"url": collect, "label": "Collect sample"}],
             # Only an app with a hospital to ask fetches lab reports (R23).

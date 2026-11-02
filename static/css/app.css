@@ -107,6 +107,8 @@ article[role="status"][data-level="error"] {
 /* A sample's heading inside its summary, with its tests on the line below. */
 details > summary h2 {
   display: inline;
+  /* Below the patient's name: a sample is one part of the page, not its title. */
+  font-size: 1.25rem;
 }
 
 details > summary small {
