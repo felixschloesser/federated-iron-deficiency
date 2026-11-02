@@ -6,7 +6,6 @@ from django.db import models
 from iron_deficiency.dataset import ELIGIBLE_AGES, ELIGIBLE_SEX
 from web.deployment.models import ScreeningModel
 from web.lab.domain import NotScreened, ScreeningResult
-from web.nhanes.models import FERRITIN
 from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
@@ -105,9 +104,3 @@ class LabOrder(models.Model):
     def ferritin_suggested(self) -> bool:
         """All the lab report says of screening (R9, R25)."""
         return self.screening_result == ScreeningResult.FERRITIN_SUGGESTED
-
-    @property
-    def ferritin(self) -> float | None:
-        """The ferritin result, or None if not measured (not analysed, or not in NHANES)."""
-        value = (self.results or {}).get(FERRITIN)
-        return None if value is None else float(value)

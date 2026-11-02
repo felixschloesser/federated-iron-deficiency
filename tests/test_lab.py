@@ -11,7 +11,7 @@ from iron_deficiency.dataset import CBC_VARS
 from tests.conftest import World, collect_and_order, deliver
 from web.lab import queries, services
 from web.lab.models import LabOrder, Sample
-from web.nhanes.models import Participant
+from web.nhanes.models import FERRITIN, Participant
 from web.practice import services as practice_services
 from web.practice.models import Patient
 from web.vocabulary import ClinicalIndication
@@ -175,13 +175,13 @@ def stored_sample(world: World, negated: str | None) -> None:
 
 @then(parsers.parse("the sample has ferritin {ferritin:g} ng/mL"))
 def sample_has_ferritin(world: World, ferritin: float) -> None:
-    assert world["lab_order"].ferritin == ferritin
+    assert world["lab_order"].results == {FERRITIN: ferritin}
 
 
 @then("the sample's ferritin is not available in the demo data")
 def ferritin_not_available(world: World) -> None:
     assert world["lab_order"].analysed_at == NOW
-    assert world["lab_order"].ferritin is None
+    assert world["lab_order"].results == {}
 
 
 @then(
