@@ -5,6 +5,7 @@ Read through `docker compose config`, which also validates the file.
 
 import json
 import os
+import re
 import subprocess
 from functools import cache
 from pathlib import Path
@@ -22,14 +23,21 @@ PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
 # Each practice sends to the hospital of the same cycle (spec §9).
 PRACTICE_HOSPITAL = dict(zip(PRACTICE_SLUGS, HOSPITAL_SLUGS, strict=True))
 STARTUP_SERVICES = {"prepare", "superlink", "serverapp", "register", "train"}
+# Between the browser and the parties, like the internet: it sees only names.
+NETWORK_SERVICES = {"proxy"}
+
+
+# Settings a person may put in .env; the tests read the file without them.
+SETTINGS = ("DEMO_USER", "DEMO_HTTPS_PORT")
 
 
 @cache
-def config(demo_user: str | None = None) -> dict[str, Any]:
-    """The file as compose reads it, with DEMO_USER set only if given."""
-    environment = {k: v for k, v in os.environ.items() if k != "DEMO_USER"}
+def config(demo_user: str | None = None, **settings: str) -> dict[str, Any]:
+    """The file as compose reads it, with only the given settings set."""
+    environment = {k: v for k, v in os.environ.items() if k not in SETTINGS}
     if demo_user is not None:
         environment["DEMO_USER"] = demo_user
+    environment.update(settings)
     result = subprocess.run(
         ["docker", "compose", "--profile", "train", "config", "--format", "json"],
         cwd=ROOT,
@@ -72,7 +80,7 @@ def party_folder(name: str) -> str:
 
 
 def test_one_service_per_process_of_each_party() -> None:
-    assert set(config()["services"]) == STARTUP_SERVICES | {
+    assert set(config()["services"]) == STARTUP_SERVICES | NETWORK_SERVICES | {
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
         for role in ("supernode", "clientapp", "web", "lab-orders")
@@ -82,7 +90,7 @@ def test_one_service_per_process_of_each_party() -> None:
 def test_each_service_mounts_only_its_own_partys_folder() -> None:
     # Setup is out of band (report, assumptions): only prepare sees every party.
     assert mounts("prepare") == {"/demo": (".", False)}
-    for name in set(config()["services"]) - {"prepare"}:
+    for name in set(config()["services"]) - {"prepare"} - NETWORK_SERVICES:
         folder = party_folder(name)
         for target, (source, _) in mounts(name).items():
             assert source.startswith(folder), (name, source)
@@ -135,17 +143,32 @@ def test_the_supernode_mounts_its_key_and_ca_certificate_but_no_data(slug: str) 
     }
 
 
-def test_only_the_web_apps_are_published_and_only_on_localhost() -> None:
-    published = {
+@pytest.mark.parametrize(("https_port", "published"), [(None, "443"), ("8443", "8443")])
+def test_only_the_sni_proxy_is_published_and_only_on_localhost(
+    https_port: str | None, published: str
+) -> None:
+    environment = {} if https_port is None else {"DEMO_HTTPS_PORT": https_port}
+    ports = {
         (name, port["host_ip"], port["published"])
-        for name, spec in config()["services"].items()
+        for name, spec in config(**environment)["services"].items()
         for port in spec.get("ports", [])
     }
-    assert published == {
-        (f"{slug}-web", "127.0.0.1", str(first + index))
-        for first, slugs in ((8001, HOSPITAL_SLUGS), (8011, PRACTICE_SLUGS))
-        for index, slug in enumerate(slugs)
-    }
+    assert ports == {("proxy", "127.0.0.1", published)}
+
+
+def test_the_proxy_reaches_every_web_app_and_nothing_else() -> None:
+    assert set(service("proxy")["networks"]) == set(HOSPITAL_SLUGS + PRACTICE_SLUGS)
+
+
+@pytest.mark.parametrize("slug", HOSPITAL_SLUGS + PRACTICE_SLUGS)
+def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
+    # Routing by the name in the TLS handshake: the proxy never decrypts.
+    conf = (ROOT / "docker" / "sni-proxy.conf").read_text()
+    routes = dict(
+        re.findall(r"^\s*([a-z-]+\.localhost)\s+([a-z-]+:\d+);", conf, re.MULTILINE)
+    )
+    assert routes[f"{slug}.localhost"] == f"{slug}-web:8000"
+    assert "ssl_preread on;" in conf
 
 
 def test_crossings_and_the_startup_are_internal_networks() -> None:

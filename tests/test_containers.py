@@ -261,3 +261,78 @@ def test_the_web_app_serves_its_pages_and_stylesheets_over_https_only(
     assert report["css"][0] == 200
     assert report["css"][1].startswith("text/css")
     assert report["plain"] is None
+
+
+# Runs on a hospital's network: asks the proxy for a name by SNI, verifies the
+# certificate it gets against the browser CA, and reads the response's status.
+THROUGH_PROXY = """
+import json, socket, ssl, sys
+proxy, name = sys.argv[1], sys.argv[2]
+context = ssl.create_default_context(cafile="/browser-ca/ca.crt")
+try:
+    with socket.create_connection((proxy, 8443), timeout=10) as raw:
+        with context.wrap_socket(raw, server_hostname=name) as tls:
+            tls.sendall(f"GET /login/ HTTP/1.1\\r\\nHost: {name}\\r\\nConnection: close\\r\\n\\r\\n".encode())
+            status = tls.recv(64).split()[1].decode()
+except OSError as error:
+    status = type(error).__name__
+print(json.dumps(status))
+"""
+
+
+def test_the_proxy_routes_a_partys_name_to_its_web_app_without_decrypting(
+    compose: Compose, compose_folder: Path
+) -> None:
+    name = "az-diest"
+    compose(
+        "run",
+        "--rm",
+        "--no-deps",
+        "--entrypoint",
+        "python",
+        "prepare",
+        "-c",
+        "from pathlib import Path; from tools.demo import prepare_browser;"
+        " prepare_browser(Path('/demo'))",
+    )
+    compose(
+        "run",
+        "--rm",
+        "--no-deps",
+        f"{name}-web",
+        "python",
+        "manage.py",
+        "migrate",
+        "-v0",
+    )
+    compose("up", "--detach", "--no-deps", "--no-build", f"{name}-web")
+    # Not `up`: run publishes no port, so a demo running on 443 is no matter.
+    proxy = f"proxy-{uuid.uuid4().hex[:8]}"
+    compose("run", "--detach", "--no-deps", "--name", proxy, "proxy")
+    authority = compose_folder / "demo" / "browser-ca"
+
+    def ask(server_name: str) -> str:
+        result = compose(
+            "run",
+            "--rm",
+            "--no-deps",
+            "-v",
+            f"{authority}:/browser-ca:ro",
+            "--entrypoint",
+            "python",
+            f"{name}-lab-orders",
+            "-c",
+            THROUGH_PROXY,
+            proxy,
+            server_name,
+        )
+        status: str = json.loads(result.stdout.strip().splitlines()[-1])
+        return status
+
+    # The proxy and the web app take a moment to start; until then no 200.
+    deadline = time.monotonic() + 120
+    while (status := ask(f"{name}.localhost")) != "200":
+        assert time.monotonic() < deadline, status
+        time.sleep(2)
+    # A name the proxy does not route gets no web app at all.
+    assert ask("bank.example") != "200"

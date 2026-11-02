@@ -49,10 +49,10 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
     assert "general practitioners: doctor-a, doctor-b" in text
     for line in (
         "UZ Leuven  ",
-        "https://127.0.0.1:8001/   2 screening models, none deployed",
-        "https://127.0.0.1:8002/   no screening model yet",
+        "https://uz-leuven.localhost/   2 screening models, none deployed",
+        "https://heilig-hart-leuven.localhost/   no screening model yet",
         "Huisartsenpraktijk De Akker → UZ Leuven",
-        "https://127.0.0.1:8013/",
+        "https://huisartsenpraktijk-de-ceder.localhost/",
         "Ctrl-C stops every party.",
     ):
         assert line in text, line
@@ -103,8 +103,8 @@ def test_each_web_app_gets_a_certificate_from_the_browser_ca_kept_outside_every_
             check=True,
             capture_output=True,
         )
-        # The browser asks for 127.0.0.1; HSTS never pins an IP address.
-        assert covers(certificate, "localhost")
+        # The browser asks for <party>.localhost, which the CA's constraint permits.
+        assert covers(certificate, f"{folder.name}.localhost")
         assert (web_tls(folder) / "key.pem").stat().st_mode & 0o777 == 0o600
         assert not (folder / "ca.key").exists()
     assert not authority.is_relative_to(tmp_path / "hospitals")
@@ -151,3 +151,10 @@ def test_mkcert_finds_the_browser_ca_but_not_its_key(tmp_path: Path) -> None:
     # rootCA-key.pem mkcert only installs and never issues ("keyless mode").
     assert (folder / "rootCA.pem").read_bytes() == (folder / "ca.crt").read_bytes()
     assert not (folder / "rootCA-key.pem").exists()
+
+
+def test_the_summary_names_the_https_port_when_it_is_not_443() -> None:
+    from tools.demo import summary
+
+    text = summary(STATUSES, https_port=8443)
+    assert "https://uz-leuven.localhost:8443/" in text
