@@ -53,6 +53,8 @@ def run_analyser(
     """Record what the analyser measures on the stored sample for the test (R3, R12),
     screen a CBC with the deployed model in `directory`, and so release its lab
     report at once (R8): the report goes out with the analysis, never before."""
+    # Read again under the write lock: the caller's copy may predate another analysis.
+    lab_order.refresh_from_db(fields=["analysed_at"])
     if lab_order.analysed_at is not None:
         raise ValidationError(
             "This test has already been analysed.", code="already_analysed"
