@@ -15,16 +15,16 @@ from django.views.generic import DetailView, FormView, ListView, View
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
-from web.practice import messaging, services
+from web.practice import messaging
 from web.practice.forms import OrderForm
 from web.practice.models import (
     GeneralPractitioner,
+    LabReport,
     Order,
     OrderQuerySet,
     Patient,
     Sample,
 )
-from web.practice.queries import ferritin_order_offered, ferritin_suggestions
 from web.vocabulary import Test
 
 
@@ -67,7 +67,9 @@ class PatientIndexView(GeneralPractitionerRequiredMixin, ListView[Patient]):
                     },
                 ),
             }
-            for lab_report in ferritin_suggestions(self.general_practitioner)
+            for lab_report in LabReport.objects.ferritin_suggestions(
+                self.general_practitioner
+            )
         ]
         return {
             **super().get_context_data(**kwargs),
@@ -154,7 +156,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
         """An order with its lab report, if fetched, and Order ferritin beside a
         suggestion."""
         lab_report = getattr(order, "lab_report", None)
-        offered = lab_report is not None and ferritin_order_offered(lab_report)
+        offered = lab_report is not None and lab_report.ferritin_order_offered()
         return {
             "order": order,
             "lab_report": lab_report,
@@ -217,10 +219,8 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, View):
 
     def post(self, request: HttpRequest, patient: int) -> HttpResponse:
         record = get_object_or_404(self.general_practitioner.patients, pk=patient)
-        sample = services.collect_sample(
-            general_practitioner=self.general_practitioner,
-            patient=record,
-            now=timezone.now(),
+        sample = self.general_practitioner.collect_sample(
+            patient=record, now=timezone.now()
         )
         messages.success(request, f"Sample {sample.sample_id} collected.")
         # Straight to the routine first test; any other is ordered from the sample.
@@ -262,8 +262,7 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
 
     def form_valid(self, form: OrderForm) -> HttpResponse:
         try:
-            placed = services.place_order(
-                general_practitioner=self.general_practitioner,
+            placed = self.general_practitioner.place_order(
                 sample=self.sample,
                 test=self.kwargs["test"],
                 indication=form.cleaned_data.get("indication"),

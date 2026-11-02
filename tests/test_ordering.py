@@ -8,7 +8,6 @@ from django.db import IntegrityError, transaction
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from tests.conftest import World
-from web.practice import services
 from web.practice.models import Order
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
@@ -38,8 +37,9 @@ def indication_named(text: str) -> ClinicalIndication:
 @when(parsers.parse('"{general_practitioner}" collects a sample from "{patient}"'))
 def collect(world: World, general_practitioner: str, patient: str) -> None:
     try:
-        world["sample"] = services.collect_sample(
-            general_practitioner=world["general_practitioners"][general_practitioner],
+        world["sample"] = world["general_practitioners"][
+            general_practitioner
+        ].collect_sample(
             patient=world["patients"][patient],
             now=NOW,
         )
@@ -62,8 +62,9 @@ def place_order(
 ) -> None:
     """An order on the patient's latest sample."""
     try:
-        world["order"] = services.place_order(
-            general_practitioner=world["general_practitioners"][general_practitioner],
+        world["order"] = world["general_practitioners"][
+            general_practitioner
+        ].place_order(
             sample=world["patients"][patient].samples.latest("pk"),
             test=TESTS[test],
             indication=indication_named(indication) if indication else None,
@@ -132,8 +133,7 @@ def database_refuses(world: World) -> None:
 def ordered_before(
     world: World, general_practitioner: str, patient: str, indication: str
 ) -> None:
-    services.place_order(
-        general_practitioner=world["general_practitioners"][general_practitioner],
+    world["general_practitioners"][general_practitioner].place_order(
         sample=world["patients"][patient].samples.latest("pk"),
         test=OrderedTest.CBC,
         indication=indication_named(indication),

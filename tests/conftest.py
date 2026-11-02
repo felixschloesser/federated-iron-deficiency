@@ -128,13 +128,8 @@ def collect_and_order(
     now: "datetime",
 ) -> "Order":
     """Collect a sample from the patient and order one test on it."""
-    from web.practice import services
-
-    sample = services.collect_sample(
-        general_practitioner=general_practitioner, patient=patient, now=now
-    )
-    return services.place_order(
-        general_practitioner=general_practitioner,
+    sample = general_practitioner.collect_sample(patient=patient, now=now)
+    return general_practitioner.place_order(
         sample=sample,
         test=test,
         indication=indication,

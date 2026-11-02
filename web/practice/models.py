@@ -1,11 +1,17 @@
 """General practitioners, their patients, and orders (terms: docs/spec/requirements.md §1)."""
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from django.conf import settings
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
 
 from web.vocabulary import RESULT_NAMES, ClinicalIndication, RegisteredSex, Test
+
+INDICATION_REQUIRED = "A CBC needs a clinical indication."
+# The tests an order states a clinical indication for (Test.takes_indication).
+TAKES_INDICATION = [test.value for test in Test if test.takes_indication()]
 
 
 class GeneralPractitioner(models.Model):
@@ -18,6 +24,56 @@ class GeneralPractitioner(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def _not_yours(self, patient: "Patient") -> ValidationError | None:
+        if patient.general_practitioner_id == self.pk:
+            return None
+        return ValidationError(
+            "This is not one of your patients.", code="not_your_patient"
+        )
+
+    @transaction.atomic
+    def collect_sample(self, *, patient: "Patient", now: datetime) -> "Sample":
+        """Record blood collected from one of this general practitioner's patients,
+        with the patient's next sample ID; tests are ordered on it afterwards (R26)."""
+        if (error := self._not_yours(patient)) is not None:
+            raise ValidationError({"patient": error})
+        return Sample.objects.create(
+            patient=patient, sample_id=patient.next_sample_id(), collected_at=now
+        )
+
+    @transaction.atomic
+    def place_order(
+        self,
+        *,
+        sample: "Sample",
+        test: Test,
+        indication: ClinicalIndication | None,
+        now: datetime,
+    ) -> "Order":
+        """Order one test on a collected sample, copying the patient's registered
+        sex and age, also a later one such as ferritin beside a suggestion (R1, R2,
+        R11, R13, R14, R26)."""
+        patient = sample.patient
+        order = Order(
+            sample=sample,
+            test=test,
+            indication=indication,
+            registered_sex=patient.registered_sex,
+            age=patient.age,
+            ordered_at=now,
+        )
+        errors: dict[str, list[ValidationError]] = {}
+        if (error := self._not_yours(patient)) is not None:
+            errors["patient"] = [error]
+        try:
+            order.full_clean()
+        except ValidationError as invalid:
+            errors = invalid.update_error_dict(errors)
+        if errors:
+            raise ValidationError(errors)
+        order.save()
+        return order
 
 
 class Patient(models.Model):
@@ -78,10 +134,28 @@ class Order(models.Model):
     objects = OrderQuerySet.as_manager()
 
     class Meta:
-        # Each test at most once per sample (R26).
         constraints = (
+            # Each test at most once per sample (R26).
             models.UniqueConstraint(
-                fields=["sample", "test"], name="one_order_per_sample_and_test"
+                fields=["sample", "test"],
+                name="one_order_per_sample_and_test",
+                violation_error_code="already_ordered",
+                violation_error_message="This sample already has this test.",
+            ),
+            # A clinical indication exactly for the tests that take one (R1).
+            models.CheckConstraint(
+                condition=~models.Q(test__in=TAKES_INDICATION)
+                | models.Q(indication__isnull=False),
+                name="indication_required",
+                violation_error_code="indication_required",
+                violation_error_message=INDICATION_REQUIRED,
+            ),
+            models.CheckConstraint(
+                condition=models.Q(test__in=TAKES_INDICATION)
+                | models.Q(indication__isnull=True),
+                name="indication_not_applicable",
+                violation_error_code="indication_not_applicable",
+                violation_error_message="Ferritin takes no clinical indication.",
             ),
         )
 
@@ -99,6 +173,23 @@ class ResultValue:
         return f"{self.value:g}"
 
 
+class LabReportQuerySet(models.QuerySet["LabReport"]):
+    def ferritin_suggestions(
+        self, general_practitioner: GeneralPractitioner
+    ) -> "LabReportQuerySet":
+        """The general practitioner's lab reports suggesting ferritin whose sample
+        has no ferritin order yet: what awaits them, newest first (R11)."""
+        return (
+            self.filter(
+                ferritin_suggested=True,
+                order__sample__patient__general_practitioner=general_practitioner,
+            )
+            .exclude(order__sample__orders__test=Test.FERRITIN)
+            .select_related("order__sample__patient")
+            .order_by("-released_at", "-pk")
+        )
+
+
 class LabReport(models.Model):
     """A lab report fetched from the hospital (DF25): results, and whether
     ferritin is suggested; nothing else of screening (R9, R25)."""
@@ -110,6 +201,15 @@ class LabReport(models.Model):
     ferritin_suggested = models.BooleanField(default=False)
     released_at = models.DateTimeField()
     fetched_at = models.DateTimeField()
+
+    objects = LabReportQuerySet.as_manager()
+
+    def ferritin_order_offered(self) -> bool:
+        """Order ferritin beside a suggestion, until its sample has ferritin (R11, R26)."""
+        # .all(), not .filter(): uses the sample's orders when the page prefetched them.
+        return self.ferritin_suggested and not any(
+            order.test == Test.FERRITIN for order in self.order.sample.orders.all()
+        )
 
     @property
     def comment(self) -> str:

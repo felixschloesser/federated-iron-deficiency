@@ -7,8 +7,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 
 from iron_deficiency.dataset import CBC_VARS
 from tests.conftest import World, collect_and_order
-from web.practice import services
-from web.practice.models import Order, Patient
+from web.practice.models import LabReport, Order, Patient
 from web.vocabulary import ClinicalIndication
 from web.vocabulary import Test as OrderedTest
 
@@ -93,8 +92,7 @@ def ferritin_order(world: World, patient: str) -> None:
 @given("a ferritin order on the lab report's sample")
 def ferritin_on_the_sample(world: World) -> None:
     sample = world["lab_report"].order.sample
-    services.place_order(
-        general_practitioner=sample.patient.general_practitioner,
+    sample.patient.general_practitioner.place_order(
         sample=sample,
         test=OrderedTest.FERRITIN,
         indication=None,
@@ -140,17 +138,14 @@ def no_note(world: World) -> None:
 
 @then(parsers.parse('"{name}" has the lab report among the ferritin suggestions'))
 def among_suggestions(world: World, name: str) -> None:
-    from web.practice.queries import ferritin_suggestions
-
     owner = world["general_practitioners"][name]
-    assert list(ferritin_suggestions(owner)) == [world["lab_report"]]
+    assert list(LabReport.objects.ferritin_suggestions(owner)) == [world["lab_report"]]
 
 
 @then(parsers.parse('"{name}" has no ferritin suggestions'))
 def no_suggestions(world: World, name: str) -> None:
-    from web.practice.queries import ferritin_suggestions
-
-    assert not ferritin_suggestions(world["general_practitioners"][name]).exists()
+    general_practitioner = world["general_practitioners"][name]
+    assert not LabReport.objects.ferritin_suggestions(general_practitioner).exists()
 
 
 @then("the lab report has no comment")
@@ -159,9 +154,7 @@ def no_comment(world: World) -> None:
 
 
 def offered(world: World) -> bool:
-    from web.practice.queries import ferritin_order_offered
-
-    return ferritin_order_offered(world["lab_report"])
+    return bool(world["lab_report"].ferritin_order_offered())
 
 
 @then("ordering ferritin is offered on the lab report")

@@ -12,7 +12,6 @@ from tests.conftest import World, collect_and_order, deliver
 from web.lab import queries, services
 from web.lab.models import LabOrder, Sample
 from web.nhanes.models import FERRITIN, Participant
-from web.practice import services as practice_services
 from web.practice.models import Patient
 from web.vocabulary import ClinicalIndication
 from web.vocabulary import Test as OrderedTest
@@ -78,8 +77,7 @@ def an_order(world: World, test: str, patient: str) -> None:
 @given("a ferritin order on that sample")
 def ferritin_on_that_sample(world: World) -> None:
     sample = world["order"].sample
-    world["order"] = practice_services.place_order(
-        general_practitioner=sample.patient.general_practitioner,
+    world["order"] = sample.patient.general_practitioner.place_order(
         sample=sample,
         test=OrderedTest.FERRITIN,
         indication=None,
