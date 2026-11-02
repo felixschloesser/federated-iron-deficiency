@@ -4,6 +4,7 @@ Read through `docker compose config`, which also validates the file.
 """
 
 import json
+import os
 import subprocess
 from functools import cache
 from pathlib import Path
@@ -24,10 +25,15 @@ STARTUP_SERVICES = {"prepare", "superlink", "serverapp", "register", "train"}
 
 
 @cache
-def config() -> dict[str, Any]:
+def config(demo_user: str | None = None) -> dict[str, Any]:
+    """The file as compose reads it, with DEMO_USER set only if given."""
+    environment = {k: v for k, v in os.environ.items() if k != "DEMO_USER"}
+    if demo_user is not None:
+        environment["DEMO_USER"] = demo_user
     result = subprocess.run(
         ["docker", "compose", "--profile", "train", "config", "--format", "json"],
         cwd=ROOT,
+        env=environment,
         capture_output=True,
         text=True,
         check=True,
@@ -254,3 +260,13 @@ def test_no_running_service_runs_with_debug() -> None:
         if "DJANGO_DEBUG" in (spec.get("environment") or {})
     }
     assert with_debug == set()
+
+
+@pytest.mark.parametrize(
+    ("demo_user", "user"), [(None, "1000:1000"), ("1234:5678", "1234:5678")]
+)
+def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -> None:
+    # On Linux a bind mount keeps numeric IDs: every container writes demo/ as
+    # one user, by default the first account of most Linux machines.
+    users = {spec.get("user") for spec in config(demo_user)["services"].values()}
+    assert users == {user}

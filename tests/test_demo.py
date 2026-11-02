@@ -119,3 +119,35 @@ def test_preparing_again_keeps_each_web_apps_certificate(tmp_path: Path) -> None
     first = certificate.read_bytes()
     prepare_browser(tmp_path)
     assert certificate.read_bytes() == first
+
+
+def test_the_browser_ca_vouches_only_for_localhost(tmp_path: Path) -> None:
+    import subprocess
+
+    from tools.certificates import Authority, issue
+    from tools.demo import browser_ca, prepare_browser
+
+    prepare_browser(tmp_path)
+    folder = browser_ca(tmp_path)
+    authority = Authority("Demo browser", folder / "ca.crt", folder / "ca.key")
+    # Whoever reads the key may sign for any name; browsers accept only localhost.
+    certificate, _ = issue(authority, tmp_path / "bank", "bank.example", server=True)
+    verified = subprocess.run(
+        ["openssl", "verify", "-CAfile", str(authority.certificate), str(certificate)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert verified.returncode != 0
+    assert "subtree violation" in verified.stdout + verified.stderr
+
+
+def test_mkcert_finds_the_browser_ca_but_not_its_key(tmp_path: Path) -> None:
+    from tools.demo import browser_ca, prepare_browser
+
+    prepare_browser(tmp_path)
+    folder = browser_ca(tmp_path)
+    # `CAROOT=demo/browser-ca mkcert -install` trusts rootCA.pem; without
+    # rootCA-key.pem mkcert only installs and never issues ("keyless mode").
+    assert (folder / "rootCA.pem").read_bytes() == (folder / "ca.crt").read_bytes()
+    assert not (folder / "rootCA-key.pem").exists()
