@@ -104,7 +104,8 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 ├── R14 Avoid[Patient name at the lab]                                               Lab app
 ├── R15 Avoid[Demo login outside development]                                        Settings + system check
 ├── R20 Avoid[A hospital learns another hospital's metrics]                          ClientApp
-└── R21 Maintain[Each party's software and data stay inside its trust boundary]      Settings + audit + launcher
+├── R21 Maintain[Each party's software and data stay inside its trust boundary]      Settings + audit + launcher
+└── R27 Avoid[A node other than a hospital's SuperNode joins the federation]        Launcher + SuperLink
 ```
 
 ### Requirements
@@ -136,6 +137,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R19 | Before each screening the deployed model's file is hashed; if it no longer matches the SHA-256 recorded at deployment, there is no usable deployed model (R8). | `deployment.feature`, `screening.feature` |
 | R20 | A final model's metadata holds only this hospital's local validation and the federated aggregate the ServerApp computed; never another hospital's metrics. | `tests/test_final_models.py` |
 | R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), a practice's only its own (`PRACTICE_DIR`), and each installs, migrates and serves only its own party's apps: a hospital's database has no table for patients, a practice's none for lab orders, analyser values or final models (test and audit check), and code under `web/` imports from the training package only `iron_deficiency.screening` and `iron_deficiency.dataset` (audit check). | `tests/test_settings.py`, `tools/audit.py` |
+| R27 | The SuperLink admits only SuperNodes registered with it (Flower's SuperNode authentication, which needs TLS). Each hospital makes its own key pair in its own folder and hands the startup only the public key; the startup registers each hospital's public key before any SuperNode starts. A node with another key, or none, is refused and gets no global model, no final model and no run configuration (DF7, DF8). | `tests/test_supernode_auth.py` |
 
 ## 3. Agents
 
@@ -152,7 +154,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | Lab app (`lab`) | Software | R2–R8, R12, R14 |
 | Analyser | Software, stand-in | Returns the patient's NHANES 2021–2023 values (R3, R12) |
 | Final models | Environment | Written by the ClientApp (R16) into the hospital's `final-models/` folder (§9) |
-| Launcher (`tools/demo.py`) | Software | Starts each party as its own process (§9, R21) |
+| Launcher (`tools/demo.py`) | Software | Starts each party as its own process (§9, R21); registers each hospital's SuperNode key before the SuperNodes start (R27) |
 | Seed commands (`seed_hospital`, `seed_practice`) | Software | Each party's demo accounts from the same NHANES 2021–2023 participants: laboratory staff, a laboratory director and the analyser stand-in's values at the hospital; general practitioners and patients with obviously synthetic names at the practice |
 
 ## 4. Obstacles
@@ -178,6 +180,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | O17 | Someone other than the general practitioner's app sends orders or reads lab reports | P0 | R24; the hospital is its own CA, so the startup cannot issue a certificate |
 | O18 | A lab order is sent twice (retry after a lost reply) | R22 | Recorded once by sample ID and test; the repeat is acknowledged |
 | O19 | The laboratory links tests of the same patient | P0 | Accepted: only through the shared sample ID; real laboratories link through the national register number |
+| O20 | A node that is not a hospital connects to the SuperLink and receives every round's global model, the final model and the run configuration | P0 | R27 |
 
 ## 5. Operations
 
@@ -250,11 +253,13 @@ are visible on disk and as processes. Everything lives under `demo/`
 ```
 demo/
 ├── startup/                     TB2
-│   ├── superlink/               DS3 run state, configuration, messages
+│   ├── superlink/               DS3 run state, configuration, messages, registered SuperNodes
+│   ├── supernodes/              each hospital's SuperNode public key, as handed over (R27)
 │   └── final-models/            DS4 the startup's copy of every final model, one per run (DF13)
 └── hospitals/
     ├── uz-leuven/               TB1
     │   ├── cohort/              DS2 training cohort (2005–2006)
+    │   ├── supernode/           the SuperNode's key pair; the private key never leaves (R27)
     │   ├── final-models/        DS5 one file per training run (R16)
     │   └── web.sqlite3          DS1 lab records, DS6 deployment history
     ├── heilig-hart-leuven/      TB1 (2015–2016, 50%)
@@ -271,7 +276,7 @@ The three practices are fictional; a real practice may share a name.
 
 `tools/demo.py` starts, as separate processes: one `flower-superlink` (the
 startup); three `flower-supernode`s, each given only its hospital's `cohort/`
-and `final-models/` in its node config; and three web apps, one port per
+and `final-models/` in its node config and signing in with its own key, registered with the SuperLink before it starts (R27); and three web apps, one port per
 hospital, each with `HOSPITAL_DIR` set to its folder. Training is submitted
 with `flwr run` to this local deployment, not the simulation, so the only data
 crossing a boundary is Flower's messages (DF7–DF10). The web app refuses to
