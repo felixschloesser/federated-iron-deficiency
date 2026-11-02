@@ -66,6 +66,14 @@ MESSAGING_ADDRESS = os.environ.get("MESSAGING_ADDRESS")
 REPORT_CHECK_SECONDS = int(os.environ.get("REPORT_CHECK_SECONDS", "60"))
 if MESSAGING_ADDRESS is not None and PRACTICE_DIR is None:
     raise ImproperlyConfigured("MESSAGING_ADDRESS needs PRACTICE_DIR.")
+# The practice's mutual-TLS files (R24), checked here so a missing one stops the
+# app at start instead of failing the first order; web.practice.messaging reads them.
+if MESSAGING_ADDRESS is not None and PRACTICE_DIR is not None:
+    for certificate in ("ca.crt", "certificate.pem", "key.pem"):
+        if not (PRACTICE_DIR / "certificates" / certificate).is_file():
+            raise ImproperlyConfigured(
+                f"MESSAGING_ADDRESS needs {PRACTICE_DIR / 'certificates' / certificate}."
+            )
 
 
 def _secret_key() -> str:
