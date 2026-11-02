@@ -23,9 +23,14 @@ def main(grid: Grid, context: Context) -> None:
             log(INFO, "PROBE error %s", reply.error)
             continue
         found = reply.content.config_records["found"]
+        files, reachable = found["files"], found["reachable"]
+        if not isinstance(files, list) or not isinstance(reachable, list):
+            raise TypeError(
+                "The probe ClientApp returns lists of files and destinations"
+            )
         report = {
             "hospital": found["hospital"],
-            "files": sorted(set(found["files"])),
-            "reachable": list(found["reachable"]),
+            "files": sorted({str(path) for path in files}),
+            "reachable": [str(destination) for destination in reachable],
         }
         log(INFO, "PROBE %s", json.dumps(report))

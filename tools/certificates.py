@@ -37,6 +37,21 @@ def make_key_pair(path: Path) -> Path:
     return path
 
 
+def covers(certificate: Path, host: str) -> bool:
+    """Whether `certificate` exists and names `host`, so a client checking the
+    host accepts it; a certificate from before compose.yaml names localhost only."""
+    if not certificate.exists():
+        return False
+    check = subprocess.run(
+        ["openssl", "x509", "-in", str(certificate), "-noout", "-checkhost", host],
+        capture_output=True,
+        text=True,
+        # Some openssl builds exit 1 when the host does not match: an answer, not an error.
+        check=False,
+    )
+    return "does match" in check.stdout and "does NOT match" not in check.stdout
+
+
 def make_authority(directory: Path, name: str) -> Authority:
     """A self-signed certificate authority in `directory`."""
     directory.mkdir(parents=True, exist_ok=True)
@@ -64,7 +79,8 @@ def issue(
     usage = "serverAuth" if server else "clientAuth"
     extensions = f"extendedKeyUsage={usage}\n"
     if server:
-        extensions += "subjectAltName=DNS:localhost,IP:127.0.0.1\n"
+        # The common name is the server's host in compose.yaml; localhost for tests.
+        extensions += f"subjectAltName=DNS:{common_name},DNS:localhost,IP:127.0.0.1\n"
     with tempfile.NamedTemporaryFile("w", suffix=".ext") as file:
         file.write(extensions)
         file.flush()

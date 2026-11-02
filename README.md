@@ -127,34 +127,39 @@ running the simulation from another checkout.
 
 ## Run the demo deployment
 
-`tools/demo.py` runs the startup, the three hospitals and their three
-general practitioners' practices as separate processes on your machine, each
-with its own folder under `demo/` (gitignored): the startup runs the
-SuperLink; each hospital runs a SuperNode, which sees only its own cohort and
-final models, a web app and a messaging endpoint; each practice runs its own
-web app and checks its hospital for lab reports every 60 seconds. Flower
-traffic uses TLS with the startup's self-signed certificate; lab orders and
-lab reports use mutual TLS, each hospital being its own certificate authority:
+`compose.yaml` runs the startup, the three hospitals and their three general
+practitioners' practices in Docker (OrbStack on a Mac will do): one container
+per process, one network per trust boundary, each container seeing only its
+own folders under `demo/` (gitignored). The startup runs the SuperLink and
+the ServerApp; each hospital runs a SuperNode, the startup's ClientApp in a
+container that sees only the cohort and the final models and reaches only
+its SuperNode, a web app and the endpoint that receives lab orders; each
+practice runs its own web app and checks its hospital for lab reports. Flower
+traffic uses TLS with the startup's self-signed certificate, and only the
+hospitals' registered SuperNodes get in; lab orders and lab reports use
+mutual TLS, each hospital being its own certificate authority:
 
 ```shell
-uv run python tools/demo.py up      # Ctrl-C stops every process
-uv run python tools/demo.py train   # in a second terminal
+docker compose up --build --abort-on-container-failure   # Ctrl-C stops every container
+docker compose run --rm train                             # in a second terminal
 ```
 
-| Party | Web app | Messaging endpoint |
-|---|---|---|
-| UZ Leuven | http://127.0.0.1:8001 | 8441 |
-| Heilig Hart Leuven | http://127.0.0.1:8002 | 8442 |
-| AZ Diest | http://127.0.0.1:8003 | 8443 |
-| Huisartsenpraktijk De Akker → UZ Leuven | http://127.0.0.1:8011 | |
-| Huisartsenpraktijk De Berk → Heilig Hart Leuven | http://127.0.0.1:8012 | |
-| Huisartsenpraktijk De Ceder → AZ Diest | http://127.0.0.1:8013 | |
+| Party | Web app |
+|---|---|
+| UZ Leuven | http://127.0.0.1:8001 |
+| Heilig Hart Leuven | http://127.0.0.1:8002 |
+| AZ Diest | http://127.0.0.1:8003 |
+| Huisartsenpraktijk De Akker → UZ Leuven | http://127.0.0.1:8011 |
+| Huisartsenpraktijk De Berk → Heilig Hart Leuven | http://127.0.0.1:8012 |
+| Huisartsenpraktijk De Ceder → AZ Diest | http://127.0.0.1:8013 |
 
 Hospitals have `lab-1` and `director-1`, practices `doctor-a` and
 `doctor-b` (password `demo-pass-2026`). A practice's patients are the same
 NHANES participants whose tubes its hospital's analyser stand-in measures.
-The first `up` downloads the cohorts and the 2021–2023 cycle from Hugging
-Face; set `HF_TOKEN` if it refuses. A `demo/` from before the practices
+The first `docker compose up` downloads the cohorts and the 2021–2023 cycle
+from Hugging Face; set `HF_TOKEN` if it refuses. A `demo/` from before
+the containers keeps its data; its certificates are reissued for the
+containers' host names. A `demo/` from before the practices
 has databases from before the split: delete `demo/hospitals/*/web.sqlite3`
 once (the cohorts and final models stay).
 
