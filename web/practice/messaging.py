@@ -9,7 +9,9 @@ import grpc
 from django.conf import settings
 
 from web.messaging import messages_pb2, messages_pb2_grpc
+from web.messaging.choices import from_proto, moment, timestamp, to_proto
 from web.practice.models import LabReport, Order
+from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 TIMEOUT_SECONDS = 10
 
@@ -61,12 +63,17 @@ def _send(laboratory: messages_pb2_grpc.LaboratoryStub, order: Order) -> None:
     laboratory.SendLabOrder(
         messages_pb2.LabOrder(
             sample_id=order.sample.sample_id,
-            test=order.test,
-            indication=order.indication or "",
-            registered_sex=order.registered_sex,
+            test=to_proto(Test(order.test), messages_pb2.Test),
+            indication=to_proto(
+                ClinicalIndication(order.indication) if order.indication else None,
+                messages_pb2.ClinicalIndication,
+            ),
+            registered_sex=to_proto(
+                RegisteredSex(order.registered_sex), messages_pb2.RegisteredSex
+            ),
             age=order.age,
             general_practitioner=order.sample.patient.general_practitioner.name,
-            ordered_at=order.ordered_at.isoformat(),
+            ordered_at=timestamp(order.ordered_at),
         ),
         timeout=TIMEOUT_SECONDS,
     )
@@ -125,13 +132,11 @@ def _store(report: messages_pb2.LabReport, *, now: datetime) -> bool:
 
     The hospital is another party: a report that cannot be stored stays
     unacknowledged instead of holding back the others."""
-    order = Order.objects.filter(
-        sample__sample_id=report.sample_id, test=report.test
-    ).first()
-    try:
-        released_at = datetime.fromisoformat(report.released_at)
-    except ValueError:
+    test = from_proto(report.test, messages_pb2.Test, Test)
+    if test is None or not report.HasField("released_at"):
         return False
+    released_at = moment(report.released_at)
+    order = Order.objects.filter(sample__sample_id=report.sample_id, test=test).first()
     if order is None:
         return False
     LabReport.objects.get_or_create(

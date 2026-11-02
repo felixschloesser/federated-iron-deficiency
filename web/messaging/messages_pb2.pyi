@@ -13,15 +13,88 @@ from typing import Never as _Never
 
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class _Test:
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    type V = ValueType  # noqa: Y015
+
+class _TestEnumTypeWrapper(
+    _enum_type_wrapper._EnumTypeWrapper[_Test.ValueType], _builtins.type
+):
+    DESCRIPTOR: _descriptor.EnumDescriptor
+    TEST_UNSPECIFIED: _Test.ValueType  # 0
+    TEST_CBC: _Test.ValueType  # 1
+    TEST_FERRITIN: _Test.ValueType  # 2
+
+class Test(_Test, metaclass=_TestEnumTypeWrapper):
+    """The choices of web.vocabulary, one value per member, named after it with the
+    enum's prefix (Test.CBC is TEST_CBC); 0 is none (proto3 default).
+    """
+
+TEST_UNSPECIFIED: Test.ValueType  # 0
+TEST_CBC: Test.ValueType  # 1
+TEST_FERRITIN: Test.ValueType  # 2
+type Global___Test = Test  # noqa: Y015
+
+class _ClinicalIndication:
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    type V = ValueType  # noqa: Y015
+
+class _ClinicalIndicationEnumTypeWrapper(
+    _enum_type_wrapper._EnumTypeWrapper[_ClinicalIndication.ValueType], _builtins.type
+):
+    DESCRIPTOR: _descriptor.EnumDescriptor
+    CLINICAL_INDICATION_UNSPECIFIED: _ClinicalIndication.ValueType  # 0
+    """none: a test that takes no indication"""
+    CLINICAL_INDICATION_SUSPECTED_ANAEMIA: _ClinicalIndication.ValueType  # 1
+    CLINICAL_INDICATION_SUSPECTED_IBS: _ClinicalIndication.ValueType  # 2
+    CLINICAL_INDICATION_UNEXPLAINED_FATIGUE: _ClinicalIndication.ValueType  # 3
+    CLINICAL_INDICATION_START_OF_PREGNANCY: _ClinicalIndication.ValueType  # 4
+    CLINICAL_INDICATION_CKD_FOLLOW_UP: _ClinicalIndication.ValueType  # 5
+    CLINICAL_INDICATION_OTHER: _ClinicalIndication.ValueType  # 6
+
+class ClinicalIndication(
+    _ClinicalIndication, metaclass=_ClinicalIndicationEnumTypeWrapper
+): ...
+
+CLINICAL_INDICATION_UNSPECIFIED: ClinicalIndication.ValueType  # 0
+"""none: a test that takes no indication"""
+CLINICAL_INDICATION_SUSPECTED_ANAEMIA: ClinicalIndication.ValueType  # 1
+CLINICAL_INDICATION_SUSPECTED_IBS: ClinicalIndication.ValueType  # 2
+CLINICAL_INDICATION_UNEXPLAINED_FATIGUE: ClinicalIndication.ValueType  # 3
+CLINICAL_INDICATION_START_OF_PREGNANCY: ClinicalIndication.ValueType  # 4
+CLINICAL_INDICATION_CKD_FOLLOW_UP: ClinicalIndication.ValueType  # 5
+CLINICAL_INDICATION_OTHER: ClinicalIndication.ValueType  # 6
+type Global___ClinicalIndication = ClinicalIndication  # noqa: Y015
+
+class _RegisteredSex:
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    type V = ValueType  # noqa: Y015
+
+class _RegisteredSexEnumTypeWrapper(
+    _enum_type_wrapper._EnumTypeWrapper[_RegisteredSex.ValueType], _builtins.type
+):
+    DESCRIPTOR: _descriptor.EnumDescriptor
+    REGISTERED_SEX_UNSPECIFIED: _RegisteredSex.ValueType  # 0
+    REGISTERED_SEX_FEMALE: _RegisteredSex.ValueType  # 1
+    REGISTERED_SEX_MALE: _RegisteredSex.ValueType  # 2
+
+class RegisteredSex(_RegisteredSex, metaclass=_RegisteredSexEnumTypeWrapper): ...
+
+REGISTERED_SEX_UNSPECIFIED: RegisteredSex.ValueType  # 0
+REGISTERED_SEX_FEMALE: RegisteredSex.ValueType  # 1
+REGISTERED_SEX_MALE: RegisteredSex.ValueType  # 2
+type Global___RegisteredSex = RegisteredSex  # noqa: Y015
 
 @_typing.final
 class LabOrder(_message.Message):
     """DF23. No patient name, no blood values (R25): the tube's values are measured
-    at the hospital. Choices are the values of web.vocabulary, checked by the
-    hospital's form.
+    at the hospital. The hospital's form still checks every field.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
@@ -34,29 +107,26 @@ class LabOrder(_message.Message):
     GENERAL_PRACTITIONER_FIELD_NUMBER: _builtins.int
     ORDERED_AT_FIELD_NUMBER: _builtins.int
     sample_id: _builtins.str
-    test: _builtins.str
-    """web.vocabulary.Test"""
-    indication: _builtins.str
-    """web.vocabulary.ClinicalIndication; empty: none"""
-    registered_sex: _builtins.str
-    """web.vocabulary.RegisteredSex"""
+    test: Test.ValueType
+    indication: ClinicalIndication.ValueType
+    registered_sex: RegisteredSex.ValueType
     age: _builtins.int
     general_practitioner: _builtins.str
     """the ordering general practitioner's name"""
-    ordered_at: _builtins.str
-    """ISO 8601"""
+    @_builtins.property
+    def ordered_at(self) -> _timestamp_pb2.Timestamp: ...
     def __init__(
         self,
         *,
         sample_id: _builtins.str = ...,
-        test: _builtins.str = ...,
-        indication: _builtins.str = ...,
-        registered_sex: _builtins.str = ...,
+        test: Test.ValueType = ...,
+        indication: ClinicalIndication.ValueType = ...,
+        registered_sex: RegisteredSex.ValueType = ...,
         age: _builtins.int = ...,
         general_practitioner: _builtins.str = ...,
-        ordered_at: _builtins.str = ...,
+        ordered_at: _timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    type _HasFieldArgType = _Never  # noqa: Y015
+    type _HasFieldArgType = _typing.Literal["ordered_at", b"ordered_at"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
     type _ClearFieldArgType = _typing.Literal[
         "age",
@@ -115,24 +185,24 @@ class LabReport(_message.Message):
     FERRITIN_SUGGESTED_FIELD_NUMBER: _builtins.int
     report_id: _builtins.str
     sample_id: _builtins.str
-    test: _builtins.str
-    released_at: _builtins.str
-    """ISO 8601"""
+    test: Test.ValueType
     ferritin_suggested: _builtins.bool
     """false when absent: never a false suggestion"""
     @_builtins.property
     def results(self) -> _containers.ScalarMap[_builtins.str, _builtins.float]: ...
+    @_builtins.property
+    def released_at(self) -> _timestamp_pb2.Timestamp: ...
     def __init__(
         self,
         *,
         report_id: _builtins.str = ...,
         sample_id: _builtins.str = ...,
-        test: _builtins.str = ...,
+        test: Test.ValueType = ...,
         results: _abc.Mapping[_builtins.str, _builtins.float] | None = ...,
-        released_at: _builtins.str = ...,
+        released_at: _timestamp_pb2.Timestamp | None = ...,
         ferritin_suggested: _builtins.bool = ...,
     ) -> None: ...
-    type _HasFieldArgType = _Never  # noqa: Y015
+    type _HasFieldArgType = _typing.Literal["released_at", b"released_at"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
     type _ClearFieldArgType = _typing.Literal[
         "ferritin_suggested",

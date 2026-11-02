@@ -52,3 +52,44 @@ def test_the_contract_types_choices_and_times(
     typed = descriptor.enum_type or descriptor.message_type
     assert typed is not None, f"{message}.{field} is a {descriptor.type}"
     assert typed.name == kind
+
+
+VOCABULARIES = ("Test", "ClinicalIndication", "RegisteredSex")
+
+
+def _members() -> list[tuple[str, str]]:
+    from web import vocabulary
+
+    return [
+        (name, member.name)
+        for name in VOCABULARIES
+        for member in getattr(vocabulary, name)
+    ]
+
+
+@pytest.mark.parametrize(("vocabulary", "member"), _members())
+def test_every_choice_crosses_the_wire_and_back(vocabulary: str, member: str) -> None:
+    from web import vocabulary as words
+    from web.messaging import messages_pb2
+    from web.messaging.choices import from_proto, to_proto
+
+    choices = getattr(words, vocabulary)
+    enum = getattr(messages_pb2, vocabulary)
+    value = to_proto(choices[member], enum)
+    assert value != 0
+    assert from_proto(value, enum, choices) is choices[member]
+
+
+@pytest.mark.parametrize("vocabulary", VOCABULARIES)
+def test_none_and_unknown_numbers_are_no_choice(vocabulary: str) -> None:
+    from web import vocabulary as words
+    from web.messaging import messages_pb2
+    from web.messaging.choices import from_proto, to_proto
+
+    choices = getattr(words, vocabulary)
+    enum = getattr(messages_pb2, vocabulary)
+    assert to_proto(None, enum) == 0
+    assert from_proto(0, enum, choices) is None
+    assert from_proto(99, enum, choices) is None
+    # One proto value per member and UNSPECIFIED: nothing the vocabulary lacks.
+    assert len(enum.DESCRIPTOR.values) == len(choices) + 1

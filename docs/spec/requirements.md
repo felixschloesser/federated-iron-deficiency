@@ -296,7 +296,9 @@ Each web app takes a Pico colour theme from `PARTY_COLOUR` (vendored themes only
 The general practitioner's app is always the client (R23): it sends lab orders
 and fetches lab reports over gRPC with mutual TLS (R24). `web/messaging/messages.proto`
 is the contract; its generated code and typed stubs are committed and a test
-fails if they drift from it.
+fails if they drift from it. Its choices are proto enums with one value per
+vocabulary member (`web.messaging.choices`), and its times are
+`google.protobuf.Timestamp`; the hospital's form still checks every field.
 
 | Message | Fields | Never |
 |---|---|---|
