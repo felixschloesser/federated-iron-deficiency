@@ -97,6 +97,17 @@ def lab_orders_host(slug: str) -> str:
     return f"{slug}-lab-orders"
 
 
+def browser_ca(demo_dir: Path) -> Path:
+    """The demo's one CA for the web apps' certificates, which the person running
+    the demo trusts in their browser once; no party holds its key (R29)."""
+    return demo_dir / "browser-ca"
+
+
+def web_tls(party: Path) -> Path:
+    """A party's web app certificate and key, from the browser CA (R29)."""
+    return party / "web-tls"
+
+
 def registered_key(demo_dir: Path, slug: str) -> Path:
     """The startup's copy of a hospital's SuperNode public key, to register (R27)."""
     return startup_dir(demo_dir) / "supernodes" / f"{slug}.pub"
@@ -191,6 +202,21 @@ def prepare_flower(demo_dir: Path) -> None:
         )
 
 
+def prepare_browser(demo_dir: Path) -> None:
+    """Create the browser CA and each web app's certificate, if missing."""
+    folder = browser_ca(demo_dir)
+    if not (folder / "ca.crt").exists():
+        make_authority(folder, "Demo browser")
+    authority = Authority("Demo browser", folder / "ca.crt", folder / "ca.key")
+    parties = [hospital_dir(demo_dir, slug) for _, slug in hospitals()]
+    parties += [practice_dir(demo_dir, slug) for _, slug in practices()]
+    for party in parties:
+        # Named as its compose service too, so containers can check it.
+        host = f"{party.name}-web"
+        if not covers(web_tls(party) / "certificate.pem", host):
+            issue(authority, web_tls(party), host, server=True)
+
+
 def prepare(demo_dir: Path) -> None:
     """Create what is missing: Flower's keys and certificates, cohorts,
     connection, web databases."""
@@ -201,6 +227,7 @@ def prepare(demo_dir: Path) -> None:
     )
 
     prepare_flower(demo_dir)
+    prepare_browser(demo_dir)
     federated_dataset = None
     nhanes = None
     for (partition, slug), (_, practice_slug), cycle in zip(
@@ -326,6 +353,10 @@ def summary(statuses: dict[str, str]) -> str:
     practice_names = [f"{PRACTICES[cycle]} → {HOSPITALS[cycle]}" for cycle in CYCLES]
     lines = [
         f"Demo prepared. Password for every account: {PASSWORD}",
+        (
+            "Trust the demo's browser CA once: security add-trusted-cert -r trustRoot"
+            " -k ~/Library/Keychains/login.keychain-db demo/browser-ca/ca.crt"
+        ),
         "",
         (
             f"Hospitals   laboratory staff: {LABORATORY_STAFF}"
@@ -333,7 +364,7 @@ def summary(statuses: dict[str, str]) -> str:
         ),
     ]
     for (partition, slug), name in zip(hospitals(), hospital_names, strict=True):
-        url = f"http://127.0.0.1:{FIRST_WEB_PORT + partition}/"
+        url = f"https://127.0.0.1:{FIRST_WEB_PORT + partition}/"
         width = max(map(len, hospital_names))
         lines.append(f"  {name:<{width}}  {url}   {statuses[slug]}")
     lines += [
@@ -343,7 +374,7 @@ def summary(statuses: dict[str, str]) -> str:
     for (partition, _), name in zip(practices(), practice_names, strict=True):
         lines.append(
             f"  {name:<{max(map(len, practice_names))}}"
-            f"  http://127.0.0.1:{FIRST_PRACTICE_PORT + partition}/"
+            f"  https://127.0.0.1:{FIRST_PRACTICE_PORT + partition}/"
         )
     lines.append("")
     if any(status == "no screening model yet" for status in statuses.values()):

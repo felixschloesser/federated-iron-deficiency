@@ -144,14 +144,22 @@ docker compose up --build --abort-on-container-failure   # Ctrl-C stops every co
 docker compose run --rm train                             # in a second terminal
 ```
 
+The web apps serve HTTPS with Django's deploy settings, each with a
+certificate from the demo's own browser CA. Trust that CA once, after the
+first `up` has made it (macOS; your password is asked):
+
+```shell
+security add-trusted-cert -r trustRoot -k ~/Library/Keychains/login.keychain-db demo/browser-ca/ca.crt
+```
+
 | Party | Web app |
 |---|---|
-| UZ Leuven | http://127.0.0.1:8001 |
-| Heilig Hart Leuven | http://127.0.0.1:8002 |
-| AZ Diest | http://127.0.0.1:8003 |
-| Huisartsenpraktijk De Akker → UZ Leuven | http://127.0.0.1:8011 |
-| Huisartsenpraktijk De Berk → Heilig Hart Leuven | http://127.0.0.1:8012 |
-| Huisartsenpraktijk De Ceder → AZ Diest | http://127.0.0.1:8013 |
+| UZ Leuven | https://127.0.0.1:8001 |
+| Heilig Hart Leuven | https://127.0.0.1:8002 |
+| AZ Diest | https://127.0.0.1:8003 |
+| Huisartsenpraktijk De Akker → UZ Leuven | https://127.0.0.1:8011 |
+| Huisartsenpraktijk De Berk → Heilig Hart Leuven | https://127.0.0.1:8012 |
+| Huisartsenpraktijk De Ceder → AZ Diest | https://127.0.0.1:8013 |
 
 Hospitals have `lab-1` and `director-1`, practices `doctor-a` and
 `doctor-b` (password `demo-pass-2026`). A practice's patients are the same

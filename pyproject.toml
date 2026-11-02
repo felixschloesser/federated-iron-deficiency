@@ -65,6 +65,8 @@ web = [
     "django>=5.2,<6",
     "django-stubs-ext>=6.1.2",
     "grpcio>=1.84.0",
+    "gunicorn>=26.2.0",
+    "whitenoise>=6.12.0",
 ]
 
 [tool.uv]

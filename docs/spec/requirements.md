@@ -106,7 +106,8 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 ├── R20 Avoid[A hospital learns another hospital's metrics]                          ClientApp
 ├── R21 Maintain[Each party's software and data stay inside its trust boundary]      Settings + audit + launcher
 ├── R27 Avoid[A node other than a hospital's SuperNode joins the federation]        Compose + SuperLink
-└── R28 Maintain[The startup's code at a hospital sees only the cohort and final models]  Compose
+├── R28 Maintain[The startup's code at a hospital sees only the cohort and final models]  Compose
+└── R29 Maintain[Every web app serves HTTPS with Django's deploy settings]          Compose + settings
 ```
 
 ### Requirements
@@ -140,6 +141,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), a practice's only its own (`PRACTICE_DIR`), and each installs, migrates and serves only its own party's apps: a hospital's database has no table for patients, a practice's none for lab orders, analyser values or final models (test and audit check), and code under `web/` imports from the training package only `iron_deficiency.screening` and `iron_deficiency.dataset` (audit check). | `tests/test_settings.py`, `tools/audit.py` |
 | R27 | The SuperLink admits only SuperNodes registered with it (Flower's SuperNode authentication, which needs TLS). Each hospital makes its own key pair in its own folder and hands the startup only the public key; the startup registers each hospital's public key before any SuperNode starts. A node with another key, or none, is refused and gets no global model, no final model and no run configuration (DF7, DF8). | `tests/test_supernode_auth.py`, `tests/test_containers.py` |
 | R28 | The ClientApp, the startup's code at each hospital (DF7, TB4), runs in a container of its own that mounts only the hospital's `cohort/` (read-only) and `final-models/`, on a network it shares only with its hospital's SuperNode: it sees no database, no key and no other party's folder, and reaches neither the hospital's web app nor anything outside the deployment, so what it sends leaves only through DF9 and DF10. | `tests/test_compose.py`, `tests/test_containers.py` |
+| R29 | Each of the six web apps runs gunicorn with `DEBUG` off, so Django's deploy settings apply (HTTPS redirect, secure cookies, HSTS), serving HTTPS with a certificate from the demo's one browser CA, which names `127.0.0.1`, `localhost` and its compose service; WhiteNoise serves the stylesheets. The browser CA's key stays in `demo/browser-ca/`, in no party's folder; the person running the demo trusts its certificate once. Only `prepare`, which seeds the demo accounts, runs with `DJANGO_DEBUG` (R15). | `tests/test_compose.py`, `tests/test_containers.py`, `tests/test_demo.py` |
 
 ## 3. Agents
 
@@ -264,6 +266,7 @@ demo/
 └── hospitals/
     ├── uz-leuven/               TB1
     │   ├── cohort/              DS2 training cohort (2005–2006)
+    │   ├── web-tls/             the web app's certificate from the browser CA (R29)
     │   ├── supernode/           the SuperNode's key pair; the private key never leaves (R27)
     │   ├── final-models/        DS5 one file per training run (R16)
     │   ├── ca/, messaging/      its CA; the lab-order endpoint's certificate
@@ -302,8 +305,9 @@ setup, the one container that sees every party's folder: certificates, keys,
 cohorts, the NHANES data, migrated and seeded databases. `register` registers
 each hospital's public key once the SuperLink answers, before any SuperNode
 starts. `train` is the data scientist (E1), submitting a run from inside TB2:
-`docker compose run --rm train`. The web apps run `runserver` with
-`DJANGO_DEBUG=1` (the report's assumption: plain HTTP on localhost).
+`docker compose run --rm train`. The web apps run gunicorn with `DEBUG` off
+and HTTPS (R29), each with a certificate under its folder's `web-tls/` from
+the browser CA in `demo/browser-ca/`, which belongs to no party.
 
 `python tools/demo.py reset`, with the demo stopped, removes the six web databases so the next `docker compose up` migrates and seeds afresh; certificates, cohorts, final models and NHANES data stay.
 

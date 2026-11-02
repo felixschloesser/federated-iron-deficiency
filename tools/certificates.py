@@ -59,6 +59,9 @@ def make_authority(directory: Path, name: str) -> Authority:
         directory,
         *("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", DAYS),
         *("-subj", f"/CN={name} certificate authority"),
+        # Stated, not left to the openssl build: strict verifiers require them.
+        *("-addext", "basicConstraints=critical,CA:TRUE"),
+        *("-addext", "keyUsage=critical,keyCertSign,cRLSign"),
         *("-keyout", "ca.key", "-out", "ca.crt"),
     )
     # Owner only, whatever the openssl build's default.
@@ -77,7 +80,14 @@ def issue(
         *("-keyout", "key.pem", "-out", "request.csr"),
     )
     usage = "serverAuth" if server else "clientAuth"
-    extensions = f"extendedKeyUsage={usage}\n"
+    # Key identifiers and usage, as strict verifiers (Python 3.13, browsers) require.
+    extensions = (
+        f"extendedKeyUsage={usage}\n"
+        "basicConstraints=CA:FALSE\n"
+        "keyUsage=critical,digitalSignature,keyEncipherment\n"
+        "subjectKeyIdentifier=hash\n"
+        "authorityKeyIdentifier=keyid,issuer\n"
+    )
     if server:
         # The common name is the server's host in compose.yaml; localhost for tests.
         extensions += f"subjectAltName=DNS:{common_name},DNS:localhost,IP:127.0.0.1\n"

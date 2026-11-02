@@ -17,8 +17,6 @@ x-web: &web
   image: iron-deficiency-web
   depends_on:
     prepare: {condition: service_completed_successfully}
-  environment: &web-env
-    DJANGO_DEBUG: "1"
 
 x-superexec: &superexec
   image: iron-deficiency-superexec
@@ -133,9 +131,10 @@ services:
 
   uz-leuven-web:
     <<: *web
-    command: [python, manage.py, runserver, --noreload, 0.0.0.0:8000]
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
+              --certfile=/demo/hospitals/uz-leuven/web-tls/certificate.pem,
+              --keyfile=/demo/hospitals/uz-leuven/web-tls/key.pem]
     environment:
-      <<: *web-env
       HOSPITAL_DIR: /demo/hospitals/uz-leuven
       HOSPITAL_NAME: UZ Leuven
       PARTY_COLOUR: jade
@@ -144,6 +143,7 @@ services:
       - ./demo/hospitals/uz-leuven:/demo/hospitals/uz-leuven
       - ./demo/hospitals/uz-leuven/final-models:/demo/hospitals/uz-leuven/final-models:ro
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
+    # DEBUG off: Django's deploy settings, HTTPS with the browser CA's certificate (R29).
     tmpfs: &uz-leuven-masked [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/supernode]
     networks: [uz-leuven]
 
@@ -151,7 +151,6 @@ services:
     <<: *web
     command: [python, manage.py, serve_messages, 0.0.0.0:8441]
     environment:
-      <<: *web-env
       HOSPITAL_DIR: /demo/hospitals/uz-leuven
     volumes: *uz-leuven-hospital
     tmpfs: *uz-leuven-masked
@@ -184,9 +183,10 @@ services:
 
   heilig-hart-leuven-web:
     <<: *web
-    command: [python, manage.py, runserver, --noreload, 0.0.0.0:8000]
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
+              --certfile=/demo/hospitals/heilig-hart-leuven/web-tls/certificate.pem,
+              --keyfile=/demo/hospitals/heilig-hart-leuven/web-tls/key.pem]
     environment:
-      <<: *web-env
       HOSPITAL_DIR: /demo/hospitals/heilig-hart-leuven
       HOSPITAL_NAME: Heilig Hart Leuven
       PARTY_COLOUR: pumpkin
@@ -201,7 +201,6 @@ services:
     <<: *web
     command: [python, manage.py, serve_messages, 0.0.0.0:8441]
     environment:
-      <<: *web-env
       HOSPITAL_DIR: /demo/hospitals/heilig-hart-leuven
     volumes: *heilig-hart-leuven-hospital
     tmpfs: *heilig-hart-leuven-masked
@@ -234,9 +233,10 @@ services:
 
   az-diest-web:
     <<: *web
-    command: [python, manage.py, runserver, --noreload, 0.0.0.0:8000]
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
+              --certfile=/demo/hospitals/az-diest/web-tls/certificate.pem,
+              --keyfile=/demo/hospitals/az-diest/web-tls/key.pem]
     environment:
-      <<: *web-env
       HOSPITAL_DIR: /demo/hospitals/az-diest
       HOSPITAL_NAME: AZ Diest
       PARTY_COLOUR: violet
@@ -251,7 +251,6 @@ services:
     <<: *web
     command: [python, manage.py, serve_messages, 0.0.0.0:8441]
     environment:
-      <<: *web-env
       HOSPITAL_DIR: /demo/hospitals/az-diest
     volumes: *az-diest-hospital
     tmpfs: *az-diest-masked
@@ -260,9 +259,10 @@ services:
   # TB3, each general practitioner's practice, sending to its one hospital.
   huisartsenpraktijk-de-akker-web:
     <<: *web
-    command: [python, manage.py, runserver, --noreload, 0.0.0.0:8000]
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
+              --certfile=/demo/practices/huisartsenpraktijk-de-akker/web-tls/certificate.pem,
+              --keyfile=/demo/practices/huisartsenpraktijk-de-akker/web-tls/key.pem]
     environment: &de-akker-env
-      <<: *web-env
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PRACTICE_NAME: Huisartsenpraktijk De Akker
       PARTY_COLOUR: green
@@ -283,9 +283,10 @@ services:
 
   huisartsenpraktijk-de-berk-web:
     <<: *web
-    command: [python, manage.py, runserver, --noreload, 0.0.0.0:8000]
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
+              --certfile=/demo/practices/huisartsenpraktijk-de-berk/web-tls/certificate.pem,
+              --keyfile=/demo/practices/huisartsenpraktijk-de-berk/web-tls/key.pem]
     environment: &de-berk-env
-      <<: *web-env
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PRACTICE_NAME: Huisartsenpraktijk De Berk
       PARTY_COLOUR: amber
@@ -305,9 +306,10 @@ services:
 
   huisartsenpraktijk-de-ceder-web:
     <<: *web
-    command: [python, manage.py, runserver, --noreload, 0.0.0.0:8000]
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
+              --certfile=/demo/practices/huisartsenpraktijk-de-ceder/web-tls/certificate.pem,
+              --keyfile=/demo/practices/huisartsenpraktijk-de-ceder/web-tls/key.pem]
     environment: &de-ceder-env
-      <<: *web-env
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PRACTICE_NAME: Huisartsenpraktijk De Ceder
       PARTY_COLOUR: purple

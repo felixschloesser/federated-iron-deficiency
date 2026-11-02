@@ -228,7 +228,8 @@ def test_the_web_app_serves_its_pages_and_stylesheets_over_https_only(
 ) -> None:
     from tests.test_compose import service
 
-    name = f"{HOSPITAL}-web"
+    # Not UZ Leuven, whose web.sqlite3 is the probe's bait, not a database.
+    name = "az-diest-web"
     compose(
         "run",
         "--rm",
