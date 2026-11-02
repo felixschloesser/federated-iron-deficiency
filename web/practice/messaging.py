@@ -54,35 +54,47 @@ def open_laboratory(
 def send_lab_order(order: Order, connection: Connection) -> None:
     """Send an order's lab order (DF23): no name, no values (R25)."""
     with open_laboratory(connection) as laboratory:
-        laboratory.SendLabOrder(
-            messages_pb2.LabOrder(
-                sample_id=order.sample.sample_id,
-                test=order.test,
-                indication=order.indication or "",
-                registered_sex=order.registered_sex,
-                age=order.age,
-                general_practitioner=order.sample.patient.general_practitioner.name,
-                ordered_at=order.ordered_at.isoformat(),
-            ),
-            timeout=TIMEOUT_SECONDS,
-        )
+        _send(laboratory, order)
 
 
-def send_pending_lab_orders(connection: Connection, *, now: datetime) -> int:
-    """Send every order the hospital has not confirmed yet; it records each once."""
+def _send(laboratory: messages_pb2_grpc.LaboratoryStub, order: Order) -> None:
+    laboratory.SendLabOrder(
+        messages_pb2.LabOrder(
+            sample_id=order.sample.sample_id,
+            test=order.test,
+            indication=order.indication or "",
+            registered_sex=order.registered_sex,
+            age=order.age,
+            general_practitioner=order.sample.patient.general_practitioner.name,
+            ordered_at=order.ordered_at.isoformat(),
+        ),
+        timeout=TIMEOUT_SECONDS,
+    )
+
+
+def _send_pending(
+    laboratory: messages_pb2_grpc.LaboratoryStub, *, now: datetime
+) -> int:
     pending = Order.objects.filter(sent_at__isnull=True).select_related(
         "sample__patient__general_practitioner"
     )
     for order in pending:
-        send_lab_order(order, connection)
+        _send(laboratory, order)
         Order.objects.filter(pk=order.pk).update(sent_at=now)
     return len(pending)
 
 
+def send_pending_lab_orders(connection: Connection, *, now: datetime) -> int:
+    """Send every order the hospital has not confirmed yet, over one channel; it
+    records each once."""
+    with open_laboratory(connection) as laboratory:
+        return _send_pending(laboratory, now=now)
+
+
 def check_for_lab_reports(connection: Connection, *, now: datetime) -> int:
     """Send pending orders, fetch new lab reports (DF25), store and acknowledge them."""
-    send_pending_lab_orders(connection, now=now)
     with open_laboratory(connection) as laboratory:
+        _send_pending(laboratory, now=now)
         reports = laboratory.FetchNewLabReports(
             messages_pb2.FetchLabReports(), timeout=TIMEOUT_SECONDS
         ).reports
