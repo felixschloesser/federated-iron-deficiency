@@ -114,6 +114,23 @@ def test_the_browser_ca_vouches_only_for_localhost(tmp_path: Path) -> None:
     assert "subtree violation" in verified.stdout + verified.stderr
 
 
+def test_the_keychain_names_the_browser_ca_by_project_and_limit(tmp_path: Path) -> None:
+    import subprocess
+
+    from tools.demo import browser_ca, prepare_browser
+
+    prepare_browser(tmp_path)
+    # The name a person sees among the roots they trust: whose, and how far.
+    subject = subprocess.run(
+        ["openssl", "x509", "-noout", "-subject", "-nameopt", "multiline"],
+        input=(browser_ca(tmp_path) / "ca.crt").read_text(),
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert "Iron deficiency demo localhost certificate authority" in subject
+
+
 def test_mkcert_finds_the_browser_ca_but_not_its_key(tmp_path: Path) -> None:
     from tools.demo import browser_ca, prepare_browser
 
