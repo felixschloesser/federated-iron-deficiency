@@ -127,28 +127,88 @@ running the simulation from another checkout.
 
 ## Run the demo deployment
 
-`compose.yaml` runs the startup, the three hospitals and their three general
-practitioners' practices in Docker (OrbStack on a Mac will do): one container
-per process, one network per trust boundary, each container seeing only its
-own folders under `demo/` (gitignored). The startup runs the SuperLink and
-the ServerApp; each hospital runs a SuperNode, the startup's ClientApp in a
-container that sees only the cohort and the final models and reaches only
-its SuperNode, a web app and the endpoint that receives lab orders; each
-practice runs its own web app and checks its hospital for lab reports. Flower
-traffic uses TLS with the startup's self-signed certificate, and only the
-hospitals' registered SuperNodes get in; lab orders and lab reports use
-mutual TLS, each hospital being its own certificate authority:
+The demo runs the whole scenario on your machine: the startup, three
+hospitals and each hospital's general practitioner's practice. Each party
+runs in its own containers, which see only that party's folder under `demo/`
+(gitignored), on Docker networks that follow the report's trust boundaries.
+So "UZ Leuven's data never reaches the startup" holds because no network or
+mount connects them, not merely because the code is careful. Who the parties
+are, and each one's colour and number of seeded patients, is declared in
+`demo.toml`.
+
+### 1. Install Docker
+
+On a Mac, [OrbStack](https://orbstack.dev) or Docker Desktop; on Linux,
+Docker Engine with the compose plugin (`docker compose version` should
+answer). Docker is what keeps the parties apart: every trust boundary gets its
+own network, and each party's programs run in containers of their own. A
+container is one running program, not one process of the report's DFDs:
+
+| DFD element | Where it runs |
+|---|---|
+| P1 Cohort extraction | not built: `prepare` stands in, saving each hospital's cohort |
+| P2 SuperNode, ClientApp | two containers: `<hospital>-supernode`, and `<hospital>-clientapp` for the startup's code (TB4) |
+| P3 SuperLink | `superlink` |
+| P4 ServerApp | `serverapp` |
+| P5 Model sale, E3 Other hospitals | not built |
+| P6 Model deployment, P9 Lab analysis, P10 Screening | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis |
+| P7 Practice app | two containers: `<practice>-web`, and `<practice>-reports`, which fetches lab reports |
+| P8 Messaging endpoint | `<hospital>-lab-orders` |
+| E1 Data scientist | `train`, run by hand |
+
+Two containers have no DFD element: `register`, part of setup, and `proxy`,
+which stands for the network between your browser and the parties.
+
+### 2. On Linux: tell compose who you are
 
 ```shell
-docker compose up --build --abort-on-container-failure   # Ctrl-C stops every container
-docker compose run --rm train                             # in a second terminal
+id -u   # if this prints 1000, skip this step
+echo "DEMO_USER=$(id -u):$(id -g)" > .env
 ```
 
-The web apps serve HTTPS with Django's deploy settings, each with a
-certificate from the demo's own CA, which may vouch only for `localhost` and
-`127.0.0.1`. After the first `up` has made it, trust it once with
-[mkcert](https://github.com/FiloSottile/mkcert), which puts it into the system
-store, Firefox and Chrome; `mkcert -uninstall` with the same `CAROOT` removes it:
+Every container writes `demo/` as one user, by default `1000:1000`, the first
+account on most Linux machines. On Linux a mounted folder keeps numeric user
+IDs, so without this your own account could not edit or delete `demo/`. On a
+Mac, Docker maps IDs for you.
+
+### 3. Start everything
+
+```shell
+docker compose up --build --abort-on-container-failure
+```
+
+The first start takes a while. It builds two images (the web apps, and the
+startup's Flower app with PyTorch, CPU only), then runs these steps in order:
+
+1. **prepare** creates what each party needs and the DFDs do not draw:
+   certificates, keys, the hospitals' training cohorts and the 2021–2023
+   blood counts (downloaded from Hugging Face; set `HF_TOKEN` in `.env` if
+   it refuses), and each party's database with its demo accounts. It is the
+   only container that sees every party's folder: setup done once, out of
+   band, like a hospital's IT handing a public key to the startup.
+2. **register** gives the startup's SuperLink each hospital's SuperNode
+   public key. Any other node is refused, so no stranger receives a model.
+3. Everything else starts: the startup's SuperLink and ServerApp; per
+   hospital a SuperNode, the startup's ClientApp (in a container that sees
+   only the cohort and the final models and reaches only its SuperNode), the
+   web app and the endpoint that receives lab orders; per practice its web
+   app and a process that fetches lab reports.
+
+`--abort-on-container-failure` stops every party when one fails, so a broken
+setup never looks half alive. Ctrl-C stops them all.
+
+Later starts reuse what `prepare` made and are quick.
+
+### 4. Trust the demo's certificate authority, once
+
+The web apps run with Django's production settings, so they speak only HTTPS.
+Their certificates come from the demo's own certificate authority in
+`demo/browser-ca/`, which is allowed to vouch only for `localhost` and
+`127.0.0.1` (an X.509 name constraint that browsers enforce). Trusting it
+therefore lends it no power over any real website, even if someone copies its
+key. [mkcert](https://github.com/FiloSottile/mkcert) puts it into the system
+store, Firefox and Chrome in one step; it is given the certificate but not the
+key, so mkcert itself can never issue anything with it.
 
 ```shell
 brew install mkcert nss                # macOS
@@ -157,8 +217,7 @@ sudo apt install mkcert libnss3-tools  # Ubuntu
 CAROOT=$PWD/demo/browser-ca mkcert -install
 ```
 
-On Linux every container writes `demo/` as user `1000:1000`. If `id -u`
-says otherwise, run once `echo "DEMO_USER=$(id -u):$(id -g)" > .env`.
+### 5. Open the parties
 
 | Party | Web app |
 |---|---|
@@ -169,22 +228,49 @@ says otherwise, run once `echo "DEMO_USER=$(id -u):$(id -g)" > .env`.
 | Huisartsenpraktijk De Berk → Heilig Hart Leuven | https://huisartsenpraktijk-de-berk.localhost |
 | Huisartsenpraktijk De Ceder → AZ Diest | https://huisartsenpraktijk-de-ceder.localhost |
 
-One proxy publishes port 443 on `127.0.0.1` and routes each name to its
-party's web app without decrypting. If 443 is taken, put
-`DEMO_HTTPS_PORT=8443` in `.env` and add `:8443` to the addresses. Chrome,
-Firefox and Linux with systemd-resolved find every `*.localhost` themselves;
-Safari needs one line per party in `/etc/hosts`, for example
-`127.0.0.1 uz-leuven.localhost`.
+Hospitals have `lab-1` (laboratory staff) and `director-1` (laboratory
+director); practices have `doctor-a` and `doctor-b`; the password is
+`demo-pass-2026`. A practice's patients are the same NHANES participants whose
+tubes its hospital's analyser stand-in measures.
 
-Hospitals have `lab-1` and `director-1`, practices `doctor-a` and
-`doctor-b` (password `demo-pass-2026`). A practice's patients are the same
-NHANES participants whose tubes its hospital's analyser stand-in measures.
-The first `docker compose up` downloads the cohorts and the 2021–2023 cycle
-from Hugging Face; set `HF_TOKEN` if it refuses. A `demo/` from before
-the containers keeps its data; its certificates are reissued for the
-containers' host names. A `demo/` from before the practices
+One proxy on `127.0.0.1:443` routes each name to its party's web app by the
+name in the TLS handshake, without decrypting: like the internet between your
+browser and six organisations, it sees names, never content. `*.localhost`
+always means your own machine (RFC 6761); Chrome, Firefox and Linux with
+systemd-resolved find these names by themselves. Safari needs one line per
+party in `/etc/hosts`, for example `127.0.0.1 uz-leuven.localhost`. If port
+443 is taken, put `DEMO_HTTPS_PORT=8443` in `.env` and add `:8443` to the
+addresses.
+
+### 6. Train, deploy, order
+
+```shell
+docker compose run --rm train   # in a second terminal
+```
+
+This is the startup's data scientist submitting a training run. It runs in a
+container inside the startup's network because that is where the data
+scientist sits in the report's DFD; the SuperLink's control API is never
+published to your machine. Each hospital receives the final model; log in as
+`director-1` to compare it on local validation and deploy it. Then order a
+CBC as `doctor-a`, analyse it as `lab-1`, and the lab report with its
+screening comes back to the practice.
+
+### Stop, reset, clean up
+
+- Ctrl-C in the first terminal stops every container.
+- With the demo stopped, `docker compose run --rm --no-deps prepare python
+  tools/demo.py reset --demo-dir /demo` deletes the six databases, so the
+  next start seeds them afresh; certificates, cohorts and final models stay.
+  Deleting `demo/` starts over completely.
+- `CAROOT=$PWD/demo/browser-ca mkcert -uninstall` removes the trust again.
+
+A `demo/` from before the containers keeps its data; its certificates are
+reissued for the containers' host names. A `demo/` from before the practices
 has databases from before the split: delete `demo/hospitals/*/web.sqlite3`
 once (the cohorts and final models stay).
+
+### Without Docker
 
 Each party installs only its own apps: a hospital's database has no table
 for patients, a practice's none for lab orders, analyser values or final

@@ -248,9 +248,9 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 - Age is the NHANES age at the survey and does not change.
 - Registered sex has the two NHANES values, female and male.
 
-## 9. Demo deployment: one container per process, one network per trust boundary
+## 9. Demo deployment: one container per program, one network per trust boundary
 
-`compose.yaml` runs the demo: one container per process, one Docker network
+`compose.yaml` runs the demo: one container per running program, one Docker network
 per trust boundary of the report's DFDs and one per crossing, and in each
 container only the folders its process needs, mounted at the same path under
 `/demo` as on the host. Everything lives under `demo/` (gitignored):
@@ -281,7 +281,15 @@ demo/
     └── huisartsenpraktijk-de-ceder/  Diest → AZ Diest
 ```
 
-The three practices are fictional; a real practice may share a name.
+The three practices are fictional; a real practice may share a name. `demo.toml`
+declares the parties: each hospital, keyed as `iron_deficiency.dataset` names it,
+with its practice, both colours and its number of seeded patients; a test holds
+it to exactly the hospitals training knows. How a hospital trains (cycle,
+sample) stays in the startup's app, and `demo.toml` never reaches the FAB.
+
+Containers are running programs, not the DFDs' processes; README.md maps one
+onto the other (P6, P9 and P10 share the hospital's web app; P2 and P7 are two
+containers each; P1 and P5 are not built).
 
 | Container | Image | Network | Mounts |
 |---|---|---|---|
@@ -313,7 +321,7 @@ starts. `train` is the data scientist (E1), submitting a run from inside TB2:
 and HTTPS (R29), each with a certificate under its folder's `web-tls/` from
 the browser CA in `demo/browser-ca/`, which belongs to no party.
 
-`python tools/demo.py reset`, with the demo stopped, removes the six web databases so the next `docker compose up` migrates and seeds afresh; certificates, cohorts, final models and NHANES data stay.
+`docker compose run --rm --no-deps prepare python tools/demo.py reset --demo-dir /demo`, with the demo stopped, removes the six web databases so the next `docker compose up` migrates and seeds afresh; certificates, cohorts, final models and NHANES data stay.
 
 Each web app takes a Pico colour theme from `PARTY_COLOUR` (vendored themes only; absent: Pico's default), so the parties' pages are told apart at a glance: UZ Leuven jade and De Akker green, Heilig Hart Leuven pumpkin and De Berk amber, AZ Diest violet and De Ceder purple.
 

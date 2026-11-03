@@ -18,6 +18,7 @@ import socket
 import subprocess
 import sys
 import time
+import tomllib
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
@@ -37,31 +38,22 @@ ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API over HTTPS on this one address, the
 # SuperLink's service name in compose.yaml.
 SUPERLINK = "superlink:9092"
-# Each practice sends its lab orders to one hospital (spec §9); fictional names.
-PRACTICES = dict(
-    zip(
-        CYCLES,
-        (
-            "Huisartsenpraktijk De Akker",
-            "Huisartsenpraktijk De Berk",
-            "Huisartsenpraktijk De Ceder",
-        ),
-        strict=True,
-    )
-)
-
-
-# Patients each practice, and so its hospital's analyser stand-in, seeds: sized
-# like the hospital it sends to (large, medium, small).
-PATIENTS = dict(zip(CYCLES, (40, 24, 12), strict=True))
+# The demo's parties, declared in demo.toml; keyed here by cycle, like HOSPITALS.
+PARTIES = tomllib.loads((ROOT / "demo.toml").read_text())["hospitals"]
+_ENTRIES = {cycle: PARTIES[hospital_slug(name)] for cycle, name in HOSPITALS.items()}
+# Each practice sends its lab orders to one hospital (spec §9).
+PRACTICES: dict[str, str] = {
+    cycle: entry["practice"] for cycle, entry in _ENTRIES.items()
+}
+# Patients each practice, and so its hospital's analyser stand-in, seeds.
+PATIENTS: dict[str, int] = {
+    cycle: entry["patients"] for cycle, entry in _ENTRIES.items()
+}
 # Each hospital's Pico colour, and its practice's from the same family.
-COLOURS = dict(
-    zip(
-        CYCLES,
-        (("jade", "green"), ("pumpkin", "amber"), ("violet", "purple")),
-        strict=True,
-    )
-)
+COLOURS: dict[str, tuple[str, str]] = {
+    cycle: (entry["colour"], entry["practice_colour"])
+    for cycle, entry in _ENTRIES.items()
+}
 
 
 def startup_dir(demo_dir: Path) -> Path:

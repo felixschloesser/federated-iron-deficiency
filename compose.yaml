@@ -1,4 +1,4 @@
-# The demo deployment (spec §9): one container per process, one network per
+# The demo deployment (spec §9): one container per program, one network per
 # trust boundary of the report's DFDs, and one per crossing. Every container
 # mounts only its own parts of demo/, at the same path as on the host.
 #
