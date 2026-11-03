@@ -17,14 +17,15 @@ from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 from tools.demo import COLOURS, PRACTICES
 
 ROOT = Path(__file__).resolve().parents[1]
-DEMO = ROOT / "demo"
 HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
 PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
 # Each practice sends to the hospital of the same cycle (spec §9).
 PRACTICE_HOSPITAL = dict(zip(PRACTICE_SLUGS, HOSPITAL_SLUGS, strict=True))
-STARTUP_SERVICES = {"prepare", "reset", "superlink", "serverapp", "register", "train"}
-# Out-of-band setup (report, assumptions): only these see every party's folder.
-SETUP_SERVICES = {"prepare", "reset"}
+STARTUP_SERVICES = {"prepare", "superlink", "serverapp", "register", "train"}
+# Out-of-band setup (report, assumptions): the one service that sees every party.
+SETUP_SERVICES = {"prepare"}
+# What a reset keeps, on the host: the CA the browser trusts, and the downloads.
+HOST_FOLDERS = {"browser-ca", "huggingface"}
 # Between the browser and the parties, like the internet: it sees only names.
 NETWORK_SERVICES = {"proxy"}
 
@@ -57,15 +58,30 @@ def service(name: str) -> dict[str, Any]:
     return found
 
 
+def volume_folder(volume: str) -> str:
+    """The party folder a named volume holds, as prepare lays it out under /demo."""
+    if volume == "startup":
+        return "startup"
+    if volume in HOSPITAL_SLUGS:
+        return f"hospitals/{volume}"
+    if volume in PRACTICE_SLUGS:
+        return f"practices/{volume}"
+    raise AssertionError(f"{volume} is no party's volume")
+
+
 def mounts(name: str) -> dict[str, tuple[str, bool]]:
-    """Each bind mount's target, with its source relative to demo/ and whether read-only."""
-    return {
-        volume["target"]: (
-            str(Path(volume["source"]).relative_to(DEMO)),
-            bool(volume.get("read_only", False)),
-        )
-        for volume in service(name).get("volumes", [])
-    }
+    """Each mount's target, with what it shows and whether read-only: a party
+    volume's folder and subpath, or bind:<path in the checkout> for the host."""
+    found = {}
+    for volume in service(name).get("volumes", []):
+        if volume["type"] == "volume":
+            subpath = volume.get("volume", {}).get("subpath")
+            source = volume_folder(volume["source"])
+            source += f"/{subpath}" if subpath else ""
+        else:
+            source = f"bind:{Path(volume['source']).relative_to(ROOT)}"
+        found[volume["target"]] = (source, bool(volume.get("read_only", False)))
+    return found
 
 
 def party_folder(name: str) -> str:
@@ -90,11 +106,16 @@ def test_one_service_per_process_of_each_party() -> None:
 
 
 def test_each_service_mounts_only_its_own_partys_folder() -> None:
-    for name in SETUP_SERVICES:
-        assert mounts(name) == {"/demo": (".", False)}, name
+    parties = ["startup"] + [volume_folder(slug) for slug in HOSPITAL_SLUGS]
+    parties += [volume_folder(slug) for slug in PRACTICE_SLUGS]
+    assert mounts("prepare") == {
+        **{f"/demo/{folder}": (folder, False) for folder in parties},
+        **{f"/demo/{name}": (f"bind:demo/{name}", False) for name in HOST_FOLDERS},
+    }
     for name in set(config()["services"]) - SETUP_SERVICES - NETWORK_SERVICES:
         folder = party_folder(name)
         for target, (source, _) in mounts(name).items():
+            # A party volume, never the host: `down -v` leaves no party data.
             assert source.startswith(folder), (name, source)
             # Every container sees a folder at the path prepare wrote it to.
             assert target == f"/demo/{source}", (name, target)
@@ -288,6 +309,24 @@ def test_every_web_app_serves_https_with_its_partys_own_certificate(slug: str) -
     assert f"--keyfile=/demo/{folder}/web-tls/key.pem" in command
 
 
+def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
+    # One volume per party, none external, so `docker compose down -v` deletes
+    # them all; the downloads and the browser's CA stay on the host.
+    volumes = config()["volumes"]
+    assert set(volumes) == {"startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS}
+    assert not any(spec.get("external") for spec in volumes.values())
+    binds = {
+        (name, source)
+        for name in config()["services"]
+        for source, _ in mounts(name).values()
+        if source.startswith("bind:")
+    }
+    assert binds == {("prepare", f"bind:demo/{name}") for name in HOST_FOLDERS} | {
+        ("proxy", "bind:docker/sni-proxy.conf")
+    }
+    assert service("prepare")["environment"]["HF_HOME"] == "/demo/huggingface"
+
+
 def test_no_running_service_runs_with_debug() -> None:
     # Only prepare seeds the demo accounts, which needs DJANGO_DEBUG (R15).
     with_debug = {
@@ -302,7 +341,15 @@ def test_no_running_service_runs_with_debug() -> None:
     ("demo_user", "user"), [(None, "1000:1000"), ("1234:5678", "1234:5678")]
 )
 def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -> None:
-    # On Linux a bind mount keeps numeric IDs: every container writes demo/ as
-    # one user, by default the first account of most Linux machines.
-    users = {spec.get("user") for spec in config(demo_user)["services"].values()}
+    # A fresh volume belongs to root, and on Linux a bind mount keeps numeric
+    # IDs: every container writes as one user, by default the first account of
+    # most Linux machines. Only prepare starts as root, to hand them over.
+    services = config(demo_user)["services"]
+    users = {spec.get("user") for name, spec in services.items() if name != "prepare"}
     assert users == {user}
+    prepare = services["prepare"]
+    assert prepare["user"] == "root"
+    assert prepare["environment"]["DEMO_USER"] == user
+    script = prepare["entrypoint"][-2]
+    assert "chown" in script
+    assert "exec setpriv" in script

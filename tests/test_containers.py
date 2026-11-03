@@ -70,28 +70,32 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
 def compose_folder(compose: Compose) -> Path:
     """The temporary folder the compose project runs in, holding its demo/."""
     services = json.loads(compose("config", "--format", "json").stdout)["services"]
-    return Path(services["prepare"]["volumes"][0]["source"]).parent
+    (authority,) = [
+        Path(volume["source"])
+        for volume in services["prepare"]["volumes"]
+        if volume["target"] == "/demo/browser-ca"
+    ]
+    return authority.parent.parent
 
 
 def start(run: Compose, folder: Path) -> None:
     """Flower's part of `prepare`, then the SuperLink, registration and one hospital."""
+    # Into the party volumes, through prepare, which hands them to the demo user.
+    # What the hospital holds beside the cohort; the ClientApp must see none of it.
     run(
         "run",
         "--rm",
         "--no-deps",
-        "--entrypoint",
-        "python",
         "prepare",
+        "python",
         "-c",
         "from pathlib import Path; from tools.demo import prepare_flower;"
-        " prepare_flower(Path('/demo'))",
+        " prepare_flower(Path('/demo'));"
+        f" hospital = Path('/demo/hospitals/{HOSPITAL}');"
+        " (hospital / 'cohort').mkdir(); (hospital / 'final-models').mkdir();"
+        " (hospital / 'cohort' / 'rows.arrow').write_text('cohort');"
+        " (hospital / 'web.sqlite3').write_text('lab orders')",
     )
-    hospital = folder / "demo" / "hospitals" / HOSPITAL
-    # What the hospital holds beside the cohort; the ClientApp must see none of it.
-    (hospital / "cohort").mkdir(parents=True)
-    (hospital / "cohort" / "rows.arrow").write_text("cohort")
-    (hospital / "final-models").mkdir()
-    (hospital / "web.sqlite3").write_text("lab orders")
     run("up", "--detach", "--no-deps", "--no-build", "superlink")
     deadline = time.monotonic() + 120
     while "healthy" not in run("ps", "--format", "{{.Status}}", "superlink").stdout:
@@ -248,7 +252,11 @@ def probe(compose: Compose, service_name: str, script: str, *args: str) -> Any:
     """Run `script` in a new container of `service_name`, on its networks,
     with the browser CA at /browser-ca; its last line of output, as JSON."""
     services = json.loads(compose("config", "--format", "json").stdout)["services"]
-    authority = Path(services["prepare"]["volumes"][0]["source"]) / "browser-ca"
+    (authority,) = [
+        volume["source"]
+        for volume in services["prepare"]["volumes"]
+        if volume["target"] == "/demo/browser-ca"
+    ]
     result = compose(
         "run",
         "--rm",
@@ -272,9 +280,8 @@ def hospital_app(compose: Compose) -> str:
         "run",
         "--rm",
         "--no-deps",
-        "--entrypoint",
-        "python",
         "prepare",
+        "python",
         "-c",
         "from pathlib import Path; from tools.certificates import issue, make_authority;"
         " from tools.demo import hospital_dir, lab_orders_host, prepare_browser;"
