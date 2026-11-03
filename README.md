@@ -268,9 +268,9 @@ screening comes back to the practice.
 - `CAROOT=$PWD/demo/browser-ca mkcert -uninstall` removes the trust again.
 
 A `demo/` from before the containers keeps its data; its certificates are
-reissued for the containers' host names. A `demo/` from before the practices
-has databases from before the split: delete `demo/hospitals/*/web.sqlite3`
-once (the cohorts and final models stay).
+reissued for the containers' host names. The migrations were restarted from
+one `0001_initial` per app on 2026-11-03: a `demo/` with older databases needs
+the reset above once.
 
 ### Without Docker
 
