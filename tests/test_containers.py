@@ -213,7 +213,7 @@ def get(path, secure=True):
         raw = socket.create_connection((host, 8000), timeout=5)
         connection = http.client.HTTPConnection(host, 8000, timeout=5)
         connection.sock = context.wrap_socket(raw, server_hostname="localhost") if secure else raw
-        connection.request("GET", path)
+        connection.request("GET", path, headers={"Host": "localhost"})
         response = connection.getresponse()
         return response.status, response.getheader("Content-Type"), response.read()
     except (OSError, http.client.HTTPException) as error:

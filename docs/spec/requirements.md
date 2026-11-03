@@ -293,8 +293,8 @@ it to exactly the hospitals training knows. How a hospital trains (cycle,
 sample) stays in the startup's app, and `demo.toml` never reaches the FAB.
 
 Services are not the DFDs' processes; README.md maps one
-onto the other (P6, P9 and P10 share the hospital's web app; P2 and P7 are two
-containers each; P1 and P5 are not built).
+onto the other (P6 and P8–P10 share the hospital's container; P2 is two
+containers; P1 and P5 are not built).
 
 | Container | Image | Network | Mounts |
 |---|---|---|---|
@@ -302,7 +302,7 @@ containers each; P1 and P5 are not built).
 | `serverapp` | built: SuperExec with the app's dependencies | `startup` | `startup/trust`, `startup/final-models` |
 | `<hospital>-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-clientapp` | its `certificates/` and `supernode/` (read-only) |
 | `<hospital>-clientapp` | built: SuperExec with the app's dependencies | `<hospital>-clientapp` | its `cohort/` (read-only), `final-models/` (R28) |
-| `<hospital>-web`, `<hospital>-lab-orders` | built: the project | `<hospital>`; the endpoint also `<hospital>-lab-orders` | its folder, with `cohort/` and `supernode/` masked and `final-models/` read-only |
+| `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `<hospital>-lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/` and `supernode/` masked and `final-models/` read-only |
 | `<practice>-web` | built: the project | `<practice>`, its hospital's `<hospital>-lab-orders` | its folder |
 | `proxy` | `nginx` (`docker/sni-proxy.conf`) | every `<hospital>` and `<practice>` network | none |
 

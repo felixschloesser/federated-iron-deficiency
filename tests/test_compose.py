@@ -281,8 +281,9 @@ def test_the_superlink_keeps_its_state_with_the_startup() -> None:
 def test_every_web_app_serves_https_with_its_partys_own_certificate(slug: str) -> None:
     name = f"{slug}-web"
     folder = party_folder(name)
-    command = service(name)["command"]
-    assert command[:2] == ["gunicorn", "web.wsgi"]
+    # A practice runs gunicorn alone; a hospital beside its messaging endpoint.
+    command = " ".join(service(name)["command"])
+    assert "gunicorn web.wsgi" in command
     assert f"--certfile=/demo/{folder}/web-tls/certificate.pem" in command
     assert f"--keyfile=/demo/{folder}/web-tls/key.pem" in command
 
