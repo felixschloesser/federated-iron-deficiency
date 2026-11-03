@@ -1,14 +1,17 @@
 from typing import Any
 
 from django import forms
+from django.core.exceptions import ValidationError
 
+from web.practice.models import INDICATION_REQUIRED
 from web.vocabulary import ClinicalIndication, Test
 
 
 class OrderForm(forms.Form):
     """An order for one test; asks the indication only for a test that takes one."""
 
-    # The service refuses a missing indication (indication_required).
+    # Required only for a test that takes one; checked in clean_indication, so the
+    # error has the order's own code and sits beside the field.
     indication = forms.TypedChoiceField(
         label="Clinical indication",
         choices=ClinicalIndication.choices,
@@ -22,3 +25,11 @@ class OrderForm(forms.Form):
         super().__init__(*args, **kwargs)
         if not test.takes_indication():
             del self.fields["indication"]
+
+    def clean_indication(self) -> ClinicalIndication:
+        """Only on a form that asks for an indication (a CBC's): it needs one. The
+        database holds the rule too (Order's constraints)."""
+        indication: ClinicalIndication | None = self.cleaned_data.get("indication")
+        if indication is None:
+            raise ValidationError(INDICATION_REQUIRED, code="indication_required")
+        return indication

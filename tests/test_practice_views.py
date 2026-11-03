@@ -112,6 +112,14 @@ def test_patient_page_offers_collecting_a_sample(
     assert response.context["actions"] == []
 
 
+def test_patient_page_says_sex_and_age_under_the_name(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    response = logged_in(client, general_practitioner).get(patient_url(patient))
+    assert response.context["subtitle"] == "Female, aged 32"
+    assertContains(response, "<p>Female, aged 32</p>")
+
+
 def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
@@ -187,9 +195,8 @@ def test_patient_page_offers_ferritin_beside_a_suggestion(
         released_at="2026-10-30T12:00:00+00:00",
         fetched_at="2026-10-30T12:05:00+00:00",
     )
-    # As above, and whether the sample has ferritin yet: beside the suggestion, so
-    # the sample's own actions leave ferritin out.
-    with django_assert_num_queries(6):
+    # As above: whether the sample has ferritin yet comes from its loaded orders.
+    with django_assert_num_queries(5):
         response = client.get(patient_url(patient))
     (sample,) = response.context["samples"]
     (entry,) = sample["entries"]
@@ -206,6 +213,32 @@ def test_patient_page_offers_ferritin_beside_a_suggestion(
         response, "Reference intervals are not shown: the demo has no laboratory's"
     )
     assertContains(response, "Hemoglobin")
+
+
+def test_patient_page_queries_do_not_grow_with_suggestions(
+    client: Client,
+    general_practitioner: GeneralPractitioner,
+    patient: Patient,
+    django_assert_num_queries: DjangoAssertNumQueries,
+) -> None:
+    from web.practice.models import LabReport
+
+    logged_in(client, general_practitioner)
+    for _ in range(2):
+        client.post(
+            order_url(client, patient, OrderedTest.CBC), {"indication": "other"}
+        )
+    for order in Order.objects.all():
+        LabReport.objects.create(
+            order=order,
+            results={"LBXHGB": 11.2},
+            ferritin_suggested=True,
+            released_at="2026-10-30T12:00:00+00:00",
+            fetched_at="2026-10-30T12:05:00+00:00",
+        )
+    with django_assert_num_queries(5):
+        response = client.get(patient_url(patient))
+    assert len(response.context["samples"]) == 2
 
 
 def test_another_general_practitioners_patient_is_not_found(
@@ -451,7 +484,7 @@ def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
     # The CBC first, then the ferritin ordered beside its suggestion.
     assert [entry["order"].test for entry in sample["entries"]] == ["cbc", "ferritin"]
     assert sample["entries"][0]["order_ferritin_url"] is None
-    assertContains(response, "Awaiting lab report.")
+    assertContains(response, "<mark>Awaiting lab report</mark>")
 
 
 def test_each_sample_is_a_details_block_and_only_the_newest_is_open(

@@ -16,7 +16,7 @@ Feature: Collecting a sample and ordering tests on it
 
   Scenario: A CBC order without an indication is refused
     When "Dr. Demo A" orders a CBC for "Test Patient 1" without an indication
-    Then the order is refused with code "indication_required" on field "indication"
+    Then the order is refused with code "indication_required"
 
   Scenario: A ferritin order has no indication
     When "Dr. Demo A" orders ferritin for "Test Patient 1"
@@ -24,7 +24,7 @@ Feature: Collecting a sample and ordering tests on it
 
   Scenario: A ferritin order with an indication is refused
     When "Dr. Demo A" orders ferritin for "Test Patient 1" with indication other
-    Then the order is refused with code "indication_not_applicable" on field "indication"
+    Then the order is refused with code "indication_not_applicable"
 
   Scenario: A collected sample gets the patient's next sample ID
     Then the sample is sample 1 of "Test Patient 1", collected at the current time
@@ -41,4 +41,8 @@ Feature: Collecting a sample and ordering tests on it
   Scenario: A test the sample already has is refused
     Given "Dr. Demo A" ordered a CBC for "Test Patient 1" with indication other
     When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication unexplained fatigue
-    Then the order is refused with code "already_ordered" on field "test"
+    Then the order is refused with code "already_ordered"
+
+  Scenario: The database holds the indication rule too
+    When a CBC order without an indication is written straight to the database
+    Then the database refuses it

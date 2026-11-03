@@ -10,16 +10,25 @@ import torch
 from django.db.models import DecimalField, FloatField
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from iron_deficiency.dataset import CBC_VARS, FEATURES
-from iron_deficiency.screening import save_deployment, screen
+from iron_deficiency.dataset import CBC_VARS, FEATURES, eligible
+from iron_deficiency.screening import (
+    FinalModel,
+    final_model_path,
+    screen,
+    standardization_tensor,
+    write,
+)
 from iron_deficiency.task import Net
 from tests.conftest import World
-from web.deployment import services as deployment_services
-from web.deployment.domain import NoUsableModel, sha256
-from web.lab import queries as lab_queries
-from web.lab import services as lab_services
-from web.lab.domain import NotScreened, ScreeningResult
-from web.lab.models import LabOrder, Sample
+from web.deployment.model_files import sha256
+from web.deployment.models import Deployment, NoUsableModel
+from web.lab.models import (
+    LabOrder,
+    LabOrderDetails,
+    NotScreened,
+    Sample,
+    ScreeningResult,
+)
 from web.nhanes.models import Participant
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
@@ -28,9 +37,13 @@ from web.vocabulary import Test as OrderedTest
 def test_screen_scores_only_eligible_women_and_returns_only_decisions(
     tmp_path: Path,
 ) -> None:
-    model = tmp_path / "model.pt"
     zeros = pd.Series(0.0, index=FEATURES)
-    save_deployment(model, Net().state_dict(), zeros, zeros + 1, threshold=0.5)
+    model = FinalModel(
+        state_dict=Net().state_dict(),
+        mean=standardization_tensor(zeros),
+        std=standardization_tensor(zeros + 1),
+        threshold=0.5,
+    )
     samples = pd.DataFrame(
         {
             "sample_id": [1, 2, 3],
@@ -74,8 +87,16 @@ def deciding_model() -> dict[str, torch.Tensor]:
 
 def write_model(directory: Path, run_id: str, threshold: float) -> None:
     zeros = pd.Series(0.0, index=FEATURES)
-    save_deployment(
-        directory / f"{run_id}.pt", deciding_model(), zeros, zeros + 1, threshold
+    path = final_model_path(directory, run_id)
+    path.unlink(missing_ok=True)  # "changed on disk" replaces the deployed file
+    write(
+        path,
+        FinalModel(
+            state_dict=deciding_model(),
+            mean=standardization_tensor(zeros),
+            std=standardization_tensor(zeros + 1),
+            threshold=threshold,
+        ),
     )
 
 
@@ -89,7 +110,7 @@ def screening_model(
 
 @given(parsers.parse('the laboratory director deployed "{run_id}"'))
 def deployed(world: World, run_id: str) -> None:
-    deployment_services.deploy(
+    Deployment.objects.deploy(
         run_id=run_id, directory=world["final_models_dir"], now=NOW
     )
 
@@ -116,9 +137,9 @@ def lab_sample(
     Participant.objects.create(
         seqn=seqn, cbc={var: 0.0 for var in CBC_VARS}, ferritin=10.0
     )
-    world["lab_order"] = lab_services.record_lab_order(
+    world["lab_order"] = LabOrder.objects.record(
         client=CLIENT,
-        details=lab_services.LabOrderDetails(
+        details=LabOrderDetails(
             sample_id=str(seqn),
             test=test,
             indication=indication,
@@ -175,8 +196,7 @@ def scores(world: World, side: str) -> None:
 
 @when("laboratory staff run the analyser")
 def run_analyser(world: World) -> None:
-    world["lab_order"] = lab_services.run_analyser(
-        lab_order=LabOrder.objects.get(pk=world["lab_order"].pk),
+    world["lab_order"] = LabOrder.objects.get(pk=world["lab_order"].pk).run_analyser(
         directory=world["final_models_dir"],
         now=NOW,
     )
@@ -216,7 +236,8 @@ def screened(world: World) -> None:
 def records_final_model(world: World, run_id: str, threshold: float) -> None:
     screening_model = world["lab_order"].screened_by
     assert screening_model.run_id == run_id
-    assert screening_model.sha256 == sha256(world["final_models_dir"] / f"{run_id}.pt")
+    path = final_model_path(world["final_models_dir"], run_id)
+    assert screening_model.sha256 == sha256(path.read_bytes())
     assert screening_model.threshold == threshold
 
 
@@ -245,7 +266,7 @@ def no_screening_result(world: World) -> None:
     )
 )
 def released(world: World, suggested: str) -> None:
-    (lab_order,) = lab_queries.lab_reports_to_send(CLIENT)
+    (lab_order,) = LabOrder.objects.reports_to_send(CLIENT)
     assert lab_order.pk == world["lab_order"].pk
     assert lab_order.ferritin_suggested is (suggested == "with")
 
@@ -254,14 +275,15 @@ def released(world: World, suggested: str) -> None:
 def test_every_reason_without_a_usable_model_is_a_not_screened_reason(
     reason: NoUsableModel,
 ) -> None:
-    assert NotScreened(reason) == reason.value
+    assert NotScreened.because(reason).is_model_problem()
 
 
 @pytest.mark.parametrize("reason", NotScreened)
 def test_only_a_reason_without_a_usable_model_is_a_model_problem(
     reason: NotScreened,
 ) -> None:
-    assert reason.is_model_problem() is (reason.value in NoUsableModel.values)
+    is_because = any(NotScreened.because(each) is reason for each in NoUsableModel)
+    assert reason.is_model_problem() is is_because
 
 
 @pytest.mark.parametrize(
@@ -290,3 +312,15 @@ def test_every_indication_is_answered() -> None:
         "ckd_follow_up",
         "other",
     }
+
+
+@pytest.mark.parametrize("sex", RegisteredSex)
+@pytest.mark.parametrize("age", [17, 18, 49, 50])
+def test_the_lab_screens_exactly_whom_the_model_was_trained_on(
+    sex: RegisteredSex, age: int
+) -> None:
+    lab_order = LabOrder(
+        indication=ClinicalIndication.SUSPECTED_ANAEMIA, registered_sex=sex, age=age
+    )
+    trained_on = eligible(pd.Series([sex.label]), pd.Series([age])).iloc[0]
+    assert (lab_order.not_eligible() is None) == trained_on

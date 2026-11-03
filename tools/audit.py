@@ -164,23 +164,36 @@ def _returns_response(function: ast.FunctionDef) -> bool:
     return returns is not None and ast.unparse(returns).endswith("Response")
 
 
-def _mutates(method: ast.FunctionDef) -> bool:
-    """Whether a method saves, creates, deletes or updates, or calls a service."""
-    for node in ast.walk(method):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            chain = node.func
-            while isinstance(chain.value, ast.Attribute):
-                chain = chain.value
-            if node.func.attr in MUTATORS or (
-                isinstance(chain.value, ast.Name) and chain.value.id == "services"
-            ):
-                return True
-    return False
+def _is_atomic(decorator: ast.expr) -> bool:
+    return ast.unparse(decorator) in {"transaction.atomic", "atomic"}
+
+
+def writing_methods(root: Path) -> set[str]:
+    """Model and manager methods that write: those under @transaction.atomic."""
+    return {
+        node.name
+        for path in files(root, "models.py")
+        for node in ast.walk(ast.parse(path.read_text()))
+        if isinstance(node, ast.FunctionDef)
+        and any(_is_atomic(decorator) for decorator in node.decorator_list)
+    }
+
+
+def _mutates(method: ast.FunctionDef, writers: set[str]) -> bool:
+    """Whether a method saves, creates, deletes or updates, or calls a writing model
+    or manager method."""
+    return any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and (node.func.attr in MUTATORS or node.func.attr in writers)
+        for node in ast.walk(method)
+    )
 
 
 def get_mutation(root: Path) -> list[str]:
     """Views are classes, and only their POST handlers mutate."""
     findings = []
+    writers = writing_methods(root)
     for path in files(root, "views.py"):
         rel = path.relative_to(root).as_posix()
         for node in ast.parse(path.read_text()).body:
@@ -194,7 +207,7 @@ def get_mutation(root: Path) -> list[str]:
                 if (
                     isinstance(method, ast.FunctionDef)
                     and method.name not in POST_HANDLERS
-                    and _mutates(method)
+                    and _mutates(method, writers)
                 ):
                     findings.append(
                         f"{rel}:{method.lineno}: {node.name}.{method.name} mutates"

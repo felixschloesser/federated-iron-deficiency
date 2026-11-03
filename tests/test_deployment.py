@@ -12,6 +12,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.fixtures import Settings
 
 from iron_deficiency.dataset import FEATURES
+from iron_deficiency.screening import Problem
 from iron_deficiency.task import Net
 from tests.conftest import World, make_laboratory_staff_member
 
@@ -85,10 +86,12 @@ def local_auroc(world: World, auroc: float) -> None:
 
 
 def deploy(world: World, run_id: str) -> None:
-    from web.deployment import services
+    from web.deployment.models import Deployment
 
     try:
-        services.deploy(run_id=run_id, directory=world["final_models_dir"], now=NOW)
+        Deployment.objects.deploy(
+            run_id=run_id, directory=world["final_models_dir"], now=NOW
+        )
     except ValidationError as error:
         world["error"] = error
 
@@ -151,22 +154,31 @@ def staff_tries(
     client.post(reverse("deployment:deploy", kwargs={"run_id": run_id}))
 
 
-def deployed(world: World) -> tuple[object, object]:
-    from web.deployment.domain import deployed_model
+def deployed_run(world: World) -> str | None:
+    """The run ID of the model that screens now, if one can."""
+    from web.deployment.models import Deployment, Screener
 
-    return deployed_model(world["final_models_dir"])
+    deployed = Deployment.objects.screener(world["final_models_dir"])
+    return deployed.screening_model.run_id if isinstance(deployed, Screener) else None
+
+
+def no_usable_model(world: World) -> object:
+    from web.deployment.models import Deployment, Screener
+
+    deployed = Deployment.objects.screener(world["final_models_dir"])
+    return None if isinstance(deployed, Screener) else deployed
 
 
 @then("there is no deployed model")
 def no_deployed_model(world: World) -> None:
-    screening_model, reason = deployed(world)
-    assert screening_model is None
-    assert getattr(reason, "value", None) == "no_deployed_model"
+    from web.deployment.models import NoUsableModel
+
+    assert no_usable_model(world) is NoUsableModel.NO_DEPLOYED_MODEL
 
 
 @then(parsers.parse('screening models "{first}" and "{second}" can be deployed'))
 def can_be_deployed(world: World, first: str, second: str) -> None:
-    from web.deployment.domain import screening_models
+    from web.deployment.model_files import screening_models
 
     listed = {
         model.run_id: model for model in screening_models(world["final_models_dir"])
@@ -177,9 +189,7 @@ def can_be_deployed(world: World, first: str, second: str) -> None:
 
 @then(parsers.parse('"{run_id}" is the deployed model'))
 def is_deployed(world: World, run_id: str) -> None:
-    screening_model, reason = deployed(world)
-    assert getattr(screening_model, "run_id", None) == run_id
-    assert reason is None
+    assert deployed_run(world) == run_id
 
 
 @then(parsers.parse('the deployment history lists "{first}", "{second}", "{third}"'))
@@ -211,7 +221,7 @@ def shows_validation(
     npv: str,
     auroc: str,
 ) -> None:
-    from web.deployment.domain import screening_models
+    from web.deployment.model_files import screening_models
 
     (model,) = [
         m for m in screening_models(world["final_models_dir"]) if m.run_id == run_id
@@ -221,8 +231,7 @@ def shows_validation(
     assert str(model.positive_predictive_value) == ppv
     assert str(model.negative_predictive_value) == npv
     assert model.local_auroc == pytest.approx(float(auroc))
-    screening_model, _ = deployed(world)
-    assert (getattr(screening_model, "run_id", None) == run_id) == bool(is_deployed)
+    assert (deployed_run(world) == run_id) == bool(is_deployed)
 
 
 @then(
@@ -231,7 +240,7 @@ def shows_validation(
     )
 )
 def cannot_be_deployed(world: World, run_id: str, code: str) -> None:
-    from web.deployment.domain import screening_models
+    from web.deployment.model_files import screening_models
 
     (model,) = [
         m for m in screening_models(world["final_models_dir"]) if m.run_id == run_id
@@ -250,11 +259,19 @@ def deploying_refused(world: World, run_id: str, code: str) -> None:
 
 @then(parsers.parse('there is no usable deployed model, with reason code "{code}"'))
 def no_usable(world: World, code: str) -> None:
-    _, reason = deployed(world)
-    assert getattr(reason, "value", None) == code
+    assert getattr(no_usable_model(world), "value", None) == code
 
 
 @then("the Models page says the deployed model changed on disk")
 def page_says_changed(world: World) -> None:
-    _, reason = deployed(world)
-    assert "changed on disk" in str(getattr(reason, "label", ""))
+    assert "changed on disk" in str(getattr(no_usable_model(world), "label", ""))
+
+
+@pytest.mark.parametrize("problem", Problem)
+def test_every_problem_of_a_file_is_a_reason_it_cannot_be_deployed(
+    problem: Problem,
+) -> None:
+    from web.deployment.model_files import CannotDeploy
+
+    # The reason code is what the scenarios and the refusal's error code name.
+    assert CannotDeploy.because(problem).value == problem.value

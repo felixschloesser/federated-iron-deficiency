@@ -104,13 +104,54 @@ article[role="status"][data-level="error"] {
   outline-offset: 2px;
 }
 
+/* The same for a details summary; Pico's own summary rule outranks :where(). */
+details > summary:focus-visible:not([role]) {
+  outline: 2px solid var(--pico-color);
+  outline-offset: 2px;
+}
+
 /* A sample's heading inside its summary, with its tests on the line below. */
 details > summary h2 {
   display: inline;
+  /* Below the patient's name: a sample is one part of the page, not its title. */
+  font-size: 1.25rem;
 }
 
 details > summary small {
   display: block;
+}
+
+/* The fold arrow leads its heading, also above a line of tests; Pico floats
+   it to the far right edge. */
+details > summary {
+  position: relative;
+  padding-inline-start: 1.5rem;
+}
+
+details > summary::after {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0.4rem;
+  float: none;
+  margin: 0;
+}
+
+/* Each sample ends with a rule, so its Order buttons stay with it. */
+details:has(> summary h2) {
+  padding-bottom: var(--pico-spacing);
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+/* An order's test, below its sample's heading. */
+details article h3 {
+  font-size: 1.0625rem;
+}
+
+/* A released report reads as a status like Awaiting lab report, not plain text. */
+details article ins {
+  padding: 0 0.25rem;
+  border: 1px solid currentColor;
+  border-radius: var(--pico-border-radius);
 }
 
 /* A card's figures: each term beside its value. */

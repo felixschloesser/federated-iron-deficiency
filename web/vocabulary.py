@@ -11,6 +11,11 @@ class RegisteredSex(models.TextChoices):
     FEMALE = "female", "Female"
     MALE = "male", "Male"
 
+    @classmethod
+    def of_nhanes(cls, label: str) -> "RegisteredSex":
+        """The registered sex NHANES records as `label` ("Female", "Male")."""
+        return cls(label.lower())
+
 
 class Test(models.TextChoices):
     CBC = "cbc", "CBC"

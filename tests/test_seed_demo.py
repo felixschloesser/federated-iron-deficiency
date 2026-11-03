@@ -9,16 +9,16 @@ from django.core.management import CommandError, call_command
 from pytest_django.fixtures import Settings
 
 from iron_deficiency.dataset import CBC_VARS
-from web.accounts import demo
 from web.accounts.models import User
 from web.accounts.roles import Role, role_of
 from web.nhanes.models import Participant
 from web.practice.models import GeneralPractitioner, Patient
+from web.seeding import command as seeding
 from web.vocabulary import RegisteredSex
 
 pytestmark = pytest.mark.django_db
 
-# (sex, age, ferritin) per group, in the order demo.Group lists them.
+# (sex, age, ferritin) per group, in the order seeding.Group lists them.
 PEOPLE = [
     ("Female", 30, 8.0),  # eligible, ferritin below 15
     ("Female", 25, 40.0),  # eligible, ferritin 15 or more
@@ -53,7 +53,7 @@ def seed(*args: str) -> None:
 @pytest.fixture
 def seeded(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
     settings.DEBUG = True
-    monkeypatch.setattr(demo, "load_nhanes", nhanes_rows)
+    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
     seed()
 
 
@@ -106,9 +106,9 @@ def test_each_hospital_seeds_other_participants(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     settings.DEBUG = True
-    monkeypatch.setattr(demo, "load_nhanes", nhanes_rows)
+    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
     rows = nhanes_rows()
-    assert not demo.choose(rows, seed=0).equals(demo.choose(rows, seed=1))
+    assert not seeding.choose(rows, seed=0).equals(seeding.choose(rows, seed=1))
     seed("--seed", "1")
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
@@ -125,7 +125,7 @@ def test_a_hospital_seeds_no_patients(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     settings.DEBUG = True
-    monkeypatch.setattr(demo, "load_nhanes", nhanes_rows)
+    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
     call_command("seed_hospital")
     assert not Patient.objects.exists()
     assert Participant.objects.count() == 3 * len(PEOPLE)
@@ -140,7 +140,7 @@ def test_a_practice_seeds_no_analyser_values(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     settings.DEBUG = True
-    monkeypatch.setattr(demo, "load_nhanes", nhanes_rows)
+    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
     call_command("seed_practice")
     assert not Participant.objects.exists()
     assert Patient.objects.count() == 3 * len(PEOPLE)
@@ -169,22 +169,22 @@ def test_patients_get_fictional_flemish_names_matching_their_sex(seeded: None) -
     for patient in Patient.objects.all():
         first, last = patient.name.split(" ", 1)
         sex = RegisteredSex(patient.registered_sex)
-        assert first in demo.first_names(sex), patient.name
-        assert last in demo.SURNAMES, patient.name
+        assert first in seeding.first_names(sex), patient.name
+        assert last in seeding.SURNAMES, patient.name
     assert Patient.objects.values("name").distinct().count() > 1
 
 
 def test_a_patients_name_is_the_same_on_every_seed() -> None:
     female = RegisteredSex.FEMALE
-    assert demo.patient_name(135318, female) == demo.patient_name(135318, female)
-    assert demo.patient_name(135318, female) != demo.patient_name(135319, female)
+    assert seeding.patient_name(135318, female) == seeding.patient_name(135318, female)
+    assert seeding.patient_name(135318, female) != seeding.patient_name(135319, female)
 
 
 def test_the_number_of_patients_is_a_parameter(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     settings.DEBUG = True
-    monkeypatch.setattr(demo, "load_nhanes", nhanes_rows)
+    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
     seed("--patients", "6")
     assert Patient.objects.count() == 6
     assert Participant.objects.count() == 6

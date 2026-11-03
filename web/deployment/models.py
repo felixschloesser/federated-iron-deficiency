@@ -1,17 +1,36 @@
 """Laboratory directors, and the screening models they deployed (spec R18)."""
 
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
 from django.conf import settings
-from django.db import models
-from django.utils import formats, timezone
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
+
+from iron_deficiency.screening import (
+    FinalModel,
+    final_model_path,
+    from_bytes,
+    suggests_ferritin,
+)
+from web.deployment.model_files import (
+    CannotDeploy,
+    model_name,
+    screening_model_file,
+    sha256,
+)
 
 
-def model_name(stored_at: datetime | None, run_id: str) -> str:
-    """How the laboratory director knows a model: when it arrived (spec §1, model)."""
-    if stored_at is None:
-        return f"Screening model of run {run_id}"
-    return f"Screening model of {formats.date_format(timezone.localtime(stored_at), 'j M Y, H:i')}"
+class NoUsableModel(models.TextChoices):
+    NO_DEPLOYED_MODEL = "no_deployed_model", "No screening model is deployed"
+    DEPLOYED_MODEL_CHANGED = (
+        "deployed_model_changed",
+        "The deployed model changed on disk since it was deployed",
+    )
 
 
 class LaboratoryDirector(models.Model):
@@ -52,6 +71,63 @@ class ScreeningModel(models.Model):
         return model_name(self.stored_at, self.run_id)
 
 
+class DeploymentManager(models.Manager["Deployment"]):
+    @transaction.atomic
+    def deploy(
+        self, *, run_id: str, directory: Path | None, now: datetime
+    ) -> Deployment:
+        """Make a screening model in the hospital's folder the deployed model, from
+        `now` (R18)."""
+        path = None if directory is None else final_model_path(directory, run_id)
+        if path is None or not path.is_file():
+            raise ValidationError(
+                f"There is no model of run {run_id}.", code="not_found"
+            )
+        # One read: what is checked is what is hashed.
+        data = path.read_bytes()
+        file = screening_model_file(run_id, data)
+        threshold = file.threshold
+        if file.problem is not None or threshold is None:
+            # Without a problem a file has a threshold; the second test only narrows
+            # the type.
+            problem = file.problem or CannotDeploy.THRESHOLD_MISSING
+            raise ValidationError(
+                f"{file.name} cannot be deployed: {problem.label}.",
+                code=problem.value,
+            )
+        screening_model, _ = ScreeningModel.objects.get_or_create(
+            run_id=run_id,
+            sha256=sha256(data),
+            defaults={
+                "stored_at": file.stored_at,
+                "threshold": threshold,
+                "federated_auroc": file.federated_auroc,
+                "local_validation": file.local_validation,
+            },
+        )
+        return self.create(screening_model=screening_model, deployed_at=now)
+
+    def screener(self, directory: Path | None) -> Screener | NoUsableModel:
+        """The deployed model ready to screen, or why there is none (R19)."""
+        latest = (
+            self.select_related("screening_model")
+            .order_by("-deployed_at", "-pk")
+            .first()
+        )
+        if latest is None:
+            return NoUsableModel.NO_DEPLOYED_MODEL
+        screening_model = latest.screening_model
+        path = (
+            None
+            if directory is None
+            else final_model_path(directory, screening_model.run_id)
+        )
+        data = path.read_bytes() if path is not None and path.is_file() else None
+        if data is None or sha256(data) != screening_model.sha256:
+            return NoUsableModel.DEPLOYED_MODEL_CHANGED
+        return Screener(screening_model, from_bytes(data))
+
+
 class Deployment(models.Model):
     """One deployment; the latest names the deployed model. Nothing about who or why."""
 
@@ -59,3 +135,16 @@ class Deployment(models.Model):
         ScreeningModel, on_delete=models.PROTECT, related_name="deployments"
     )
     deployed_at = models.DateTimeField()
+
+    objects = DeploymentManager()
+
+
+@dataclass(frozen=True)
+class Screener:
+    """The deployed model, loaded from the very bytes whose hash was checked (R19)."""
+
+    screening_model: ScreeningModel
+    final_model: FinalModel
+
+    def suggests_ferritin(self, cbc: Mapping[str, float], age: int) -> bool:
+        return suggests_ferritin(cbc, age, self.final_model)

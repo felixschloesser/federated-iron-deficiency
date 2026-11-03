@@ -21,6 +21,14 @@ Feature: Analysing samples
     When laboratory staff run the analyser
     Then running the analyser is refused with code "already_analysed"
 
+  Scenario: A sample analysed from another page is not analysed again
+    Given a CBC order for "Test Patient 1"
+    And laboratory staff opened the CBC order on two pages
+    When laboratory staff run the analyser from the first page
+    And laboratory staff run the analyser from the second page
+    Then running the analyser is refused with code "already_analysed"
+    And the CBC order keeps the analysis from the first page
+
   Scenario: The analyser has no tube for the sample ID
     Given a CBC order for "Test Patient 1"
     And the analyser stand-in has no values for the sample of "Test Patient 1"

@@ -3,9 +3,9 @@
 from collections.abc import Hashable
 from typing import Any
 
-from web.accounts.demo import SeedCommand, patient_name, user
-from web.demo_accounts import GENERAL_PRACTITIONERS
 from web.practice.models import GeneralPractitioner, Patient
+from web.seeding.accounts import GENERAL_PRACTITIONERS
+from web.seeding.command import SeedCommand, patient_name, user
 from web.vocabulary import RegisteredSex
 
 
@@ -27,7 +27,7 @@ class Command(SeedCommand):
         for number, row in enumerate(rows):
             # Each patient is one NHANES participant; samples start with its number.
             seqn = int(row["sample_id"])
-            sex = RegisteredSex(str(row["sex"]).lower())
+            sex = RegisteredSex.of_nhanes(str(row["sex"]))
             Patient.objects.get_or_create(
                 nhanes_number=str(seqn),
                 defaults={

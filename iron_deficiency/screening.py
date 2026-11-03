@@ -1,88 +1,179 @@
-"""Local screening of new blood counts with the deployed model."""
+"""Local screening of new blood counts with the deployed model, and the final
+model's file: the one format the ClientApp writes and every reader reads."""
 
 import argparse
+import enum
+import io
+import pickle
+import zipfile
 from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import torch
 
-from iron_deficiency.dataset import CBC_VARS, ELIGIBLE_AGES, ELIGIBLE_SEX, FEATURES
+from iron_deficiency.dataset import CBC_VARS, FEATURES, eligible
 from iron_deficiency.task import Net
 
 # One lab export row: sample ID, registered sex, age, and the 13 CBC values.
 COLUMNS = ["sample_id", "sex", "age", *CBC_VARS]
 
-# The model was trained on women aged 18–49 only; nobody else gets a result.
+# What torch.load raises on a file that is no model file, or none it loads safely.
+UNREADABLE_ERRORS = (
+    pickle.UnpicklingError,
+    RuntimeError,
+    EOFError,
+    ValueError,
+    zipfile.BadZipFile,
+)
 
 
-def save_deployment(
-    path: Path,
-    state_dict: dict[str, torch.Tensor],
-    mean: pd.Series,
-    std: pd.Series,
-    threshold: float,
-) -> None:
-    """Store the model with this hospital's standardization and the threshold."""
+class Problem(enum.Enum):
+    """Why a final model's file cannot screen: the first that applies."""
+
+    UNREADABLE = "unreadable"
+    FEATURES_DIFFER = "features_differ"
+    THRESHOLD_MISSING = "threshold_missing"
+    STANDARDIZATION_MISSING = "standardization_missing"
+
+
+@dataclass(frozen=True)
+class FinalModel:
+    """A final model as its file holds it; any part may be missing from an old or
+    damaged file, which problem() then names."""
+
+    state_dict: dict[str, torch.Tensor] | None = None
+    # This hospital's standardization, in FEATURES order.
+    mean: torch.Tensor | None = None
+    std: torch.Tensor | None = None
+    threshold: float | None = None
+    run_id: int | str | None = None
+    stored_at: datetime | None = None
+    # Only what the ServerApp aggregated; no other hospital's metrics (R20).
+    federated: dict[str, float] = field(default_factory=dict)
+    local_validation: dict[str, float] = field(default_factory=dict)
+
+    def problem(self) -> Problem | None:
+        if self.state_dict is None:
+            return Problem.UNREADABLE
+        try:
+            Net().load_state_dict(self.state_dict)
+        except RuntimeError:
+            return Problem.FEATURES_DIFFER
+        if self.threshold is None:
+            return Problem.THRESHOLD_MISSING
+        if self.mean is None or self.std is None:
+            return Problem.STANDARDIZATION_MISSING
+        return None
+
+    def probabilities(self, features: pd.DataFrame) -> npt.NDArray[np.float32]:
+        """Each row's probability of iron deficiency, from unstandardized FEATURES."""
+        if self.state_dict is None or self.mean is None or self.std is None:
+            raise ValueError(f"This final model cannot screen: {self.problem()}")
+        net = Net()
+        net.load_state_dict(self.state_dict)
+        net.eval()
+        x = torch.tensor(features[FEATURES].values, dtype=torch.float32)
+        with torch.no_grad():
+            probabilities: npt.NDArray[np.float32] = torch.sigmoid(
+                net((x - self.mean) / self.std)
+            ).numpy()
+        return probabilities
+
+
+def standardization_tensor(values: pd.Series) -> torch.Tensor:
+    """A standardization's mean or std as the file holds it, in FEATURES order."""
+    return torch.tensor(values[FEATURES].values, dtype=torch.float32)
+
+
+def final_model_path(directory: Path, run_id: int | str) -> Path:
+    """One file per training run, named after it."""
+    return directory / f"{run_id}.pt"
+
+
+def write(path: Path, model: FinalModel) -> None:
+    """Store a final model; one is never overwritten (R16)."""
+    if path.exists():
+        raise FileExistsError(path)
+    contents: dict[str, Any] = {
+        "state_dict": model.state_dict,
+        "mean": model.mean,
+        "std": model.std,
+        "threshold": model.threshold,
+        "run_id": model.run_id,
+        "stored_at": model.stored_at.isoformat() if model.stored_at else None,
+        "federated": model.federated,
+        "local_validation": model.local_validation,
+    }
     path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {
-            "state_dict": state_dict,
-            "mean": torch.tensor(mean[FEATURES].values, dtype=torch.float32),
-            "std": torch.tensor(std[FEATURES].values, dtype=torch.float32),
-            "threshold": threshold,
-        },
-        path,
-    )
-
-
-def read_final_model(path: Path) -> object:
-    """The contents of a final model file, as the ClientApp stored it."""
-    return torch.load(path)
-
-
-def fits_model(state_dict: dict[str, torch.Tensor]) -> bool:
-    """Whether weights fit this code's model, that is, were trained on FEATURES."""
+    # Written beside it, then renamed: a reader of the folder never sees half a file,
+    # and "*.pt" never matches the partial one.
+    partial = path.with_name(f".{path.name}.partial")
     try:
-        Net().load_state_dict(state_dict)
-    except RuntimeError:
-        return False
-    return True
+        torch.save(
+            {key: value for key, value in contents.items() if value is not None},
+            partial,
+        )
+        partial.replace(path)
+    finally:
+        partial.unlink(missing_ok=True)
 
 
-def score(samples: pd.DataFrame, model_path: Path) -> tuple[pd.Series, float]:
-    """Return the eligible samples' probabilities of iron deficiency, and the threshold."""
-    deployment = torch.load(model_path)
-    net = Net()
-    net.load_state_dict(deployment["state_dict"])
-    net.eval()
-
-    features = samples[CBC_VARS].assign(RIDAGEYR=samples["age"])[FEATURES]
-    eligible = (
-        (samples["sex"] == ELIGIBLE_SEX)
-        & samples["age"].between(*ELIGIBLE_AGES)
-        & features.notna().all(axis=1)
+def from_bytes(data: bytes) -> FinalModel:
+    """A final model from its file's bytes; an unreadable file gives an empty one."""
+    try:
+        contents = torch.load(io.BytesIO(data))
+    except UNREADABLE_ERRORS:
+        return FinalModel()
+    if not isinstance(contents, dict):
+        return FinalModel()
+    stored_at = contents.get("stored_at")
+    threshold = contents.get("threshold")
+    return FinalModel(
+        state_dict=contents.get("state_dict"),
+        mean=contents.get("mean"),
+        std=contents.get("std"),
+        threshold=float(threshold) if threshold is not None else None,
+        run_id=contents.get("run_id"),
+        stored_at=datetime.fromisoformat(stored_at) if stored_at else None,
+        federated=dict(contents.get("federated", {})),
+        local_validation=dict(contents.get("local_validation", {})),
     )
-    x = torch.tensor(features[eligible].values, dtype=torch.float32)
-    x = (x - deployment["mean"]) / deployment["std"]
-    with torch.no_grad():
-        probabilities = torch.sigmoid(net(x)).numpy()
-    return pd.Series(probabilities, index=samples.index[eligible]), deployment[
-        "threshold"
-    ]
 
 
-def suggests_ferritin(cbc: Mapping[str, float], age: int, model_path: Path) -> bool:
-    """Whether the model scores one eligible woman's CBC at or above its threshold."""
-    sample = pd.DataFrame([{"sex": ELIGIBLE_SEX, "age": age, **cbc}])
-    probabilities, threshold = score(sample, model_path)
-    return bool(probabilities.to_numpy()[0] >= threshold)
+def read(path: Path) -> FinalModel:
+    return from_bytes(path.read_bytes())
 
 
-def screen(samples: pd.DataFrame, model_path: Path) -> pd.DataFrame:
+def score(samples: pd.DataFrame, model: FinalModel) -> tuple[pd.Series, float]:
+    """Return the eligible samples' probabilities of iron deficiency, and the threshold."""
+    if model.threshold is None:
+        raise ValueError(f"This final model cannot screen: {model.problem()}")
+    features = samples[CBC_VARS].assign(RIDAGEYR=samples["age"])[FEATURES]
+    scored = eligible(samples["sex"], samples["age"]) & features.notna().all(axis=1)
+    probabilities = model.probabilities(features[scored])
+    return pd.Series(probabilities, index=samples.index[scored]), model.threshold
+
+
+def suggests_ferritin(cbc: Mapping[str, float], age: int, model: FinalModel) -> bool:
+    """Whether the model scores one CBC at or above its threshold. Who is screened
+    is the caller's decision (R4)."""
+    if model.threshold is None:
+        raise ValueError(f"This final model cannot screen: {model.problem()}")
+    features = pd.DataFrame([{**cbc, "RIDAGEYR": age}], columns=FEATURES)
+    if features.isna().any(axis=None):
+        raise ValueError("A CBC without all its values cannot be screened.")
+    return bool(model.probabilities(features)[0] >= model.threshold)
+
+
+def screen(samples: pd.DataFrame, model: FinalModel) -> pd.DataFrame:
     """Return each sample's ID and result: flagged, not flagged, or not screened."""
-    probabilities, threshold = score(samples, model_path)
+    probabilities, threshold = score(samples, model)
     result = pd.Series("not screened", index=samples.index)
     result[probabilities.index] = np.where(
         probabilities >= threshold, "flagged", "not flagged"
@@ -101,7 +192,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    results = screen(pd.read_csv(args.input, usecols=COLUMNS), args.model)
+    results = screen(pd.read_csv(args.input, usecols=COLUMNS), read(args.model))
     results.to_csv(args.output, index=False)
     # Print counts only, so no sample ID ends up in the terminal or its logs.
     print(results["result"].value_counts().to_string())

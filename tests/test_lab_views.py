@@ -16,7 +16,6 @@ from tests.conftest import (
     make_patient,
 )
 from web.lab.models import LaboratoryStaffMember, LabOrder
-from web.practice import services
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
@@ -202,8 +201,7 @@ def test_to_analyse_marks_a_stored_sample(
 
     logged_in(client, staff_member).post(analyse_url(lab_order))
     order = Order.objects.get()
-    later = services.place_order(
-        general_practitioner=order.sample.patient.general_practitioner,
+    later = order.sample.patient.general_practitioner.place_order(
         sample=order.sample,
         test=OrderedTest.CBC,
         indication=ClinicalIndication.OTHER,

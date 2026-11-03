@@ -35,7 +35,7 @@ def test_clean_tree_has_no_findings(tmp_path: Path) -> None:
             "web/lab/views.py": (
                 "class ReceiveView(View):\n"
                 "    def post(self, request) -> HttpResponse:\n"
-                "        services.receive()\n"
+                "        self.lab_order.run_analyser(now)\n"
             ),
         },
     )
@@ -84,7 +84,7 @@ def test_suppressions(tmp_path: Path, code: str) -> None:
 
 def test_listed_choice_members(tmp_path: Path) -> None:
     code = "OPEN = [Status.ORDERED, Status.RECEIVED]\n"
-    assert counts(tree(tmp_path, {"web/lab/domain.py": code}))["listed_members"] == 1
+    assert counts(tree(tmp_path, {"web/lab/models.py": code}))["listed_members"] == 1
 
 
 def test_mutation_outside_a_post_handler(tmp_path: Path) -> None:
@@ -98,13 +98,53 @@ def test_mutation_outside_a_post_handler(tmp_path: Path) -> None:
     ]
 
 
-def test_form_valid_may_call_a_service(tmp_path: Path) -> None:
+def test_form_valid_may_write(tmp_path: Path) -> None:
     code = (
         "class NewOrderView(FormView):\n"
         "    def form_valid(self, form) -> HttpResponse:\n"
-        "        services.place_order()\n"
+        "        self.general_practitioner.place_order()\n"
     )
     assert counts(tree(tmp_path, {"web/practice/views.py": code}))["get_mutation"] == 0
+
+
+MODELS_WITH_A_WRITE = (
+    "class Patient(models.Model):\n"
+    "    @transaction.atomic\n"
+    "    def collect_sample(self, now):\n"
+    "        return self.samples.create(collected_at=now)\n"
+)
+
+
+def test_calling_a_writing_model_method_outside_a_post_handler(
+    tmp_path: Path,
+) -> None:
+    view = (
+        "class PatientView(DetailView):\n"
+        "    def get_context_data(self, **kwargs) -> dict:\n"
+        "        self.object.collect_sample(now)\n"
+    )
+    root = tree(
+        tmp_path,
+        {"web/practice/models.py": MODELS_WITH_A_WRITE, "web/practice/views.py": view},
+    )
+    finding = (
+        "web/practice/views.py:2: PatientView.get_context_data mutates outside a"
+        " POST handler"
+    )
+    assert audit.run(root)["get_mutation"] == [finding]
+
+
+def test_a_post_handler_may_call_a_writing_model_method(tmp_path: Path) -> None:
+    view = (
+        "class CollectSampleView(View):\n"
+        "    def post(self, request) -> HttpResponse:\n"
+        "        patient.collect_sample(now)\n"
+    )
+    root = tree(
+        tmp_path,
+        {"web/practice/models.py": MODELS_WITH_A_WRITE, "web/practice/views.py": view},
+    )
+    assert counts(root)["get_mutation"] == 0
 
 
 def test_function_view(tmp_path: Path) -> None:
@@ -161,10 +201,10 @@ def test_web_imports_only_the_screening_side(tmp_path: Path) -> None:
         "from iron_deficiency.client_app import app\n"
         "import iron_deficiency.server_app\n"
     )
-    root = tree(tmp_path, {"web/lab/services.py": code, "tools/x.py": code})
+    root = tree(tmp_path, {"web/lab/models.py": code, "tools/x.py": code})
     assert audit.run(root)["training_imports"] == [
-        "web/lab/services.py:3: imports iron_deficiency.client_app, startup code",
-        "web/lab/services.py:4: imports iron_deficiency.server_app, startup code",
+        "web/lab/models.py:3: imports iron_deficiency.client_app, startup code",
+        "web/lab/models.py:4: imports iron_deficiency.server_app, startup code",
     ]
 
 
@@ -175,7 +215,7 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
             "web/practice/views.py": "from web.practice.models import Order\n"
             "from web.vocabulary import Test\n"
             "from web.lab.models import LabOrder\n",
-            "web/lab/services.py": "import web.practice.models\n",
+            "web/lab/models.py": "import web.practice.models\n",
             "web/accounts/backends.py": "from web.deployment import models\n",
             "web/messaging/messages_pb2.py": "import grpc\n",
             "tools/demo.py": "from web.lab.models import LabOrder\n",
@@ -183,7 +223,7 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
     )
     assert audit.run(root)["party_imports"] == [
         "web/accounts/backends.py:1: shared code imports web.deployment",
-        "web/lab/services.py:1: the hospital's code imports web.practice",
+        "web/lab/models.py:1: the hospital's code imports web.practice",
         "web/practice/views.py:3: the general practitioner's code imports web.lab",
     ]
 
@@ -196,12 +236,12 @@ def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
     root = tree(
         tmp_path,
         {
-            "web/lab/services.py": code,
+            "web/lab/models.py": code,
             "web/practice/views.py": code,
-            "web/accounts/demo.py": code,
+            "web/seeding/command.py": code,
         },
     )
     assert audit.run(root)["training_imports"] == [
-        "web/accounts/demo.py:2: imports iron_deficiency.screening, the hospital's code",
         "web/practice/views.py:2: imports iron_deficiency.screening, the hospital's code",
+        "web/seeding/command.py:2: imports iron_deficiency.screening, the hospital's code",
     ]

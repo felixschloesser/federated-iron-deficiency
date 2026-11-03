@@ -48,6 +48,17 @@ def config_float(msg: Message, key: str) -> float:
     return value
 
 
+def best_device() -> torch.device:
+    """CUDA, else Apple's MPS, else the CPU."""
+    return torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else "mps"
+        if torch.backends.mps.is_available()
+        else "cpu"
+    )
+
+
 @app.train()
 def train(msg: Message, context: Context) -> Message:
     """Train the model on local data."""
@@ -58,13 +69,7 @@ def train(msg: Message, context: Context) -> Message:
     # Load the model and initialize it with the received weights
     model = Net()
     model.load_state_dict(msg.content.array_records["arrays"].to_torch_state_dict())
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else "mps"
-        if torch.backends.mps.is_available()
-        else "cpu"
-    )
+    device = best_device()
     model.to(device)
 
     # Load the data
@@ -97,13 +102,7 @@ def evaluate(msg: Message, context: Context) -> Message:
     # Load the model and initialize it with the received weights
     model = Net()
     model.load_state_dict(msg.content.array_records["arrays"].to_torch_state_dict())
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else "mps"
-        if torch.backends.mps.is_available()
-        else "cpu"
-    )
+    device = best_device()
     model.to(device)
 
     # Load the data

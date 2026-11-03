@@ -100,10 +100,10 @@ def make_laboratory_director(name: str) -> "LaboratoryDirector":
 
 def deliver(order: "Order") -> "LabOrder":
     """The lab order (DF23) arriving at the hospital, as its messaging endpoint records it."""
-    from web.lab.services import LabOrderDetails, record_lab_order
+    from web.lab.models import LabOrder, LabOrderDetails
     from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
-    return record_lab_order(
+    return LabOrder.objects.record(
         client="client",
         details=LabOrderDetails(
             sample_id=order.sample.sample_id,
@@ -128,13 +128,8 @@ def collect_and_order(
     now: "datetime",
 ) -> "Order":
     """Collect a sample from the patient and order one test on it."""
-    from web.practice import services
-
-    sample = services.collect_sample(
-        general_practitioner=general_practitioner, patient=patient, now=now
-    )
-    return services.place_order(
-        general_practitioner=general_practitioner,
+    sample = general_practitioner.collect_sample(patient=patient, now=now)
+    return general_practitioner.place_order(
         sample=sample,
         test=test,
         indication=indication,

@@ -15,14 +15,14 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
 from iron_deficiency.dataset import (
-    ELIGIBLE_AGES,
     ELIGIBLE_SEX,
     FERRITIN_THRESHOLD,
+    eligible,
     load_ferritin,
     load_new_samples,
 )
 from web.accounts.models import User
-from web.demo_accounts import PASSWORD
+from web.seeding.accounts import PASSWORD
 from web.vocabulary import RegisteredSex
 
 # Patients per practice unless --patients says otherwise; the groups share them.
@@ -39,16 +39,16 @@ class Group(enum.Enum):
 
     def selects(self, rows: pd.DataFrame) -> "pd.Series[bool]":
         women = rows["sex"] == ELIGIBLE_SEX
-        eligible = women & rows["age"].between(*ELIGIBLE_AGES)
+        screened = eligible(rows["sex"], rows["age"])
         match self:
             case Group.LOW_FERRITIN:
-                return eligible & (rows["LBXFER"] < FERRITIN_THRESHOLD)
+                return screened & (rows["LBXFER"] < FERRITIN_THRESHOLD)
             case Group.NORMAL_FERRITIN:
-                return eligible & (rows["LBXFER"] >= FERRITIN_THRESHOLD)
+                return screened & (rows["LBXFER"] >= FERRITIN_THRESHOLD)
             case Group.MEN:
                 return ~women
             case Group.OUTSIDE_AGES:
-                return women & ~rows["age"].between(*ELIGIBLE_AGES)
+                return women & ~screened
             case _:
                 assert_never(self)
 
@@ -78,8 +78,7 @@ def with_made_up_ferritin(chosen: pd.DataFrame, nhanes: pd.DataFrame) -> pd.Data
     (it measured women aged 12–49 only): the measured ferritin of an eligible woman
     at or above the cutoff, picked by sample ID so it is the same on every seed."""
     measured = nhanes[
-        (nhanes["sex"] == ELIGIBLE_SEX)
-        & nhanes["age"].between(*ELIGIBLE_AGES)
+        eligible(nhanes["sex"], nhanes["age"])
         & (nhanes["LBXFER"] >= FERRITIN_THRESHOLD)
     ]
     pool = measured.sort_values("sample_id")["LBXFER"].to_list()

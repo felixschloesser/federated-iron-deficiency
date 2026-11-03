@@ -64,6 +64,26 @@ def test_only_a_practice_sends_messages(tmp_path: Path) -> None:
     assert "MESSAGING_ADDRESS" in result.stderr
 
 
+def test_a_practice_without_its_certificates_is_refused(tmp_path: Path) -> None:
+    """Missing certificates stop the app at start, not at the first order."""
+    result = database_path(
+        {"PRACTICE_DIR": str(tmp_path), "MESSAGING_ADDRESS": "127.0.0.1:8443"}
+    )
+    assert result.returncode != 0
+    assert str(tmp_path / "certificates" / "ca.crt") in result.stderr
+
+
+def test_a_practice_with_its_certificates_starts(tmp_path: Path) -> None:
+    certificates = tmp_path / "certificates"
+    certificates.mkdir()
+    for name in ("ca.crt", "certificate.pem", "key.pem"):
+        (certificates / name).write_bytes(b"")
+    result = database_path(
+        {"PRACTICE_DIR": str(tmp_path), "MESSAGING_ADDRESS": "127.0.0.1:8443"}
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def run_manage(env: dict[str, str], *args: str) -> None:
     subprocess.run(
         [sys.executable, "manage.py", *args],

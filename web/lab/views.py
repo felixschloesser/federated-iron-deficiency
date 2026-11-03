@@ -11,9 +11,7 @@ from django.views.generic import TemplateView
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
-from web.lab import queries, services
-from web.lab.domain import NotScreened
-from web.lab.models import LabOrder
+from web.lab.models import LabOrder, NotScreened
 
 
 class LaboratoryStaffRequiredMixin(RoleRequiredMixin):
@@ -24,7 +22,7 @@ class ToAnalyseView(LaboratoryStaffRequiredMixin, TemplateView):
     template_name = "lab/to_analyse.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        lab_orders = queries.lab_orders_to_analyse()
+        lab_orders = LabOrder.objects.to_analyse()
         return {**super().get_context_data(**kwargs), "lab_orders": lab_orders}
 
 
@@ -32,7 +30,7 @@ class AnalysedView(LaboratoryStaffRequiredMixin, TemplateView):
     template_name = "lab/analysed.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        lab_orders = queries.lab_orders_analysed()
+        lab_orders = LabOrder.objects.analysed()
         return {**super().get_context_data(**kwargs), "lab_orders": lab_orders}
 
 
@@ -40,8 +38,7 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         lab_order = get_object_or_404(LabOrder.objects.select_related("sample"), pk=pk)
         try:
-            services.run_analyser(
-                lab_order=lab_order,
+            lab_order.run_analyser(
                 directory=settings.FINAL_MODELS_DIR,
                 now=timezone.now(),
             )

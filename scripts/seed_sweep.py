@@ -1,12 +1,11 @@
 """Train the federated and centralized models once per seed and evaluate every hospital's deployment."""
 
 import argparse
+import dataclasses
 import subprocess
-import tempfile
 from pathlib import Path
 
 import pandas as pd
-import torch
 from evaluate_screening import evaluate
 from scipy import stats
 from train_centralized import train_centralized
@@ -17,7 +16,7 @@ from iron_deficiency.final_models import (
     hospital_final_models,
     latest_final_model,
 )
-from iron_deficiency.screening import COLUMNS
+from iron_deficiency.screening import COLUMNS, read
 
 HOSPITALS = {0: "UZ Leuven", 1: "Heilig Hart Leuven", 2: "AZ Diest"}
 # Largest AUROC difference we would still call equivalent, fixed before running.
@@ -50,8 +49,8 @@ for seed in range(args.seeds):
     )
     centralized = train_centralized(seed)
     for partition_id, hospital in HOSPITALS.items():
-        federated = latest_final_model(
-            hospital_final_models(DEFAULT_DEMO_DIR, partition_id)
+        federated = read(
+            latest_final_model(hospital_final_models(DEFAULT_DEMO_DIR, partition_id))
         )
         rows.append(
             {
@@ -62,18 +61,15 @@ for seed in range(args.seeds):
             }
         )
         # Deploy the centralized weights with this hospital's standardization and threshold.
-        deployment = torch.load(federated, weights_only=False)
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "model.pt"
-            torch.save({**deployment, "state_dict": centralized}, path)
-            rows.append(
-                {
-                    "seed": seed,
-                    "arm": "centralized",
-                    "hospital": hospital,
-                    **evaluate(path, samples, ferritin),
-                }
-            )
+        centralized_model = dataclasses.replace(federated, state_dict=centralized)
+        rows.append(
+            {
+                "seed": seed,
+                "arm": "centralized",
+                "hospital": hospital,
+                **evaluate(centralized_model, samples, ferritin),
+            }
+        )
     print(f"Seed {seed} done")
 
 results = pd.DataFrame(rows)

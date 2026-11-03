@@ -7,11 +7,11 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 
 from iron_deficiency.dataset import FERRITIN_THRESHOLD, load_ferritin
-from iron_deficiency.screening import COLUMNS, score
+from iron_deficiency.screening import COLUMNS, FinalModel, read, score
 
 
 def evaluate(
-    model: Path, samples: pd.DataFrame, ferritin: pd.DataFrame
+    model: FinalModel, samples: pd.DataFrame, ferritin: pd.DataFrame
 ) -> dict[str, float]:
     """Return the AUROC and confusion matrix of a deployed model's flags."""
     probabilities, threshold = score(samples, model)
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     result = evaluate(
-        args.model, pd.read_csv(args.input, usecols=COLUMNS), load_ferritin()
+        read(args.model), pd.read_csv(args.input, usecols=COLUMNS), load_ferritin()
     )
     print(f"Eligible: {result['eligible']}, with ferritin: {result['with_ferritin']}")
     print(f"Flagged: {result['flagged']}")
