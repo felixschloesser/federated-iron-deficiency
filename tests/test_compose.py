@@ -85,8 +85,8 @@ def test_one_service_per_process_of_each_party() -> None:
     assert set(config()["services"]) == STARTUP_SERVICES | NETWORK_SERVICES | {
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
-        for role in ("supernode", "clientapp", "web", "lab-orders")
-    } | {f"{slug}-{role}" for slug in PRACTICE_SLUGS for role in ("web", "reports")}
+        for role in ("supernode", "clientapp", "web")
+    } | {f"{slug}-web" for slug in PRACTICE_SLUGS}
 
 
 def test_each_service_mounts_only_its_own_partys_folder() -> None:
@@ -124,11 +124,10 @@ def test_the_startups_code_at_a_hospital_sees_only_the_cohort_and_final_models(
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-@pytest.mark.parametrize("role", ["web", "lab-orders"])
 def test_the_hospitals_own_apps_see_no_cohort_no_supernode_key_and_read_only_final_models(
-    slug: str, role: str
+    slug: str,
 ) -> None:
-    name = f"{slug}-{role}"
+    name = f"{slug}-web"
     assert set(service(name)["tmpfs"]) == {
         f"/demo/hospitals/{slug}/cohort",
         f"/demo/hospitals/{slug}/supernode",
@@ -197,20 +196,37 @@ def test_each_practice_reaches_only_its_own_hospitals_lab_order_endpoint(
     practice: str,
 ) -> None:
     hospital = PRACTICE_HOSPITAL[practice]
-    for role in ("web", "reports"):
-        spec = service(f"{practice}-{role}")
-        assert set(spec["networks"]) == {practice, f"{hospital}-lab-orders"}
-        assert spec["environment"]["MESSAGING_ADDRESS"] == f"{hospital}-lab-orders:8441"
+    spec = service(f"{practice}-web")
+    assert set(spec["networks"]) == {practice, f"{hospital}-lab-orders"}
+    assert spec["environment"]["MESSAGING_ADDRESS"] == f"{hospital}-lab-orders:8441"
     members = {
         name
         for name, spec in config()["services"].items()
         if f"{hospital}-lab-orders" in spec.get("networks", {})
     }
     assert members == {
-        f"{hospital}-lab-orders",
+        f"{hospital}-web",
         f"{practice}-web",
-        f"{practice}-reports",
     }
+
+
+@pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
+def test_the_hospital_serves_its_pages_and_its_lab_orders_each_on_one_network_only(
+    slug: str,
+) -> None:
+    # One container, two servers: each listens on a name only one network
+    # knows, so its practice reaches port 8441 and never the pages on 8000.
+    spec = service(f"{slug}-web")
+    assert spec["networks"] == {
+        slug: {"aliases": [f"{slug}-pages"]},
+        f"{slug}-lab-orders": {"aliases": [f"{slug}-lab-orders"]},
+    }
+    script = spec["command"][-1]
+    assert f"--bind={slug}-pages:8000" in script
+    assert f"serve_messages {slug}-lab-orders:8441" in script
+    # Either server stopping stops the container, which compose restarts.
+    assert "wait -n" in script
+    assert spec["restart"] == "unless-stopped"
 
 
 def test_each_web_app_knows_its_party_name_and_colour() -> None:
@@ -226,16 +242,10 @@ def test_each_web_app_knows_its_party_name_and_colour() -> None:
             assert (vendor / f"pico.{colour}.min.css").is_file(), colour
 
 
-def test_each_practice_checks_for_lab_reports_every_five_seconds() -> None:
-    # The demo squeezes hours into seconds; a real practice checks every 60.
-    for slug in PRACTICE_SLUGS:
-        for role in ("web", "reports"):
-            environment = service(f"{slug}-{role}")["environment"]
-            assert environment["REPORT_CHECK_SECONDS"] == "5"
-        assert service(f"{slug}-reports")["command"][-2:] == [
-            "check_for_lab_reports",
-            "--repeat",
-        ]
+def test_no_practice_service_runs_on_a_timer() -> None:
+    # Lab reports come only on Check for reports (R23).
+    for name, spec in config()["services"].items():
+        assert "REPORT_CHECK_SECONDS" not in (spec.get("environment") or {}), name
 
 
 def test_every_flower_connection_across_a_boundary_uses_tls() -> None:
@@ -271,8 +281,9 @@ def test_the_superlink_keeps_its_state_with_the_startup() -> None:
 def test_every_web_app_serves_https_with_its_partys_own_certificate(slug: str) -> None:
     name = f"{slug}-web"
     folder = party_folder(name)
-    command = service(name)["command"]
-    assert command[:2] == ["gunicorn", "web.wsgi"]
+    # A practice runs gunicorn alone; a hospital beside its messaging endpoint.
+    command = " ".join(service(name)["command"])
+    assert "gunicorn web.wsgi" in command
     assert f"--certfile=/demo/{folder}/web-tls/certificate.pem" in command
     assert f"--keyfile=/demo/{folder}/web-tls/key.pem" in command
 

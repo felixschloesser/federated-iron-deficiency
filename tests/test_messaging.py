@@ -8,7 +8,6 @@ from pathlib import Path
 
 import grpc
 import pytest
-from django.core.management import CommandError, call_command
 from django.test import Client
 from django.urls import reverse
 from pytest_bdd import given, parsers, scenarios, then, when
@@ -512,24 +511,10 @@ def test_check_for_reports_is_offered_only_with_a_hospital_to_ask(
     assert client.post(reverse("practice:check_for_reports")).status_code == 404
 
 
-def test_the_command_checks_for_reports(
-    practice: Path, owner: GeneralPractitioner
-) -> None:
-    record = released_ferritin(owner)
-    call_command("check_for_lab_reports")
-    assert LabReport.objects.filter(order__sample__patient=record).exists()
-
-
-def test_the_command_needs_a_hospital_to_ask(settings: Settings) -> None:
-    settings.MESSAGING_ADDRESS = None
-    with pytest.raises(CommandError, match="MESSAGING_ADDRESS"):
-        call_command("check_for_lab_reports")
-
-
-def test_an_awaited_lab_report_says_when_it_arrives(
+def test_an_awaited_lab_report_says_how_to_fetch_it(
     client: Client, settings: Settings, practice: Path, owner: GeneralPractitioner
 ) -> None:
-    settings.REPORT_CHECK_SECONDS = 5
+    # No timer fetches lab reports: only Check for reports does (R23).
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
     client.post(new_order_url(client, record))
@@ -538,12 +523,12 @@ def test_an_awaited_lab_report_says_when_it_arrives(
     assertContains(response, "<mark>Awaiting lab report</mark>")
     assertContains(
         response,
-        "<small>New reports arrive within 5 seconds; reload to see them.</small>",
+        "<small>Check for reports on Orders to fetch it.</small>",
     )
     settings.MESSAGING_ADDRESS = None
     response = client.get(page)
     assertContains(response, "<mark>Awaiting lab report</mark>")
-    assertNotContains(response, "New reports arrive")
+    assertNotContains(response, "Check for reports")
 
 
 @then(parsers.parse("the lab order says its indication is {screened}"))

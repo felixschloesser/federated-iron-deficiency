@@ -158,29 +158,34 @@ services:
 
   uz-leuven-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
-              --certfile=/demo/hospitals/uz-leuven/web-tls/certificate.pem,
-              --keyfile=/demo/hospitals/uz-leuven/web-tls/key.pem]
+    # One container, two servers, each on a name only one network knows: the
+    # proxy reaches the pages, the practice only the lab-order endpoint (R21).
+    # Either one stopping stops the container, and compose restarts it.
+    command:
+      - bash
+      - -c
+      - |
+        trap 'kill $$(jobs -p)' TERM INT
+        gunicorn web.wsgi --bind=uz-leuven-pages:8000 --workers=2 --access-logfile=- \
+          --certfile=/demo/hospitals/uz-leuven/web-tls/certificate.pem \
+          --keyfile=/demo/hospitals/uz-leuven/web-tls/key.pem &
+        python manage.py serve_messages uz-leuven-lab-orders:8441 &
+        wait -n
+        exit 1
+    restart: unless-stopped
     environment:
       HOSPITAL_DIR: /demo/hospitals/uz-leuven
       HOSPITAL_NAME: UZ Leuven
       PARTY_COLOUR: jade
-    volumes: &uz-leuven-hospital
+    volumes:
       - ./demo/hospitals/uz-leuven:/demo/hospitals/uz-leuven
       - ./demo/hospitals/uz-leuven/final-models:/demo/hospitals/uz-leuven/final-models:ro
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
     # DEBUG off: Django's deploy settings, HTTPS with the browser CA's certificate (R29).
-    tmpfs: &uz-leuven-masked [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/supernode]
-    networks: [uz-leuven]
-
-  uz-leuven-lab-orders:
-    <<: *web
-    command: [python, manage.py, serve_messages, 0.0.0.0:8441]
-    environment:
-      HOSPITAL_DIR: /demo/hospitals/uz-leuven
-    volumes: *uz-leuven-hospital
-    tmpfs: *uz-leuven-masked
-    networks: [uz-leuven, uz-leuven-lab-orders]
+    tmpfs: [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/supernode]
+    networks:
+      uz-leuven: {aliases: [uz-leuven-pages]}
+      uz-leuven-lab-orders: {aliases: [uz-leuven-lab-orders]}
 
   # TB1 and TB4, Heilig Hart Leuven.
   heilig-hart-leuven-supernode:
@@ -209,27 +214,32 @@ services:
 
   heilig-hart-leuven-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
-              --certfile=/demo/hospitals/heilig-hart-leuven/web-tls/certificate.pem,
-              --keyfile=/demo/hospitals/heilig-hart-leuven/web-tls/key.pem]
+    # One container, two servers, each on a name only one network knows: the
+    # proxy reaches the pages, the practice only the lab-order endpoint (R21).
+    # Either one stopping stops the container, and compose restarts it.
+    command:
+      - bash
+      - -c
+      - |
+        trap 'kill $$(jobs -p)' TERM INT
+        gunicorn web.wsgi --bind=heilig-hart-leuven-pages:8000 --workers=2 --access-logfile=- \
+          --certfile=/demo/hospitals/heilig-hart-leuven/web-tls/certificate.pem \
+          --keyfile=/demo/hospitals/heilig-hart-leuven/web-tls/key.pem &
+        python manage.py serve_messages heilig-hart-leuven-lab-orders:8441 &
+        wait -n
+        exit 1
+    restart: unless-stopped
     environment:
       HOSPITAL_DIR: /demo/hospitals/heilig-hart-leuven
       HOSPITAL_NAME: Heilig Hart Leuven
       PARTY_COLOUR: pumpkin
-    volumes: &heilig-hart-leuven-hospital
+    volumes:
       - ./demo/hospitals/heilig-hart-leuven:/demo/hospitals/heilig-hart-leuven
       - ./demo/hospitals/heilig-hart-leuven/final-models:/demo/hospitals/heilig-hart-leuven/final-models:ro
-    tmpfs: &heilig-hart-leuven-masked [/demo/hospitals/heilig-hart-leuven/cohort, /demo/hospitals/heilig-hart-leuven/supernode]
-    networks: [heilig-hart-leuven]
-
-  heilig-hart-leuven-lab-orders:
-    <<: *web
-    command: [python, manage.py, serve_messages, 0.0.0.0:8441]
-    environment:
-      HOSPITAL_DIR: /demo/hospitals/heilig-hart-leuven
-    volumes: *heilig-hart-leuven-hospital
-    tmpfs: *heilig-hart-leuven-masked
-    networks: [heilig-hart-leuven, heilig-hart-leuven-lab-orders]
+    tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort, /demo/hospitals/heilig-hart-leuven/supernode]
+    networks:
+      heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
+      heilig-hart-leuven-lab-orders: {aliases: [heilig-hart-leuven-lab-orders]}
 
   # TB1 and TB4, AZ Diest.
   az-diest-supernode:
@@ -258,27 +268,32 @@ services:
 
   az-diest-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
-              --certfile=/demo/hospitals/az-diest/web-tls/certificate.pem,
-              --keyfile=/demo/hospitals/az-diest/web-tls/key.pem]
+    # One container, two servers, each on a name only one network knows: the
+    # proxy reaches the pages, the practice only the lab-order endpoint (R21).
+    # Either one stopping stops the container, and compose restarts it.
+    command:
+      - bash
+      - -c
+      - |
+        trap 'kill $$(jobs -p)' TERM INT
+        gunicorn web.wsgi --bind=az-diest-pages:8000 --workers=2 --access-logfile=- \
+          --certfile=/demo/hospitals/az-diest/web-tls/certificate.pem \
+          --keyfile=/demo/hospitals/az-diest/web-tls/key.pem &
+        python manage.py serve_messages az-diest-lab-orders:8441 &
+        wait -n
+        exit 1
+    restart: unless-stopped
     environment:
       HOSPITAL_DIR: /demo/hospitals/az-diest
       HOSPITAL_NAME: AZ Diest
       PARTY_COLOUR: violet
-    volumes: &az-diest-hospital
+    volumes:
       - ./demo/hospitals/az-diest:/demo/hospitals/az-diest
       - ./demo/hospitals/az-diest/final-models:/demo/hospitals/az-diest/final-models:ro
-    tmpfs: &az-diest-masked [/demo/hospitals/az-diest/cohort, /demo/hospitals/az-diest/supernode]
-    networks: [az-diest]
-
-  az-diest-lab-orders:
-    <<: *web
-    command: [python, manage.py, serve_messages, 0.0.0.0:8441]
-    environment:
-      HOSPITAL_DIR: /demo/hospitals/az-diest
-    volumes: *az-diest-hospital
-    tmpfs: *az-diest-masked
-    networks: [az-diest, az-diest-lab-orders]
+    tmpfs: [/demo/hospitals/az-diest/cohort, /demo/hospitals/az-diest/supernode]
+    networks:
+      az-diest: {aliases: [az-diest-pages]}
+      az-diest-lab-orders: {aliases: [az-diest-lab-orders]}
 
   # TB3, each general practitioner's practice, sending to its one hospital.
   huisartsenpraktijk-de-akker-web:
@@ -286,22 +301,13 @@ services:
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
               --certfile=/demo/practices/huisartsenpraktijk-de-akker/web-tls/certificate.pem,
               --keyfile=/demo/practices/huisartsenpraktijk-de-akker/web-tls/key.pem]
-    environment: &de-akker-env
+    environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PRACTICE_NAME: Huisartsenpraktijk De Akker
       PARTY_COLOUR: green
       MESSAGING_ADDRESS: uz-leuven-lab-orders:8441
-      # The demo squeezes hours into seconds; a real practice checks every 60.
-      REPORT_CHECK_SECONDS: "5"
-    volumes: &de-akker-practice
+    volumes:
       - ./demo/practices/huisartsenpraktijk-de-akker:/demo/practices/huisartsenpraktijk-de-akker
-    networks: [huisartsenpraktijk-de-akker, uz-leuven-lab-orders]
-
-  huisartsenpraktijk-de-akker-reports:
-    <<: *web
-    command: [python, manage.py, check_for_lab_reports, --repeat]
-    environment: *de-akker-env
-    volumes: *de-akker-practice
     networks: [huisartsenpraktijk-de-akker, uz-leuven-lab-orders]
 
   huisartsenpraktijk-de-berk-web:
@@ -309,21 +315,13 @@ services:
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
               --certfile=/demo/practices/huisartsenpraktijk-de-berk/web-tls/certificate.pem,
               --keyfile=/demo/practices/huisartsenpraktijk-de-berk/web-tls/key.pem]
-    environment: &de-berk-env
+    environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PRACTICE_NAME: Huisartsenpraktijk De Berk
       PARTY_COLOUR: amber
       MESSAGING_ADDRESS: heilig-hart-leuven-lab-orders:8441
-      REPORT_CHECK_SECONDS: "5"
-    volumes: &de-berk-practice
+    volumes:
       - ./demo/practices/huisartsenpraktijk-de-berk:/demo/practices/huisartsenpraktijk-de-berk
-    networks: [huisartsenpraktijk-de-berk, heilig-hart-leuven-lab-orders]
-
-  huisartsenpraktijk-de-berk-reports:
-    <<: *web
-    command: [python, manage.py, check_for_lab_reports, --repeat]
-    environment: *de-berk-env
-    volumes: *de-berk-practice
     networks: [huisartsenpraktijk-de-berk, heilig-hart-leuven-lab-orders]
 
   huisartsenpraktijk-de-ceder-web:
@@ -331,21 +329,13 @@ services:
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
               --certfile=/demo/practices/huisartsenpraktijk-de-ceder/web-tls/certificate.pem,
               --keyfile=/demo/practices/huisartsenpraktijk-de-ceder/web-tls/key.pem]
-    environment: &de-ceder-env
+    environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PRACTICE_NAME: Huisartsenpraktijk De Ceder
       PARTY_COLOUR: purple
       MESSAGING_ADDRESS: az-diest-lab-orders:8441
-      REPORT_CHECK_SECONDS: "5"
-    volumes: &de-ceder-practice
+    volumes:
       - ./demo/practices/huisartsenpraktijk-de-ceder:/demo/practices/huisartsenpraktijk-de-ceder
-    networks: [huisartsenpraktijk-de-ceder, az-diest-lab-orders]
-
-  huisartsenpraktijk-de-ceder-reports:
-    <<: *web
-    command: [python, manage.py, check_for_lab_reports, --repeat]
-    environment: *de-ceder-env
-    volumes: *de-ceder-practice
     networks: [huisartsenpraktijk-de-ceder, az-diest-lab-orders]
 
   # Between the browser and the parties, like the internet: routes each
