@@ -177,13 +177,15 @@ def ferritin_not_available(world: World) -> None:
 
 
 @then(
-    "the lab's samples hold sample ID, ordering general practitioner, registered sex,"
-    " age, test, whether the indication is screened and results"
+    "the lab's samples hold sample ID, registered sex, age, test, whether the"
+    " indication is screened and results, and no general practitioner"
 )
 def lab_rows_hold(world: World) -> None:
     (lab_order,) = LabOrder.objects.to_analyse()
     assert lab_order.sample.sample_id == world["order"].sample.sample_id
-    assert lab_order.general_practitioner == "Dr. Demo A"
+    # The practice, by its certificate name, stands for its one general practitioner.
+    assert "general_practitioner" not in {field.name for field in LabOrder._meta.fields}
+    assert "Dr. Demo A" not in str(vars(lab_order))
     assert lab_order.get_registered_sex_display() == "Female"
     assert lab_order.get_test_display() == "CBC"
     # Ordered for unexplained fatigue: screened, which is all the lab learns of it.

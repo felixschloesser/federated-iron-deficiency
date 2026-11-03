@@ -375,7 +375,6 @@ def lab_order_fields() -> None:
         "screened_indication",
         "registered_sex",
         "age",
-        "general_practitioner",
         "ordered_at",
     }
 

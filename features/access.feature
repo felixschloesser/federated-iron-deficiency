@@ -12,7 +12,7 @@ Feature: Who sees what
 
   Scenario: The lab never sees a patient's name
     Given a CBC order for "Test Patient 1"
-    Then the lab's samples hold sample ID, ordering general practitioner, registered sex, age, test, whether the indication is screened and results
+    Then the lab's samples hold sample ID, registered sex, age, test, whether the indication is screened and results, and no general practitioner
     And no lab query returns the patient's name
 
   Scenario: Demo login buttons when enabled
