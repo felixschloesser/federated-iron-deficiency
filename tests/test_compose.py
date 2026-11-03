@@ -22,7 +22,9 @@ HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
 PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
 # Each practice sends to the hospital of the same cycle (spec §9).
 PRACTICE_HOSPITAL = dict(zip(PRACTICE_SLUGS, HOSPITAL_SLUGS, strict=True))
-STARTUP_SERVICES = {"prepare", "superlink", "serverapp", "register", "train"}
+STARTUP_SERVICES = {"prepare", "reset", "superlink", "serverapp", "register", "train"}
+# Out-of-band setup (report, assumptions): only these see every party's folder.
+SETUP_SERVICES = {"prepare", "reset"}
 # Between the browser and the parties, like the internet: it sees only names.
 NETWORK_SERVICES = {"proxy"}
 
@@ -39,7 +41,7 @@ def config(demo_user: str | None = None, **settings: str) -> dict[str, Any]:
         environment["DEMO_USER"] = demo_user
     environment.update(settings)
     result = subprocess.run(
-        ["docker", "compose", "--profile", "train", "config", "--format", "json"],
+        ["docker", "compose", "--profile", "*", "config", "--format", "json"],
         cwd=ROOT,
         env=environment,
         capture_output=True,
@@ -88,9 +90,9 @@ def test_one_service_per_process_of_each_party() -> None:
 
 
 def test_each_service_mounts_only_its_own_partys_folder() -> None:
-    # Setup is out of band (report, assumptions): only prepare sees every party.
-    assert mounts("prepare") == {"/demo": (".", False)}
-    for name in set(config()["services"]) - {"prepare"} - NETWORK_SERVICES:
+    for name in SETUP_SERVICES:
+        assert mounts(name) == {"/demo": (".", False)}, name
+    for name in set(config()["services"]) - SETUP_SERVICES - NETWORK_SERVICES:
         folder = party_folder(name)
         for target, (source, _) in mounts(name).items():
             assert source.startswith(folder), (name, source)
