@@ -5,8 +5,10 @@ python tools/generate_messages.py --out DIR  # elsewhere (the drift test)
 """
 
 import argparse
+import re
 import subprocess
 import sys
+from importlib import resources
 from pathlib import Path
 
 from grpc_tools import protoc
@@ -27,6 +29,8 @@ def generate(out: Path) -> None:
         [
             "protoc",
             f"--proto_path={PROTO_DIR}",
+            # google/protobuf/timestamp.proto, as grpc_tools ships it.
+            f"--proto_path={resources.files('grpc_tools') / '_proto'}",
             f"--python_out={out}",
             f"--grpc_python_out={out}",
             f"--mypy_out={out}",
@@ -44,6 +48,20 @@ def generate(out: Path) -> None:
                 "import messages_pb2 as", "from . import messages_pb2 as"
             )
         )
+    # Importing timestamp_pb2 loads timestamp.proto, which messages.proto imports; the
+    # generated module never names it again, so ruff's fix would drop the import.
+    messages = out / "messages_pb2.py"
+    messages.write_text(
+        messages.read_text()
+        + "\n_IMPORTED_PROTOS = (google_dot_protobuf_dot_timestamp__pb2,)\n"
+    )
+    # tidy's ruff fix turns mypy-protobuf's TypeAlias into a `type` statement, through
+    # which mypy cannot reach an enum's ValueType: name the enum itself. No field
+    # here shares an enum's name, which is what the Global___ alias guards against.
+    stub = out / "messages_pb2.pyi"
+    stub.write_text(
+        re.sub(r"\bGlobal___(\w+)\.ValueType\b", r"\1.ValueType", stub.read_text())
+    )
     tidy(out)
 
 

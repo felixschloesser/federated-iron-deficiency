@@ -128,7 +128,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R13 | Every general practitioner query is scoped to the general practitioner's own patients; another general practitioner's order or lab report returns 404. | `access.feature` |
 | R14 | Lab queries select only sample ID, ordering general practitioner, registered sex, age, test, indication and results; never the patient's name. | `access.feature` |
 | R15 | `DEMO_LOGIN` (default off) shows one POST login button per seeded user. A deploy check fails when `DEMO_LOGIN` is on and `DEBUG` is off. | `access.feature` |
-| R22 | Placing an order sends a lab order (DF23) to the general practitioner's one hospital; the hospital records it once, however often the same message arrives. | `messaging.feature` |
+| R22 | Placing an order sends a lab order (DF23) to the general practitioner's one hospital, waiting at most 2 seconds; if the hospital does not answer, the next check for reports (R23) sends it. The hospital records it once, however often the same message arrives. | `messaging.feature` |
 | R23 | The general practitioner's app fetches its new lab reports (DF25) from its hospital every `REPORT_CHECK_SECONDS` (60; the demo 5) and on *Check for reports*, and a lab report it is still waiting for says within how many seconds new ones arrive; it is always the client, the hospital never connects to it. | `messaging.feature` |
 | R24 | The hospital's messaging endpoint accepts only a client certificate issued by that hospital's own certificate authority, for its general practitioner's app; any other client, the startup's included, is refused before a message is read. The hospital tells apps apart by their certificate's name: a sample is known by app and sample ID, and an app fetches and acknowledges only the lab reports of its own lab orders. The app stores each lab report on its own: one it cannot match to an order stays unacknowledged and holds back no other. | `messaging.feature` |
 | R25 | DF23 and DF25 carry exactly the fields of `web/messaging/messages.proto` (§10): no patient name, no blood values in DF1. | `messaging.feature`, `tests/test_messages.py` |
@@ -195,7 +195,7 @@ All are POSTs that redirect on success; model and manager methods take `now`.
 |---|---|---|---|---|
 | Fetch lab reports | General practitioner's app | Every `REPORT_CHECK_SECONDS`, or *Check for reports* | New lab reports stored at the general practitioner's app | R23 |
 | Collect sample | general practitioner | Patient is the general practitioner's | A sample with the patient's next sample ID, collected at `now`; nothing sent; then the sample's CBC order page | R13, R26 |
-| Place order | general practitioner | Sample is one of the general practitioner's patient's; indication given iff test is CBC; the test not yet on the sample | The order on the sample, sex and age copied; its lab order sent | R1, R13, R26 |
+| Place order | general practitioner | Sample is one of the general practitioner's patient's; indication given iff test is CBC; the test not yet on the sample | The order on the sample, sex and age copied; its lab order sent, else with the next check (R22) | R1, R13, R22, R26 |
 | Run analyser | Laboratory staff | Lab order arrived, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |
 | Deploy | Laboratory director | Screening model can be deployed (R17) | It is the deployed model from `now` | R18 |
 | Log in as (demo) | Anyone | `DEMO_LOGIN` on | Session for that seeded user | R15 |
@@ -322,7 +322,9 @@ Each web app takes a Pico colour theme from `PARTY_COLOUR` (vendored themes only
 The general practitioner's app is always the client (R23): it sends lab orders
 and fetches lab reports over gRPC with mutual TLS (R24). `web/messaging/messages.proto`
 is the contract; its generated code and typed stubs are committed and a test
-fails if they drift from it.
+fails if they drift from it. Its choices are proto enums with one value per
+vocabulary member (`web.messaging.choices`), and its times are
+`google.protobuf.Timestamp`; the hospital's form still checks every field.
 
 | Message | Fields | Never |
 |---|---|---|

@@ -9,9 +9,13 @@ import grpc
 from django.conf import settings
 
 from web.messaging import messages_pb2, messages_pb2_grpc
+from web.messaging.choices import from_proto, moment, timestamp, to_proto
 from web.practice.models import LabReport, Order
+from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 TIMEOUT_SECONDS = 10
+# Sending from an order's own request: the general practitioner is waiting.
+IN_REQUEST_TIMEOUT_SECONDS = 2
 
 
 @dataclass(frozen=True)
@@ -54,41 +58,66 @@ def open_laboratory(
 def send_lab_order(order: Order, connection: Connection) -> None:
     """Send an order's lab order (DF23): no name, no values (R25)."""
     with open_laboratory(connection) as laboratory:
-        _send(laboratory, order)
+        _send(laboratory, order, timeout=TIMEOUT_SECONDS)
 
 
-def _send(laboratory: messages_pb2_grpc.LaboratoryStub, order: Order) -> None:
+def _send(
+    laboratory: messages_pb2_grpc.LaboratoryStub, order: Order, *, timeout: float
+) -> None:
     laboratory.SendLabOrder(
         messages_pb2.LabOrder(
             sample_id=order.sample.sample_id,
-            test=order.test,
-            indication=order.indication or "",
-            registered_sex=order.registered_sex,
+            test=to_proto(Test(order.test), messages_pb2.Test),
+            indication=to_proto(
+                ClinicalIndication(order.indication) if order.indication else None,
+                messages_pb2.ClinicalIndication,
+            ),
+            registered_sex=to_proto(
+                RegisteredSex(order.registered_sex), messages_pb2.RegisteredSex
+            ),
             age=order.age,
             general_practitioner=order.sample.patient.general_practitioner.name,
-            ordered_at=order.ordered_at.isoformat(),
+            ordered_at=timestamp(order.ordered_at),
         ),
-        timeout=TIMEOUT_SECONDS,
+        timeout=timeout,
     )
 
 
 def _send_pending(
-    laboratory: messages_pb2_grpc.LaboratoryStub, *, now: datetime
+    laboratory: messages_pb2_grpc.LaboratoryStub,
+    *,
+    now: datetime,
+    timeout: float = TIMEOUT_SECONDS,
 ) -> int:
     pending = Order.objects.filter(sent_at__isnull=True).select_related(
         "sample__patient__general_practitioner"
     )
     for order in pending:
-        _send(laboratory, order)
+        _send(laboratory, order, timeout=timeout)
         Order.objects.filter(pk=order.pk).update(sent_at=now)
     return len(pending)
 
 
-def send_pending_lab_orders(connection: Connection, *, now: datetime) -> int:
+def send_pending_lab_orders(
+    connection: Connection, *, now: datetime, timeout: float = TIMEOUT_SECONDS
+) -> int:
     """Send every order the hospital has not confirmed yet, over one channel; it
     records each once."""
     with open_laboratory(connection) as laboratory:
-        return _send_pending(laboratory, now=now)
+        return _send_pending(laboratory, now=now, timeout=timeout)
+
+
+def failure(error: grpc.RpcError) -> str:
+    """What the general practitioner is told when an exchange with the hospital
+    fails: wait for a network problem, report anything else."""
+    code = error.code()
+    match code:
+        case grpc.StatusCode.UNAVAILABLE | grpc.StatusCode.DEADLINE_EXCEEDED:
+            return "The hospital could not be reached. Try again later."
+        case _:
+            return (
+                f"The hospital refused a message ({code.name}). Tell the administrator."
+            )
 
 
 def check_for_lab_reports(connection: Connection, *, now: datetime) -> int:
@@ -112,13 +141,11 @@ def _store(report: messages_pb2.LabReport, *, now: datetime) -> bool:
 
     The hospital is another party: a report that cannot be stored stays
     unacknowledged instead of holding back the others."""
-    order = Order.objects.filter(
-        sample__sample_id=report.sample_id, test=report.test
-    ).first()
-    try:
-        released_at = datetime.fromisoformat(report.released_at)
-    except ValueError:
+    test = from_proto(report.test, messages_pb2.Test, Test)
+    if test is None or not report.HasField("released_at"):
         return False
+    released_at = moment(report.released_at)
+    order = Order.objects.filter(sample__sample_id=report.sample_id, test=test).first()
     if order is None:
         return False
     LabReport.objects.get_or_create(

@@ -202,10 +202,8 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
             raise Http404
         try:
             fetched = messaging.check_for_lab_reports(connection, now=timezone.now())
-        except grpc.RpcError:
-            messages.error(
-                request, "The hospital could not be reached. Try again later."
-            )
+        except grpc.RpcError as error:
+            messages.error(request, messaging.failure(error))
         else:
             messages.success(
                 request,
@@ -280,11 +278,15 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
         )
         if (connection := messaging.configured_connection()) is not None:
             try:
-                messaging.send_pending_lab_orders(connection, now=timezone.now())
-            except grpc.RpcError:
+                messaging.send_pending_lab_orders(
+                    connection,
+                    now=timezone.now(),
+                    timeout=messaging.IN_REQUEST_TIMEOUT_SECONDS,
+                )
+            except grpc.RpcError as error:
                 messages.warning(
                     self.request,
-                    "The hospital could not be reached; the lab order is"
-                    " sent with the next check for reports.",
+                    f"{messaging.failure(error)} The lab order is sent with the"
+                    " next check for reports.",
                 )
         return super().form_valid(form)

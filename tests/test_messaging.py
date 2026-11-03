@@ -452,6 +452,22 @@ def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
     assert Order.objects.get().sent_at is None
 
 
+def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
+    client: Client, practice: Path, owner: GeneralPractitioner
+) -> None:
+    """A message the hospital's form rejects (INVALID_ARGUMENT) is a fault to
+    report, not a network problem to wait out."""
+    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    sample = record.samples.create(sample_id="x" * 25, collected_at=NOW)
+    owner.place_order(
+        sample=sample, test=OrderedTest.FERRITIN, indication=None, now=NOW
+    )
+    client.force_login(owner.user)
+    response = client.post(reverse("practice:check_for_reports"), follow=True)
+    assertNotContains(response, "could not be reached")
+    assertContains(response, "The hospital refused a message (INVALID_ARGUMENT)")
+
+
 def released_ferritin(owner: GeneralPractitioner) -> Patient:
     """A patient whose ferritin the hospital has analysed and released."""
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)

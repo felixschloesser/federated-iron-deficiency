@@ -6,12 +6,14 @@ from concurrent import futures
 from typing import cast
 
 import grpc
-from django.db import close_old_connections
+from django.db import close_old_connections, models
 from django.utils import timezone
 
 from web.lab.forms import LabOrderForm
 from web.lab.models import LabOrder, LabOrderDetails
 from web.messaging import messages_pb2, messages_pb2_grpc
+from web.messaging.choices import from_proto, moment, timestamp, to_proto
+from web.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
 def with_database[**P, R](handler: Callable[P, R]) -> Callable[P, R]:
@@ -26,6 +28,11 @@ def with_database[**P, R](handler: Callable[P, R]) -> Callable[P, R]:
             close_old_connections()
 
     return handle
+
+
+def _value(choice: models.TextChoices | None) -> str:
+    """A choice as the form reads it; empty for none, which a required field refuses."""
+    return "" if choice is None else choice.value
 
 
 def client_of(context: grpc.ServicerContext) -> str:
@@ -48,12 +55,26 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
         form = LabOrderForm(
             {
                 "sample_id": request.sample_id,
-                "test": request.test,
-                "indication": request.indication,
-                "registered_sex": request.registered_sex,
+                "test": _value(from_proto(request.test, messages_pb2.Test, Test)),
+                "indication": _value(
+                    from_proto(
+                        request.indication,
+                        messages_pb2.ClinicalIndication,
+                        ClinicalIndication,
+                    )
+                ),
+                "registered_sex": _value(
+                    from_proto(
+                        request.registered_sex,
+                        messages_pb2.RegisteredSex,
+                        RegisteredSex,
+                    )
+                ),
                 "age": request.age,
                 "general_practitioner": request.general_practitioner,
-                "ordered_at": request.ordered_at,
+                "ordered_at": moment(request.ordered_at)
+                if request.HasField("ordered_at")
+                else None,
             }
         )
         if not form.is_valid():
@@ -73,10 +94,10 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
                 messages_pb2.LabReport(
                     report_id=str(lab_order.pk),
                     sample_id=lab_order.sample.sample_id,
-                    test=lab_order.test,
+                    test=to_proto(Test(lab_order.test), messages_pb2.Test),
                     results=lab_order.results or {},
                     ferritin_suggested=lab_order.ferritin_suggested,
-                    released_at=lab_order.analysed_at.isoformat(),
+                    released_at=timestamp(lab_order.analysed_at),
                 )
                 for lab_order in LabOrder.objects.reports_to_send(client_of(context))
                 if lab_order.analysed_at is not None
