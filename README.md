@@ -261,8 +261,8 @@ screening comes back to the practice.
 ### Stop, reset, clean up
 
 - Ctrl-C in the first terminal stops every container.
-- With the demo stopped, `docker compose run --rm --no-deps prepare python
-  tools/demo.py reset --demo-dir /demo` deletes the six databases, so the
+- With the demo stopped, `docker compose run --rm reset` deletes the six
+  databases, so the
   next start seeds them afresh; certificates, cohorts and final models stay.
   Deleting `demo/` starts over completely.
 - `CAROOT=$PWD/demo/browser-ca mkcert -uninstall` removes the trust again.

@@ -4,6 +4,7 @@
 #
 #   docker compose up --build --abort-on-container-failure
 #   docker compose run --rm train
+#   docker compose run --rm reset
 #
 # Browsers reach https://<party>.localhost through the proxy, the only
 # published port. Networks: startup (TB2), <hospital> (TB1), <hospital>-clientapp (TB4,
@@ -52,6 +53,16 @@ services:
       DEMO_HTTPS_PORT: ${DEMO_HTTPS_PORT:-443}
     volumes: [./demo:/demo]
     networks: [setup]
+
+  # Setup too: `docker compose run --rm reset`, with the demo stopped, deletes
+  # every party's web database, so the next `up` seeds them afresh.
+  reset:
+    <<: *web
+    profiles: [reset]
+    depends_on: {}
+    command: [python, tools/demo.py, reset, --demo-dir, /demo]
+    volumes: [./demo:/demo]
+    network_mode: none
 
   # TB2, the startup.
   superlink:
