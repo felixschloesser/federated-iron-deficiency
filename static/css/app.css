@@ -127,16 +127,17 @@ article[data-level="error"] {
   white-space: nowrap;
 }
 
-/* Keyboard focus in the text colour, not the theme colour: Pico's amber and
-   pumpkin focus rings fall below 3:1 on white. */
+/* Keyboard focus in Pico's contrast colour, not the theme colour: Pico's amber
+   and pumpkin focus rings fall below 3:1 on white. Not --pico-color either, which
+   inside a button is its own white text, a white ring on a white page. */
 :where(a, button, input, select, textarea, [role="button"]):focus-visible {
-  outline: 2px solid var(--pico-color);
+  outline: 2px solid var(--pico-contrast);
   outline-offset: 2px;
 }
 
 /* The same for a details summary; Pico's own summary rule outranks :where(). */
 details > summary:focus-visible:not([role]) {
-  outline: 2px solid var(--pico-color);
+  outline: 2px solid var(--pico-contrast);
   outline-offset: 2px;
 }
 
