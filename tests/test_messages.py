@@ -34,7 +34,6 @@ def test_generated_code_matches_the_proto(tmp_path: Path) -> None:
     ("message", "field", "kind"),
     [
         ("LabOrder", "test", "Test"),
-        ("LabOrder", "indication", "ClinicalIndication"),
         ("LabOrder", "registered_sex", "RegisteredSex"),
         ("LabOrder", "ordered_at", "Timestamp"),
         ("LabReport", "test", "Test"),
@@ -54,7 +53,8 @@ def test_the_contract_types_choices_and_times(
     assert typed.name == kind
 
 
-VOCABULARIES = ("Test", "ClinicalIndication", "RegisteredSex")
+# The vocabularies that cross the wire; the clinical indication does not (R25).
+VOCABULARIES = ("Test", "RegisteredSex")
 
 
 def _members() -> list[tuple[str, str]]:
@@ -93,3 +93,16 @@ def test_none_and_unknown_numbers_are_no_choice(vocabulary: str) -> None:
     assert from_proto(99, enum, choices) is None
     # One proto value per member and UNSPECIFIED: nothing the vocabulary lacks.
     assert len(enum.DESCRIPTOR.values) == len(choices) + 1
+
+
+def test_a_lab_order_says_whether_its_indication_is_screened_and_nothing_more() -> None:
+    """The laboratory needs the indication only to decide whether to screen (R4,
+    R25): one yes or no, never which indication, pregnancy included."""
+    from google.protobuf.descriptor import FieldDescriptor
+
+    from web.messaging import messages_pb2
+
+    fields = messages_pb2.LabOrder.DESCRIPTOR.fields_by_name
+    assert fields["screened_indication"].type == FieldDescriptor.TYPE_BOOL
+    assert "indication" not in fields
+    assert not hasattr(messages_pb2, "ClinicalIndication")

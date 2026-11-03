@@ -129,7 +129,7 @@ def changed_on_disk(world: World, run_id: str) -> None:
 def lab_sample(
     world: World,
     test: OrderedTest,
-    indication: ClinicalIndication | None,
+    screened_indication: bool,
     sex: RegisteredSex,
     age: int,
 ) -> None:
@@ -142,7 +142,7 @@ def lab_sample(
         details=LabOrderDetails(
             sample_id=str(seqn),
             test=test,
-            indication=indication,
+            screened_indication=screened_indication,
             registered_sex=sex,
             age=age,
             general_practitioner="Dr. Demo A",
@@ -151,40 +151,26 @@ def lab_sample(
     )
 
 
-@given(
-    parsers.parse(
-        "a CBC sample of a woman aged {age:d} with indication unexplained fatigue"
-    )
-)
+@given(parsers.parse("a CBC sample of a woman aged {age:d} for a screened indication"))
 def eligible_cbc(world: World, age: int) -> None:
-    lab_sample(
-        world,
-        OrderedTest.CBC,
-        ClinicalIndication.UNEXPLAINED_FATIGUE,
-        RegisteredSex.FEMALE,
-        age,
-    )
+    lab_sample(world, OrderedTest.CBC, True, RegisteredSex.FEMALE, age)
 
 
 @given(
     parsers.re(
-        r"a CBC sample with indication (?P<indication>[a-z -]+),"
+        r"a CBC sample (?P<indication>for a screened indication"
+        r"|for an indication not screened),"
         r" registered sex (?P<sex>\w+), aged (?P<age>\d+)"
     )
 )
 def cbc(world: World, indication: str, sex: str, age: str) -> None:
-    lab_sample(
-        world,
-        OrderedTest.CBC,
-        {choice.label.lower(): choice for choice in ClinicalIndication}[indication],
-        RegisteredSex(sex),
-        int(age),
-    )
+    screened = indication == "for a screened indication"
+    lab_sample(world, OrderedTest.CBC, screened, RegisteredSex(sex), int(age))
 
 
 @given(parsers.parse("a ferritin sample of a woman aged {age:d}"))
 def ferritin_sample(world: World, age: int) -> None:
-    lab_sample(world, OrderedTest.FERRITIN, None, RegisteredSex.FEMALE, age)
+    lab_sample(world, OrderedTest.FERRITIN, False, RegisteredSex.FEMALE, age)
 
 
 @given(parsers.parse("the deployed model scores the sample {side} the threshold"))
@@ -319,8 +305,6 @@ def test_every_indication_is_answered() -> None:
 def test_the_lab_screens_exactly_whom_the_model_was_trained_on(
     sex: RegisteredSex, age: int
 ) -> None:
-    lab_order = LabOrder(
-        indication=ClinicalIndication.SUSPECTED_ANAEMIA, registered_sex=sex, age=age
-    )
+    lab_order = LabOrder(screened_indication=True, registered_sex=sex, age=age)
     trained_on = eligible(pd.Series([sex.label]), pd.Series([age])).iloc[0]
     assert (lab_order.not_eligible() is None) == trained_on

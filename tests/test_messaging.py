@@ -236,15 +236,16 @@ def has_one_lab_order(world: World, name: str, patient: str) -> None:
 
 @then(
     parsers.parse(
-        "the lab order holds sample ID, test, clinical indication, registered sex,"
-        ' age and "{owner}"'
+        "the lab order holds sample ID, test, whether its indication is screened,"
+        ' registered sex, age and "{owner}"'
     )
 )
 def lab_order_holds(world: World, owner: str) -> None:
     lab_order = LabOrder.objects.select_related("sample").get()
     placed = world["order"]
     assert lab_order.sample.sample_id == placed.sample.sample_id
-    assert (lab_order.test, lab_order.indication) == (placed.test, placed.indication)
+    screened = ClinicalIndication(placed.indication).is_screened()
+    assert (lab_order.test, lab_order.screened_indication) == (placed.test, screened)
     assert (lab_order.registered_sex, lab_order.age) == (
         placed.registered_sex,
         placed.age,
@@ -539,3 +540,20 @@ def test_an_awaited_lab_report_says_when_it_arrives(
     response = client.get(page)
     assertContains(response, "<mark>Awaiting lab report</mark>")
     assertNotContains(response, "New reports arrive")
+
+
+@then(parsers.parse("the lab order says its indication is {screened}"))
+def says_screened(world: World, screened: str) -> None:
+    lab_order = LabOrder.objects.get()
+    assert lab_order.screened_indication is (screened == "screened")
+
+
+@then("no lab order names a clinical indication")
+def names_no_indication() -> None:
+    # Neither the message (DF23) nor what the hospital stores (DS8) has a field
+    # for it: the laboratory never learns why a CBC was ordered.
+    from web.messaging import messages_pb2
+
+    assert "indication" not in messages_pb2.LabOrder.DESCRIPTOR.fields_by_name
+    stored = {field.name for field in LabOrder._meta.get_fields()}
+    assert "indication" not in stored

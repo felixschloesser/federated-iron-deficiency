@@ -13,7 +13,21 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
   Scenario: A placed order reaches the hospital
     When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication unexplained fatigue
     Then "AZ Diest" has a lab order for the sample of "Test Patient 1"
-    And the lab order holds sample ID, test, clinical indication, registered sex, age and "Dr. Demo A"
+    And the lab order holds sample ID, test, whether its indication is screened, registered sex, age and "Dr. Demo A"
+
+  Scenario Outline: The lab order says only whether the indication is screened, never which
+    When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication <indication>
+    Then the lab order says its indication is <screened>
+    And no lab order names a clinical indication
+
+    Examples:
+      | indication                         | screened     |
+      | suspected anaemia                  | screened     |
+      | suspected irritable bowel syndrome | screened     |
+      | unexplained fatigue                | screened     |
+      | start of pregnancy                 | not screened |
+      | chronic kidney disease follow-up   | not screened |
+      | other                              | not screened |
 
   Scenario: The same lab order sent twice is recorded once
     Given "Dr. Demo A" ordered a CBC for "Test Patient 1" with indication other

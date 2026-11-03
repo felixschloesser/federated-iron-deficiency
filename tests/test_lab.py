@@ -178,7 +178,7 @@ def ferritin_not_available(world: World) -> None:
 
 @then(
     "the lab's samples hold sample ID, ordering general practitioner, registered sex,"
-    " age, test, indication and results"
+    " age, test, whether the indication is screened and results"
 )
 def lab_rows_hold(world: World) -> None:
     (lab_order,) = LabOrder.objects.to_analyse()
@@ -186,6 +186,8 @@ def lab_rows_hold(world: World) -> None:
     assert lab_order.general_practitioner == "Dr. Demo A"
     assert lab_order.get_registered_sex_display() == "Female"
     assert lab_order.get_test_display() == "CBC"
+    # Ordered for unexplained fatigue: screened, which is all the lab learns of it.
+    assert lab_order.screened_indication is True
 
 
 @then("no lab query returns the patient's name")
