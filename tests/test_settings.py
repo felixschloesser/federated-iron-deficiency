@@ -156,7 +156,7 @@ for user in User.objects.order_by("username"):
     ("folder", "command", "users"),
     [
         ("HOSPITAL_DIR", "seed_hospital", {"director-1", "lab-1"}),
-        ("PRACTICE_DIR", "seed_practice", {"doctor-a", "doctor-b"}),
+        ("PRACTICE_DIR", "seed_practice", {"doctor"}),
     ],
 )
 def test_every_page_of_a_party_loads_in_its_own_deployment(

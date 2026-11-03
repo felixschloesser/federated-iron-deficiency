@@ -32,12 +32,6 @@ def patient(general_practitioner: GeneralPractitioner) -> Patient:
     )
 
 
-@pytest.fixture
-def other_patient() -> Patient:
-    other = make_general_practitioner("Dr. Demo B")
-    return make_patient(other, "Test Patient 2", RegisteredSex.MALE, 40)
-
-
 def logged_in(client: Client, general_practitioner: GeneralPractitioner) -> Client:
     client.force_login(general_practitioner.user)
     return client
@@ -86,11 +80,10 @@ def test_navigation_links_to_patients_and_orders(
     assertContains(response, f'href="{reverse("practice:orders")}"')
 
 
-def test_patients_lists_only_own_patients(
+def test_patients_lists_the_practices_patients(
     client: Client,
     general_practitioner: GeneralPractitioner,
     patient: Patient,
-    other_patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     make_patient(general_practitioner, "Test Patient 3", RegisteredSex.MALE, 60)
@@ -239,21 +232,6 @@ def test_patient_page_queries_do_not_grow_with_suggestions(
     with django_assert_num_queries(5):
         response = client.get(patient_url(patient))
     assert len(response.context["samples"]) == 2
-
-
-def test_another_general_practitioners_patient_is_not_found(
-    client: Client, general_practitioner: GeneralPractitioner, other_patient: Patient
-) -> None:
-    logged_in(client, general_practitioner)
-    assert client.get(patient_url(other_patient)).status_code == 404
-    assert client.post(collect_url(other_patient)).status_code == 404
-    url = reverse(
-        "practice:new_order",
-        kwargs={"patient": other_patient.pk, "sample": 1, "test": OrderedTest.FERRITIN},
-    )
-    assert client.get(url).status_code == 404
-    assert client.post(url).status_code == 404
-    assert not Order.objects.exists()
 
 
 def test_unknown_test_is_not_found(

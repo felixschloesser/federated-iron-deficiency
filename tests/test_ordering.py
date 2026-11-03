@@ -1,5 +1,5 @@
-"""Scenarios: ordering a test (features/ordering.feature), and ordering for
-another general practitioner's patient (features/access.feature)."""
+"""Scenarios: ordering a test (features/ordering.feature), and the practice's one
+general practitioner (features/access.feature)."""
 
 from datetime import UTC, datetime
 
@@ -18,15 +18,33 @@ TESTS = {"a CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
 scenarios("ordering.feature")
 
 
-@scenario(
-    "access.feature",
-    "A general practitioner cannot collect a sample from another general"
-    " practitioner's patient",
-)
-def test_a_general_practitioner_cannot_collect_from_another_general_practitioners_patient() -> (
-    None
-):
+@scenario("access.feature", "A practice has one general practitioner")
+def test_a_practice_has_one_general_practitioner() -> None:
     pass
+
+
+@when(parsers.parse('general practitioner "{name}" is added to the practice'))
+def add_general_practitioner(world: World, name: str) -> None:
+    from web.accounts.models import User
+    from web.practice.models import GeneralPractitioner
+
+    added = GeneralPractitioner(user=User.objects.create_user(username="b"), name=name)
+    try:
+        added.full_clean()
+    except ValidationError as error:
+        world["error"] = error
+    try:
+        with transaction.atomic():
+            added.save()
+    except IntegrityError as error:
+        world["integrity_error"] = error
+
+
+@then(parsers.parse('adding them is refused with code "{code}"'))
+def adding_refused(world: World, code: str) -> None:
+    assert [error.code for error in world["error"].error_dict[NON_FIELD_ERRORS]] == [
+        code
+    ]
 
 
 def indication_named(text: str) -> ClinicalIndication:
@@ -139,11 +157,6 @@ def ordered_before(
         indication=indication_named(indication),
         now=NOW,
     )
-
-
-@then(parsers.parse('the collection is refused with code "{code}" on field "{field}"'))
-def collection_refused(world: World, code: str, field: str) -> None:
-    assert [error.code for error in world["error"].error_dict[field]] == [code]
 
 
 @then(

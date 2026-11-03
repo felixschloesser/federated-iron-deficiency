@@ -48,7 +48,7 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
     text = summary(STATUSES)
     assert "Password for every account: demo-pass-2026" in text
     assert "laboratory staff: lab-1 · laboratory director: director-1" in text
-    assert "general practitioners: doctor-a, doctor-b" in text
+    assert "general practitioner: doctor" in text
     for line in (
         "UZ Leuven  ",
         "https://uz-leuven.localhost/   2 screening models, none deployed",
