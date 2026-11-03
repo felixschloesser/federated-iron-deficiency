@@ -5,9 +5,10 @@ from django.core.exceptions import ValidationError
 
 from web.accounts.models import User
 from web.accounts.roles import role_of
+from web.forms import NamedLabels
 
 
-class RoleAuthenticationForm(AuthenticationForm):
+class RoleAuthenticationForm(NamedLabels, AuthenticationForm):
     """Lets in only accounts that have a role in this app."""
 
     def clean(self) -> dict[str, Any]:
