@@ -97,11 +97,11 @@ def test_the_browser_ca_vouches_only_for_localhost(tmp_path: Path) -> None:
     import subprocess
 
     from tools.certificates import Authority, issue
-    from tools.demo import browser_ca, prepare_browser
+    from tools.demo import BROWSER_CA, browser_ca, prepare_browser
 
     prepare_browser(tmp_path)
     folder = browser_ca(tmp_path)
-    authority = Authority("Demo browser", folder / "ca.crt", folder / "ca.key")
+    authority = Authority(BROWSER_CA, folder / "ca.crt", folder / "ca.key")
     # Whoever reads the key may sign for any name; browsers accept only localhost.
     certificate, _ = issue(authority, tmp_path / "bank", "bank.example", server=True)
     verified = subprocess.run(
