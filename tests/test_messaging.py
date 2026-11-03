@@ -448,7 +448,10 @@ def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
     client.force_login(owner.user)
     response = client.post(new_order_url(client, record), follow=True)
     assertContains(response, "Ferritin ordered on sample")
-    assertContains(response, "sent with the next check for reports")
+    assertContains(
+        response, "The hospital could not be reached, so the lab order is not sent yet."
+    )
+    assertNotContains(response, "next check")
     assert Order.objects.get().sent_at is None
 
 
@@ -465,7 +468,8 @@ def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
     client.force_login(owner.user)
     response = client.post(reverse("practice:check_for_reports"), follow=True)
     assertNotContains(response, "could not be reached")
-    assertContains(response, "The hospital refused a message (INVALID_ARGUMENT)")
+    assertContains(response, "The hospital refused a message. Tell the administrator.")
+    assertNotContains(response, "INVALID_ARGUMENT")
 
 
 def released_ferritin(owner: GeneralPractitioner) -> Patient:

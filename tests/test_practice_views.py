@@ -484,7 +484,8 @@ def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
     # The CBC first, then the ferritin ordered beside its suggestion.
     assert [entry["order"].test for entry in sample["entries"]] == ["cbc", "ferritin"]
     assert sample["entries"][0]["order_ferritin_url"] is None
-    assertContains(response, "<mark>Awaiting lab report</mark>")
+    # No hospital in these tests: the ferritin's lab order is not sent.
+    assertContains(response, "<mark>Lab order not sent yet</mark>")
 
 
 def test_each_sample_is_a_details_block_and_only_the_newest_is_open(
@@ -556,3 +557,18 @@ def test_the_patients_page_lists_ferritin_suggestions_with_order_ferritin(
     )
     client.post(sample_order_url(patient, OrderedTest.FERRITIN))
     assertNotContains(client.get(reverse("practice:patients")), "Ferritin suggested (")
+
+
+def test_an_order_says_whether_its_lab_order_is_sent(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    """Until the hospital has the lab order, there is no report to wait for (R22)."""
+    logged_in(client, general_practitioner)
+    client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
+    response = client.get(patient_url(patient))
+    assertContains(response, "<mark>Lab order not sent yet</mark>")
+    assertNotContains(response, "Awaiting lab report")
+    Order.objects.update(sent_at="2026-10-30T12:00:00+00:00")
+    response = client.get(patient_url(patient))
+    assertContains(response, "<mark>Awaiting lab report</mark>")
+    assertNotContains(response, "not sent yet")

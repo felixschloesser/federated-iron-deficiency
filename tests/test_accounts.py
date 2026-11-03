@@ -3,6 +3,7 @@
 import pytest
 from django.test import Client
 from django.urls import resolve, reverse
+from pytest_django.asserts import assertContains
 
 from tests.conftest import make_general_practitioner
 from web.accounts.models import User
@@ -70,3 +71,16 @@ def test_account_without_a_role_cannot_log_in(client: Client) -> None:
     errors = response.context["form"].errors.as_data()
     assert [error.code for error in errors["__all__"]] == ["no_role"]
     assert "_auth_user_id" not in client.session
+
+
+def test_a_wrong_password_marks_both_fields_invalid(client: Client) -> None:
+    """Pico draws aria-invalid fields red; which field was wrong is not told."""
+    User.objects.create_user(username="someone", password=PASSWORD)
+    response = client.post(
+        reverse("login"), {"username": "someone", "password": "wrong"}
+    )
+    errors = response.context["form"].errors.as_data()
+    assert [error.code for error in errors["__all__"]] == ["invalid_login"]
+    assertContains(response, 'aria-invalid="true"', count=2)
+    # The form's error summary is the kit's error alert.
+    assertContains(response, '<article role="alert" data-level="error"')
