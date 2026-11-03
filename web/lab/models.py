@@ -71,18 +71,18 @@ class LaboratoryStaffMember(models.Model):
 
 
 class Sample(models.Model):
-    """A sample, known by the sample ID on its label and the general practitioner's
-    app that sent it (R2, R24): two apps may use the same sample ID. It arrives
-    with its lab order; a later test on it is measured on the stored sample."""
+    """A sample, known by the sample ID on its label and the practice that sent it
+    (R2, R24): two practices may use the same sample ID. It arrives with its lab
+    order; a later test on it is measured on the stored sample."""
 
-    # The common name of the app's client certificate, as the endpoint saw it.
-    client = models.CharField(max_length=100)
+    # The practice's certificate name, as the endpoint saw it (R24).
+    practice = models.CharField(max_length=100)
     sample_id = models.CharField(max_length=20)
 
     class Meta:
         constraints = (
             models.UniqueConstraint(
-                fields=["client", "sample_id"], name="one_sample_per_client"
+                fields=["practice", "sample_id"], name="one_sample_per_practice"
             ),
         )
 
@@ -132,11 +132,11 @@ class LabOrderManager(models.Manager["LabOrder"]):
             .order_by("-analysed_at", "-pk")
         )
 
-    def reports_to_send(self, client: str) -> models.QuerySet[LabOrder]:
-        """`client`'s analysed lab orders it has not acknowledged yet (R23, R24)."""
+    def reports_to_send(self, practice: str) -> models.QuerySet[LabOrder]:
+        """`practice`'s analysed lab orders it has not acknowledged yet (R23, R24)."""
         return (
             self.filter(
-                sample__client=client,
+                sample__practice=practice,
                 analysed_at__isnull=False,
                 report_acknowledged_at__isnull=True,
             )
@@ -145,11 +145,11 @@ class LabOrderManager(models.Manager["LabOrder"]):
         )
 
     @transaction.atomic
-    def record(self, *, client: str, details: LabOrderDetails) -> LabOrder:
-        """Record a lab order (DF23) from `client` once, however often it arrives
+    def record(self, *, practice: str, details: LabOrderDetails) -> LabOrder:
+        """Record a lab order (DF23) from `practice` once, however often it arrives
         (R22, O18)."""
         sample, _ = Sample.objects.get_or_create(
-            client=client, sample_id=details.sample_id
+            practice=practice, sample_id=details.sample_id
         )
         lab_order, _ = self.get_or_create(
             sample=sample,
@@ -165,10 +165,12 @@ class LabOrderManager(models.Manager["LabOrder"]):
         return lab_order
 
     @transaction.atomic
-    def acknowledge(self, *, client: str, report_ids: list[int], now: datetime) -> None:
-        """`client` has these lab reports of its own: hand them out no more."""
+    def acknowledge(
+        self, *, practice: str, report_ids: list[int], now: datetime
+    ) -> None:
+        """`practice` has these lab reports of its own: hand them out no more."""
         self.filter(
-            sample__client=client,
+            sample__practice=practice,
             pk__in=report_ids,
             report_acknowledged_at__isnull=True,
         ).update(report_acknowledged_at=now)

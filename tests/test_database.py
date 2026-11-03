@@ -28,7 +28,7 @@ def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
     commit.start()
     try:
         LabOrder.objects.record(
-            client="practice",
+            practice="practice",
             details=LabOrderDetails(
                 sample_id="135318-1",
                 test=Test.CBC,

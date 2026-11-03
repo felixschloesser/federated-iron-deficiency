@@ -35,9 +35,9 @@ def _value(choice: models.TextChoices | None) -> str:
     return "" if choice is None else choice.value
 
 
-def client_of(context: grpc.ServicerContext) -> str:
-    """The calling app: its client certificate's common name, which the
-    hospital's own certificate authority issued (R24)."""
+def practice_of(context: grpc.ServicerContext) -> str:
+    """The calling practice: its certificate name, the common name of the client
+    certificate the hospital's own certificate authority issued it (R24)."""
     # grpc-stubs types the values as bytes; gRPC gives an iterable of bytes,
     # as its documentation and its own aio stubs say.
     names = cast(Mapping[str, Iterable[bytes]], context.auth_context())
@@ -74,7 +74,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
         if not form.is_valid():
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, form.errors.as_json())
         LabOrder.objects.record(
-            client=client_of(context),
+            practice=practice_of(context),
             details=LabOrderDetails(**form.cleaned_data),
         )
         return messages_pb2.Received()
@@ -93,7 +93,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
                     ferritin_suggested=lab_order.ferritin_suggested,
                     released_at=timestamp(lab_order.analysed_at),
                 )
-                for lab_order in LabOrder.objects.reports_to_send(client_of(context))
+                for lab_order in LabOrder.objects.reports_to_send(practice_of(context))
                 if lab_order.analysed_at is not None
             ]
         )
@@ -103,7 +103,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
         self, request: messages_pb2.Acknowledgement, context: grpc.ServicerContext
     ) -> messages_pb2.Received:
         LabOrder.objects.acknowledge(
-            client=client_of(context),
+            practice=practice_of(context),
             report_ids=[int(report_id) for report_id in request.report_ids],
             now=timezone.now(),
         )

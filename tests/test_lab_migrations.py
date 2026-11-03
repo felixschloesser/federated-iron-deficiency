@@ -1,5 +1,6 @@
 """Stored lab orders keep only what the laboratory may know (R4, R5, R25)."""
 
+from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import pytest
@@ -7,6 +8,16 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
 pytestmark = pytest.mark.django_db(transaction=True)
+
+
+@pytest.fixture(autouse=True)
+def _back_to_the_latest() -> Iterator[None]:
+    """The database the later tests share ends at the newest migrations again,
+    whichever they are, not at AFTER."""
+    yield
+    executor = MigrationExecutor(connection)
+    executor.migrate(executor.loader.graph.leaf_nodes())
+
 
 BEFORE = ("lab", "0006_screening_model_wording")
 AFTER = ("lab", "0007_screened_indication")

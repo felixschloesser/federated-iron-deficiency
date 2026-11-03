@@ -64,7 +64,7 @@ def test_screen_scores_only_eligible_women_and_returns_only_decisions(
 # Scenarios: screening a CBC when the analyser runs (features/screening.feature).
 
 NOW = datetime(2026, 10, 30, 11, 0, tzinfo=UTC)
-CLIENT = "client"
+PRACTICE = "client"
 # The test model reads this one CBC value: high scores above the threshold, 0 below.
 DECIDING = CBC_VARS[0]
 SIDES = {"above": 20.0, "below": 0.0}
@@ -138,7 +138,7 @@ def lab_sample(
         seqn=seqn, cbc={var: 0.0 for var in CBC_VARS}, ferritin=10.0
     )
     world["lab_order"] = LabOrder.objects.record(
-        client=CLIENT,
+        practice=PRACTICE,
         details=LabOrderDetails(
             sample_id=str(seqn),
             test=test,
@@ -252,7 +252,7 @@ def no_screening_result(world: World) -> None:
     )
 )
 def released(world: World, suggested: str) -> None:
-    (lab_order,) = LabOrder.objects.reports_to_send(CLIENT)
+    (lab_order,) = LabOrder.objects.reports_to_send(PRACTICE)
     assert lab_order.pk == world["lab_order"].pk
     assert lab_order.ferritin_suggested is (suggested == "with")
 

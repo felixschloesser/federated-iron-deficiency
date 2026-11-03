@@ -104,7 +104,7 @@ def deliver(order: "Order") -> "LabOrder":
     from web.vocabulary import RegisteredSex, Test
 
     return LabOrder.objects.record(
-        client="client",
+        practice="practice",
         details=LabOrderDetails(
             sample_id=order.sample.sample_id,
             test=Test(order.test),
