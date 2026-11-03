@@ -86,7 +86,7 @@ def test_one_service_per_process_of_each_party() -> None:
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
         for role in ("supernode", "clientapp", "web", "lab-orders")
-    } | {f"{slug}-{role}" for slug in PRACTICE_SLUGS for role in ("web", "reports")}
+    } | {f"{slug}-web" for slug in PRACTICE_SLUGS}
 
 
 def test_each_service_mounts_only_its_own_partys_folder() -> None:
@@ -197,10 +197,9 @@ def test_each_practice_reaches_only_its_own_hospitals_lab_order_endpoint(
     practice: str,
 ) -> None:
     hospital = PRACTICE_HOSPITAL[practice]
-    for role in ("web", "reports"):
-        spec = service(f"{practice}-{role}")
-        assert set(spec["networks"]) == {practice, f"{hospital}-lab-orders"}
-        assert spec["environment"]["MESSAGING_ADDRESS"] == f"{hospital}-lab-orders:8441"
+    spec = service(f"{practice}-web")
+    assert set(spec["networks"]) == {practice, f"{hospital}-lab-orders"}
+    assert spec["environment"]["MESSAGING_ADDRESS"] == f"{hospital}-lab-orders:8441"
     members = {
         name
         for name, spec in config()["services"].items()
@@ -209,7 +208,6 @@ def test_each_practice_reaches_only_its_own_hospitals_lab_order_endpoint(
     assert members == {
         f"{hospital}-lab-orders",
         f"{practice}-web",
-        f"{practice}-reports",
     }
 
 
@@ -226,16 +224,10 @@ def test_each_web_app_knows_its_party_name_and_colour() -> None:
             assert (vendor / f"pico.{colour}.min.css").is_file(), colour
 
 
-def test_each_practice_checks_for_lab_reports_every_five_seconds() -> None:
-    # The demo squeezes hours into seconds; a real practice checks every 60.
-    for slug in PRACTICE_SLUGS:
-        for role in ("web", "reports"):
-            environment = service(f"{slug}-{role}")["environment"]
-            assert environment["REPORT_CHECK_SECONDS"] == "5"
-        assert service(f"{slug}-reports")["command"][-2:] == [
-            "check_for_lab_reports",
-            "--repeat",
-        ]
+def test_no_practice_service_runs_on_a_timer() -> None:
+    # Lab reports come only on Check for reports (R23).
+    for name, spec in config()["services"].items():
+        assert "REPORT_CHECK_SECONDS" not in (spec.get("environment") or {}), name
 
 
 def test_every_flower_connection_across_a_boundary_uses_tls() -> None:
