@@ -3,7 +3,7 @@
 import pytest
 from django.test import Client
 from django.urls import resolve, reverse
-from pytest_django.asserts import assertContains
+from pytest_django.asserts import assertContains, assertNotContains
 
 from tests.conftest import make_general_practitioner
 from web.accounts.models import User
@@ -82,8 +82,11 @@ def test_a_wrong_password_marks_both_fields_invalid(client: Client) -> None:
     errors = response.context["form"].errors.as_data()
     assert [error.code for error in errors["__all__"]] == ["invalid_login"]
     assertContains(response, 'aria-invalid="true"', count=2)
-    # The form's error summary is the kit's error alert.
+    # One form-wide error: the kit's error alert says just that, plainly.
     assertContains(response, '<article role="alert" data-level="error"')
+    assertContains(response, "<p>Wrong username or password.</p>")
+    assertNotContains(response, "There is a problem")
+    assertNotContains(response, "case-sensitive")
 
 
 def test_login_labels_have_no_trailing_colon(client: Client) -> None:

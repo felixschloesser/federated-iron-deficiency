@@ -294,6 +294,8 @@ def test_service_refusal_is_shown_on_its_field(
     assert response.status_code == 200
     errors = response.context["form"].errors.as_data()
     assert [error.code for error in errors["indication"]] == ["indication_required"]
+    # A field's error: the summary's heading, and a link to the field.
+    assertContains(response, "There is a problem")
     # The summary links to the first radio button: a radio group's label has no id.
     assertContains(response, '<a href="#id_indication_0">')
     # The group's legend, and the summary's link, name the field without a colon.
