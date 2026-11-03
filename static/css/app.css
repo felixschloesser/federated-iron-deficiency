@@ -16,6 +16,7 @@
    and a heading in its level's colour, from Pico's theme-aware colours. */
 article[data-level] {
   --alert-color: var(--pico-muted-border-color);
+  --alert-heading-color: var(--alert-color);
   border: 1px solid var(--alert-color);
   border-left-width: 0.5rem;
   background-color: color-mix(
@@ -26,7 +27,7 @@ article[data-level] {
 }
 
 article[data-level] > :is(h2, h3) {
-  color: var(--alert-color);
+  color: var(--alert-heading-color);
   font-size: 1rem;
 }
 
@@ -38,9 +39,22 @@ article[data-level="success"] {
   --alert-color: var(--pico-ins-color);
 }
 
-/* Pico's mark colour is too pale for a border; this amber keeps 3:1 on light and dark. */
+/* Pico's mark colour is too pale for a border; this amber keeps 3:1 on light and dark.
+   As heading text on the tint it is under 4.5:1, so the heading is a darker amber in
+   light (5.7:1) and a lighter one in dark (6.6:1). */
 article[data-level="warning"] {
   --alert-color: #b86e00;
+  --alert-heading-color: #8a5300;
+}
+
+[data-theme="dark"] article[data-level="warning"] {
+  --alert-heading-color: #e09a3a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) article[data-level="warning"] {
+    --alert-heading-color: #e09a3a;
+  }
 }
 
 article[data-level="error"] {

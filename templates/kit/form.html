@@ -7,7 +7,8 @@ Include with: form, submit_label.{% endcomment %}
   <ul>
     {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
     {% for field in form %}{% for error in field.errors %}
-    <li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ error }}</a></li>
+    {# A radio group's label has no id: link its first button. #}
+    <li><a href="#{% if field.id_for_label %}{{ field.id_for_label }}{% else %}{{ field.auto_id }}_0{% endif %}">{{ field.label }}: {{ error }}</a></li>
     {% endfor %}{% endfor %}
   </ul>
 </article>
