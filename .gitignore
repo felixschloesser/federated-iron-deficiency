@@ -9,3 +9,4 @@ staticfiles/
 demo/
 # Per-user compose settings, such as DEMO_USER
 .env
+.DS_Store
