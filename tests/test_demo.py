@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def test_reset_removes_only_the_web_databases(tmp_path: Path) -> None:
     from tools.demo import hospital_dir, practice_dir, reset
@@ -158,3 +160,26 @@ def test_the_summary_names_the_https_port_when_it_is_not_443() -> None:
 
     text = summary(STATUSES, https_port=8443)
     assert "https://uz-leuven.localhost:8443/" in text
+
+
+def test_demo_toml_describes_exactly_the_hospitals_training_knows() -> None:
+    import tomllib
+
+    from iron_deficiency.dataset import HOSPITALS, hospital_slug
+
+    parties = tomllib.loads((ROOT / "demo.toml").read_text())
+    assert set(parties["hospitals"]) == {hospital_slug(n) for n in HOSPITALS.values()}
+
+
+def test_each_hospitals_practice_colours_and_patients_come_from_demo_toml() -> None:
+    import tomllib
+
+    from iron_deficiency.dataset import HOSPITALS, hospital_slug
+    from tools.demo import COLOURS, PATIENTS, PRACTICES
+
+    hospitals = tomllib.loads((ROOT / "demo.toml").read_text())["hospitals"]
+    for cycle, name in HOSPITALS.items():
+        entry = hospitals[hospital_slug(name)]
+        assert PRACTICES[cycle] == entry["practice"]
+        assert COLOURS[cycle] == (entry["colour"], entry["practice_colour"])
+        assert PATIENTS[cycle] == entry["patients"]
