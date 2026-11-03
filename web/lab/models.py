@@ -16,7 +16,7 @@ from django_stubs_ext import WithAnnotations
 from iron_deficiency.dataset import ELIGIBLE_AGES, ELIGIBLE_SEX
 from web.deployment.models import Deployment, NoUsableModel, ScreeningModel
 from web.nhanes.models import Participant
-from web.vocabulary import ClinicalIndication, RegisteredSex, Test
+from web.vocabulary import RegisteredSex, Test
 
 
 class ScreeningResult(models.TextChoices):
@@ -26,12 +26,11 @@ class ScreeningResult(models.TextChoices):
 
 
 class NotScreened(models.TextChoices):
-    """Why a CBC was not screened: the first failing condition (R5), else why
-    there is no usable deployed model (web.deployment.models.NoUsableModel)."""
+    """Why a CBC was not screened (R5): the patient is not eligible, never which
+    fact excluded them, or there is no usable deployed model
+    (web.deployment.models.NoUsableModel), which lab staff act on (O3)."""
 
-    INDICATION = "indication", "clinical indication not screened"
-    SEX = "sex", "registered sex not female"
-    AGE = "age", f"age outside {ELIGIBLE_AGES[0]}–{ELIGIBLE_AGES[1]}"
+    NOT_ELIGIBLE = "not_eligible", "not eligible"
     NO_DEPLOYED_MODEL = "no_deployed_model", "no screening model deployed"
     DEPLOYED_MODEL_CHANGED = (
         "deployed_model_changed",
@@ -51,7 +50,7 @@ class NotScreened(models.TextChoices):
     def is_model_problem(self) -> bool:
         """Whether the hospital's model, not the patient, kept the CBC unscreened."""
         match self:
-            case NotScreened.INDICATION | NotScreened.SEX | NotScreened.AGE:
+            case NotScreened.NOT_ELIGIBLE:
                 return False
             case NotScreened.NO_DEPLOYED_MODEL | NotScreened.DEPLOYED_MODEL_CHANGED:
                 return True
@@ -97,7 +96,8 @@ class LabOrderDetails:
 
     sample_id: str
     test: Test
-    indication: ClinicalIndication | None
+    # Whether the indication is a screened one (R4); never which indication.
+    screened_indication: bool
     registered_sex: RegisteredSex
     age: int
     general_practitioner: str
@@ -155,7 +155,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
             sample=sample,
             test=details.test,
             defaults={
-                "indication": details.indication,
+                "screened_indication": details.screened_indication,
                 "registered_sex": details.registered_sex,
                 "age": details.age,
                 "general_practitioner": details.general_practitioner,
@@ -181,9 +181,9 @@ class LabOrder(models.Model):
         Sample, on_delete=models.PROTECT, related_name="lab_orders"
     )
     test = models.CharField(max_length=8, choices=Test.choices)
-    indication = models.CharField(
-        max_length=24, choices=ClinicalIndication.choices, null=True, blank=True
-    )
+    # Whether the general practitioner's indication is a screened one (R4, R25);
+    # the laboratory never learns which indication.
+    screened_indication = models.BooleanField(default=False)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
     general_practitioner = models.CharField(max_length=100)
@@ -223,17 +223,15 @@ class LabOrder(models.Model):
         return f"{self.sample.sample_id} {self.test}"
 
     def not_eligible(self) -> NotScreened | None:
-        """The first condition R4 fails, in the order indication, sex, age."""
-        if (
-            self.indication is None
-            or not ClinicalIndication(self.indication).is_screened()
-        ):
-            return NotScreened.INDICATION
-        if self.registered_sex != RegisteredSex.of_nhanes(ELIGIBLE_SEX):
-            return NotScreened.SEX
-        if not ELIGIBLE_AGES[0] <= self.age <= ELIGIBLE_AGES[1]:
-            return NotScreened.AGE
-        return None
+        """NOT_ELIGIBLE if R4 excludes the CBC: an indication not screened, a
+        registered sex other than female, or an age outside the trained range.
+        Which of them is never recorded: nobody acts on it (R5)."""
+        eligible = (
+            self.screened_indication
+            and self.registered_sex == RegisteredSex.of_nhanes(ELIGIBLE_SEX)
+            and ELIGIBLE_AGES[0] <= self.age <= ELIGIBLE_AGES[1]
+        )
+        return None if eligible else NotScreened.NOT_ELIGIBLE
 
     @property
     def ferritin_suggested(self) -> bool:

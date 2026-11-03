@@ -372,7 +372,7 @@ def lab_order_fields() -> None:
     assert fields == {
         "sample_id",
         "test",
-        "indication",
+        "screened_indication",
         "registered_sex",
         "age",
         "general_practitioner",

@@ -21,7 +21,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\x0emessages.proto\x12\x1ciron_deficiency.messaging.v1\x1a\x1fgoogle/protobuf/timestamp.proto"\xcd\x02\n\x08LabOrder\x12\x11\n\tsample_id\x18\x01 \x01(\t\x12\x30\n\x04test\x18\x08 \x01(\x0e\x32".iron_deficiency.messaging.v1.Test\x12\x44\n\nindication\x18\t \x01(\x0e\x32\x30.iron_deficiency.messaging.v1.ClinicalIndication\x12\x43\n\x0eregistered_sex\x18\n \x01(\x0e\x32+.iron_deficiency.messaging.v1.RegisteredSex\x12\x0b\n\x03\x61ge\x18\x05 \x01(\r\x12\x1c\n\x14general_practitioner\x18\x06 \x01(\t\x12.\n\nordered_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampJ\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04J\x04\x08\x04\x10\x05J\x04\x08\x07\x10\x08"\xc2\x02\n\tLabReport\x12\x11\n\treport_id\x18\x01 \x01(\t\x12\x11\n\tsample_id\x18\x02 \x01(\t\x12\x30\n\x04test\x18\x08 \x01(\x0e\x32".iron_deficiency.messaging.v1.Test\x12\x45\n\x07results\x18\x04 \x03(\x0b\x32\x34.iron_deficiency.messaging.v1.LabReport.ResultsEntry\x12/\n\x0breleased_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x1a\n\x12\x66\x65rritin_suggested\x18\x07 \x01(\x08\x1a.\n\x0cResultsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01J\x04\x08\x03\x10\x04J\x04\x08\x06\x10\x07J\x04\x08\x05\x10\x06R\x07\x63omment"\n\n\x08Received"\x11\n\x0f\x46\x65tchLabReports"F\n\nLabReports\x12\x38\n\x07reports\x18\x01 \x03(\x0b\x32\'.iron_deficiency.messaging.v1.LabReport"%\n\x0f\x41\x63knowledgement\x12\x12\n\nreport_ids\x18\x01 \x03(\t*=\n\x04Test\x12\x14\n\x10TEST_UNSPECIFIED\x10\x00\x12\x0c\n\x08TEST_CBC\x10\x01\x12\x11\n\rTEST_FERRITIN\x10\x02*\xaa\x02\n\x12\x43linicalIndication\x12#\n\x1f\x43LINICAL_INDICATION_UNSPECIFIED\x10\x00\x12)\n%CLINICAL_INDICATION_SUSPECTED_ANAEMIA\x10\x01\x12%\n!CLINICAL_INDICATION_SUSPECTED_IBS\x10\x02\x12+\n\'CLINICAL_INDICATION_UNEXPLAINED_FATIGUE\x10\x03\x12*\n&CLINICAL_INDICATION_START_OF_PREGNANCY\x10\x04\x12%\n!CLINICAL_INDICATION_CKD_FOLLOW_UP\x10\x05\x12\x1d\n\x19\x43LINICAL_INDICATION_OTHER\x10\x06*c\n\rRegisteredSex\x12\x1e\n\x1aREGISTERED_SEX_UNSPECIFIED\x10\x00\x12\x19\n\x15REGISTERED_SEX_FEMALE\x10\x01\x12\x17\n\x13REGISTERED_SEX_MALE\x10\x02\x32\xcb\x02\n\nLaboratory\x12^\n\x0cSendLabOrder\x12&.iron_deficiency.messaging.v1.LabOrder\x1a&.iron_deficiency.messaging.v1.Received\x12m\n\x12\x46\x65tchNewLabReports\x12-.iron_deficiency.messaging.v1.FetchLabReports\x1a(.iron_deficiency.messaging.v1.LabReports\x12n\n\x15\x41\x63knowledgeLabReports\x12-.iron_deficiency.messaging.v1.Acknowledgement\x1a&.iron_deficiency.messaging.v1.Receivedb\x06proto3'
+    b'\n\x0emessages.proto\x12\x1ciron_deficiency.messaging.v1\x1a\x1fgoogle/protobuf/timestamp.proto"\xb6\x02\n\x08LabOrder\x12\x11\n\tsample_id\x18\x01 \x01(\t\x12\x30\n\x04test\x18\x08 \x01(\x0e\x32".iron_deficiency.messaging.v1.Test\x12\x1b\n\x13screened_indication\x18\x0c \x01(\x08\x12\x43\n\x0eregistered_sex\x18\n \x01(\x0e\x32+.iron_deficiency.messaging.v1.RegisteredSex\x12\x0b\n\x03\x61ge\x18\x05 \x01(\r\x12\x1c\n\x14general_practitioner\x18\x06 \x01(\t\x12.\n\nordered_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampJ\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04J\x04\x08\x04\x10\x05J\x04\x08\x07\x10\x08J\x04\x08\t\x10\nR\nindication"\xc2\x02\n\tLabReport\x12\x11\n\treport_id\x18\x01 \x01(\t\x12\x11\n\tsample_id\x18\x02 \x01(\t\x12\x30\n\x04test\x18\x08 \x01(\x0e\x32".iron_deficiency.messaging.v1.Test\x12\x45\n\x07results\x18\x04 \x03(\x0b\x32\x34.iron_deficiency.messaging.v1.LabReport.ResultsEntry\x12/\n\x0breleased_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x1a\n\x12\x66\x65rritin_suggested\x18\x07 \x01(\x08\x1a.\n\x0cResultsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01J\x04\x08\x03\x10\x04J\x04\x08\x06\x10\x07J\x04\x08\x05\x10\x06R\x07\x63omment"\n\n\x08Received"\x11\n\x0f\x46\x65tchLabReports"F\n\nLabReports\x12\x38\n\x07reports\x18\x01 \x03(\x0b\x32\'.iron_deficiency.messaging.v1.LabReport"%\n\x0f\x41\x63knowledgement\x12\x12\n\nreport_ids\x18\x01 \x03(\t*=\n\x04Test\x12\x14\n\x10TEST_UNSPECIFIED\x10\x00\x12\x0c\n\x08TEST_CBC\x10\x01\x12\x11\n\rTEST_FERRITIN\x10\x02*c\n\rRegisteredSex\x12\x1e\n\x1aREGISTERED_SEX_UNSPECIFIED\x10\x00\x12\x19\n\x15REGISTERED_SEX_FEMALE\x10\x01\x12\x17\n\x13REGISTERED_SEX_MALE\x10\x02\x32\xcb\x02\n\nLaboratory\x12^\n\x0cSendLabOrder\x12&.iron_deficiency.messaging.v1.LabOrder\x1a&.iron_deficiency.messaging.v1.Received\x12m\n\x12\x46\x65tchNewLabReports\x12-.iron_deficiency.messaging.v1.FetchLabReports\x1a(.iron_deficiency.messaging.v1.LabReports\x12n\n\x15\x41\x63knowledgeLabReports\x12-.iron_deficiency.messaging.v1.Acknowledgement\x1a&.iron_deficiency.messaging.v1.Receivedb\x06proto3'
 )
 
 _globals = globals()
@@ -31,28 +31,26 @@ if not _descriptor._USE_C_DESCRIPTORS:
     DESCRIPTOR._loaded_options = None
     _globals["_LABREPORT_RESULTSENTRY"]._loaded_options = None
     _globals["_LABREPORT_RESULTSENTRY"]._serialized_options = b"8\001"
-    _globals["_TEST"]._serialized_start = 884
-    _globals["_TEST"]._serialized_end = 945
-    _globals["_CLINICALINDICATION"]._serialized_start = 948
-    _globals["_CLINICALINDICATION"]._serialized_end = 1246
-    _globals["_REGISTEREDSEX"]._serialized_start = 1248
-    _globals["_REGISTEREDSEX"]._serialized_end = 1347
+    _globals["_TEST"]._serialized_start = 861
+    _globals["_TEST"]._serialized_end = 922
+    _globals["_REGISTEREDSEX"]._serialized_start = 924
+    _globals["_REGISTEREDSEX"]._serialized_end = 1023
     _globals["_LABORDER"]._serialized_start = 82
-    _globals["_LABORDER"]._serialized_end = 415
-    _globals["_LABREPORT"]._serialized_start = 418
-    _globals["_LABREPORT"]._serialized_end = 740
-    _globals["_LABREPORT_RESULTSENTRY"]._serialized_start = 667
-    _globals["_LABREPORT_RESULTSENTRY"]._serialized_end = 713
-    _globals["_RECEIVED"]._serialized_start = 742
-    _globals["_RECEIVED"]._serialized_end = 752
-    _globals["_FETCHLABREPORTS"]._serialized_start = 754
-    _globals["_FETCHLABREPORTS"]._serialized_end = 771
-    _globals["_LABREPORTS"]._serialized_start = 773
-    _globals["_LABREPORTS"]._serialized_end = 843
-    _globals["_ACKNOWLEDGEMENT"]._serialized_start = 845
-    _globals["_ACKNOWLEDGEMENT"]._serialized_end = 882
-    _globals["_LABORATORY"]._serialized_start = 1350
-    _globals["_LABORATORY"]._serialized_end = 1681
+    _globals["_LABORDER"]._serialized_end = 392
+    _globals["_LABREPORT"]._serialized_start = 395
+    _globals["_LABREPORT"]._serialized_end = 717
+    _globals["_LABREPORT_RESULTSENTRY"]._serialized_start = 644
+    _globals["_LABREPORT_RESULTSENTRY"]._serialized_end = 690
+    _globals["_RECEIVED"]._serialized_start = 719
+    _globals["_RECEIVED"]._serialized_end = 729
+    _globals["_FETCHLABREPORTS"]._serialized_start = 731
+    _globals["_FETCHLABREPORTS"]._serialized_end = 748
+    _globals["_LABREPORTS"]._serialized_start = 750
+    _globals["_LABREPORTS"]._serialized_end = 820
+    _globals["_ACKNOWLEDGEMENT"]._serialized_start = 822
+    _globals["_ACKNOWLEDGEMENT"]._serialized_end = 859
+    _globals["_LABORATORY"]._serialized_start = 1026
+    _globals["_LABORATORY"]._serialized_end = 1357
 # @@protoc_insertion_point(module_scope)
 
 _IMPORTED_PROTOS = (google_dot_protobuf_dot_timestamp__pb2,)

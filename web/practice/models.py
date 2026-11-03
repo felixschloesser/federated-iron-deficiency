@@ -159,6 +159,15 @@ class Order(models.Model):
             ),
         )
 
+    @property
+    def screened_indication(self) -> bool:
+        """All the lab order says of the indication (R4, R25): whether it is a
+        screened one. Which indication it is stays at the practice."""
+        return (
+            self.indication is not None
+            and ClinicalIndication(self.indication).is_screened()
+        )
+
 
 @dataclass(frozen=True)
 class ResultValue:

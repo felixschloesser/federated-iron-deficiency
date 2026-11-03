@@ -16,7 +16,7 @@ OTHER_COMMITS_AFTER_SECONDS = 1.0
 
 def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
     from web.lab.models import LabOrder, LabOrderDetails
-    from web.vocabulary import ClinicalIndication, RegisteredSex, Test
+    from web.vocabulary import RegisteredSex, Test
 
     other = sqlite3.connect(
         connection.settings_dict["NAME"], isolation_level=None, check_same_thread=False
@@ -32,7 +32,7 @@ def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
             details=LabOrderDetails(
                 sample_id="135318-1",
                 test=Test.CBC,
-                indication=ClinicalIndication.UNEXPLAINED_FATIGUE,
+                screened_indication=True,
                 registered_sex=RegisteredSex.FEMALE,
                 age=30,
                 general_practitioner="Dr. A",

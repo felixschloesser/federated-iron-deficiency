@@ -15,29 +15,23 @@ enum Test {
   TEST_FERRITIN = 2;
 }
 
-enum ClinicalIndication {
-  CLINICAL_INDICATION_UNSPECIFIED = 0;  // none: a test that takes no indication
-  CLINICAL_INDICATION_SUSPECTED_ANAEMIA = 1;
-  CLINICAL_INDICATION_SUSPECTED_IBS = 2;
-  CLINICAL_INDICATION_UNEXPLAINED_FATIGUE = 3;
-  CLINICAL_INDICATION_START_OF_PREGNANCY = 4;
-  CLINICAL_INDICATION_CKD_FOLLOW_UP = 5;
-  CLINICAL_INDICATION_OTHER = 6;
-}
-
 enum RegisteredSex {
   REGISTERED_SEX_UNSPECIFIED = 0;
   REGISTERED_SEX_FEMALE = 1;
   REGISTERED_SEX_MALE = 2;
 }
 
-// DF23. No patient name, no blood values (R25): the tube's values are measured
-// at the hospital. The hospital's form still checks every field.
+// DF23. No patient name, no blood values, no clinical indication (R25): the
+// tube's values are measured at the hospital, and of the indication the
+// laboratory needs only whether it is screened (R4). The hospital's form still
+// checks every field.
 message LabOrder {
   reserved 2, 3, 4, 7;              // were strings: test, indication, sex, ordered_at
+  reserved 9;                       // was the clinical indication itself
+  reserved "indication";
   string sample_id = 1;
   Test test = 8;
-  ClinicalIndication indication = 9;
+  bool screened_indication = 12;    // false when absent: never screened by mistake
   RegisteredSex registered_sex = 10;
   uint32 age = 5;
   string general_practitioner = 6;  // the ordering general practitioner's name

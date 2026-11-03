@@ -101,16 +101,14 @@ def make_laboratory_director(name: str) -> "LaboratoryDirector":
 def deliver(order: "Order") -> "LabOrder":
     """The lab order (DF23) arriving at the hospital, as its messaging endpoint records it."""
     from web.lab.models import LabOrder, LabOrderDetails
-    from web.vocabulary import ClinicalIndication, RegisteredSex, Test
+    from web.vocabulary import RegisteredSex, Test
 
     return LabOrder.objects.record(
         client="client",
         details=LabOrderDetails(
             sample_id=order.sample.sample_id,
             test=Test(order.test),
-            indication=ClinicalIndication(order.indication)
-            if order.indication
-            else None,
+            screened_indication=order.screened_indication,
             registered_sex=RegisteredSex(order.registered_sex),
             age=order.age,
             general_practitioner=order.sample.patient.general_practitioner.name,

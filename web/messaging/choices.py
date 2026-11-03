@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 def _prefix[Value: int](enum: _EnumTypeWrapper[Value]) -> str:
-    """The enum's name in the values' style: ClinicalIndication is CLINICAL_INDICATION."""
+    """The enum's name in the values' style: RegisteredSex is REGISTERED_SEX."""
     return re.sub(r"(?<!^)(?=[A-Z])", "_", enum.DESCRIPTOR.name).upper()
 
 

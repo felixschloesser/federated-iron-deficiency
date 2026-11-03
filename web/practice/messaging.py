@@ -11,7 +11,7 @@ from django.conf import settings
 from web.messaging import messages_pb2, messages_pb2_grpc
 from web.messaging.choices import from_proto, moment, timestamp, to_proto
 from web.practice.models import LabReport, Order
-from web.vocabulary import ClinicalIndication, RegisteredSex, Test
+from web.vocabulary import RegisteredSex, Test
 
 TIMEOUT_SECONDS = 10
 # Sending from an order's own request: the general practitioner is waiting.
@@ -68,10 +68,7 @@ def _send(
         messages_pb2.LabOrder(
             sample_id=order.sample.sample_id,
             test=to_proto(Test(order.test), messages_pb2.Test),
-            indication=to_proto(
-                ClinicalIndication(order.indication) if order.indication else None,
-                messages_pb2.ClinicalIndication,
-            ),
+            screened_indication=order.screened_indication,
             registered_sex=to_proto(
                 RegisteredSex(order.registered_sex), messages_pb2.RegisteredSex
             ),

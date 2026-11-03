@@ -13,7 +13,7 @@ from web.lab.forms import LabOrderForm
 from web.lab.models import LabOrder, LabOrderDetails
 from web.messaging import messages_pb2, messages_pb2_grpc
 from web.messaging.choices import from_proto, moment, timestamp, to_proto
-from web.vocabulary import ClinicalIndication, RegisteredSex, Test
+from web.vocabulary import RegisteredSex, Test
 
 
 def with_database[**P, R](handler: Callable[P, R]) -> Callable[P, R]:
@@ -56,13 +56,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
             {
                 "sample_id": request.sample_id,
                 "test": _value(from_proto(request.test, messages_pb2.Test, Test)),
-                "indication": _value(
-                    from_proto(
-                        request.indication,
-                        messages_pb2.ClinicalIndication,
-                        ClinicalIndication,
-                    )
-                ),
+                "screened_indication": request.screened_indication,
                 "registered_sex": _value(
                     from_proto(
                         request.registered_sex,

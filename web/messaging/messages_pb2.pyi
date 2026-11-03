@@ -41,37 +41,6 @@ TEST_CBC: Test.ValueType  # 1
 TEST_FERRITIN: Test.ValueType  # 2
 type Global___Test = Test  # noqa: Y015
 
-class _ClinicalIndication:
-    ValueType = _typing.NewType("ValueType", _builtins.int)
-    type V = ValueType  # noqa: Y015
-
-class _ClinicalIndicationEnumTypeWrapper(
-    _enum_type_wrapper._EnumTypeWrapper[_ClinicalIndication.ValueType], _builtins.type
-):
-    DESCRIPTOR: _descriptor.EnumDescriptor
-    CLINICAL_INDICATION_UNSPECIFIED: _ClinicalIndication.ValueType  # 0
-    """none: a test that takes no indication"""
-    CLINICAL_INDICATION_SUSPECTED_ANAEMIA: _ClinicalIndication.ValueType  # 1
-    CLINICAL_INDICATION_SUSPECTED_IBS: _ClinicalIndication.ValueType  # 2
-    CLINICAL_INDICATION_UNEXPLAINED_FATIGUE: _ClinicalIndication.ValueType  # 3
-    CLINICAL_INDICATION_START_OF_PREGNANCY: _ClinicalIndication.ValueType  # 4
-    CLINICAL_INDICATION_CKD_FOLLOW_UP: _ClinicalIndication.ValueType  # 5
-    CLINICAL_INDICATION_OTHER: _ClinicalIndication.ValueType  # 6
-
-class ClinicalIndication(
-    _ClinicalIndication, metaclass=_ClinicalIndicationEnumTypeWrapper
-): ...
-
-CLINICAL_INDICATION_UNSPECIFIED: ClinicalIndication.ValueType  # 0
-"""none: a test that takes no indication"""
-CLINICAL_INDICATION_SUSPECTED_ANAEMIA: ClinicalIndication.ValueType  # 1
-CLINICAL_INDICATION_SUSPECTED_IBS: ClinicalIndication.ValueType  # 2
-CLINICAL_INDICATION_UNEXPLAINED_FATIGUE: ClinicalIndication.ValueType  # 3
-CLINICAL_INDICATION_START_OF_PREGNANCY: ClinicalIndication.ValueType  # 4
-CLINICAL_INDICATION_CKD_FOLLOW_UP: ClinicalIndication.ValueType  # 5
-CLINICAL_INDICATION_OTHER: ClinicalIndication.ValueType  # 6
-type Global___ClinicalIndication = ClinicalIndication  # noqa: Y015
-
 class _RegisteredSex:
     ValueType = _typing.NewType("ValueType", _builtins.int)
     type V = ValueType  # noqa: Y015
@@ -93,22 +62,25 @@ type Global___RegisteredSex = RegisteredSex  # noqa: Y015
 
 @_typing.final
 class LabOrder(_message.Message):
-    """DF23. No patient name, no blood values (R25): the tube's values are measured
-    at the hospital. The hospital's form still checks every field.
+    """DF23. No patient name, no blood values, no clinical indication (R25): the
+    tube's values are measured at the hospital, and of the indication the
+    laboratory needs only whether it is screened (R4). The hospital's form still
+    checks every field.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
 
     SAMPLE_ID_FIELD_NUMBER: _builtins.int
     TEST_FIELD_NUMBER: _builtins.int
-    INDICATION_FIELD_NUMBER: _builtins.int
+    SCREENED_INDICATION_FIELD_NUMBER: _builtins.int
     REGISTERED_SEX_FIELD_NUMBER: _builtins.int
     AGE_FIELD_NUMBER: _builtins.int
     GENERAL_PRACTITIONER_FIELD_NUMBER: _builtins.int
     ORDERED_AT_FIELD_NUMBER: _builtins.int
     sample_id: _builtins.str
     test: Test.ValueType
-    indication: ClinicalIndication.ValueType
+    screened_indication: _builtins.bool
+    """false when absent: never screened by mistake"""
     registered_sex: RegisteredSex.ValueType
     age: _builtins.int
     general_practitioner: _builtins.str
@@ -120,7 +92,7 @@ class LabOrder(_message.Message):
         *,
         sample_id: _builtins.str = ...,
         test: Test.ValueType = ...,
-        indication: ClinicalIndication.ValueType = ...,
+        screened_indication: _builtins.bool = ...,
         registered_sex: RegisteredSex.ValueType = ...,
         age: _builtins.int = ...,
         general_practitioner: _builtins.str = ...,
@@ -133,14 +105,14 @@ class LabOrder(_message.Message):
         b"age",
         "general_practitioner",
         b"general_practitioner",
-        "indication",
-        b"indication",
         "ordered_at",
         b"ordered_at",
         "registered_sex",
         b"registered_sex",
         "sample_id",
         b"sample_id",
+        "screened_indication",
+        b"screened_indication",
         "test",
         b"test",
     ]  # noqa: Y015
