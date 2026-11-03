@@ -1,0 +1,4 @@
+{% comment %}An alert: a Pico card in its level's colour (static/css/app.css).
+Include with: level (success, warning or error); role, status, or alert for an
+error the reader must act on now; text.{% endcomment %}
+<article role="{{ role }}" data-level="{{ level }}">{{ text }}</article>

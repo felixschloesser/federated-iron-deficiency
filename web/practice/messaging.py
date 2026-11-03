@@ -107,17 +107,14 @@ def send_pending_lab_orders(
         return _send_pending(laboratory, now=now, timeout=timeout)
 
 
-def failure(error: grpc.RpcError) -> str:
-    """What the general practitioner is told when an exchange with the hospital
-    fails: wait for a network problem, report anything else."""
-    code = error.code()
-    match code:
+def unreachable(error: grpc.RpcError) -> bool:
+    """Whether a failed exchange is the network's: wait it out. Anything else the
+    hospital refused, which waiting does not mend."""
+    match error.code():
         case grpc.StatusCode.UNAVAILABLE | grpc.StatusCode.DEADLINE_EXCEEDED:
-            return "The hospital could not be reached. Try again later."
+            return True
         case _:
-            return (
-                f"The hospital refused a message ({code.name}). Tell the administrator."
-            )
+            return False
 
 
 def check_for_lab_reports(connection: Connection, *, now: datetime) -> int:
