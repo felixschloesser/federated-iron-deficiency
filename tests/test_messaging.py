@@ -430,22 +430,17 @@ def new_order_url(client: Client, record: Patient) -> str:
     )
 
 
-def test_the_next_check_sends_a_placed_orders_lab_order(
+def test_placing_an_order_sends_its_lab_order(
     client: Client, practice: Path, owner: GeneralPractitioner
 ) -> None:
-    """Placing an order never waits on the hospital; the check sends it (R22, R23)."""
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
     client.post(new_order_url(client, record))
-    sent = LabOrder.objects.filter(sample__sample_id=latest_sample_id(record))
-    assert not sent.exists()
-    assert Order.objects.get().sent_at is None
-    call_command("check_for_lab_reports")
-    assert sent.exists()
+    assert LabOrder.objects.filter(sample__sample_id=latest_sample_id(record)).exists()
     assert Order.objects.get().sent_at is not None
 
 
-def test_placing_an_order_does_not_depend_on_the_hospital(
+def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
     client: Client, settings: Settings, practice: Path, owner: GeneralPractitioner
 ) -> None:
     settings.MESSAGING_ADDRESS = "127.0.0.1:1"
@@ -453,7 +448,7 @@ def test_placing_an_order_does_not_depend_on_the_hospital(
     client.force_login(owner.user)
     response = client.post(new_order_url(client, record), follow=True)
     assertContains(response, "Ferritin ordered on sample")
-    assertNotContains(response, "could not be reached")
+    assertContains(response, "sent with the next check for reports")
     assert Order.objects.get().sent_at is None
 
 
