@@ -93,7 +93,8 @@ def test_the_practices_one_general_practitioner_has_every_patient(
 
 def test_running_twice_changes_nothing(seeded: None) -> None:
     seed()
-    assert User.objects.count() == 5
+    # lab-1, director-1, the practice's one general practitioner, no-role.
+    assert User.objects.count() == 4
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
 

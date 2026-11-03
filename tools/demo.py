@@ -28,7 +28,7 @@ from tqdm import tqdm
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 from tools.certificates import Authority, covers, issue, make_authority, make_key_pair
 from web.seeding.accounts import (
-    GENERAL_PRACTITIONERS,
+    GENERAL_PRACTITIONER,
     LABORATORY_DIRECTOR,
     LABORATORY_STAFF,
     PASSWORD,
@@ -369,7 +369,7 @@ def summary(statuses: dict[str, str], https_port: int = 443) -> str:
         lines.append(f"  {name:<{width}}  {url}   {statuses[slug]}")
     lines += [
         "",
-        f"Practices   general practitioners: {', '.join(GENERAL_PRACTITIONERS)}",
+        f"Practices   general practitioner: {GENERAL_PRACTITIONER}",
     ]
     for (_, slug), name in zip(practices(), practice_names, strict=True):
         lines.append(

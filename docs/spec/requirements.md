@@ -24,7 +24,7 @@ staff is replaced and the report's word moves to the rejected column.
 
 | Term | Source | Why chosen | Rejected terms |
 |---|---|---|---|
-| general practitioner | Report, Stakeholders table ("GP", spelled out) | The report's orderer and reader of the lab report; spelled out everywhere in the app | GP (abbreviation), requester, ordering physician (WHO 5-4, p. 66) |
+| general practitioner | Report, Stakeholders table ("GP", spelled out); one per practice: user decision, 2026-11-03 | The report's orderer and reader of the lab report; spelled out everywhere in the app. A practice, and so its app, has exactly one | GP (abbreviation), requester, ordering physician (WHO 5-4, p. 66) |
 | laboratory staff | WHO LQMS, the handbook's word for the people who work in the laboratory (44 uses; e.g. ch. 5, Sample management) | Run the analyser; one record per person (`LaboratoryStaffMember`) | lab technician ("technician" in WHO LQMS means equipment service only), technologist (a qualified grade), laboratorian, laboratory worker |
 | patient | Report, Use case | The report's word | participant (NHANES word; data origin only) |
 | order | Report, DF23 "lab order"; WHO glossary *path of workflow*, "physician's order" (p. 228) | Report and WHO agree | request, requisition (WHO), examination request (ISO 15189) |
@@ -100,7 +100,7 @@ G6 Maintain[Only a screening model the hospital deployed screens its patients]
 └── R19 Maintain[Screening uses the deployed model only while its SHA-256 matches]   Lab app
 
 P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
-├── R13 Maintain[A general practitioner sees only their own patients, orders and lab reports]           Practice app
+├── R13 Maintain[A practice has one general practitioner, who sees its patients, orders and lab reports]  Practice app
 ├── R14 Avoid[Patient name at the lab]                                               Lab app
 ├── R15 Avoid[Demo login outside development]                                        Settings + system check
 ├── R20 Avoid[A hospital learns another hospital's metrics]                          ClientApp
@@ -125,7 +125,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R9 | The lab report shows the values under NHANES's names and units, without reference ranges or any mark; the comment *Ferritin suggested.* appears only for *ferritin suggested*. The hospital sends one bit, *ferritin suggested*, so *ferritin not suggested* and *not screened* look the same at the practice and show nothing about screening. Under a CBC lab report without a suggestion, whatever the reason, the same note: "No ferritin suggestion. This does not rule out iron deficiency." Under the values: "Reference intervals are not shown: the demo has no laboratory's intervals." (ISO 15189 lists them, WHO LQMS p. 193; no laboratory's intervals are sourced). | `screening.feature` (the bit the hospital sends), `messaging.feature`, `reports.feature` |
 | R11 | *Order ferritin* is offered beside the comment of a lab report with *ferritin suggested* while that lab report's sample has no ferritin order (R26); it opens the ferritin order page on that sample, so the laboratory measures ferritin on the stored sample (R2). It is never offered without a suggestion: ferritin is ordered on suspicion (report, Use case). A ferritin order from the patient page collects a new sample and does not count. | `reports.feature` |
 | R12 | A ferritin sample is never screened; its lab report is visible once analysed. | `lab.feature`, `screening.feature`, `reports.feature` |
-| R13 | Every general practitioner query is scoped to the general practitioner's own patients; another general practitioner's order or lab report returns 404. | `access.feature` |
+| R13 | A practice has exactly one general practitioner: a second is refused (`one_general_practitioner`), by the database too. The practice's patients, orders and lab reports are that general practitioner's. | `access.feature` |
 | R14 | Lab queries select only sample ID, ordering general practitioner, registered sex, age, test, indication and results; never the patient's name. | `access.feature` |
 | R15 | `DEMO_LOGIN` (default off) shows one POST login button per seeded user. A deploy check fails when `DEMO_LOGIN` is on and `DEBUG` is off. | `access.feature` |
 | R22 | Placing an order sends a lab order (DF23) to the general practitioner's one hospital, waiting at most 2 seconds; if the hospital does not answer, the next check for reports (R23) sends it. The hospital records it once, however often the same message arrives. | `messaging.feature` |
@@ -169,7 +169,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | O2 | Threshold 0.5 has no clinical basis, so suggestions are wrong | G0 | Accepted. Owner: the startup sets the threshold per final model with clinical input; the laboratory director can refuse to deploy (E2). Not tuned per hospital: AZ Diest's validation split holds about 52 patients, about 10 deficient. Ferritin follow-up (G5) makes errors visible |
 | O3 | No usable deployed model when a CBC is analysed | G0 | Accepted, R8: the CBC is released *not screened*, with the reason; the suggestion is lost for that patient rather than delaying the CBC |
 | O4 | Model screens people it was not trained on | G0 | R4 |
-| O5 | A general practitioner opens another general practitioner's lab report by URL | P0 | R13 |
+| O5 | A general practitioner opens another general practitioner's lab report by URL | P0 | R13: another general practitioner's lab reports are at another practice's app |
 | O6 | Lab sees who the patient is | P0 | R14, R1 (the order copies only sex and age) |
 | O7 | A new screening model is deployed between screenings | R6 | R6, R18 (history) |
 | O8 | NHANES has no ferritin for the patient | R12 | R3: *not available in the demo data* |
@@ -194,8 +194,8 @@ All are POSTs that redirect on success; model and manager methods take `now`.
 | Operation | Actor | Precondition | Postcondition | Requirements |
 |---|---|---|---|---|
 | Fetch lab reports | General practitioner's app | Every `REPORT_CHECK_SECONDS`, or *Check for reports* | New lab reports stored at the general practitioner's app | R23 |
-| Collect sample | general practitioner | Patient is the general practitioner's | A sample with the patient's next sample ID, collected at `now`; nothing sent; then the sample's CBC order page | R13, R26 |
-| Place order | general practitioner | Sample is one of the general practitioner's patient's; indication given iff test is CBC; the test not yet on the sample | The order on the sample, sex and age copied; its lab order sent, else with the next check (R22) | R1, R13, R22, R26 |
+| Collect sample | general practitioner | Patient is the practice's | A sample with the patient's next sample ID, collected at `now`; nothing sent; then the sample's CBC order page | R13, R26 |
+| Place order | general practitioner | Sample is one of the practice's patient's; indication given iff test is CBC; the test not yet on the sample | The order on the sample, sex and age copied; its lab order sent, else with the next check (R22) | R1, R13, R22, R26 |
 | Run analyser | Laboratory staff | Lab order arrived, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |
 | Deploy | Laboratory director | Screening model can be deployed (R17) | It is the deployed model from `now` | R18 |
 | Log in as (demo) | Anyone | `DEMO_LOGIN` on | Session for that seeded user | R15 |
@@ -242,7 +242,7 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 
 ## 8. Data
 
-- Patients: NHANES 2021–2023 (`iron_deficiency.dataset.load_new_samples`), all sexes and ages, seeded at the general practitioner's app (`--patients`, default 12, shared by the seeding groups; the demo seeds De Akker 40, De Berk 24, De Ceder 12, the same number at each practice's hospital; doctor-a gets two for every one of doctor-b's); each has a fictional Flemish name matching their registered sex (common Flemish first names, the ten most common family names of the Flemish Region, Statbel); each patient is one NHANES participant, whose number starts each of their sample IDs.
+- Patients: NHANES 2021–2023 (`iron_deficiency.dataset.load_new_samples`), all sexes and ages, seeded at the general practitioner's app (`--patients`, default 12, shared by the seeding groups; the demo seeds De Akker 40, De Berk 24, De Ceder 12, the same number at each practice's hospital; all are the practice's one general practitioner's, `doctor`); each has a fictional Flemish name matching their registered sex (common Flemish first names, the ten most common family names of the Flemish Region, Statbel); each patient is one NHANES participant, whose number starts each of their sample IDs.
 - The hospital's analyser stand-in holds the same cycle's values (13 CBC values, ferritin from `load_ferritin`), looked up by the NHANES number in the sample ID: what the samples in its laboratory would measure. Every sample of one patient measures the same values, as NHANES measured each participant once. No values travel in a message.
 - NHANES measured ferritin only for women aged 12–49 (FERTIN_L, eligible sample). The demo seeds no woman aged 18–49 whom it did not measure; for men and other women the hospital's stand-in holds a made-up ferritin, the measured ferritin of an eligible woman at or above the cutoff picked by sample ID, reported as *Ferritin (made up for the demo)*, never as ferritin. A participant with neither gets *not available in the demo data*.
 - Age is the NHANES age at the survey and does not change.

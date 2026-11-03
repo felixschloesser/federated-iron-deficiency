@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
 from web.vocabulary import RESULT_NAMES, ClinicalIndication, RegisteredSex, Test
@@ -22,22 +21,25 @@ class GeneralPractitioner(models.Model):
     )
     name = models.CharField(max_length=100)
 
+    class Meta:
+        constraints = (
+            # A practice has one general practitioner (R13): any second row
+            # repeats the constant.
+            models.UniqueConstraint(
+                models.Value(1),
+                name="one_general_practitioner",
+                violation_error_code="one_general_practitioner",
+                violation_error_message="A practice has one general practitioner.",
+            ),
+        )
+
     def __str__(self) -> str:
         return self.name
 
-    def _not_yours(self, patient: "Patient") -> ValidationError | None:
-        if patient.general_practitioner_id == self.pk:
-            return None
-        return ValidationError(
-            "This is not one of your patients.", code="not_your_patient"
-        )
-
     @transaction.atomic
     def collect_sample(self, *, patient: "Patient", now: datetime) -> "Sample":
-        """Record blood collected from one of this general practitioner's patients,
-        with the patient's next sample ID; tests are ordered on it afterwards (R26)."""
-        if (error := self._not_yours(patient)) is not None:
-            raise ValidationError({"patient": error})
+        """Record blood collected from a patient of the practice, with the patient's
+        next sample ID; tests are ordered on it afterwards (R26)."""
         return Sample.objects.create(
             patient=patient, sample_id=patient.next_sample_id(), collected_at=now
         )
@@ -53,7 +55,7 @@ class GeneralPractitioner(models.Model):
     ) -> "Order":
         """Order one test on a collected sample, copying the patient's registered
         sex and age, also a later one such as ferritin beside a suggestion (R1, R2,
-        R11, R13, R14, R26)."""
+        R11, R14, R26)."""
         patient = sample.patient
         order = Order(
             sample=sample,
@@ -63,15 +65,7 @@ class GeneralPractitioner(models.Model):
             age=patient.age,
             ordered_at=now,
         )
-        errors: dict[str, list[ValidationError]] = {}
-        if (error := self._not_yours(patient)) is not None:
-            errors["patient"] = [error]
-        try:
-            order.full_clean()
-        except ValidationError as invalid:
-            errors = invalid.update_error_dict(errors)
-        if errors:
-            raise ValidationError(errors)
+        order.full_clean()
         order.save()
         return order
 
