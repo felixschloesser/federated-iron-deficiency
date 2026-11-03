@@ -12,23 +12,53 @@
   padding: 0.5rem;
 }
 
-/* Messages after a redirect, coloured by level with Pico's theme-aware colours. */
-article[role="status"] {
-  border: 1px solid var(--pico-muted-border-color);
+/* The kit's alert (templates/kit/alert.html): a Pico card with an edge, a faint tint
+   and a heading in its level's colour, from Pico's theme-aware colours. */
+article[data-level] {
+  --alert-color: var(--pico-muted-border-color);
+  --alert-heading-color: var(--alert-color);
+  border: 1px solid var(--alert-color);
   border-left-width: 0.5rem;
+  background-color: color-mix(
+    in srgb,
+    var(--alert-color) 8%,
+    var(--pico-card-background-color)
+  );
 }
 
-article[role="status"][data-level="success"] {
-  border-color: var(--pico-ins-color);
+article[data-level] > :is(h2, h3) {
+  color: var(--alert-heading-color);
+  font-size: 1rem;
 }
 
-/* Pico's mark colour is too pale for a border; this amber keeps 3:1 on light and dark. */
-article[role="status"][data-level="warning"] {
-  border-color: #b86e00;
+article[data-level] > :last-child {
+  margin-bottom: 0;
 }
 
-article[role="status"][data-level="error"] {
-  border-color: var(--pico-del-color);
+article[data-level="success"] {
+  --alert-color: var(--pico-ins-color);
+}
+
+/* Pico's mark colour is too pale for a border; this amber keeps 3:1 on light and dark.
+   As heading text on the tint it is under 4.5:1, so the heading is a darker amber in
+   light (5.7:1) and a lighter one in dark (6.6:1). */
+article[data-level="warning"] {
+  --alert-color: #b86e00;
+  --alert-heading-color: #8a5300;
+}
+
+[data-theme="dark"] article[data-level="warning"] {
+  --alert-heading-color: #e09a3a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) article[data-level="warning"] {
+    --alert-heading-color: #e09a3a;
+  }
+}
+
+article[data-level="error"] {
+  --alert-color: var(--pico-del-color);
 }
 
 /* Text for screen readers only, such as the header of an action column. */

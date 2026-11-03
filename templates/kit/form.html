@@ -1,12 +1,14 @@
 {% comment %}Form layout with an error summary linking to each failing field.
 Include with: form, submit_label.{% endcomment %}
 {% if form.errors %}
-<article role="alert" aria-labelledby="error-summary-title">
+{# The kit's error alert (kit/alert.html), with a heading and a list. #}
+<article role="alert" data-level="error" aria-labelledby="error-summary-title">
   <h2 id="error-summary-title">There is a problem</h2>
   <ul>
     {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
     {% for field in form %}{% for error in field.errors %}
-    <li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ error }}</a></li>
+    {# A radio group's label has no id: link its first button. #}
+    <li><a href="#{% if field.id_for_label %}{{ field.id_for_label }}{% else %}{{ field.auto_id }}_0{% endif %}">{{ field.label }}: {{ error }}</a></li>
     {% endfor %}{% endfor %}
   </ul>
 </article>

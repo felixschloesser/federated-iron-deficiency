@@ -159,6 +159,8 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
         offered = lab_report is not None and lab_report.ferritin_order_offered()
         return {
             "order": order,
+            # Until the hospital has the lab order, no report is on its way (R22).
+            "sent": order.sent_at is not None,
             "lab_report": lab_report,
             "order_ferritin_url": self.order_url(order.sample, Test.FERRITIN)
             if offered
@@ -203,7 +205,12 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
         try:
             fetched = messaging.check_for_lab_reports(connection, now=timezone.now())
         except grpc.RpcError as error:
-            messages.error(request, messaging.failure(error))
+            messages.error(
+                request,
+                "The hospital could not be reached. Try again later."
+                if messaging.unreachable(error)
+                else "The hospital refused a message. Tell the administrator.",
+            )
         else:
             messages.success(
                 request,
@@ -286,7 +293,9 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
             except grpc.RpcError as error:
                 messages.warning(
                     self.request,
-                    f"{messaging.failure(error)} The lab order is sent with the"
-                    " next check for reports.",
+                    "The hospital could not be reached, so the lab order is not"
+                    " sent yet."
+                    if messaging.unreachable(error)
+                    else "The hospital refused the lab order. Tell the administrator.",
                 )
         return super().form_valid(form)

@@ -231,7 +231,7 @@ CAROOT=$PWD/demo/browser-ca mkcert -install
 | Huisartsenpraktijk De Ceder → AZ Diest | https://huisartsenpraktijk-de-ceder.localhost |
 
 Hospitals have `lab-1` (laboratory staff) and `director-1` (laboratory
-director); practices have `doctor-a` and `doctor-b`; the password is
+director); each practice has one general practitioner, `doctor`; the password is
 `demo-pass-2026`. A practice's patients are the same NHANES participants whose
 tubes its hospital's analyser stand-in measures.
 
@@ -255,7 +255,7 @@ container inside the startup's network because that is where the data
 scientist sits in the report's DFD; the SuperLink's control API is never
 published to your machine. Each hospital receives the final model; log in as
 `director-1` to compare it on local validation and deploy it. Then order a
-CBC as `doctor-a`, analyse it as `lab-1`, and the lab report with its
+CBC as `doctor`, analyse it as `lab-1`, and the lab report with its
 screening comes back to the practice.
 
 ### Stop, reset, clean up

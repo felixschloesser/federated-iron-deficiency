@@ -1,16 +1,14 @@
 Feature: Who sees what
-  A general practitioner sees only their own patients; the lab never learns a patient's name;
-  demo login exists only in development. Covers R13–R15. A lab report shows only
-  on its patient's page, so another general practitioner's lab report is as
-  unreachable as their patient (view tests: tests/test_practice_views.py).
+  A practice has one general practitioner; the lab never learns a patient's name;
+  demo login exists only in development. Covers R13–R15.
 
   Background:
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1"
-    And general practitioner "Dr. Demo B" with patient "Test Patient 2"
 
-  Scenario: A general practitioner cannot collect a sample from another general practitioner's patient
-    When "Dr. Demo A" collects a sample from "Test Patient 2"
-    Then the collection is refused with code "not_your_patient" on field "patient"
+  Scenario: A practice has one general practitioner
+    When general practitioner "Dr. Demo B" is added to the practice
+    Then adding them is refused with code "one_general_practitioner"
+    And the database refuses it
 
   Scenario: The lab never sees a patient's name
     Given a CBC order for "Test Patient 1"

@@ -4,7 +4,7 @@
 {% include "kit/index_header.html" with title="Screening models" %}
 
 {% if no_usable_model %}
-<article role="status" data-level="error">{{ no_usable_model.label }}.</article>
+{% include "kit/alert.html" with level="error" role="status" text=no_usable_model.label|add:"." %}
 {% endif %}
 
 <p>Each screening model from a training run, newest first, checked on this hospital's own past patients at the model's threshold.</p>
