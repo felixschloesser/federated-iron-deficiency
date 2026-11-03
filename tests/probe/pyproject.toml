@@ -1,0 +1,22 @@
+# A Flower app that stands for the startup's code at a hospital (DF7, TB4): its
+# ClientApp reports what it can see and reach; the ServerApp logs it (DF9).
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "probe"
+version = "1.0.0"
+dependencies = ["flwr>=1.40.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["probe"]
+
+[tool.flwr.app]
+publisher = "probe"
+
+[tool.flwr.app.components]
+serverapp = "probe.server:app"
+clientapp = "probe.client:app"
+
+[tool.flwr.app.config]

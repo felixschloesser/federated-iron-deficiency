@@ -89,7 +89,10 @@ def _secret_key() -> str:
 
 SECRET_KEY = _secret_key()
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+# ".localhost": localhost and each <party>.localhost the demo's proxy routes (RFC 6761).
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", ".localhost,127.0.0.1").split(
+    ","
+)
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -106,6 +109,8 @@ AUTHENTICATION_BACKENDS = ["web.accounts.backends.RoleBackend"]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Serves the collected stylesheets when DEBUG is off: Django itself does not.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -169,7 +174,8 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATIC_ROOT = BASE_DIR / "staticfiles"
+# WhiteNoise serves static/ through the finders, as checked out: no collectstatic.
+WHITENOISE_USE_FINDERS = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
