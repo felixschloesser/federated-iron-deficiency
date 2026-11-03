@@ -1,0 +1,6 @@
+{% extends "kit/base.html" %}
+{% block title %}Collect sample · {{ patient.name }}{% endblock %}
+{% block content %}
+{% include "kit/index_header.html" with title="Collect sample" subtitle=patient.name %}
+{% include "kit/form.html" with form=form submit_label="Collect sample" %}
+{% endblock %}

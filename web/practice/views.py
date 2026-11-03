@@ -16,9 +16,10 @@ from django.views.generic import DetailView, FormView, ListView, View
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
 from web.practice import messaging
-from web.practice.forms import OrderForm
+from web.practice.forms import CollectSampleForm, OrderForm
 from web.practice.models import (
     GeneralPractitioner,
+    Laboratory,
     LabReport,
     Order,
     OrderQuerySet,
@@ -89,16 +90,23 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         patient = self.object
-        samples = patient.samples.prefetch_related(
-            Prefetch(
-                "orders",
-                queryset=Order.objects.select_related("lab_report").order_by(
-                    "ordered_at", "pk"
-                ),
+        samples = (
+            patient.samples.select_related("laboratory")
+            .prefetch_related(
+                Prefetch(
+                    "orders",
+                    queryset=Order.objects.select_related("lab_report").order_by(
+                        "ordered_at", "pk"
+                    ),
+                )
             )
-        ).order_by("-collected_at", "-pk")
+            .order_by("-collected_at", "-pk")
+        )
         # Blood is collected first; tests are ordered on a sample afterwards (R26).
         collect = reverse("practice:collect_sample", kwargs={"patient": patient.pk})
+        laboratories = Laboratory.objects.count()
+        # Several laboratories: the choice comes first, on its own page (R22).
+        collect_action = {"url": collect, "label": "Collect sample"}
         # Each sample with the tests on it, in the order they were placed, so a
         # ferritin ordered beside a suggestion shows right under it (R9, R11).
         # Only the newest opens; the others summarise their tests and whether a
@@ -106,11 +114,11 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
         return {
             **super().get_context_data(**kwargs),
             "subtitle": f"{patient.get_registered_sex_display()}, aged {patient.age}",
-            "actions": [],
-            "post_actions": [{"url": collect, "label": "Collect sample"}],
-            # Only an app with a hospital to ask fetches lab reports (R23).
+            "actions": [collect_action] if laboratories > 1 else [],
+            "post_actions": [] if laboratories > 1 else [collect_action],
+            # Only an app with a laboratory to ask fetches lab reports (R23).
             "report_check_seconds": settings.REPORT_CHECK_SECONDS
-            if settings.MESSAGING_ADDRESS
+            if laboratories
             else None,
             "samples": [
                 {
@@ -181,7 +189,7 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
         return orders.order_by("-ordered_at", "-pk")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        # Only an app with a hospital to ask can check for reports (R23).
+        # Only an app with a laboratory to ask can check for reports (R23).
         post_actions = (
             [
                 {
@@ -189,29 +197,29 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
                     "label": "Check for reports",
                 }
             ]
-            if settings.MESSAGING_ADDRESS
+            if Laboratory.objects.exists()
             else []
         )
         return {**super().get_context_data(**kwargs), "post_actions": post_actions}
 
 
 class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
-    """Sends pending lab orders and fetches new lab reports now (R23)."""
+    """Sends pending lab orders and fetches new lab reports from every laboratory
+    now (R23)."""
 
     def post(self, request: HttpRequest) -> HttpResponse:
-        connection = messaging.configured_connection()
-        if connection is None:
+        if not Laboratory.objects.exists():
             raise Http404
-        try:
-            fetched = messaging.check_for_lab_reports(connection, now=timezone.now())
-        except grpc.RpcError as error:
+        check = messaging.check_every_laboratory(now=timezone.now())
+        for laboratory, error in check.failures:
             messages.error(
                 request,
-                "The hospital could not be reached. Try again later."
+                f"{laboratory} could not be reached. Try again later."
                 if messaging.unreachable(error)
-                else "The hospital refused a message. Tell the administrator.",
+                else f"{laboratory} refused a message. Tell the administrator.",
             )
-        else:
+        if len(check.failures) < check.asked:
+            fetched = check.fetched
             messages.success(
                 request,
                 f"{fetched or 'No'} new lab report{pluralize(fetched)}.",
@@ -219,18 +227,41 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
         return redirect("practice:orders")
 
 
-class CollectSampleView(GeneralPractitionerRequiredMixin, View):
-    """Records a sample collected from one of the general practitioner's patients."""
+class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSampleForm]):
+    """Records a sample collected from one of the practice's patients, for the
+    laboratory chosen; a practice with one laboratory skips the choice (R22, R26)."""
 
-    def post(self, request: HttpRequest, patient: int) -> HttpResponse:
-        record = get_object_or_404(self.general_practitioner.patients, pk=patient)
-        sample = self.general_practitioner.collect_sample(
-            patient=record, now=timezone.now()
+    template_name = "practice/collect_sample.html"
+    form_class = CollectSampleForm
+
+    @cached_property
+    def patient(self) -> Patient:
+        return get_object_or_404(
+            self.general_practitioner.patients, pk=self.kwargs["patient"]
         )
-        messages.success(request, f"Sample {sample.sample_id} collected.")
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        return {**super().get_context_data(**kwargs), "patient": self.patient}
+
+    def form_valid(self, form: CollectSampleForm) -> HttpResponse:
+        laboratory = form.cleaned_data["laboratory"]
+        if laboratory is None and Laboratory.objects.count() == 1:
+            laboratory = Laboratory.objects.get()
+        try:
+            sample = self.general_practitioner.collect_sample(
+                patient=self.patient, laboratory=laboratory, now=timezone.now()
+            )
+        except ValidationError as error:
+            for field, errors in error.error_dict.items():
+                form.add_error(field if field in form.fields else None, errors)
+            return self.form_invalid(form)
+        messages.success(self.request, f"Sample {sample.sample_id} collected.")
         # Straight to the routine first test; any other is ordered from the sample.
         return redirect(
-            "practice:new_order", patient=record.pk, sample=sample.pk, test=Test.CBC
+            "practice:new_order",
+            patient=self.patient.pk,
+            sample=sample.pk,
+            test=Test.CBC,
         )
 
 
@@ -283,9 +314,12 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
             f"{capfirst(placed.get_test_display())} ordered on sample"
             f" {placed.sample.sample_id}.",
         )
-        if (connection := messaging.configured_connection()) is not None:
+        laboratory = self.sample.laboratory
+        connection = None if laboratory is None else messaging.connection_to(laboratory)
+        if laboratory is not None and connection is not None:
             try:
                 messaging.send_pending_lab_orders(
+                    laboratory,
                     connection,
                     now=timezone.now(),
                     timeout=messaging.IN_REQUEST_TIMEOUT_SECONDS,
@@ -293,9 +327,9 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
             except grpc.RpcError as error:
                 messages.warning(
                     self.request,
-                    "The hospital could not be reached, so the lab order is not"
+                    f"{laboratory} could not be reached, so the lab order is not"
                     " sent yet."
                     if messaging.unreachable(error)
-                    else "The hospital refused the lab order. Tell the administrator.",
+                    else f"{laboratory} refused the lab order. Tell the administrator.",
                 )
         return super().form_valid(form)

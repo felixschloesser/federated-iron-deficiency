@@ -25,6 +25,7 @@ staff is replaced and the report's word moves to the rejected column.
 | Term | Source | Why chosen | Rejected terms |
 |---|---|---|---|
 | general practitioner | Report, Stakeholders table ("GP", spelled out); one per practice: user decision, 2026-11-03 | The report's orderer and reader of the lab report; spelled out everywhere in the app. A practice, and so its app, has exactly one | GP (abbreviation), requester, ordering physician (WHO 5-4, p. 66) |
+| laboratory | Report, "Federated version": the practice "sends its hospital's laboratory lab orders"; "the sample reaches the laboratory" | Where a sample goes: a hospital's laboratory the practice works with, chosen at *Collect sample*; every test on the sample follows it | lab (the report's short form, kept only in "lab order" and "lab report"), hospital (the organisation, not where the tube goes) |
 | laboratory staff | WHO LQMS, the handbook's word for the people who work in the laboratory (44 uses; e.g. ch. 5, Sample management) | Run the analyser; one record per person (`LaboratoryStaffMember`) | lab technician ("technician" in WHO LQMS means equipment service only), technologist (a qualified grade), laboratorian, laboratory worker |
 | patient | Report, Use case | The report's word | participant (NHANES word; data origin only) |
 | practice | Report, "Federated version": "Each GP practice runs its own app"; "Design choices and assumptions", DF24: "Lab orders, with the sending practice" | Who orders at the hospital: a general practitioner's practice, through its app, with one general practitioner (R13). The lab holds each sample by its practice | client (WHO 13-2; the code's word until 2026-11-03), sender, requester |
@@ -132,9 +133,9 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R13 | A practice has exactly one general practitioner: a second is refused (`one_general_practitioner`), by the database too. The practice's patients, orders and lab reports are that general practitioner's. | `access.feature` |
 | R14 | Lab queries select only sample ID, registered sex, age, test, whether the indication is screened and results, by the sample's practice; never the patient's name, the general practitioner's name or the clinical indication. | `access.feature` |
 | R15 | `DEMO_LOGIN` (default off) shows one POST login button per seeded user. A deploy check fails when `DEMO_LOGIN` is on and `DEBUG` is off. | `access.feature` |
-| R22 | Placing an order sends a lab order (DF23) to the general practitioner's one hospital, waiting at most 2 seconds; if the hospital does not answer, the next check for reports (R23) sends it. The hospital records it once, however often the same message arrives. | `messaging.feature` |
-| R23 | The general practitioner's app fetches its new lab reports (DF25) from its hospital every `REPORT_CHECK_SECONDS` (60; the demo 5) and on *Check for reports*, and a lab report it is still waiting for says within how many seconds new ones arrive; it is always the client, the hospital never connects to it. | `messaging.feature` |
-| R24 | The hospital's messaging endpoint accepts only a client certificate issued by that hospital's own certificate authority, for its general practitioner's app; any other client, the startup's included, is refused before a message is read. The hospital tells apps apart by their certificate's name: a sample is known by app and sample ID, and an app fetches and acknowledges only the lab reports of its own lab orders. The app stores each lab report on its own: one it cannot match to an order stays unacknowledged and holds back no other. | `messaging.feature` |
+| R22 | A practice works with one or more laboratories; *Collect sample* records the one the sample goes to, chosen by the general practitioner when there are several (`laboratory_required`). Placing an order sends its lab order (DF23) to its sample's laboratory only, waiting at most 2 seconds; if that laboratory does not answer, the next check for reports (R23) sends it. The hospital records it once, however often the same message arrives. | `messaging.feature` |
+| R23 | The general practitioner's app fetches its new lab reports (DF25) from each of its laboratories every `REPORT_CHECK_SECONDS` (60; the demo 5) and on *Check for reports*; a laboratory that cannot be reached is named and holds back no other; and a lab report it is still waiting for says within how many seconds new ones arrive; it is always the client, the hospital never connects to it. | `messaging.feature` |
+| R24 | The hospital's messaging endpoint accepts only a client certificate issued by that hospital's own certificate authority, for its general practitioner's app; any other client, the startup's included, is refused before a message is read. The hospital tells apps apart by their certificate's name: a sample is known by app and sample ID, and an app fetches and acknowledges only the lab reports of its own lab orders. The app stores each lab report on its own, and only for a sample it sent to that laboratory: one it cannot match stays unacknowledged and holds back no other. | `messaging.feature` |
 | R25 | DF23 and DF25 carry exactly the fields of `web/messaging/messages.proto` (§10): no patient name, no blood values, and no clinical indication, only whether it is screened (R4). | `messaging.feature`, `tests/test_messages.py` |
 | R26 | *Collect sample* records blood collected from the patient, at `now`, with the patient's next sample ID; a patient may give any number of samples, and nothing reaches the hospital until a test is ordered. Tests are ordered on a sample afterwards; a test is ordered at most once per sample (`already_ordered`). Drawing first and choosing the tests afterwards simplifies WHO LQMS 5-3 (p. 64), where the request comes first: a sample here stands for one blood draw into the standard tubes. | `ordering.feature` |
 | R16 | The ClientApp's deploy handler writes each final model as a new file named after its Flower run ID into the node's `final-models-path`, never overwriting one, with the threshold, the federated metrics the ServerApp sends, and its local validation on this hospital's validation split: the confusion matrix at the final model's threshold, as counts, and AUROC. Training results are unchanged. | `tests/test_final_models.py` |
@@ -199,7 +200,7 @@ All are POSTs that redirect on success; model and manager methods take `now`.
 | Operation | Actor | Precondition | Postcondition | Requirements |
 |---|---|---|---|---|
 | Fetch lab reports | General practitioner's app | Every `REPORT_CHECK_SECONDS`, or *Check for reports* | New lab reports stored at the general practitioner's app | R23 |
-| Collect sample | general practitioner | Patient is the practice's | A sample with the patient's next sample ID, collected at `now`; nothing sent; then the sample's CBC order page | R13, R26 |
+| Collect sample | general practitioner | Patient is the practice's; a laboratory chosen if the practice works with several | A sample with the patient's next sample ID, for that laboratory, collected at `now`; nothing sent; then the sample's CBC order page | R13, R22, R26 |
 | Place order | general practitioner | Sample is one of the practice's patient's; indication given iff test is CBC; the test not yet on the sample | The order on the sample, sex and age copied; its lab order sent, else with the next check (R22) | R1, R13, R22, R26 |
 | Run analyser | Laboratory staff | Lab order arrived, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |
 | Deploy | Laboratory director | Screening model can be deployed (R17) | It is the deployed model from `now` | R18 |
@@ -231,7 +232,7 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 - Email or other notification outside the app
 - More than one test per order
 - Free-text clinical notes
-- Several hospitals in one deployment; a general practitioner sending samples to more than one laboratory (one laboratory each; the report can note that the same CBC may get a different suggestion at another hospital)
+- Several hospitals in one deployment
 - A national certificate authority such as the Belgian eHealth platform (each hospital is its own CA, a simplification)
 - Encrypting lab reports at rest at the general practitioner's app; retention of stored samples (WHO 5-5)
 - Retention and deletion of samples and lab reports
@@ -331,6 +332,16 @@ the browser CA in `demo/browser-ca/`, which belongs to no party.
 Each web app takes a Pico colour theme from `PARTY_COLOUR` (vendored themes only; absent: Pico's default), so the parties' pages are told apart at a glance: UZ Leuven jade and De Akker green, Heilig Hart Leuven pumpkin and De Berk amber, AZ Diest violet and De Ceder purple.
 
 ## 10. Messages between the general practitioner and the hospital (DF23, DF25)
+
+A practice's laboratories are rows in its own database, added with
+`manage.py add_laboratory "<name>" <host:port>` (R22). The certificates each
+laboratory's hospital issued the practice live in
+`PRACTICE_DIR/laboratories/<slug>/` as `ca.crt`, `certificate.pem` and
+`key.pem`, where the slug is the name in lower case with dashes (`UZ Leuven`:
+`uz-leuven`); the command refuses a laboratory without them. In the demo every
+practice works with every hospital, so each hospital's authority certifies all
+three practices. A laboratory's suggestions come from its own deployed model, so
+the same CBC may get a different one at another laboratory.
 
 The general practitioner's app is always the client (R23): it sends lab orders
 and fetches lab reports over gRPC with mutual TLS (R24). `web/messaging/messages.proto`

@@ -46,3 +46,13 @@ Feature: Collecting a sample and ordering tests on it
   Scenario: The database holds the indication rule too
     When a CBC order without an indication is written straight to the database
     Then the database refuses it
+
+  Scenario: A sample goes to the laboratory chosen when collecting it
+    Given the practice works with laboratories "UZ Leuven" and "AZ Diest"
+    When "Dr. Demo A" collects a sample from "Test Patient 1" for "AZ Diest"
+    Then the sample goes to "AZ Diest"
+
+  Scenario: A practice with laboratories names one for every sample
+    Given the practice works with laboratories "UZ Leuven" and "AZ Diest"
+    When "Dr. Demo A" collects a sample from "Test Patient 1"
+    Then the collection is refused with code "laboratory_required" on field "laboratory"

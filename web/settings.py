@@ -59,21 +59,9 @@ if PARTY_DIR is not None and "DATABASE_NAME" in os.environ:
         "DATABASE_NAME cannot be set with HOSPITAL_DIR or PRACTICE_DIR:"
         " the database lives in that folder."
     )
-# The hospital's messaging endpoint; the practice is always the client (R23).
-MESSAGING_ADDRESS = os.environ.get("MESSAGING_ADDRESS")
 # How often the practice fetches new lab reports (R23); the demo, which squeezes
 # hours into seconds, sets a shorter interval.
 REPORT_CHECK_SECONDS = int(os.environ.get("REPORT_CHECK_SECONDS", "60"))
-if MESSAGING_ADDRESS is not None and PRACTICE_DIR is None:
-    raise ImproperlyConfigured("MESSAGING_ADDRESS needs PRACTICE_DIR.")
-# The practice's mutual-TLS files (R24), checked here so a missing one stops the
-# app at start instead of failing the first order; web.practice.messaging reads them.
-if MESSAGING_ADDRESS is not None and PRACTICE_DIR is not None:
-    for certificate in ("ca.crt", "certificate.pem", "key.pem"):
-        if not (PRACTICE_DIR / "certificates" / certificate).is_file():
-            raise ImproperlyConfigured(
-                f"MESSAGING_ADDRESS needs {PRACTICE_DIR / 'certificates' / certificate}."
-            )
 
 
 def _secret_key() -> str:

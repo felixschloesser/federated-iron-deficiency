@@ -4,13 +4,31 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.utils.text import slugify
 
 from web.vocabulary import RESULT_NAMES, ClinicalIndication, RegisteredSex, Test
 
 INDICATION_REQUIRED = "A CBC needs a clinical indication."
 # The tests an order states a clinical indication for (Test.takes_indication).
 TAKES_INDICATION = [test.value for test in Test if test.takes_indication()]
+
+
+class Laboratory(models.Model):
+    """A hospital's laboratory the practice sends samples to (R22, R24). Its
+    certificates are in PRACTICE_DIR/laboratories/<slug> (add_laboratory)."""
+
+    name = models.CharField(max_length=100, unique=True)
+    # host:port of the hospital's messaging endpoint.
+    address = models.CharField(max_length=200)
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def slug(self) -> str:
+        return slugify(self.name)
 
 
 class GeneralPractitioner(models.Model):
@@ -37,11 +55,30 @@ class GeneralPractitioner(models.Model):
         return self.name
 
     @transaction.atomic
-    def collect_sample(self, *, patient: "Patient", now: datetime) -> "Sample":
+    def collect_sample(
+        self,
+        *,
+        patient: "Patient",
+        now: datetime,
+        laboratory: Laboratory | None = None,
+    ) -> "Sample":
         """Record blood collected from a patient of the practice, with the patient's
-        next sample ID; tests are ordered on it afterwards (R26)."""
+        next sample ID, for the laboratory chosen for it; tests are ordered on it
+        afterwards and follow it there (R2, R22, R26)."""
+        if laboratory is None and Laboratory.objects.exists():
+            raise ValidationError(
+                {
+                    "laboratory": ValidationError(
+                        "Choose the laboratory the sample goes to.",
+                        code="laboratory_required",
+                    )
+                }
+            )
         return Sample.objects.create(
-            patient=patient, sample_id=patient.next_sample_id(), collected_at=now
+            patient=patient,
+            sample_id=patient.next_sample_id(),
+            collected_at=now,
+            laboratory=laboratory,
         )
 
     @transaction.atomic
@@ -98,6 +135,15 @@ class Sample(models.Model):
     )
     sample_id = models.CharField(max_length=20, unique=True)
     collected_at = models.DateTimeField()
+    # Where the sample went, so every test on it goes there too (R2, R22); absent
+    # only at a practice with no laboratory, as in development.
+    laboratory = models.ForeignKey(
+        Laboratory,
+        on_delete=models.PROTECT,
+        related_name="samples",
+        null=True,
+        blank=True,
+    )
 
     def __str__(self) -> str:
         return self.sample_id

@@ -28,7 +28,13 @@ from web.messaging import messages_pb2
 from web.nhanes.models import Participant
 from web.practice import messaging
 from web.practice.messaging import Connection
-from web.practice.models import GeneralPractitioner, LabReport, Order, Patient
+from web.practice.models import (
+    GeneralPractitioner,
+    Laboratory,
+    LabReport,
+    Order,
+    Patient,
+)
 from web.practice.models import Sample as PracticeSample
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
@@ -98,6 +104,10 @@ def general_practitioner(
     hospital = world["hospital"]
     authority = hospital["authority"]
     world["connection"] = connection(hospital, authority, practice)
+    # The practice works with the hospital's laboratory (R22).
+    world["laboratory"] = Laboratory.objects.create(
+        name=hospital_name, address=str(hospital["address"])
+    )
 
 
 @given(
@@ -145,7 +155,7 @@ def order(
 )
 def orders_cbc(world: World, owner: str, patient: str, indication: str) -> None:
     order(world, patient, OrderedTest.CBC, indication)
-    messaging.send_pending_lab_orders(world["connection"], now=NOW)
+    messaging.send_pending_lab_orders(world["laboratory"], world["connection"], now=NOW)
 
 
 @when("the same lab order is sent again")
@@ -180,7 +190,7 @@ def sends_lab_order(world: World) -> None:
 @given(parsers.parse('"{name}" released a lab report for the sample of "{patient}"'))
 def released(world: World, name: str, patient: str) -> None:
     order(world, patient, OrderedTest.FERRITIN, None)
-    messaging.send_pending_lab_orders(world["connection"], now=NOW)
+    messaging.send_pending_lab_orders(world["laboratory"], world["connection"], now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id=latest_sample_id(world["patients"][patient])
     )
@@ -197,7 +207,7 @@ def released_suggested(world: World, name: str, patient: str) -> None:
     from web.lab.models import ScreeningResult
 
     order(world, patient, OrderedTest.CBC, "unexplained fatigue")
-    messaging.send_pending_lab_orders(world["connection"], now=NOW)
+    messaging.send_pending_lab_orders(world["laboratory"], world["connection"], now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get(
         sample__sample_id=latest_sample_id(world["patients"][patient])
     )
@@ -219,7 +229,7 @@ def has_ferritin_suggested(world: World, patient: str, owner: str) -> None:
 @when("the general practitioner's app checks for lab reports")
 @given("the general practitioner's app checked for lab reports")
 def checks(world: World) -> None:
-    messaging.check_for_lab_reports(world["connection"], now=NOW)
+    messaging.check_for_lab_reports(world["laboratory"], world["connection"], now=NOW)
 
 
 @then(parsers.parse('"{name}" has a lab order for the sample of "{patient}"'))
@@ -400,17 +410,22 @@ def lab_report_fields() -> None:
 
 @pytest.fixture
 def practice(settings: Settings, hospital: dict[str, object]) -> Path:
-    """A practice folder holding the hospital's CA certificate and a client one."""
+    """A practice working with the hospital's laboratory "AZ Diest", holding the
+    certificates its authority issued, as add_laboratory expects them."""
     authority = hospital["authority"]
     tmp = hospital["tmp"]
     assert isinstance(authority, Authority)
     assert isinstance(tmp, Path)
-    certificates = tmp / "practice" / "certificates"
-    issue(authority, certificates, "De Ceder", server=False)
-    shutil.copy(authority.certificate, certificates / "ca.crt")
     settings.PARTY_DIR = tmp / "practice"
-    settings.MESSAGING_ADDRESS = hospital["address"]
+    laboratory = Laboratory(name="AZ Diest", address=str(hospital["address"]))
+    certify(authority, messaging.certificates_of(laboratory, settings.PARTY_DIR))
+    laboratory.save()
     return tmp / "practice"
+
+
+def certify(authority: Authority, folder: Path) -> None:
+    issue(authority, folder, "De Ceder", server=False)
+    shutil.copy(authority.certificate, folder / "ca.crt")
 
 
 @pytest.fixture
@@ -444,13 +459,13 @@ def test_placing_an_order_sends_its_lab_order(
 def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
     client: Client, settings: Settings, practice: Path, owner: GeneralPractitioner
 ) -> None:
-    settings.MESSAGING_ADDRESS = "127.0.0.1:1"
+    Laboratory.objects.update(address="127.0.0.1:1")
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
     response = client.post(new_order_url(client, record), follow=True)
     assertContains(response, "Ferritin ordered on sample")
     assertContains(
-        response, "The hospital could not be reached, so the lab order is not sent yet."
+        response, "AZ Diest could not be reached, so the lab order is not sent yet."
     )
     assertNotContains(response, "next check")
     assert Order.objects.get().sent_at is None
@@ -462,14 +477,16 @@ def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
     """A message the hospital's form rejects (INVALID_ARGUMENT) is a fault to
     report, not a network problem to wait out."""
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
-    sample = record.samples.create(sample_id="x" * 25, collected_at=NOW)
+    sample = record.samples.create(
+        sample_id="x" * 25, collected_at=NOW, laboratory=Laboratory.objects.get()
+    )
     owner.place_order(
         sample=sample, test=OrderedTest.FERRITIN, indication=None, now=NOW
     )
     client.force_login(owner.user)
     response = client.post(reverse("practice:check_for_reports"), follow=True)
     assertNotContains(response, "could not be reached")
-    assertContains(response, "The hospital refused a message. Tell the administrator.")
+    assertContains(response, "AZ Diest refused a message. Tell the administrator.")
     assertNotContains(response, "INVALID_ARGUMENT")
 
 
@@ -483,9 +500,10 @@ def released_ferritin(owner: GeneralPractitioner) -> Patient:
         indication=None,
         now=NOW,
     )
-    connection = messaging.configured_connection()
+    laboratory = Laboratory.objects.get(name="AZ Diest")
+    connection = messaging.connection_to(laboratory)
     assert connection is not None
-    messaging.send_pending_lab_orders(connection, now=NOW)
+    messaging.send_pending_lab_orders(laboratory, connection, now=NOW)
     lab_order = LabOrder.objects.select_related("sample").get()
     lab_order.run_analyser(directory=None, now=NOW)
     return record
@@ -502,12 +520,12 @@ def test_check_for_reports_fetches_them(
     assert LabReport.objects.filter(order__sample__patient=record).exists()
 
 
-def test_check_for_reports_is_offered_only_with_a_hospital_to_ask(
-    client: Client, settings: Settings, practice: Path, owner: GeneralPractitioner
+def test_check_for_reports_is_offered_only_with_a_laboratory_to_ask(
+    client: Client, practice: Path, owner: GeneralPractitioner
 ) -> None:
     client.force_login(owner.user)
     assertContains(client.get(reverse("practice:orders")), "Check for reports")
-    settings.MESSAGING_ADDRESS = None
+    Laboratory.objects.all().delete()
     assertNotContains(client.get(reverse("practice:orders")), "Check for reports")
     assert client.post(reverse("practice:check_for_reports")).status_code == 404
 
@@ -520,9 +538,8 @@ def test_the_command_checks_for_reports(
     assert LabReport.objects.filter(order__sample__patient=record).exists()
 
 
-def test_the_command_needs_a_hospital_to_ask(settings: Settings) -> None:
-    settings.MESSAGING_ADDRESS = None
-    with pytest.raises(CommandError, match="MESSAGING_ADDRESS"):
+def test_the_command_needs_a_laboratory_to_ask() -> None:
+    with pytest.raises(CommandError, match="add_laboratory"):
         call_command("check_for_lab_reports")
 
 
@@ -540,10 +557,6 @@ def test_an_awaited_lab_report_says_when_it_arrives(
         response,
         "<small>New reports arrive within 5 seconds; reload to see them.</small>",
     )
-    settings.MESSAGING_ADDRESS = None
-    response = client.get(page)
-    assertContains(response, "<mark>Awaiting lab report</mark>")
-    assertNotContains(response, "New reports arrive")
 
 
 @then(parsers.parse("the lab order says its indication is {screened}"))
@@ -561,3 +574,88 @@ def names_no_indication() -> None:
     assert "indication" not in messages_pb2.LabOrder.DESCRIPTOR.fields_by_name
     stored = {field.name for field in LabOrder._meta.get_fields()}
     assert "indication" not in stored
+
+
+def second_laboratory(practice: Path, hospital: dict[str, object]) -> Laboratory:
+    """UZ Leuven, which the practice works with too: unreachable, certified by
+    the test hospital's authority, so only the address tells it apart."""
+    authority = hospital["authority"]
+    assert isinstance(authority, Authority)
+    laboratory = Laboratory(name="UZ Leuven", address="127.0.0.1:1")
+    certify(authority, messaging.certificates_of(laboratory, practice))
+    laboratory.save()
+    return laboratory
+
+
+def test_lab_orders_go_only_to_their_samples_laboratory(
+    practice: Path, hospital: dict[str, object], owner: GeneralPractitioner
+) -> None:
+    az_diest = Laboratory.objects.get(name="AZ Diest")
+    uz_leuven = second_laboratory(practice, hospital)
+    first = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    second = make_patient(owner, "Test Patient 2", RegisteredSex.FEMALE, 40)
+    for record, laboratory in ((first, az_diest), (second, uz_leuven)):
+        sample = owner.collect_sample(patient=record, laboratory=laboratory, now=NOW)
+        owner.place_order(
+            sample=sample, test=OrderedTest.FERRITIN, indication=None, now=NOW
+        )
+    connection = messaging.connection_to(az_diest)
+    assert connection is not None
+    assert messaging.send_pending_lab_orders(az_diest, connection, now=NOW) == 1
+    assert [lab_order.sample.sample_id for lab_order in LabOrder.objects.all()] == [
+        latest_sample_id(first)
+    ]
+    assert Order.objects.get(sample__patient=second).sent_at is None
+
+
+def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
+    practice: Path, hospital: dict[str, object], owner: GeneralPractitioner
+) -> None:
+    """A lab report from AZ Diest for a sample that went to UZ Leuven is not
+    stored, and stays unacknowledged there."""
+    az_diest = Laboratory.objects.get(name="AZ Diest")
+    uz_leuven = second_laboratory(practice, hospital)
+    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    sample = owner.collect_sample(patient=record, laboratory=uz_leuven, now=NOW)
+    placed = owner.place_order(
+        sample=sample, test=OrderedTest.FERRITIN, indication=None, now=NOW
+    )
+    connection = messaging.connection_to(az_diest)
+    assert connection is not None
+    # AZ Diest holds the lab order anyway, and releases a report on it.
+    messaging.send_lab_order(placed, connection)
+    LabOrder.objects.select_related("sample").get().run_analyser(
+        directory=None, now=NOW
+    )
+    assert messaging.check_for_lab_reports(az_diest, connection, now=NOW) == 0
+    assert not LabReport.objects.exists()
+
+
+def test_check_for_reports_names_an_unreachable_laboratory_and_asks_the_others(
+    client: Client,
+    practice: Path,
+    hospital: dict[str, object],
+    owner: GeneralPractitioner,
+) -> None:
+    second_laboratory(practice, hospital)
+    record = released_ferritin(owner)
+    client.force_login(owner.user)
+    response = client.post(reverse("practice:check_for_reports"), follow=True)
+    assertContains(response, "UZ Leuven could not be reached. Try again later.")
+    assertContains(response, "1 new lab report.")
+    assert LabReport.objects.filter(order__sample__patient=record).exists()
+
+
+def test_add_laboratory_needs_its_certificates_first(
+    settings: Settings, tmp_path: Path
+) -> None:
+    settings.PARTY_DIR = tmp_path
+    with pytest.raises(CommandError, match="laboratories/uz-leuven lacks ca.crt"):
+        call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:8441")
+    assert not Laboratory.objects.exists()
+    folder = tmp_path / "laboratories" / "uz-leuven"
+    folder.mkdir(parents=True)
+    for name in ("ca.crt", "certificate.pem", "key.pem"):
+        (folder / name).write_bytes(b"")
+    call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:8441")
+    assert Laboratory.objects.get().address == "uz-leuven-lab-orders:8441"

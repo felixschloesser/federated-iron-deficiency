@@ -3,7 +3,7 @@ from typing import Any
 from django import forms
 from django.core.exceptions import ValidationError
 
-from web.practice.models import INDICATION_REQUIRED
+from web.practice.models import INDICATION_REQUIRED, Laboratory
 from web.vocabulary import ClinicalIndication, Test
 
 
@@ -33,3 +33,16 @@ class OrderForm(forms.Form):
         if indication is None:
             raise ValidationError(INDICATION_REQUIRED, code="indication_required")
         return indication
+
+
+class CollectSampleForm(forms.Form):
+    """Which laboratory the sample goes to (R22); left out by a practice with one,
+    whose single Collect sample button posts no choice."""
+
+    laboratory = forms.ModelChoiceField(
+        label="Laboratory",
+        queryset=Laboratory.objects.order_by("name"),
+        required=False,
+        empty_label=None,
+        widget=forms.RadioSelect,
+    )

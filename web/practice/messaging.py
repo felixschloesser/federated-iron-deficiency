@@ -1,16 +1,18 @@
-"""The general practitioner's app as client: lab orders out, lab reports in (R22, R23)."""
+"""The general practitioner's app as client of each laboratory it works with: lab
+orders out, lab reports in (R22, R23)."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
 import grpc
 from django.conf import settings
 
 from web.messaging import messages_pb2, messages_pb2_grpc
 from web.messaging.choices import from_proto, moment, timestamp, to_proto
-from web.practice.models import LabReport, Order
+from web.practice.models import Laboratory, LabReport, Order
 from web.vocabulary import RegisteredSex, Test
 
 TIMEOUT_SECONDS = 10
@@ -20,7 +22,7 @@ IN_REQUEST_TIMEOUT_SECONDS = 2
 
 @dataclass(frozen=True)
 class Connection:
-    """Where the general practitioner's hospital is, and the app's certificate (R24)."""
+    """Where a laboratory's hospital is, and the app's certificate from it (R24)."""
 
     address: str
     root_certificate: bytes
@@ -28,17 +30,23 @@ class Connection:
     private_key: bytes | None
 
 
-def configured_connection() -> Connection | None:
-    """The practice's connection to its hospital, or None without one to ask."""
-    if settings.MESSAGING_ADDRESS is None or settings.PARTY_DIR is None:
+def connection_to(laboratory: Laboratory) -> Connection | None:
+    """The practice's connection to a laboratory: its address, and the certificates
+    its hospital's authority issued (R24); None without a PRACTICE_DIR to hold them."""
+    if settings.PARTY_DIR is None:
         return None
-    certificates = settings.PARTY_DIR / "certificates"
+    folder = certificates_of(laboratory, settings.PARTY_DIR)
     return Connection(
-        address=settings.MESSAGING_ADDRESS,
-        root_certificate=(certificates / "ca.crt").read_bytes(),
-        certificate=(certificates / "certificate.pem").read_bytes(),
-        private_key=(certificates / "key.pem").read_bytes(),
+        address=laboratory.address,
+        root_certificate=(folder / "ca.crt").read_bytes(),
+        certificate=(folder / "certificate.pem").read_bytes(),
+        private_key=(folder / "key.pem").read_bytes(),
     )
+
+
+def certificates_of(laboratory: Laboratory, practice_dir: Path) -> Path:
+    """Where the practice keeps the certificates a laboratory's hospital issued it."""
+    return practice_dir / "laboratories" / laboratory.slug
 
 
 @contextmanager
@@ -57,14 +65,14 @@ def open_laboratory(
 
 def send_lab_order(order: Order, connection: Connection) -> None:
     """Send an order's lab order (DF23): no name, no values (R25)."""
-    with open_laboratory(connection) as laboratory:
-        _send(laboratory, order, timeout=TIMEOUT_SECONDS)
+    with open_laboratory(connection) as endpoint:
+        _send(endpoint, order, timeout=TIMEOUT_SECONDS)
 
 
 def _send(
-    laboratory: messages_pb2_grpc.LaboratoryStub, order: Order, *, timeout: float
+    endpoint: messages_pb2_grpc.LaboratoryStub, order: Order, *, timeout: float
 ) -> None:
-    laboratory.SendLabOrder(
+    endpoint.SendLabOrder(
         messages_pb2.LabOrder(
             sample_id=order.sample.sample_id,
             test=to_proto(Test(order.test), messages_pb2.Test),
@@ -80,27 +88,32 @@ def _send(
 
 
 def _send_pending(
-    laboratory: messages_pb2_grpc.LaboratoryStub,
+    endpoint: messages_pb2_grpc.LaboratoryStub,
+    laboratory: Laboratory,
     *,
     now: datetime,
     timeout: float = TIMEOUT_SECONDS,
 ) -> int:
-    pending = Order.objects.filter(sent_at__isnull=True).select_related(
-        "sample__patient"
-    )
+    pending = Order.objects.filter(
+        sent_at__isnull=True, sample__laboratory=laboratory
+    ).select_related("sample__patient")
     for order in pending:
-        _send(laboratory, order, timeout=timeout)
+        _send(endpoint, order, timeout=timeout)
         Order.objects.filter(pk=order.pk).update(sent_at=now)
     return len(pending)
 
 
 def send_pending_lab_orders(
-    connection: Connection, *, now: datetime, timeout: float = TIMEOUT_SECONDS
+    laboratory: Laboratory,
+    connection: Connection,
+    *,
+    now: datetime,
+    timeout: float = TIMEOUT_SECONDS,
 ) -> int:
-    """Send every order the hospital has not confirmed yet, over one channel; it
-    records each once."""
-    with open_laboratory(connection) as laboratory:
-        return _send_pending(laboratory, now=now, timeout=timeout)
+    """Send the laboratory the lab orders of its samples it has not confirmed yet,
+    over one channel; it records each once (R22)."""
+    with open_laboratory(connection) as endpoint:
+        return _send_pending(endpoint, laboratory, now=now, timeout=timeout)
 
 
 def unreachable(error: grpc.RpcError) -> bool:
@@ -113,32 +126,47 @@ def unreachable(error: grpc.RpcError) -> bool:
             return False
 
 
-def check_for_lab_reports(connection: Connection, *, now: datetime) -> int:
-    """Send pending orders, fetch new lab reports (DF25), store and acknowledge them."""
-    with open_laboratory(connection) as laboratory:
-        _send_pending(laboratory, now=now)
-        reports = laboratory.FetchNewLabReports(
+def check_for_lab_reports(
+    laboratory: Laboratory, connection: Connection, *, now: datetime
+) -> int:
+    """Send the laboratory its pending lab orders, fetch its new lab reports (DF25),
+    store and acknowledge them."""
+    with open_laboratory(connection) as endpoint:
+        _send_pending(endpoint, laboratory, now=now)
+        reports = endpoint.FetchNewLabReports(
             messages_pb2.FetchLabReports(), timeout=TIMEOUT_SECONDS
         ).reports
-        stored = [report.report_id for report in reports if _store(report, now=now)]
+        stored = [
+            report.report_id
+            for report in reports
+            if _store(report, laboratory, now=now)
+        ]
         if stored:
-            laboratory.AcknowledgeLabReports(
+            endpoint.AcknowledgeLabReports(
                 messages_pb2.Acknowledgement(report_ids=stored),
                 timeout=TIMEOUT_SECONDS,
             )
     return len(stored)
 
 
-def _store(report: messages_pb2.LabReport, *, now: datetime) -> bool:
-    """Store a lab report of one of this app's orders; False if it matches none.
+def _store(
+    report: messages_pb2.LabReport, laboratory: Laboratory, *, now: datetime
+) -> bool:
+    """Store a lab report of one of this app's orders on a sample that went to this
+    laboratory; False if it matches none.
 
     The hospital is another party: a report that cannot be stored stays
-    unacknowledged instead of holding back the others."""
+    unacknowledged instead of holding back the others, and a laboratory reports
+    only on the samples it was sent."""
     test = from_proto(report.test, messages_pb2.Test, Test)
     if test is None or not report.HasField("released_at"):
         return False
     released_at = moment(report.released_at)
-    order = Order.objects.filter(sample__sample_id=report.sample_id, test=test).first()
+    order = Order.objects.filter(
+        sample__sample_id=report.sample_id,
+        sample__laboratory=laboratory,
+        test=test,
+    ).first()
     if order is None:
         return False
     LabReport.objects.get_or_create(
@@ -151,3 +179,27 @@ def _store(report: messages_pb2.LabReport, *, now: datetime) -> bool:
         },
     )
     return True
+
+
+@dataclass(frozen=True)
+class Check:
+    """One check for lab reports at every laboratory the practice works with."""
+
+    asked: int
+    fetched: int
+    failures: list[tuple[Laboratory, grpc.RpcError]]
+
+
+def check_every_laboratory(*, now: datetime) -> Check:
+    """Check each laboratory in turn; one that fails holds back no other (R23)."""
+    asked, fetched, failures = 0, 0, []
+    for laboratory in Laboratory.objects.order_by("name"):
+        connection = connection_to(laboratory)
+        if connection is None:
+            continue
+        asked += 1
+        try:
+            fetched += check_for_lab_reports(laboratory, connection, now=now)
+        except grpc.RpcError as error:
+            failures.append((laboratory, error))
+    return Check(asked=asked, fetched=fetched, failures=failures)

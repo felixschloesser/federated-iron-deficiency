@@ -174,3 +174,40 @@ def numbered_sample(
     assert sample.sample_id == f"{record.nhanes_number}-{number}"
     if now:
         assert sample.collected_at == NOW
+
+
+@given(parsers.parse('the practice works with laboratories "{first}" and "{second}"'))
+def laboratories(first: str, second: str) -> None:
+    from web.practice.models import Laboratory
+
+    for name in (first, second):
+        Laboratory.objects.create(name=name, address="127.0.0.1:1")
+
+
+@when(
+    parsers.parse(
+        '"{general_practitioner}" collects a sample from "{patient}" for "{laboratory}"'
+    )
+)
+def collect_for(
+    world: World, general_practitioner: str, patient: str, laboratory: str
+) -> None:
+    from web.practice.models import Laboratory
+
+    world["sample"] = world["general_practitioners"][
+        general_practitioner
+    ].collect_sample(
+        patient=world["patients"][patient],
+        laboratory=Laboratory.objects.get(name=laboratory),
+        now=NOW,
+    )
+
+
+@then(parsers.parse('the sample goes to "{laboratory}"'))
+def sample_goes_to(world: World, laboratory: str) -> None:
+    assert world["sample"].laboratory.name == laboratory
+
+
+@then(parsers.parse('the collection is refused with code "{code}" on field "{field}"'))
+def collection_refused(world: World, code: str, field: str) -> None:
+    assert [error.code for error in world["error"].error_dict[field]] == [code]

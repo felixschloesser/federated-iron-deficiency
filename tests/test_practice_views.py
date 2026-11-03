@@ -164,9 +164,9 @@ def test_patient_page_queries(
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
     client.post(order_url(client, patient, OrderedTest.FERRITIN))
-    # Session, user with general practitioner, patient, samples, their orders
-    # with lab reports.
-    with django_assert_num_queries(5):
+    # Session, user with general practitioner, patient, how many laboratories,
+    # samples with their laboratory, their orders with lab reports.
+    with django_assert_num_queries(6):
         response = client.get(patient_url(patient))
     assert len(response.context["samples"]) == 2
 
@@ -189,7 +189,7 @@ def test_patient_page_offers_ferritin_beside_a_suggestion(
         fetched_at="2026-10-30T12:05:00+00:00",
     )
     # As above: whether the sample has ferritin yet comes from its loaded orders.
-    with django_assert_num_queries(5):
+    with django_assert_num_queries(6):
         response = client.get(patient_url(patient))
     (sample,) = response.context["samples"]
     (entry,) = sample["entries"]
@@ -229,7 +229,7 @@ def test_patient_page_queries_do_not_grow_with_suggestions(
             released_at="2026-10-30T12:00:00+00:00",
             fetched_at="2026-10-30T12:05:00+00:00",
         )
-    with django_assert_num_queries(5):
+    with django_assert_num_queries(6):
         response = client.get(patient_url(patient))
     assert len(response.context["samples"]) == 2
 
@@ -311,8 +311,9 @@ def test_orders_queries(
         client.post(order_url(client, each, OrderedTest.CBC), {"indication": "other"})
         client.post(order_url(client, each, OrderedTest.FERRITIN))
     assert Order.objects.count() == 4
-    # Session, user with general practitioner, orders with their patients.
-    with django_assert_num_queries(3):
+    # Session, user with general practitioner, orders with their patients, whether
+    # there is a laboratory to check for reports.
+    with django_assert_num_queries(4):
         assert client.get(reverse("practice:orders")).status_code == 200
 
 
@@ -552,3 +553,51 @@ def test_an_order_says_whether_its_lab_order_is_sent(
     response = client.get(patient_url(patient))
     assertContains(response, "<mark>Awaiting lab report</mark>")
     assertNotContains(response, "not sent yet")
+
+
+def test_with_several_laboratories_collecting_starts_with_the_choice(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    from web.practice.models import Laboratory
+
+    for name in ("UZ Leuven", "AZ Diest"):
+        Laboratory.objects.create(name=name, address="127.0.0.1:1")
+    logged_in(client, general_practitioner)
+    page = client.get(patient_url(patient))
+    # A link to the choice, not a button that collects at once.
+    assert page.context["actions"] == [
+        {"url": collect_url(patient), "label": "Collect sample"}
+    ]
+    assert page.context["post_actions"] == []
+    choice = client.get(collect_url(patient))
+    assert [
+        str(laboratory)
+        for laboratory in choice.context["form"].fields["laboratory"].queryset
+    ] == [
+        "AZ Diest",
+        "UZ Leuven",
+    ]
+    refused = client.post(collect_url(patient))
+    errors = refused.context["form"].errors.as_data()
+    assert [error.code for error in errors["laboratory"]] == ["laboratory_required"]
+    assert not patient.samples.exists()
+    az_diest = Laboratory.objects.get(name="AZ Diest")
+    client.post(collect_url(patient), {"laboratory": az_diest.pk})
+    assert patient.samples.get().laboratory == az_diest
+    assertContains(client.get(patient_url(patient)), ", for AZ Diest</h2>")
+
+
+def test_with_one_laboratory_collecting_is_one_click(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    from web.practice.models import Laboratory
+
+    only = Laboratory.objects.create(name="AZ Diest", address="127.0.0.1:1")
+    logged_in(client, general_practitioner)
+    page = client.get(patient_url(patient))
+    assert page.context["actions"] == []
+    assert page.context["post_actions"] == [
+        {"url": collect_url(patient), "label": "Collect sample"}
+    ]
+    client.post(collect_url(patient))
+    assert patient.samples.get().laboratory == only
