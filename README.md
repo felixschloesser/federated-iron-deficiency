@@ -259,17 +259,22 @@ screening comes back to the practice.
 
 ### Stop, reset, clean up
 
-- Ctrl-C in the first terminal stops every container.
-- With the demo stopped, `docker compose run --rm reset` deletes the six
-  databases, so the
-  next start seeds them afresh; certificates, cohorts and final models stay.
-  Deleting `demo/` starts over completely.
+- Ctrl-C in the first terminal stops every container; `up` again carries on
+  where it stopped.
+- Each party's data is a Docker volume of its own: certificates, keys,
+  cohorts, final models, the SuperLink's state and the databases.
+  `docker compose down -v` deletes them all, so the next `up` starts over;
+  `demo/` on your machine keeps only what that must not cost you: the
+  browser CA you trusted (`demo/browser-ca/`) and the Hugging Face downloads
+  (`demo/huggingface/`). `prepare` still asks Hugging Face, but downloads
+  nothing twice.
+- To look into a party's database while the demo runs:
+  `docker compose exec uz-leuven-web python -m sqlite3 /demo/hospitals/uz-leuven/web.sqlite3`.
 - `CAROOT=$PWD/demo/browser-ca mkcert -uninstall` removes the trust again.
 
-A `demo/` from before the containers keeps its data; its certificates are
-reissued for the containers' host names. The migrations were restarted from
-one `0001_initial` per app on 2026-11-03: a `demo/` with older databases needs
-the reset above once.
+A `demo/` from before the volumes (2026-11-03) still holds `startup/`,
+`hospitals/` and `practices/`; nothing reads them any more, so delete those
+three once. The first `up` downloads the cohorts again.
 
 ### Without Docker
 

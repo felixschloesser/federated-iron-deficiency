@@ -256,12 +256,15 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 ## 9. Demo deployment: one container per service, one network per trust boundary
 
 `compose.yaml` runs the demo: one container per service (one long-running command, such as gunicorn for a hospital's web app), one Docker network
-per trust boundary of the report's DFDs and one per crossing, and in each
-container only the folders its process needs, mounted at the same path under
-`/demo` as on the host. Everything lives under `demo/` (gitignored):
+per trust boundary of the report's DFDs and one per crossing, and one Docker
+volume per party, holding its folder (`startup`, each `<hospital>`, each
+`<practice>`). Each container mounts only the parts of its own party's volume
+its process needs, at the path under `/demo` that `prepare` wrote them to.
+On the host, `demo/` (gitignored) keeps only what a reset must not delete:
+`browser-ca/` and `huggingface/` (`HF_HOME`), which only `prepare` mounts.
 
 ```
-demo/
+/demo/
 ├── startup/                     TB2
 │   ├── certificates/            the startup's CA and the SuperLink's certificate
 │   ├── trust/                   the startup's CA certificate alone, for its clients
@@ -322,11 +325,13 @@ cohorts, the NHANES data, migrated and seeded databases. `register` registers
 each hospital's public key once the SuperLink answers, before any SuperNode
 starts. `train` is the data scientist (E1), submitting a run from inside TB2:
 `docker compose run --rm train`. Every container runs as `DEMO_USER` (default
-`1000:1000`), so on Linux `demo/` belongs to one user. The web apps run gunicorn with `DEBUG` off
+`1000:1000`), so the volumes and, on Linux, `demo/` belong to one user;
+`prepare` alone starts as root, hands the fresh volumes to that user and drops
+to it (`setpriv`). The web apps run gunicorn with `DEBUG` off
 and HTTPS (R29), each with a certificate under its folder's `web-tls/` from
 the browser CA in `demo/browser-ca/`, which belongs to no party.
 
-`docker compose run --rm --no-deps prepare python tools/demo.py reset --demo-dir /demo`, with the demo stopped, removes the six web databases so the next `docker compose up` migrates and seeds afresh; certificates, cohorts, final models and NHANES data stay.
+`docker compose down -v` deletes every party's volume, so the next `docker compose up` prepares everything afresh; the browser CA and the Hugging Face downloads in `demo/` stay.
 
 Each web app takes a Pico colour theme from `PARTY_COLOUR` (vendored themes only; absent: Pico's default), so the parties' pages are told apart at a glance: UZ Leuven jade and De Akker green, Heilig Hart Leuven pumpkin and De Berk amber, AZ Diest violet and De Ceder purple.
 
