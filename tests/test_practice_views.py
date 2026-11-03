@@ -358,7 +358,7 @@ def test_error_page_names_the_hospital(settings: Settings) -> None:
 
 def test_form_error_is_shown_once_in_the_summary(client: Client) -> None:
     response = client.post(reverse("login"), {"username": "x", "password": "y"})
-    assert response.content.decode().count("Please enter a correct username") == 1
+    assert response.content.decode().count("Wrong username or password.") == 1
 
 
 def sample_order_url(patient: Patient, test: OrderedTest) -> str:
