@@ -133,7 +133,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R14 | Lab queries select only sample ID, registered sex, age, test, whether the indication is screened and results, by the sample's practice; never the patient's name, the general practitioner's name or the clinical indication. | `access.feature` |
 | R15 | `DEMO_LOGIN` (default off) shows one POST login button per seeded user. A deploy check fails when `DEMO_LOGIN` is on and `DEBUG` is off. | `access.feature` |
 | R22 | Placing an order sends a lab order (DF23) to the general practitioner's one hospital, waiting at most 2 seconds; if the hospital does not answer, the next check for reports (R23) sends it. The hospital records it once, however often the same message arrives. | `messaging.feature` |
-| R23 | The general practitioner's app fetches its new lab reports (DF25) from its hospital every `REPORT_CHECK_SECONDS` (60; the demo 5) and on *Check for reports*, and a lab report it is still waiting for says within how many seconds new ones arrive; it is always the client, the hospital never connects to it. | `messaging.feature` |
+| R23 | The general practitioner's app fetches its new lab reports (DF25) from its hospital only on *Check for reports*, which also sends lab orders still unsent, and a lab report it is still waiting for says so; no timer fetches them. It is always the client, the hospital never connects to it. | `messaging.feature` |
 | R24 | The hospital's messaging endpoint accepts only a client certificate issued by that hospital's own certificate authority, for its general practitioner's app; any other client, the startup's included, is refused before a message is read. The hospital tells apps apart by their certificate's name: a sample is known by app and sample ID, and an app fetches and acknowledges only the lab reports of its own lab orders. The app stores each lab report on its own: one it cannot match to an order stays unacknowledged and holds back no other. | `messaging.feature` |
 | R25 | DF23 and DF25 carry exactly the fields of `web/messaging/messages.proto` (§10): no patient name, no blood values, and no clinical indication, only whether it is screened (R4). | `messaging.feature`, `tests/test_messages.py` |
 | R26 | *Collect sample* records blood collected from the patient, at `now`, with the patient's next sample ID; a patient may give any number of samples, and nothing reaches the hospital until a test is ordered. Tests are ordered on a sample afterwards; a test is ordered at most once per sample (`already_ordered`). Drawing first and choosing the tests afterwards simplifies WHO LQMS 5-3 (p. 64), where the request comes first: a sample here stands for one blood draw into the standard tubes. | `ordering.feature` |
@@ -198,7 +198,7 @@ All are POSTs that redirect on success; model and manager methods take `now`.
 
 | Operation | Actor | Precondition | Postcondition | Requirements |
 |---|---|---|---|---|
-| Fetch lab reports | General practitioner's app | Every `REPORT_CHECK_SECONDS`, or *Check for reports* | New lab reports stored at the general practitioner's app | R23 |
+| Fetch lab reports | General practitioner's app | *Check for reports* | New lab reports stored at the general practitioner's app | R23 |
 | Collect sample | general practitioner | Patient is the practice's | A sample with the patient's next sample ID, collected at `now`; nothing sent; then the sample's CBC order page | R13, R26 |
 | Place order | general practitioner | Sample is one of the practice's patient's; indication given iff test is CBC; the test not yet on the sample | The order on the sample, sex and age copied; its lab order sent, else with the next check (R22) | R1, R13, R22, R26 |
 | Run analyser | Laboratory staff | Lab order arrived, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |
@@ -303,7 +303,7 @@ containers each; P1 and P5 are not built).
 | `<hospital>-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-clientapp` | its `certificates/` and `supernode/` (read-only) |
 | `<hospital>-clientapp` | built: SuperExec with the app's dependencies | `<hospital>-clientapp` | its `cohort/` (read-only), `final-models/` (R28) |
 | `<hospital>-web`, `<hospital>-lab-orders` | built: the project | `<hospital>`; the endpoint also `<hospital>-lab-orders` | its folder, with `cohort/` and `supernode/` masked and `final-models/` read-only |
-| `<practice>-web`, `<practice>-reports` | built: the project | `<practice>`, its hospital's `<hospital>-lab-orders` | its folder |
+| `<practice>-web` | built: the project | `<practice>`, its hospital's `<hospital>-lab-orders` | its folder |
 | `proxy` | `nginx` (`docker/sni-proxy.conf`) | every `<hospital>` and `<practice>` network | none |
 
 `startup`, `model-updates` (DF7–DF10), each `<hospital>-clientapp` (TB4) and

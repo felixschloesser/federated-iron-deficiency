@@ -61,9 +61,6 @@ if PARTY_DIR is not None and "DATABASE_NAME" in os.environ:
     )
 # The hospital's messaging endpoint; the practice is always the client (R23).
 MESSAGING_ADDRESS = os.environ.get("MESSAGING_ADDRESS")
-# How often the practice fetches new lab reports (R23); the demo, which squeezes
-# hours into seconds, sets a shorter interval.
-REPORT_CHECK_SECONDS = int(os.environ.get("REPORT_CHECK_SECONDS", "60"))
 if MESSAGING_ADDRESS is not None and PRACTICE_DIR is None:
     raise ImproperlyConfigured("MESSAGING_ADDRESS needs PRACTICE_DIR.")
 # The practice's mutual-TLS files (R24), checked here so a missing one stops the

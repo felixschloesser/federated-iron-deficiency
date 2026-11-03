@@ -286,67 +286,45 @@ services:
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
               --certfile=/demo/practices/huisartsenpraktijk-de-akker/web-tls/certificate.pem,
               --keyfile=/demo/practices/huisartsenpraktijk-de-akker/web-tls/key.pem]
-    environment: &de-akker-env
+    environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PRACTICE_NAME: Huisartsenpraktijk De Akker
       PARTY_COLOUR: green
       MESSAGING_ADDRESS: uz-leuven-lab-orders:8441
-      # The demo squeezes hours into seconds; a real practice checks every 60.
-      REPORT_CHECK_SECONDS: "5"
-    volumes: &de-akker-practice
+    volumes:
       - ./demo/practices/huisartsenpraktijk-de-akker:/demo/practices/huisartsenpraktijk-de-akker
     networks: [huisartsenpraktijk-de-akker, uz-leuven-lab-orders]
 
-  huisartsenpraktijk-de-akker-reports:
-    <<: *web
-    command: [python, manage.py, check_for_lab_reports, --repeat]
-    environment: *de-akker-env
-    volumes: *de-akker-practice
-    networks: [huisartsenpraktijk-de-akker, uz-leuven-lab-orders]
 
   huisartsenpraktijk-de-berk-web:
     <<: *web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
               --certfile=/demo/practices/huisartsenpraktijk-de-berk/web-tls/certificate.pem,
               --keyfile=/demo/practices/huisartsenpraktijk-de-berk/web-tls/key.pem]
-    environment: &de-berk-env
+    environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PRACTICE_NAME: Huisartsenpraktijk De Berk
       PARTY_COLOUR: amber
       MESSAGING_ADDRESS: heilig-hart-leuven-lab-orders:8441
-      REPORT_CHECK_SECONDS: "5"
-    volumes: &de-berk-practice
+    volumes:
       - ./demo/practices/huisartsenpraktijk-de-berk:/demo/practices/huisartsenpraktijk-de-berk
     networks: [huisartsenpraktijk-de-berk, heilig-hart-leuven-lab-orders]
 
-  huisartsenpraktijk-de-berk-reports:
-    <<: *web
-    command: [python, manage.py, check_for_lab_reports, --repeat]
-    environment: *de-berk-env
-    volumes: *de-berk-practice
-    networks: [huisartsenpraktijk-de-berk, heilig-hart-leuven-lab-orders]
 
   huisartsenpraktijk-de-ceder-web:
     <<: *web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
               --certfile=/demo/practices/huisartsenpraktijk-de-ceder/web-tls/certificate.pem,
               --keyfile=/demo/practices/huisartsenpraktijk-de-ceder/web-tls/key.pem]
-    environment: &de-ceder-env
+    environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PRACTICE_NAME: Huisartsenpraktijk De Ceder
       PARTY_COLOUR: purple
       MESSAGING_ADDRESS: az-diest-lab-orders:8441
-      REPORT_CHECK_SECONDS: "5"
-    volumes: &de-ceder-practice
+    volumes:
       - ./demo/practices/huisartsenpraktijk-de-ceder:/demo/practices/huisartsenpraktijk-de-ceder
     networks: [huisartsenpraktijk-de-ceder, az-diest-lab-orders]
 
-  huisartsenpraktijk-de-ceder-reports:
-    <<: *web
-    command: [python, manage.py, check_for_lab_reports, --repeat]
-    environment: *de-ceder-env
-    volumes: *de-ceder-practice
-    networks: [huisartsenpraktijk-de-ceder, az-diest-lab-orders]
 
   # Between the browser and the parties, like the internet: routes each
   # <party>.localhost by SNI, never decrypting. The only published port.

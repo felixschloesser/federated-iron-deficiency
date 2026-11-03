@@ -109,9 +109,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             "actions": [],
             "post_actions": [{"url": collect, "label": "Collect sample"}],
             # Only an app with a hospital to ask fetches lab reports (R23).
-            "report_check_seconds": settings.REPORT_CHECK_SECONDS
-            if settings.MESSAGING_ADDRESS
-            else None,
+            "fetches_reports": settings.MESSAGING_ADDRESS is not None,
             "samples": [
                 {
                     "sample": sample,

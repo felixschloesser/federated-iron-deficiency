@@ -154,7 +154,7 @@ not a process of the report's DFDs:
 | P4 ServerApp | `serverapp` |
 | P5 Model sale, E3 Other hospitals | not built |
 | P6 Model deployment, P9 Lab analysis, P10 Screening | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis |
-| P7 Practice app | two containers: `<practice>-web`, and `<practice>-reports`, which fetches lab reports |
+| P7 Practice app | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
 | P8 Messaging endpoint | `<hospital>-lab-orders` |
 | E1 Data scientist | `train`, run by hand |
 
