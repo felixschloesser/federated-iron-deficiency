@@ -248,9 +248,9 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 - Age is the NHANES age at the survey and does not change.
 - Registered sex has the two NHANES values, female and male.
 
-## 9. Demo deployment: one container per program, one network per trust boundary
+## 9. Demo deployment: one container per service, one network per trust boundary
 
-`compose.yaml` runs the demo: one container per running program, one Docker network
+`compose.yaml` runs the demo: one container per service (one long-running command, such as gunicorn for a hospital's web app), one Docker network
 per trust boundary of the report's DFDs and one per crossing, and in each
 container only the folders its process needs, mounted at the same path under
 `/demo` as on the host. Everything lives under `demo/` (gitignored):
@@ -287,7 +287,7 @@ with its practice, both colours and its number of seeded patients; a test holds
 it to exactly the hospitals training knows. How a hospital trains (cycle,
 sample) stays in the startup's app, and `demo.toml` never reaches the FAB.
 
-Containers are running programs, not the DFDs' processes; README.md maps one
+Services are not the DFDs' processes; README.md maps one
 onto the other (P6, P9 and P10 share the hospital's web app; P2 and P7 are two
 containers each; P1 and P5 are not built).
 

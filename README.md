@@ -141,8 +141,10 @@ are, and each one's colour and number of seeded patients, is declared in
 On a Mac, [OrbStack](https://orbstack.dev) or Docker Desktop; on Linux,
 Docker Engine with the compose plugin (`docker compose version` should
 answer). Docker is what keeps the parties apart: every trust boundary gets its
-own network, and each party's programs run in containers of their own. A
-container is one running program, not one process of the report's DFDs:
+own network, and each party runs in containers of its own. Each container is
+one compose *service*: one long-running command, such as gunicorn serving a
+hospital's web app, which may start child processes of its own. A service is
+not a process of the report's DFDs:
 
 | DFD element | Where it runs |
 |---|---|
