@@ -1,23 +1,24 @@
 # The demo deployment (spec §9): one container per service, one network per
-# trust boundary of the report's DFDs, and one per crossing. Every container
-# mounts only its own parts of demo/, at the same path as on the host.
+# trust boundary of the report's DFDs, and one per crossing, and one volume
+# per party: every container mounts only its own party's parts of it, at the
+# path prepare wrote them to. Only prepare also mounts demo/ on the host.
 #
 #   docker compose up --build --abort-on-container-failure
 #   docker compose run --rm train
-#   docker compose run --rm reset
+#   docker compose down -v          # start over; demo/ on the host stays
 #
 # Browsers reach https://<party>.localhost through the proxy, the only
-# published port. Networks: startup (TB2), <hospital> (TB1), <hospital>-clientapp (TB4,
+# published port. Networks: startup (TB2), <hospital> (TB1), <hospital>-flower-client-app (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
 # <hospital>-lab-orders crosses TB3-TB1 (DF23, DF25).
 
 name: iron-deficiency
 
 # Each image is built once, by the first service that names it (prepare,
-# serverapp); every other service uses it as built.
-# Every container runs as one user, so on Linux, where a bind mount keeps
-# numeric IDs, demo/ never mixes the images' own users (49999, 1000). Set
-# DEMO_USER=$(id -u):$(id -g) in .env if your account is not 1000:1000.
+# flower-server-app); every other service uses it as built.
+# Every container runs as one user, so the volumes and, on Linux, where a bind
+# mount keeps numeric IDs, demo/ never mix the images' own users (49999, 1000).
+# Set DEMO_USER=$(id -u):$(id -g) in .env if your account is not 1000:1000.
 x-user: &user "${DEMO_USER:-1000:1000}"
 
 x-web: &web
@@ -45,27 +46,39 @@ services:
     <<: *web
     build: {context: ., dockerfile: docker/web.Dockerfile}
     depends_on: {}
+    # A fresh volume belongs to root: hand each to the demo user, then drop to it.
+    user: root
+    entrypoint:
+      - bash
+      - -c
+      - |
+        chown "$$DEMO_USER" /demo/startup /demo/hospitals/* /demo/practices/* /demo/browser-ca /demo/huggingface
+        exec setpriv --reuid="$${DEMO_USER%%:*}" --regid="$${DEMO_USER##*:}" --clear-groups "$$@"
+      - prepare
     command: [python, tools/demo.py, prepare, --demo-dir, /demo]
     environment:
+      DEMO_USER: *user
       # Hugging Face may refuse unauthenticated downloads of the cohorts.
       HF_TOKEN: ${HF_TOKEN:-}
+      # Downloads stay on the host, so a reset fetches nothing twice.
+      HF_HOME: /demo/huggingface
       # Only for the summary's addresses.
       DEMO_HTTPS_PORT: ${DEMO_HTTPS_PORT:-443}
-    volumes: [./demo:/demo]
+    volumes:
+      - {type: volume, source: startup, target: /demo/startup}
+      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
+      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
+      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
+      - {type: volume, source: huisartsenpraktijk-de-akker, target: /demo/practices/huisartsenpraktijk-de-akker}
+      - {type: volume, source: huisartsenpraktijk-de-berk, target: /demo/practices/huisartsenpraktijk-de-berk}
+      - {type: volume, source: huisartsenpraktijk-de-ceder, target: /demo/practices/huisartsenpraktijk-de-ceder}
+      # On the host, kept by `down -v`: the CA the browser trusts, the downloads.
+      - ./demo/browser-ca:/demo/browser-ca
+      - ./demo/huggingface:/demo/huggingface
     networks: [setup]
 
-  # Setup too: `docker compose run --rm reset`, with the demo stopped, deletes
-  # every party's web database, so the next `up` seeds them afresh.
-  reset:
-    <<: *web
-    profiles: [reset]
-    depends_on: {}
-    command: [python, tools/demo.py, reset, --demo-dir, /demo]
-    volumes: [./demo:/demo]
-    network_mode: none
-
   # TB2, the startup.
-  superlink:
+  flower-superlink:
     image: flwr/superlink:1.40.0
     user: *user
     environment:
@@ -83,36 +96,36 @@ services:
       - --ssl-certfile=/demo/startup/certificates/superlink/certificate.pem
       - --ssl-keyfile=/demo/startup/certificates/superlink/key.pem
     volumes:
-      - ./demo/startup/superlink:/demo/startup/superlink
-      - ./demo/startup/certificates:/demo/startup/certificates:ro
+      - {type: volume, source: startup, target: /demo/startup/superlink, volume: {subpath: superlink}}
+      - {type: volume, source: startup, target: /demo/startup/certificates, read_only: true, volume: {subpath: certificates}}
     networks: [startup, model-updates]
     healthcheck:
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 9092))"]
       interval: 2s
       retries: 30
 
-  serverapp:
+  flower-server-app:
     <<: *superexec
     build: {context: ., dockerfile: docker/superexec.Dockerfile}
     depends_on:
-      superlink: {condition: service_healthy}
+      flower-superlink: {condition: service_healthy}
     command:
-      - --runtime-api-address=superlink:9092
+      - --runtime-api-address=flower-superlink:9092
       - --root-certificates=/demo/startup/trust/ca.crt
     volumes:
-      - ./demo/startup/trust:/demo/startup/trust:ro
-      - ./demo/startup/final-models:/demo/startup/final-models
+      - {type: volume, source: startup, target: /demo/startup/trust, read_only: true, volume: {subpath: trust}}
+      - {type: volume, source: startup, target: /demo/startup/final-models, volume: {subpath: final-models}}
     networks: [startup]
 
   register:
     <<: *web
     depends_on:
-      superlink: {condition: service_healthy}
+      flower-superlink: {condition: service_healthy}
     command: [python, tools/demo.py, register, --demo-dir, /demo]
     volumes:
-      - ./demo/startup/supernodes:/demo/startup/supernodes:ro
-      - ./demo/startup/flwr-home:/demo/startup/flwr-home
-      - ./demo/startup/trust:/demo/startup/trust:ro
+      - {type: volume, source: startup, target: /demo/startup/supernodes, read_only: true, volume: {subpath: supernodes}}
+      - {type: volume, source: startup, target: /demo/startup/flwr-home, volume: {subpath: flwr-home}}
+      - {type: volume, source: startup, target: /demo/startup/trust, read_only: true, volume: {subpath: trust}}
     networks: [startup]
 
   # E1, the data scientist, submits from inside TB2: `docker compose run --rm train`.
@@ -120,20 +133,20 @@ services:
     <<: *web
     profiles: [train]
     depends_on:
-      superlink: {condition: service_healthy}
+      flower-superlink: {condition: service_healthy}
     command: [flwr, run, /app, demo, --run-config, "demo-dir='/demo'", --stream]
     environment:
       FLWR_HOME: /demo/startup/flwr-home
     volumes:
-      - ./demo/startup/flwr-home:/demo/startup/flwr-home
-      - ./demo/startup/trust:/demo/startup/trust:ro
+      - {type: volume, source: startup, target: /demo/startup/flwr-home, volume: {subpath: flwr-home}}
+      - {type: volume, source: startup, target: /demo/startup/trust, read_only: true, volume: {subpath: trust}}
     networks: [startup]
 
   # TB1 and TB4, UZ Leuven.
-  uz-leuven-supernode:
+  uz-leuven-flower-supernode:
     <<: *supernode
     command:
-      - --superlink=superlink:9092
+      - --superlink=flower-superlink:9092
       - --root-certificates=/demo/hospitals/uz-leuven/certificates/ca.crt
       - --auth-supernode-private-key=/demo/hospitals/uz-leuven/supernode/key
       - --isolation=process
@@ -141,52 +154,57 @@ services:
       - --port=9094
       - --node-config=data-path='/demo/hospitals/uz-leuven/cohort' final-models-path='/demo/hospitals/uz-leuven/final-models'
     volumes:
-      - ./demo/hospitals/uz-leuven/certificates:/demo/hospitals/uz-leuven/certificates:ro
-      - ./demo/hospitals/uz-leuven/supernode:/demo/hospitals/uz-leuven/supernode:ro
-    networks: [model-updates, uz-leuven-clientapp]
+      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/certificates, read_only: true, volume: {subpath: certificates}}
+      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/supernode, read_only: true, volume: {subpath: supernode}}
+    networks: [model-updates, uz-leuven-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
   # models, and a network that reaches nothing but its SuperNode (R28).
-  uz-leuven-clientapp:
+  uz-leuven-flower-client-app:
     <<: *superexec
-    depends_on: [uz-leuven-supernode]
-    command: [--runtime-api-address=uz-leuven-supernode:9094, --insecure]
+    depends_on: [uz-leuven-flower-supernode]
+    command: [--runtime-api-address=uz-leuven-flower-supernode:9094, --insecure]
     volumes:
-      - ./demo/hospitals/uz-leuven/cohort:/demo/hospitals/uz-leuven/cohort:ro
-      - ./demo/hospitals/uz-leuven/final-models:/demo/hospitals/uz-leuven/final-models
-    networks: [uz-leuven-clientapp]
+      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/cohort, read_only: true, volume: {subpath: cohort}}
+      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/final-models, volume: {subpath: final-models}}
+    networks: [uz-leuven-flower-client-app]
 
   uz-leuven-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
-              --certfile=/demo/hospitals/uz-leuven/web-tls/certificate.pem,
-              --keyfile=/demo/hospitals/uz-leuven/web-tls/key.pem]
+    # One container, two servers, each on a name only one network knows: the
+    # proxy reaches the pages, the practice only the lab-order endpoint (R21).
+    # Either one stopping stops the container, and compose restarts it.
+    command:
+      - bash
+      - -c
+      - |
+        trap 'kill $$(jobs -p)' TERM INT
+        gunicorn web.wsgi --bind=uz-leuven-pages:8000 --workers=2 --access-logfile=- \
+          --certfile=/demo/hospitals/uz-leuven/web-tls/certificate.pem \
+          --keyfile=/demo/hospitals/uz-leuven/web-tls/key.pem &
+        python manage.py serve_messages uz-leuven-lab-orders:8441 &
+        wait -n
+        exit 1
+    restart: unless-stopped
     environment:
       HOSPITAL_DIR: /demo/hospitals/uz-leuven
       HOSPITAL_NAME: UZ Leuven
       PARTY_COLOUR: jade
-    volumes: &uz-leuven-hospital
-      - ./demo/hospitals/uz-leuven:/demo/hospitals/uz-leuven
-      - ./demo/hospitals/uz-leuven/final-models:/demo/hospitals/uz-leuven/final-models:ro
+    volumes:
+      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
+      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/final-models, read_only: true, volume: {subpath: final-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
     # DEBUG off: Django's deploy settings, HTTPS with the browser CA's certificate (R29).
-    tmpfs: &uz-leuven-masked [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/supernode]
-    networks: [uz-leuven]
-
-  uz-leuven-lab-orders:
-    <<: *web
-    command: [python, manage.py, serve_messages, 0.0.0.0:8441]
-    environment:
-      HOSPITAL_DIR: /demo/hospitals/uz-leuven
-    volumes: *uz-leuven-hospital
-    tmpfs: *uz-leuven-masked
-    networks: [uz-leuven, uz-leuven-lab-orders]
+    tmpfs: [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/supernode]
+    networks:
+      uz-leuven: {aliases: [uz-leuven-pages]}
+      uz-leuven-lab-orders: {aliases: [uz-leuven-lab-orders]}
 
   # TB1 and TB4, Heilig Hart Leuven.
-  heilig-hart-leuven-supernode:
+  heilig-hart-leuven-flower-supernode:
     <<: *supernode
     command:
-      - --superlink=superlink:9092
+      - --superlink=flower-superlink:9092
       - --root-certificates=/demo/hospitals/heilig-hart-leuven/certificates/ca.crt
       - --auth-supernode-private-key=/demo/hospitals/heilig-hart-leuven/supernode/key
       - --isolation=process
@@ -194,48 +212,53 @@ services:
       - --port=9094
       - --node-config=data-path='/demo/hospitals/heilig-hart-leuven/cohort' final-models-path='/demo/hospitals/heilig-hart-leuven/final-models'
     volumes:
-      - ./demo/hospitals/heilig-hart-leuven/certificates:/demo/hospitals/heilig-hart-leuven/certificates:ro
-      - ./demo/hospitals/heilig-hart-leuven/supernode:/demo/hospitals/heilig-hart-leuven/supernode:ro
-    networks: [model-updates, heilig-hart-leuven-clientapp]
+      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/certificates, read_only: true, volume: {subpath: certificates}}
+      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/supernode, read_only: true, volume: {subpath: supernode}}
+    networks: [model-updates, heilig-hart-leuven-flower-client-app]
 
-  heilig-hart-leuven-clientapp:
+  heilig-hart-leuven-flower-client-app:
     <<: *superexec
-    depends_on: [heilig-hart-leuven-supernode]
-    command: [--runtime-api-address=heilig-hart-leuven-supernode:9094, --insecure]
+    depends_on: [heilig-hart-leuven-flower-supernode]
+    command: [--runtime-api-address=heilig-hart-leuven-flower-supernode:9094, --insecure]
     volumes:
-      - ./demo/hospitals/heilig-hart-leuven/cohort:/demo/hospitals/heilig-hart-leuven/cohort:ro
-      - ./demo/hospitals/heilig-hart-leuven/final-models:/demo/hospitals/heilig-hart-leuven/final-models
-    networks: [heilig-hart-leuven-clientapp]
+      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/cohort, read_only: true, volume: {subpath: cohort}}
+      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/final-models, volume: {subpath: final-models}}
+    networks: [heilig-hart-leuven-flower-client-app]
 
   heilig-hart-leuven-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
-              --certfile=/demo/hospitals/heilig-hart-leuven/web-tls/certificate.pem,
-              --keyfile=/demo/hospitals/heilig-hart-leuven/web-tls/key.pem]
+    # One container, two servers, each on a name only one network knows: the
+    # proxy reaches the pages, the practice only the lab-order endpoint (R21).
+    # Either one stopping stops the container, and compose restarts it.
+    command:
+      - bash
+      - -c
+      - |
+        trap 'kill $$(jobs -p)' TERM INT
+        gunicorn web.wsgi --bind=heilig-hart-leuven-pages:8000 --workers=2 --access-logfile=- \
+          --certfile=/demo/hospitals/heilig-hart-leuven/web-tls/certificate.pem \
+          --keyfile=/demo/hospitals/heilig-hart-leuven/web-tls/key.pem &
+        python manage.py serve_messages heilig-hart-leuven-lab-orders:8441 &
+        wait -n
+        exit 1
+    restart: unless-stopped
     environment:
       HOSPITAL_DIR: /demo/hospitals/heilig-hart-leuven
       HOSPITAL_NAME: Heilig Hart Leuven
       PARTY_COLOUR: pumpkin
-    volumes: &heilig-hart-leuven-hospital
-      - ./demo/hospitals/heilig-hart-leuven:/demo/hospitals/heilig-hart-leuven
-      - ./demo/hospitals/heilig-hart-leuven/final-models:/demo/hospitals/heilig-hart-leuven/final-models:ro
-    tmpfs: &heilig-hart-leuven-masked [/demo/hospitals/heilig-hart-leuven/cohort, /demo/hospitals/heilig-hart-leuven/supernode]
-    networks: [heilig-hart-leuven]
-
-  heilig-hart-leuven-lab-orders:
-    <<: *web
-    command: [python, manage.py, serve_messages, 0.0.0.0:8441]
-    environment:
-      HOSPITAL_DIR: /demo/hospitals/heilig-hart-leuven
-    volumes: *heilig-hart-leuven-hospital
-    tmpfs: *heilig-hart-leuven-masked
-    networks: [heilig-hart-leuven, heilig-hart-leuven-lab-orders]
+    volumes:
+      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
+      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/final-models, read_only: true, volume: {subpath: final-models}}
+    tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort, /demo/hospitals/heilig-hart-leuven/supernode]
+    networks:
+      heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
+      heilig-hart-leuven-lab-orders: {aliases: [heilig-hart-leuven-lab-orders]}
 
   # TB1 and TB4, AZ Diest.
-  az-diest-supernode:
+  az-diest-flower-supernode:
     <<: *supernode
     command:
-      - --superlink=superlink:9092
+      - --superlink=flower-superlink:9092
       - --root-certificates=/demo/hospitals/az-diest/certificates/ca.crt
       - --auth-supernode-private-key=/demo/hospitals/az-diest/supernode/key
       - --isolation=process
@@ -243,42 +266,47 @@ services:
       - --port=9094
       - --node-config=data-path='/demo/hospitals/az-diest/cohort' final-models-path='/demo/hospitals/az-diest/final-models'
     volumes:
-      - ./demo/hospitals/az-diest/certificates:/demo/hospitals/az-diest/certificates:ro
-      - ./demo/hospitals/az-diest/supernode:/demo/hospitals/az-diest/supernode:ro
-    networks: [model-updates, az-diest-clientapp]
+      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/certificates, read_only: true, volume: {subpath: certificates}}
+      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/supernode, read_only: true, volume: {subpath: supernode}}
+    networks: [model-updates, az-diest-flower-client-app]
 
-  az-diest-clientapp:
+  az-diest-flower-client-app:
     <<: *superexec
-    depends_on: [az-diest-supernode]
-    command: [--runtime-api-address=az-diest-supernode:9094, --insecure]
+    depends_on: [az-diest-flower-supernode]
+    command: [--runtime-api-address=az-diest-flower-supernode:9094, --insecure]
     volumes:
-      - ./demo/hospitals/az-diest/cohort:/demo/hospitals/az-diest/cohort:ro
-      - ./demo/hospitals/az-diest/final-models:/demo/hospitals/az-diest/final-models
-    networks: [az-diest-clientapp]
+      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/cohort, read_only: true, volume: {subpath: cohort}}
+      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/final-models, volume: {subpath: final-models}}
+    networks: [az-diest-flower-client-app]
 
   az-diest-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
-              --certfile=/demo/hospitals/az-diest/web-tls/certificate.pem,
-              --keyfile=/demo/hospitals/az-diest/web-tls/key.pem]
+    # One container, two servers, each on a name only one network knows: the
+    # proxy reaches the pages, the practice only the lab-order endpoint (R21).
+    # Either one stopping stops the container, and compose restarts it.
+    command:
+      - bash
+      - -c
+      - |
+        trap 'kill $$(jobs -p)' TERM INT
+        gunicorn web.wsgi --bind=az-diest-pages:8000 --workers=2 --access-logfile=- \
+          --certfile=/demo/hospitals/az-diest/web-tls/certificate.pem \
+          --keyfile=/demo/hospitals/az-diest/web-tls/key.pem &
+        python manage.py serve_messages az-diest-lab-orders:8441 &
+        wait -n
+        exit 1
+    restart: unless-stopped
     environment:
       HOSPITAL_DIR: /demo/hospitals/az-diest
       HOSPITAL_NAME: AZ Diest
       PARTY_COLOUR: violet
-    volumes: &az-diest-hospital
-      - ./demo/hospitals/az-diest:/demo/hospitals/az-diest
-      - ./demo/hospitals/az-diest/final-models:/demo/hospitals/az-diest/final-models:ro
-    tmpfs: &az-diest-masked [/demo/hospitals/az-diest/cohort, /demo/hospitals/az-diest/supernode]
-    networks: [az-diest]
-
-  az-diest-lab-orders:
-    <<: *web
-    command: [python, manage.py, serve_messages, 0.0.0.0:8441]
-    environment:
-      HOSPITAL_DIR: /demo/hospitals/az-diest
-    volumes: *az-diest-hospital
-    tmpfs: *az-diest-masked
-    networks: [az-diest, az-diest-lab-orders]
+    volumes:
+      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
+      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/final-models, read_only: true, volume: {subpath: final-models}}
+    tmpfs: [/demo/hospitals/az-diest/cohort, /demo/hospitals/az-diest/supernode]
+    networks:
+      az-diest: {aliases: [az-diest-pages]}
+      az-diest-lab-orders: {aliases: [az-diest-lab-orders]}
 
   # TB3, each general practitioner's practice, sending to its one hospital.
   huisartsenpraktijk-de-akker-web:
@@ -286,22 +314,13 @@ services:
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
               --certfile=/demo/practices/huisartsenpraktijk-de-akker/web-tls/certificate.pem,
               --keyfile=/demo/practices/huisartsenpraktijk-de-akker/web-tls/key.pem]
-    environment: &de-akker-env
+    environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PRACTICE_NAME: Huisartsenpraktijk De Akker
       PARTY_COLOUR: green
       MESSAGING_ADDRESS: uz-leuven-lab-orders:8441
-      # The demo squeezes hours into seconds; a real practice checks every 60.
-      REPORT_CHECK_SECONDS: "5"
-    volumes: &de-akker-practice
-      - ./demo/practices/huisartsenpraktijk-de-akker:/demo/practices/huisartsenpraktijk-de-akker
-    networks: [huisartsenpraktijk-de-akker, uz-leuven-lab-orders]
-
-  huisartsenpraktijk-de-akker-reports:
-    <<: *web
-    command: [python, manage.py, check_for_lab_reports, --repeat]
-    environment: *de-akker-env
-    volumes: *de-akker-practice
+    volumes:
+      - {type: volume, source: huisartsenpraktijk-de-akker, target: /demo/practices/huisartsenpraktijk-de-akker}
     networks: [huisartsenpraktijk-de-akker, uz-leuven-lab-orders]
 
   huisartsenpraktijk-de-berk-web:
@@ -309,21 +328,13 @@ services:
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
               --certfile=/demo/practices/huisartsenpraktijk-de-berk/web-tls/certificate.pem,
               --keyfile=/demo/practices/huisartsenpraktijk-de-berk/web-tls/key.pem]
-    environment: &de-berk-env
+    environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PRACTICE_NAME: Huisartsenpraktijk De Berk
       PARTY_COLOUR: amber
       MESSAGING_ADDRESS: heilig-hart-leuven-lab-orders:8441
-      REPORT_CHECK_SECONDS: "5"
-    volumes: &de-berk-practice
-      - ./demo/practices/huisartsenpraktijk-de-berk:/demo/practices/huisartsenpraktijk-de-berk
-    networks: [huisartsenpraktijk-de-berk, heilig-hart-leuven-lab-orders]
-
-  huisartsenpraktijk-de-berk-reports:
-    <<: *web
-    command: [python, manage.py, check_for_lab_reports, --repeat]
-    environment: *de-berk-env
-    volumes: *de-berk-practice
+    volumes:
+      - {type: volume, source: huisartsenpraktijk-de-berk, target: /demo/practices/huisartsenpraktijk-de-berk}
     networks: [huisartsenpraktijk-de-berk, heilig-hart-leuven-lab-orders]
 
   huisartsenpraktijk-de-ceder-web:
@@ -331,21 +342,13 @@ services:
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
               --certfile=/demo/practices/huisartsenpraktijk-de-ceder/web-tls/certificate.pem,
               --keyfile=/demo/practices/huisartsenpraktijk-de-ceder/web-tls/key.pem]
-    environment: &de-ceder-env
+    environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PRACTICE_NAME: Huisartsenpraktijk De Ceder
       PARTY_COLOUR: purple
       MESSAGING_ADDRESS: az-diest-lab-orders:8441
-      REPORT_CHECK_SECONDS: "5"
-    volumes: &de-ceder-practice
-      - ./demo/practices/huisartsenpraktijk-de-ceder:/demo/practices/huisartsenpraktijk-de-ceder
-    networks: [huisartsenpraktijk-de-ceder, az-diest-lab-orders]
-
-  huisartsenpraktijk-de-ceder-reports:
-    <<: *web
-    command: [python, manage.py, check_for_lab_reports, --repeat]
-    environment: *de-ceder-env
-    volumes: *de-ceder-practice
+    volumes:
+      - {type: volume, source: huisartsenpraktijk-de-ceder, target: /demo/practices/huisartsenpraktijk-de-ceder}
     networks: [huisartsenpraktijk-de-ceder, az-diest-lab-orders]
 
   # Between the browser and the parties, like the internet: routes each
@@ -366,14 +369,24 @@ networks:
   startup: {internal: true}
   model-updates: {internal: true}
   uz-leuven: {}
-  uz-leuven-clientapp: {internal: true}
+  uz-leuven-flower-client-app: {internal: true}
   uz-leuven-lab-orders: {internal: true}
   heilig-hart-leuven: {}
-  heilig-hart-leuven-clientapp: {internal: true}
+  heilig-hart-leuven-flower-client-app: {internal: true}
   heilig-hart-leuven-lab-orders: {internal: true}
   az-diest: {}
-  az-diest-clientapp: {internal: true}
+  az-diest-flower-client-app: {internal: true}
   az-diest-lab-orders: {internal: true}
+  huisartsenpraktijk-de-akker: {}
+  huisartsenpraktijk-de-berk: {}
+  huisartsenpraktijk-de-ceder: {}
+
+# One per party: `docker compose down -v` deletes them all.
+volumes:
+  startup: {}
+  uz-leuven: {}
+  heilig-hart-leuven: {}
+  az-diest: {}
   huisartsenpraktijk-de-akker: {}
   huisartsenpraktijk-de-berk: {}
   huisartsenpraktijk-de-ceder: {}

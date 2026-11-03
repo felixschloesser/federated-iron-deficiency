@@ -68,6 +68,7 @@ staff is replaced and the report's word moves to the rejected column.
 | CBC value names and units, e.g. *Hemoglobin*, g/dL | NHANES 2021–2023 CBC_L codebook, SAS labels (`sources/nhanes-2021-2023-CBC_L.htm`) | The values are NHANES's own, in its units; no conversion | Hb, Ht and other report abbreviations (no source; other units) |
 | Ferritin, ng/mL | NHANES 2021–2023 FERTIN_L codebook (`sources/nhanes-2021-2023-FERTIN_L.htm`) | As above | µg/L (LBDFERSI) |
 | Ferritin (made up for the demo), ng/mL | User decision, 2026-11-01: NHANES has no ferritin for men and women outside 12–49 | Tells the general practitioner the value is not a measurement; kept apart from ferritin so it never feeds a suggestion or a label | ferritin (would pass a made-up value as measured), synthetic ferritin |
+| Flower container (`flower-` prefix) | Flower documentation, *Flower Architecture*: SuperLink, ServerApp, SuperNode, ClientApp | Marks the compose services that are Flower's components, apart from each party's own apps; Flower's own names, as words: `flower-superlink`, `flower-server-app`, `<hospital>-flower-supernode`, `<hospital>-flower-client-app` (and its TB4 network) | `serverapp`, `clientapp` (Flower's names run together); startup code (the report's TB4 label, which the report keeps) |
 
 ## 2. Goal model
 
@@ -134,7 +135,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R14 | Lab queries select only sample ID, registered sex, age, test, whether the indication is screened and results, by the sample's practice; never the patient's name, the general practitioner's name or the clinical indication. | `access.feature` |
 | R15 | `DEMO_LOGIN` (default off) shows one POST login button per seeded user. A deploy check fails when `DEMO_LOGIN` is on and `DEBUG` is off. | `access.feature` |
 | R22 | A practice works with one or more laboratories; *Collect sample* records the one the sample goes to, chosen by the general practitioner when there are several (`laboratory_required`). Placing an order sends its lab order (DF23) to its sample's laboratory only, waiting at most 2 seconds; if that laboratory does not answer, the next check for reports (R23) sends it. The hospital records it once, however often the same message arrives. | `messaging.feature` |
-| R23 | The general practitioner's app fetches its new lab reports (DF25) from each of its laboratories every `REPORT_CHECK_SECONDS` (60; the demo 5) and on *Check for reports*; a laboratory that cannot be reached is named and holds back no other; and a lab report it is still waiting for says within how many seconds new ones arrive; it is always the client, the hospital never connects to it. | `messaging.feature` |
+| R23 | The general practitioner's app fetches its new lab reports (DF25) from each of its laboratories only on *Check for reports*, which also sends lab orders still unsent; a laboratory that cannot be reached is named and holds back no other; a lab report it is still waiting for says so; no timer fetches them. It is always the client, the hospital never connects to it. | `messaging.feature` |
 | R24 | The hospital's messaging endpoint accepts only a client certificate issued by that hospital's own certificate authority, for its general practitioner's app; any other client, the startup's included, is refused before a message is read. The hospital tells apps apart by their certificate's name: a sample is known by app and sample ID, and an app fetches and acknowledges only the lab reports of its own lab orders. The app stores each lab report on its own, and only for a sample it sent to that laboratory: one it cannot match stays unacknowledged and holds back no other. | `messaging.feature` |
 | R25 | DF23 and DF25 carry exactly the fields of `web/messaging/messages.proto` (§10): no patient name, no blood values, and no clinical indication, only whether it is screened (R4). | `messaging.feature`, `tests/test_messages.py` |
 | R26 | *Collect sample* records blood collected from the patient, at `now`, with the patient's next sample ID; a patient may give any number of samples, and nothing reaches the hospital until a test is ordered. Tests are ordered on a sample afterwards; a test is ordered at most once per sample (`already_ordered`). Drawing first and choosing the tests afterwards simplifies WHO LQMS 5-3 (p. 64), where the request comes first: a sample here stands for one blood draw into the standard tubes. | `ordering.feature` |
@@ -199,7 +200,7 @@ All are POSTs that redirect on success; model and manager methods take `now`.
 
 | Operation | Actor | Precondition | Postcondition | Requirements |
 |---|---|---|---|---|
-| Fetch lab reports | General practitioner's app | Every `REPORT_CHECK_SECONDS`, or *Check for reports* | New lab reports stored at the general practitioner's app | R23 |
+| Fetch lab reports | General practitioner's app | *Check for reports* | New lab reports stored at the general practitioner's app, from each of its laboratories | R23 |
 | Collect sample | general practitioner | Patient is the practice's; a laboratory chosen if the practice works with several | A sample with the patient's next sample ID, for that laboratory, collected at `now`; nothing sent; then the sample's CBC order page | R13, R22, R26 |
 | Place order | general practitioner | Sample is one of the practice's patient's; indication given iff test is CBC; the test not yet on the sample | The order on the sample, sex and age copied; its lab order sent, else with the next check (R22) | R1, R13, R22, R26 |
 | Run analyser | Laboratory staff | Lab order arrived, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |
@@ -257,12 +258,15 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 ## 9. Demo deployment: one container per service, one network per trust boundary
 
 `compose.yaml` runs the demo: one container per service (one long-running command, such as gunicorn for a hospital's web app), one Docker network
-per trust boundary of the report's DFDs and one per crossing, and in each
-container only the folders its process needs, mounted at the same path under
-`/demo` as on the host. Everything lives under `demo/` (gitignored):
+per trust boundary of the report's DFDs and one per crossing, and one Docker
+volume per party, holding its folder (`startup`, each `<hospital>`, each
+`<practice>`). Each container mounts only the parts of its own party's volume
+its process needs, at the path under `/demo` that `prepare` wrote them to.
+On the host, `demo/` (gitignored) keeps only what a reset must not delete:
+`browser-ca/` and `huggingface/` (`HF_HOME`), which only `prepare` mounts.
 
 ```
-demo/
+/demo/
 ├── startup/                     TB2
 │   ├── certificates/            the startup's CA and the SuperLink's certificate
 │   ├── trust/                   the startup's CA certificate alone, for its clients
@@ -294,20 +298,20 @@ it to exactly the hospitals training knows. How a hospital trains (cycle,
 sample) stays in the startup's app, and `demo.toml` never reaches the FAB.
 
 Services are not the DFDs' processes; README.md maps one
-onto the other (P6, P9 and P10 share the hospital's web app; P2 and P7 are two
-containers each; P1 and P5 are not built).
+onto the other (P6 and P8–P10 share the hospital's container; P2 is two
+containers; P1 and P5 are not built).
 
 | Container | Image | Network | Mounts |
 |---|---|---|---|
-| `superlink` | `flwr/superlink` | `startup`, `model-updates` | `startup/superlink`, `startup/certificates` (read-only) |
-| `serverapp` | built: SuperExec with the app's dependencies | `startup` | `startup/trust`, `startup/final-models` |
-| `<hospital>-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-clientapp` | its `certificates/` and `supernode/` (read-only) |
-| `<hospital>-clientapp` | built: SuperExec with the app's dependencies | `<hospital>-clientapp` | its `cohort/` (read-only), `final-models/` (R28) |
-| `<hospital>-web`, `<hospital>-lab-orders` | built: the project | `<hospital>`; the endpoint also `<hospital>-lab-orders` | its folder, with `cohort/` and `supernode/` masked and `final-models/` read-only |
-| `<practice>-web`, `<practice>-reports` | built: the project | `<practice>`, its hospital's `<hospital>-lab-orders` | its folder |
+| `flower-superlink` | `flwr/superlink` | `startup`, `model-updates` | `startup/superlink`, `startup/certificates` (read-only) |
+| `flower-server-app` | built: SuperExec with the app's dependencies | `startup` | `startup/trust`, `startup/final-models` |
+| `<hospital>-flower-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-flower-client-app` | its `certificates/` and `supernode/` (read-only) |
+| `<hospital>-flower-client-app` | built: SuperExec with the app's dependencies | `<hospital>-flower-client-app` | its `cohort/` (read-only), `final-models/` (R28) |
+| `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `<hospital>-lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/` and `supernode/` masked and `final-models/` read-only |
+| `<practice>-web` | built: the project | `<practice>`, its hospital's `<hospital>-lab-orders` | its folder |
 | `proxy` | `nginx` (`docker/sni-proxy.conf`) | every `<hospital>` and `<practice>` network | none |
 
-`startup`, `model-updates` (DF7–DF10), each `<hospital>-clientapp` (TB4) and
+`startup`, `model-updates` (DF7–DF10), each `<hospital>-flower-client-app` (TB4) and
 each `<hospital>-lab-orders` (DF23, DF25) are internal networks: nothing on
 them reaches outside the deployment. Only the `proxy` is published, on
 `127.0.0.1:443` (`DEMO_HTTPS_PORT`): it routes each `<party>.localhost`
@@ -323,11 +327,13 @@ cohorts, the NHANES data, migrated and seeded databases. `register` registers
 each hospital's public key once the SuperLink answers, before any SuperNode
 starts. `train` is the data scientist (E1), submitting a run from inside TB2:
 `docker compose run --rm train`. Every container runs as `DEMO_USER` (default
-`1000:1000`), so on Linux `demo/` belongs to one user. The web apps run gunicorn with `DEBUG` off
+`1000:1000`), so the volumes and, on Linux, `demo/` belong to one user;
+`prepare` alone starts as root, hands the fresh volumes to that user and drops
+to it (`setpriv`). The web apps run gunicorn with `DEBUG` off
 and HTTPS (R29), each with a certificate under its folder's `web-tls/` from
 the browser CA in `demo/browser-ca/`, which belongs to no party.
 
-`docker compose run --rm --no-deps prepare python tools/demo.py reset --demo-dir /demo`, with the demo stopped, removes the six web databases so the next `docker compose up` migrates and seeds afresh; certificates, cohorts, final models and NHANES data stay.
+`docker compose down -v` deletes every party's volume, so the next `docker compose up` prepares everything afresh; the browser CA and the Hugging Face downloads in `demo/` stay.
 
 Each web app takes a Pico colour theme from `PARTY_COLOUR` (vendored themes only; absent: Pico's default), so the parties' pages are told apart at a glance: UZ Leuven jade and De Akker green, Heilig Hart Leuven pumpkin and De Berk amber, AZ Diest violet and De Ceder purple.
 

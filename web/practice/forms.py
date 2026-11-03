@@ -3,11 +3,12 @@ from typing import Any
 from django import forms
 from django.core.exceptions import ValidationError
 
+from web.forms import NamedLabels
 from web.practice.models import INDICATION_REQUIRED, Laboratory
 from web.vocabulary import ClinicalIndication, Test
 
 
-class OrderForm(forms.Form):
+class OrderForm(NamedLabels, forms.Form):
     """An order for one test; asks the indication only for a test that takes one."""
 
     # Required only for a test that takes one; checked in clean_indication, so the
@@ -35,7 +36,7 @@ class OrderForm(forms.Form):
         return indication
 
 
-class CollectSampleForm(forms.Form):
+class CollectSampleForm(NamedLabels, forms.Form):
     """Which laboratory the sample goes to (R22); left out by a practice with one,
     whose single Collect sample button posts no choice."""
 

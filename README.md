@@ -149,13 +149,12 @@ not a process of the report's DFDs:
 | DFD element | Where it runs |
 |---|---|
 | P1 Cohort extraction | not built: `prepare` stands in, saving each hospital's cohort |
-| P2 SuperNode, ClientApp | two containers: `<hospital>-supernode`, and `<hospital>-clientapp` for the startup's code (TB4) |
-| P3 SuperLink | `superlink` |
-| P4 ServerApp | `serverapp` |
+| P2 SuperNode, ClientApp | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
+| P3 SuperLink | `flower-superlink` |
+| P4 ServerApp | `flower-server-app` |
 | P5 Model sale, E3 Other hospitals | not built |
-| P6 Model deployment, P9 Lab analysis, P10 Screening | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis |
-| P7 Practice app | two containers: `<practice>-web`, and `<practice>-reports`, which fetches lab reports |
-| P8 Messaging endpoint | `<hospital>-lab-orders` |
+| P6 Model deployment, P8 Messaging endpoint, P9 Lab analysis, P10 Screening | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis, and its messaging endpoint, each server on its own network |
+| P7 Practice app | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
 | E1 Data scientist | `train`, run by hand |
 
 Two containers have no DFD element: `register`, part of setup, and `proxy`,
@@ -260,17 +259,22 @@ screening comes back to the practice.
 
 ### Stop, reset, clean up
 
-- Ctrl-C in the first terminal stops every container.
-- With the demo stopped, `docker compose run --rm reset` deletes the six
-  databases, so the
-  next start seeds them afresh; certificates, cohorts and final models stay.
-  Deleting `demo/` starts over completely.
+- Ctrl-C in the first terminal stops every container; `up` again carries on
+  where it stopped.
+- Each party's data is a Docker volume of its own: certificates, keys,
+  cohorts, final models, the SuperLink's state and the databases.
+  `docker compose down -v` deletes them all, so the next `up` starts over;
+  `demo/` on your machine keeps only what that must not cost you: the
+  browser CA you trusted (`demo/browser-ca/`) and the Hugging Face downloads
+  (`demo/huggingface/`). `prepare` still asks Hugging Face, but downloads
+  nothing twice.
+- To look into a party's database while the demo runs:
+  `docker compose exec uz-leuven-web python -m sqlite3 /demo/hospitals/uz-leuven/web.sqlite3`.
 - `CAROOT=$PWD/demo/browser-ca mkcert -uninstall` removes the trust again.
 
-A `demo/` from before the containers keeps its data; its certificates are
-reissued for the containers' host names. The migrations were restarted from
-one `0001_initial` per app on 2026-11-03: a `demo/` with older databases needs
-the reset above once.
+A `demo/` from before the volumes (2026-11-03) still holds `startup/`,
+`hospitals/` and `practices/`; nothing reads them any more, so delete those
+three once. The first `up` downloads the cohorts again.
 
 ### Without Docker
 

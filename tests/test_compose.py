@@ -17,14 +17,21 @@ from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 from tools.demo import COLOURS, PRACTICES
 
 ROOT = Path(__file__).resolve().parents[1]
-DEMO = ROOT / "demo"
 HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
 PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
 # Each practice sends to the hospital of the same cycle (spec §9).
 PRACTICE_HOSPITAL = dict(zip(PRACTICE_SLUGS, HOSPITAL_SLUGS, strict=True))
-STARTUP_SERVICES = {"prepare", "reset", "superlink", "serverapp", "register", "train"}
-# Out-of-band setup (report, assumptions): only these see every party's folder.
-SETUP_SERVICES = {"prepare", "reset"}
+STARTUP_SERVICES = {
+    "prepare",
+    "flower-superlink",
+    "flower-server-app",
+    "register",
+    "train",
+}
+# Out-of-band setup (report, assumptions): the one service that sees every party.
+SETUP_SERVICES = {"prepare"}
+# What a reset keeps, on the host: the CA the browser trusts, and the downloads.
+HOST_FOLDERS = {"browser-ca", "huggingface"}
 # Between the browser and the parties, like the internet: it sees only names.
 NETWORK_SERVICES = {"proxy"}
 
@@ -57,15 +64,30 @@ def service(name: str) -> dict[str, Any]:
     return found
 
 
+def volume_folder(volume: str) -> str:
+    """The party folder a named volume holds, as prepare lays it out under /demo."""
+    if volume == "startup":
+        return "startup"
+    if volume in HOSPITAL_SLUGS:
+        return f"hospitals/{volume}"
+    if volume in PRACTICE_SLUGS:
+        return f"practices/{volume}"
+    raise AssertionError(f"{volume} is no party's volume")
+
+
 def mounts(name: str) -> dict[str, tuple[str, bool]]:
-    """Each bind mount's target, with its source relative to demo/ and whether read-only."""
-    return {
-        volume["target"]: (
-            str(Path(volume["source"]).relative_to(DEMO)),
-            bool(volume.get("read_only", False)),
-        )
-        for volume in service(name).get("volumes", [])
-    }
+    """Each mount's target, with what it shows and whether read-only: a party
+    volume's folder and subpath, or bind:<path in the checkout> for the host."""
+    found = {}
+    for volume in service(name).get("volumes", []):
+        if volume["type"] == "volume":
+            subpath = volume.get("volume", {}).get("subpath")
+            source = volume_folder(volume["source"])
+            source += f"/{subpath}" if subpath else ""
+        else:
+            source = f"bind:{Path(volume['source']).relative_to(ROOT)}"
+        found[volume["target"]] = (source, bool(volume.get("read_only", False)))
+    return found
 
 
 def party_folder(name: str) -> str:
@@ -85,16 +107,21 @@ def test_one_service_per_process_of_each_party() -> None:
     assert set(config()["services"]) == STARTUP_SERVICES | NETWORK_SERVICES | {
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
-        for role in ("supernode", "clientapp", "web", "lab-orders")
-    } | {f"{slug}-{role}" for slug in PRACTICE_SLUGS for role in ("web", "reports")}
+        for role in ("flower-supernode", "flower-client-app", "web")
+    } | {f"{slug}-web" for slug in PRACTICE_SLUGS}
 
 
 def test_each_service_mounts_only_its_own_partys_folder() -> None:
-    for name in SETUP_SERVICES:
-        assert mounts(name) == {"/demo": (".", False)}, name
+    parties = ["startup"] + [volume_folder(slug) for slug in HOSPITAL_SLUGS]
+    parties += [volume_folder(slug) for slug in PRACTICE_SLUGS]
+    assert mounts("prepare") == {
+        **{f"/demo/{folder}": (folder, False) for folder in parties},
+        **{f"/demo/{name}": (f"bind:demo/{name}", False) for name in HOST_FOLDERS},
+    }
     for name in set(config()["services"]) - SETUP_SERVICES - NETWORK_SERVICES:
         folder = party_folder(name)
         for target, (source, _) in mounts(name).items():
+            # A party volume, never the host: `down -v` leaves no party data.
             assert source.startswith(folder), (name, source)
             # Every container sees a folder at the path prepare wrote it to.
             assert target == f"/demo/{source}", (name, target)
@@ -104,7 +131,7 @@ def test_each_service_mounts_only_its_own_partys_folder() -> None:
 def test_the_startups_code_at_a_hospital_sees_only_the_cohort_and_final_models(
     slug: str,
 ) -> None:
-    clientapp = f"{slug}-clientapp"
+    clientapp = f"{slug}-flower-client-app"
     assert mounts(clientapp) == {
         f"/demo/hospitals/{slug}/cohort": (f"hospitals/{slug}/cohort", True),
         f"/demo/hospitals/{slug}/final-models": (
@@ -113,22 +140,21 @@ def test_the_startups_code_at_a_hospital_sees_only_the_cohort_and_final_models(
         ),
     }
     # It reaches its SuperNode and nothing else: no web app, no internet.
-    assert set(service(clientapp)["networks"]) == {f"{slug}-clientapp"}
-    assert config()["networks"][f"{slug}-clientapp"]["internal"] is True
+    assert set(service(clientapp)["networks"]) == {f"{slug}-flower-client-app"}
+    assert config()["networks"][f"{slug}-flower-client-app"]["internal"] is True
     members = {
         name
         for name, spec in config()["services"].items()
-        if f"{slug}-clientapp" in spec.get("networks", {})
+        if f"{slug}-flower-client-app" in spec.get("networks", {})
     }
-    assert members == {clientapp, f"{slug}-supernode"}
+    assert members == {clientapp, f"{slug}-flower-supernode"}
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-@pytest.mark.parametrize("role", ["web", "lab-orders"])
 def test_the_hospitals_own_apps_see_no_cohort_no_supernode_key_and_read_only_final_models(
-    slug: str, role: str
+    slug: str,
 ) -> None:
-    name = f"{slug}-{role}"
+    name = f"{slug}-web"
     assert set(service(name)["tmpfs"]) == {
         f"/demo/hospitals/{slug}/cohort",
         f"/demo/hospitals/{slug}/supernode",
@@ -139,7 +165,7 @@ def test_the_hospitals_own_apps_see_no_cohort_no_supernode_key_and_read_only_fin
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
 def test_the_supernode_mounts_its_key_and_ca_certificate_but_no_data(slug: str) -> None:
-    assert mounts(f"{slug}-supernode") == {
+    assert mounts(f"{slug}-flower-supernode") == {
         f"/demo/hospitals/{slug}/{folder}": (f"hospitals/{slug}/{folder}", True)
         for folder in ("certificates", "supernode")
     }
@@ -179,7 +205,7 @@ def test_crossings_and_the_startup_are_internal_networks() -> None:
     assert internal == {"startup", "model-updates"} | {
         f"{slug}-{kind}"
         for slug in HOSPITAL_SLUGS
-        for kind in ("clientapp", "lab-orders")
+        for kind in ("flower-client-app", "lab-orders")
     }
 
 
@@ -189,7 +215,9 @@ def test_model_updates_connect_only_the_superlink_and_the_supernodes() -> None:
         for name, spec in config()["services"].items()
         if "model-updates" in spec.get("networks", {})
     }
-    assert members == {"superlink"} | {f"{slug}-supernode" for slug in HOSPITAL_SLUGS}
+    assert members == {"flower-superlink"} | {
+        f"{slug}-flower-supernode" for slug in HOSPITAL_SLUGS
+    }
 
 
 @pytest.mark.parametrize("practice", PRACTICE_SLUGS)
@@ -197,20 +225,37 @@ def test_each_practice_reaches_only_its_own_hospitals_lab_order_endpoint(
     practice: str,
 ) -> None:
     hospital = PRACTICE_HOSPITAL[practice]
-    for role in ("web", "reports"):
-        spec = service(f"{practice}-{role}")
-        assert set(spec["networks"]) == {practice, f"{hospital}-lab-orders"}
-        assert spec["environment"]["MESSAGING_ADDRESS"] == f"{hospital}-lab-orders:8441"
+    spec = service(f"{practice}-web")
+    assert set(spec["networks"]) == {practice, f"{hospital}-lab-orders"}
+    assert spec["environment"]["MESSAGING_ADDRESS"] == f"{hospital}-lab-orders:8441"
     members = {
         name
         for name, spec in config()["services"].items()
         if f"{hospital}-lab-orders" in spec.get("networks", {})
     }
     assert members == {
-        f"{hospital}-lab-orders",
+        f"{hospital}-web",
         f"{practice}-web",
-        f"{practice}-reports",
     }
+
+
+@pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
+def test_the_hospital_serves_its_pages_and_its_lab_orders_each_on_one_network_only(
+    slug: str,
+) -> None:
+    # One container, two servers: each listens on a name only one network
+    # knows, so its practice reaches port 8441 and never the pages on 8000.
+    spec = service(f"{slug}-web")
+    assert spec["networks"] == {
+        slug: {"aliases": [f"{slug}-pages"]},
+        f"{slug}-lab-orders": {"aliases": [f"{slug}-lab-orders"]},
+    }
+    script = spec["command"][-1]
+    assert f"--bind={slug}-pages:8000" in script
+    assert f"serve_messages {slug}-lab-orders:8441" in script
+    # Either server stopping stops the container, which compose restarts.
+    assert "wait -n" in script
+    assert spec["restart"] == "unless-stopped"
 
 
 def test_each_web_app_knows_its_party_name_and_colour() -> None:
@@ -226,24 +271,18 @@ def test_each_web_app_knows_its_party_name_and_colour() -> None:
             assert (vendor / f"pico.{colour}.min.css").is_file(), colour
 
 
-def test_each_practice_checks_for_lab_reports_every_five_seconds() -> None:
-    # The demo squeezes hours into seconds; a real practice checks every 60.
-    for slug in PRACTICE_SLUGS:
-        for role in ("web", "reports"):
-            environment = service(f"{slug}-{role}")["environment"]
-            assert environment["REPORT_CHECK_SECONDS"] == "5"
-        assert service(f"{slug}-reports")["command"][-2:] == [
-            "check_for_lab_reports",
-            "--repeat",
-        ]
+def test_no_practice_service_runs_on_a_timer() -> None:
+    # Lab reports come only on Check for reports (R23).
+    for name, spec in config()["services"].items():
+        assert "REPORT_CHECK_SECONDS" not in (spec.get("environment") or {}), name
 
 
 def test_every_flower_connection_across_a_boundary_uses_tls() -> None:
-    superlink = service("superlink")["command"]
+    superlink = service("flower-superlink")["command"]
     for flag in ("--ssl-ca-certfile", "--ssl-certfile", "--ssl-keyfile"):
         assert any(argument.startswith(f"{flag}=") for argument in superlink), flag
     for slug in HOSPITAL_SLUGS:
-        supernode = service(f"{slug}-supernode")["command"]
+        supernode = service(f"{slug}-flower-supernode")["command"]
         assert (
             f"--root-certificates=/demo/hospitals/{slug}/certificates/ca.crt"
             in supernode
@@ -254,14 +293,15 @@ def test_every_flower_connection_across_a_boundary_uses_tls() -> None:
         for name, spec in config()["services"].items()
         if "--insecure" in (spec.get("command") or [])
     }
-    assert insecure == {f"{slug}-clientapp" for slug in HOSPITAL_SLUGS}
+    assert insecure == {f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS}
 
 
 def test_the_superlink_keeps_its_state_with_the_startup() -> None:
     assert (
-        "--database=/demo/startup/superlink/state.db" in service("superlink")["command"]
+        "--database=/demo/startup/superlink/state.db"
+        in service("flower-superlink")["command"]
     )
-    assert mounts("superlink")["/demo/startup/superlink"] == (
+    assert mounts("flower-superlink")["/demo/startup/superlink"] == (
         "startup/superlink",
         False,
     )
@@ -271,10 +311,29 @@ def test_the_superlink_keeps_its_state_with_the_startup() -> None:
 def test_every_web_app_serves_https_with_its_partys_own_certificate(slug: str) -> None:
     name = f"{slug}-web"
     folder = party_folder(name)
-    command = service(name)["command"]
-    assert command[:2] == ["gunicorn", "web.wsgi"]
+    # A practice runs gunicorn alone; a hospital beside its messaging endpoint.
+    command = " ".join(service(name)["command"])
+    assert "gunicorn web.wsgi" in command
     assert f"--certfile=/demo/{folder}/web-tls/certificate.pem" in command
     assert f"--keyfile=/demo/{folder}/web-tls/key.pem" in command
+
+
+def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
+    # One volume per party, none external, so `docker compose down -v` deletes
+    # them all; the downloads and the browser's CA stay on the host.
+    volumes = config()["volumes"]
+    assert set(volumes) == {"startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS}
+    assert not any(spec.get("external") for spec in volumes.values())
+    binds = {
+        (name, source)
+        for name in config()["services"]
+        for source, _ in mounts(name).values()
+        if source.startswith("bind:")
+    }
+    assert binds == {("prepare", f"bind:demo/{name}") for name in HOST_FOLDERS} | {
+        ("proxy", "bind:docker/sni-proxy.conf")
+    }
+    assert service("prepare")["environment"]["HF_HOME"] == "/demo/huggingface"
 
 
 def test_no_running_service_runs_with_debug() -> None:
@@ -291,7 +350,15 @@ def test_no_running_service_runs_with_debug() -> None:
     ("demo_user", "user"), [(None, "1000:1000"), ("1234:5678", "1234:5678")]
 )
 def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -> None:
-    # On Linux a bind mount keeps numeric IDs: every container writes demo/ as
-    # one user, by default the first account of most Linux machines.
-    users = {spec.get("user") for spec in config(demo_user)["services"].values()}
+    # A fresh volume belongs to root, and on Linux a bind mount keeps numeric
+    # IDs: every container writes as one user, by default the first account of
+    # most Linux machines. Only prepare starts as root, to hand them over.
+    services = config(demo_user)["services"]
+    users = {spec.get("user") for name, spec in services.items() if name != "prepare"}
     assert users == {user}
+    prepare = services["prepare"]
+    assert prepare["user"] == "root"
+    assert prepare["environment"]["DEMO_USER"] == user
+    script = prepare["entrypoint"][-2]
+    assert "chown" in script
+    assert "exec setpriv" in script

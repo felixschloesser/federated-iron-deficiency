@@ -530,23 +530,10 @@ def test_check_for_reports_is_offered_only_with_a_laboratory_to_ask(
     assert client.post(reverse("practice:check_for_reports")).status_code == 404
 
 
-def test_the_command_checks_for_reports(
-    practice: Path, owner: GeneralPractitioner
-) -> None:
-    record = released_ferritin(owner)
-    call_command("check_for_lab_reports")
-    assert LabReport.objects.filter(order__sample__patient=record).exists()
-
-
-def test_the_command_needs_a_laboratory_to_ask() -> None:
-    with pytest.raises(CommandError, match="add_laboratory"):
-        call_command("check_for_lab_reports")
-
-
-def test_an_awaited_lab_report_says_when_it_arrives(
+def test_an_awaited_lab_report_says_how_to_fetch_it(
     client: Client, settings: Settings, practice: Path, owner: GeneralPractitioner
 ) -> None:
-    settings.REPORT_CHECK_SECONDS = 5
+    # No timer fetches lab reports: only Check for reports does (R23).
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
     client.post(new_order_url(client, record))
@@ -555,7 +542,7 @@ def test_an_awaited_lab_report_says_when_it_arrives(
     assertContains(response, "<mark>Awaiting lab report</mark>")
     assertContains(
         response,
-        "<small>New reports arrive within 5 seconds; reload to see them.</small>",
+        "<small>Check for reports on Orders to fetch it.</small>",
     )
 
 

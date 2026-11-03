@@ -296,6 +296,9 @@ def test_service_refusal_is_shown_on_its_field(
     assert [error.code for error in errors["indication"]] == ["indication_required"]
     # The summary links to the first radio button: a radio group's label has no id.
     assertContains(response, '<a href="#id_indication_0">')
+    # The group's legend, and the summary's link, name the field without a colon.
+    assertContains(response, "<legend>Clinical indication</legend>")
+    assertContains(response, "Clinical indication: A CBC needs a clinical indication.")
     assert not Order.objects.exists()
 
 
@@ -553,6 +556,8 @@ def test_an_order_says_whether_its_lab_order_is_sent(
     response = client.get(patient_url(patient))
     assertContains(response, "<mark>Awaiting lab report</mark>")
     assertNotContains(response, "not sent yet")
+    # No laboratory to ask, so no hint to check for reports.
+    assertNotContains(response, "Check for reports on Orders")
 
 
 def test_with_several_laboratories_collecting_starts_with_the_choice(

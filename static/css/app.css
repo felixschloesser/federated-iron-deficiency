@@ -61,6 +61,18 @@ article[data-level="error"] {
   --alert-color: var(--pico-del-color);
 }
 
+/* A field's own errors, as Django renders them (ul.errorlist, linked from the field
+   by aria-describedby): in Pico's error colour, as plain lines, not a bullet list. */
+.errorlist {
+  margin: 0 0 calc(var(--pico-spacing) / 2);
+  padding: 0;
+  color: var(--pico-del-color);
+}
+
+.errorlist li {
+  list-style: none;
+}
+
 /* Text for screen readers only, such as the header of an action column. */
 .visually-hidden {
   position: absolute;

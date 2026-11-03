@@ -2,7 +2,6 @@ from functools import cached_property
 from typing import Any
 
 import grpc
-from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import F, Prefetch, QuerySet
@@ -117,9 +116,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             "actions": [collect_action] if laboratories > 1 else [],
             "post_actions": [] if laboratories > 1 else [collect_action],
             # Only an app with a laboratory to ask fetches lab reports (R23).
-            "report_check_seconds": settings.REPORT_CHECK_SECONDS
-            if laboratories
-            else None,
+            "fetches_reports": laboratories > 0,
             "samples": [
                 {
                     "sample": sample,

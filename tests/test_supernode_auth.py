@@ -16,17 +16,18 @@ HOSPITAL_SLUGS = sorted(hospital_slug(name) for name in HOSPITALS.values())
 
 
 def test_the_superlink_admits_only_registered_supernodes() -> None:
-    assert "--enable-supernode-auth" in service("superlink")["command"]
+    assert "--enable-supernode-auth" in service("flower-superlink")["command"]
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
 def test_each_supernode_signs_in_with_its_hospitals_own_key(slug: str) -> None:
     key = demo.supernode_key(demo.hospital_dir(Path("/demo"), slug))
     assert (
-        f"--auth-supernode-private-key={key}" in service(f"{slug}-supernode")["command"]
+        f"--auth-supernode-private-key={key}"
+        in service(f"{slug}-flower-supernode")["command"]
     )
     # The key is the hospital's own, mounted read-only into its SuperNode alone.
-    assert mounts(f"{slug}-supernode")[str(key.parent)] == (
+    assert mounts(f"{slug}-flower-supernode")[str(key.parent)] == (
         f"hospitals/{slug}/supernode",
         True,
     )

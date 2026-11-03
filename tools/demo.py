@@ -2,19 +2,19 @@
 
     docker compose up --build --abort-on-container-failure
     docker compose run --rm train   # one training run, submitted inside TB2
-    python tools/demo.py reset      # with the demo stopped: fresh web databases
+    docker compose down -v          # start over; demo/ on the host stays
 
-Compose runs `prepare` and `register` from here as one-shot containers. The
-startup runs the SuperLink; each hospital a SuperNode, the startup's ClientApp
-in a container of its own, a web app and its lab-order endpoint; each general
-practitioner's practice its own web app and a process that fetches lab reports.
+Compose runs `prepare` and `register` from here as one-shot containers, each
+party's folder a volume of its own. The startup runs the SuperLink; each
+hospital a SuperNode, the startup's ClientApp in a container of its own, and
+one container for its web app and lab-order endpoint; each general
+practitioner's practice its own web app.
 """
 
 import argparse
 import json
 import os
 import shutil
-import socket
 import subprocess
 import sys
 import time
@@ -37,7 +37,7 @@ from web.seeding.accounts import (
 ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API over HTTPS on this one address, the
 # SuperLink's service name in compose.yaml.
-SUPERLINK = "superlink:9092"
+SUPERLINK = "flower-superlink:9092"
 # The demo's parties, declared in demo.toml; keyed here by cycle, like HOSPITALS.
 PARTIES = tomllib.loads((ROOT / "demo.toml").read_text())["hospitals"]
 _ENTRIES = {cycle: PARTIES[hospital_slug(name)] for cycle, name in HOSPITALS.items()}
@@ -389,26 +389,9 @@ def summary(statuses: dict[str, str], https_port: int = 443) -> str:
     return "\n".join(lines)
 
 
-def web_app_listening() -> bool:
-    """Whether the proxy answers on its port: the demo is up."""
-    with socket.socket() as probe:
-        port = int(os.environ.get("DEMO_HTTPS_PORT", "443"))
-        return probe.connect_ex(("127.0.0.1", port)) == 0
-
-
-def reset(demo_dir: Path, demo_running: Callable[[], bool] = web_app_listening) -> None:
-    """Remove every party's web database, so the next `up` migrates and seeds
-    afresh. Certificates, cohorts, final models and NHANES data stay."""
-    if demo_running():
-        raise SystemExit("Stop the demo (Ctrl-C) before resetting it.")
-    for database in sorted(demo_dir.glob("*/*/web.sqlite3")):
-        database.unlink()
-        print(f"Removed {database.relative_to(demo_dir)}", flush=True)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["prepare", "register", "reset"])
+    parser.add_argument("action", choices=["prepare", "register"])
     parser.add_argument("--demo-dir", type=Path, default=ROOT / "demo")
     args = parser.parse_args()
     demo_dir = args.demo_dir.resolve()
@@ -416,10 +399,8 @@ def main() -> None:
         prepare(demo_dir)
         https_port = int(os.environ.get("DEMO_HTTPS_PORT", "443"))
         print(summary(prepare_webs(demo_dir), https_port), flush=True)
-    elif args.action == "register":
-        register_supernodes(demo_dir)
     else:
-        reset(demo_dir)
+        register_supernodes(demo_dir)
 
 
 if __name__ == "__main__":

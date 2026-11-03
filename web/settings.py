@@ -59,9 +59,6 @@ if PARTY_DIR is not None and "DATABASE_NAME" in os.environ:
         "DATABASE_NAME cannot be set with HOSPITAL_DIR or PRACTICE_DIR:"
         " the database lives in that folder."
     )
-# How often the practice fetches new lab reports (R23); the demo, which squeezes
-# hours into seconds, sets a shorter interval.
-REPORT_CHECK_SECONDS = int(os.environ.get("REPORT_CHECK_SECONDS", "60"))
 
 
 def _secret_key() -> str:
