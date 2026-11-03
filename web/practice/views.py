@@ -276,5 +276,17 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
             f"{capfirst(placed.get_test_display())} ordered on sample"
             f" {placed.sample.sample_id}.",
         )
-        # Its lab order goes out with the next check for reports (R22, R23).
+        if (connection := messaging.configured_connection()) is not None:
+            try:
+                messaging.send_pending_lab_orders(
+                    connection,
+                    now=timezone.now(),
+                    timeout=messaging.IN_REQUEST_TIMEOUT_SECONDS,
+                )
+            except grpc.RpcError as error:
+                messages.warning(
+                    self.request,
+                    f"{messaging.failure(error)} The lab order is sent with the"
+                    " next check for reports.",
+                )
         return super().form_valid(form)
