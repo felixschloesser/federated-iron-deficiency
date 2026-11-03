@@ -67,6 +67,7 @@ staff is replaced and the report's word moves to the rejected column.
 | CBC value names and units, e.g. *Hemoglobin*, g/dL | NHANES 2021–2023 CBC_L codebook, SAS labels (`sources/nhanes-2021-2023-CBC_L.htm`) | The values are NHANES's own, in its units; no conversion | Hb, Ht and other report abbreviations (no source; other units) |
 | Ferritin, ng/mL | NHANES 2021–2023 FERTIN_L codebook (`sources/nhanes-2021-2023-FERTIN_L.htm`) | As above | µg/L (LBDFERSI) |
 | Ferritin (made up for the demo), ng/mL | User decision, 2026-11-01: NHANES has no ferritin for men and women outside 12–49 | Tells the general practitioner the value is not a measurement; kept apart from ferritin so it never feeds a suggestion or a label | ferritin (would pass a made-up value as measured), synthetic ferritin |
+| Flower container (`flower-` prefix) | Flower documentation, *Flower Architecture*: SuperLink, ServerApp, SuperNode, ClientApp | Marks the compose services that are Flower's components, apart from each party's own apps; Flower's own names, as words: `flower-superlink`, `flower-server-app`, `<hospital>-flower-supernode`, `<hospital>-flower-client-app` (and its TB4 network) | `serverapp`, `clientapp` (Flower's names run together); startup code (the report's TB4 label, which the report keeps) |
 
 ## 2. Goal model
 
@@ -301,15 +302,15 @@ containers; P1 and P5 are not built).
 
 | Container | Image | Network | Mounts |
 |---|---|---|---|
-| `superlink` | `flwr/superlink` | `startup`, `model-updates` | `startup/superlink`, `startup/certificates` (read-only) |
-| `serverapp` | built: SuperExec with the app's dependencies | `startup` | `startup/trust`, `startup/final-models` |
-| `<hospital>-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-clientapp` | its `certificates/` and `supernode/` (read-only) |
-| `<hospital>-clientapp` | built: SuperExec with the app's dependencies | `<hospital>-clientapp` | its `cohort/` (read-only), `final-models/` (R28) |
+| `flower-superlink` | `flwr/superlink` | `startup`, `model-updates` | `startup/superlink`, `startup/certificates` (read-only) |
+| `flower-server-app` | built: SuperExec with the app's dependencies | `startup` | `startup/trust`, `startup/final-models` |
+| `<hospital>-flower-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-flower-client-app` | its `certificates/` and `supernode/` (read-only) |
+| `<hospital>-flower-client-app` | built: SuperExec with the app's dependencies | `<hospital>-flower-client-app` | its `cohort/` (read-only), `final-models/` (R28) |
 | `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `<hospital>-lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/` and `supernode/` masked and `final-models/` read-only |
 | `<practice>-web` | built: the project | `<practice>`, its hospital's `<hospital>-lab-orders` | its folder |
 | `proxy` | `nginx` (`docker/sni-proxy.conf`) | every `<hospital>` and `<practice>` network | none |
 
-`startup`, `model-updates` (DF7–DF10), each `<hospital>-clientapp` (TB4) and
+`startup`, `model-updates` (DF7–DF10), each `<hospital>-flower-client-app` (TB4) and
 each `<hospital>-lab-orders` (DF23, DF25) are internal networks: nothing on
 them reaches outside the deployment. Only the `proxy` is published, on
 `127.0.0.1:443` (`DEMO_HTTPS_PORT`): it routes each `<party>.localhost`

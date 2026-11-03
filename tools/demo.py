@@ -37,7 +37,7 @@ from web.seeding.accounts import (
 ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API over HTTPS on this one address, the
 # SuperLink's service name in compose.yaml.
-SUPERLINK = "superlink:9092"
+SUPERLINK = "flower-superlink:9092"
 # The demo's parties, declared in demo.toml; keyed here by cycle, like HOSPITALS.
 PARTIES = tomllib.loads((ROOT / "demo.toml").read_text())["hospitals"]
 _ENTRIES = {cycle: PARTIES[hospital_slug(name)] for cycle, name in HOSPITALS.items()}

@@ -149,9 +149,9 @@ not a process of the report's DFDs:
 | DFD element | Where it runs |
 |---|---|
 | P1 Cohort extraction | not built: `prepare` stands in, saving each hospital's cohort |
-| P2 SuperNode, ClientApp | two containers: `<hospital>-supernode`, and `<hospital>-clientapp` for the startup's code (TB4) |
-| P3 SuperLink | `superlink` |
-| P4 ServerApp | `serverapp` |
+| P2 SuperNode, ClientApp | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
+| P3 SuperLink | `flower-superlink` |
+| P4 ServerApp | `flower-server-app` |
 | P5 Model sale, E3 Other hospitals | not built |
 | P6 Model deployment, P8 Messaging endpoint, P9 Lab analysis, P10 Screening | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis, and its messaging endpoint, each server on its own network |
 | P7 Practice app | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
