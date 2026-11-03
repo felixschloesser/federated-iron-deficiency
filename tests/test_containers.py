@@ -40,7 +40,7 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
     if not engine_running():
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
     subprocess.run(
-        ["docker", "compose", "build", "prepare", "serverapp"],
+        ["docker", "compose", "build", "prepare", "flower-server-app"],
         cwd=ROOT,
         capture_output=True,
         check=True,
@@ -96,10 +96,12 @@ def start(run: Compose, folder: Path) -> None:
         " (hospital / 'cohort' / 'rows.arrow').write_text('cohort');"
         " (hospital / 'web.sqlite3').write_text('lab orders')",
     )
-    run("up", "--detach", "--no-deps", "--no-build", "superlink")
+    run("up", "--detach", "--no-deps", "--no-build", "flower-superlink")
     deadline = time.monotonic() + 120
-    while "healthy" not in run("ps", "--format", "{{.Status}}", "superlink").stdout:
-        assert time.monotonic() < deadline, run("logs", "superlink").stdout
+    while (
+        "healthy" not in run("ps", "--format", "{{.Status}}", "flower-superlink").stdout
+    ):
+        assert time.monotonic() < deadline, run("logs", "flower-superlink").stdout
         time.sleep(2)
     run("run", "--rm", "--no-deps", "register")
     run(
@@ -108,9 +110,9 @@ def start(run: Compose, folder: Path) -> None:
         "--no-deps",
         "--no-build",
         # With process isolation the SuperLink runs no ServerApp itself.
-        "serverapp",
-        f"{HOSPITAL}-supernode",
-        f"{HOSPITAL}-clientapp",
+        "flower-server-app",
+        f"{HOSPITAL}-flower-supernode",
+        f"{HOSPITAL}-flower-client-app",
     )
 
 
@@ -136,7 +138,9 @@ def online_nodes(run: Compose) -> int:
 def wait_until_online(run: Compose) -> None:
     deadline = time.monotonic() + 120
     while online_nodes(run) < 1:
-        assert time.monotonic() < deadline, run("logs", f"{HOSPITAL}-supernode").stdout
+        assert time.monotonic() < deadline, run(
+            "logs", f"{HOSPITAL}-flower-supernode"
+        ).stdout
         time.sleep(2)
 
 
@@ -175,7 +179,7 @@ def test_the_superlink_admits_the_registered_hospital_and_refuses_any_other_node
     wait_until_online(compose)
     stranger = certificates.make_key_pair(tmp_path / "stranger" / "key")
     supernode = [
-        "--superlink=superlink:9092",
+        "--superlink=flower-superlink:9092",
         f"--root-certificates=/demo/hospitals/{HOSPITAL}/certificates/ca.crt",
         "--isolation=process",
     ]
@@ -191,7 +195,7 @@ def test_the_superlink_admits_the_registered_hospital_and_refuses_any_other_node
             "--rm",
             "--no-deps",
             *extra,
-            f"{HOSPITAL}-supernode",
+            f"{HOSPITAL}-flower-supernode",
             *supernode,
             *key,
             check=False,

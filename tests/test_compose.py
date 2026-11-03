@@ -21,7 +21,13 @@ HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
 PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
 # Each practice sends to the hospital of the same cycle (spec §9).
 PRACTICE_HOSPITAL = dict(zip(PRACTICE_SLUGS, HOSPITAL_SLUGS, strict=True))
-STARTUP_SERVICES = {"prepare", "superlink", "serverapp", "register", "train"}
+STARTUP_SERVICES = {
+    "prepare",
+    "flower-superlink",
+    "flower-server-app",
+    "register",
+    "train",
+}
 # Out-of-band setup (report, assumptions): the one service that sees every party.
 SETUP_SERVICES = {"prepare"}
 # What a reset keeps, on the host: the CA the browser trusts, and the downloads.
@@ -101,7 +107,7 @@ def test_one_service_per_process_of_each_party() -> None:
     assert set(config()["services"]) == STARTUP_SERVICES | NETWORK_SERVICES | {
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
-        for role in ("supernode", "clientapp", "web")
+        for role in ("flower-supernode", "flower-client-app", "web")
     } | {f"{slug}-web" for slug in PRACTICE_SLUGS}
 
 
@@ -125,7 +131,7 @@ def test_each_service_mounts_only_its_own_partys_folder() -> None:
 def test_the_startups_code_at_a_hospital_sees_only_the_cohort_and_final_models(
     slug: str,
 ) -> None:
-    clientapp = f"{slug}-clientapp"
+    clientapp = f"{slug}-flower-client-app"
     assert mounts(clientapp) == {
         f"/demo/hospitals/{slug}/cohort": (f"hospitals/{slug}/cohort", True),
         f"/demo/hospitals/{slug}/final-models": (
@@ -134,14 +140,14 @@ def test_the_startups_code_at_a_hospital_sees_only_the_cohort_and_final_models(
         ),
     }
     # It reaches its SuperNode and nothing else: no web app, no internet.
-    assert set(service(clientapp)["networks"]) == {f"{slug}-clientapp"}
-    assert config()["networks"][f"{slug}-clientapp"]["internal"] is True
+    assert set(service(clientapp)["networks"]) == {f"{slug}-flower-client-app"}
+    assert config()["networks"][f"{slug}-flower-client-app"]["internal"] is True
     members = {
         name
         for name, spec in config()["services"].items()
-        if f"{slug}-clientapp" in spec.get("networks", {})
+        if f"{slug}-flower-client-app" in spec.get("networks", {})
     }
-    assert members == {clientapp, f"{slug}-supernode"}
+    assert members == {clientapp, f"{slug}-flower-supernode"}
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
@@ -159,7 +165,7 @@ def test_the_hospitals_own_apps_see_no_cohort_no_supernode_key_and_read_only_fin
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
 def test_the_supernode_mounts_its_key_and_ca_certificate_but_no_data(slug: str) -> None:
-    assert mounts(f"{slug}-supernode") == {
+    assert mounts(f"{slug}-flower-supernode") == {
         f"/demo/hospitals/{slug}/{folder}": (f"hospitals/{slug}/{folder}", True)
         for folder in ("certificates", "supernode")
     }
@@ -199,7 +205,7 @@ def test_crossings_and_the_startup_are_internal_networks() -> None:
     assert internal == {"startup", "model-updates"} | {
         f"{slug}-{kind}"
         for slug in HOSPITAL_SLUGS
-        for kind in ("clientapp", "lab-orders")
+        for kind in ("flower-client-app", "lab-orders")
     }
 
 
@@ -209,7 +215,9 @@ def test_model_updates_connect_only_the_superlink_and_the_supernodes() -> None:
         for name, spec in config()["services"].items()
         if "model-updates" in spec.get("networks", {})
     }
-    assert members == {"superlink"} | {f"{slug}-supernode" for slug in HOSPITAL_SLUGS}
+    assert members == {"flower-superlink"} | {
+        f"{slug}-flower-supernode" for slug in HOSPITAL_SLUGS
+    }
 
 
 @pytest.mark.parametrize("practice", PRACTICE_SLUGS)
@@ -270,11 +278,11 @@ def test_no_practice_service_runs_on_a_timer() -> None:
 
 
 def test_every_flower_connection_across_a_boundary_uses_tls() -> None:
-    superlink = service("superlink")["command"]
+    superlink = service("flower-superlink")["command"]
     for flag in ("--ssl-ca-certfile", "--ssl-certfile", "--ssl-keyfile"):
         assert any(argument.startswith(f"{flag}=") for argument in superlink), flag
     for slug in HOSPITAL_SLUGS:
-        supernode = service(f"{slug}-supernode")["command"]
+        supernode = service(f"{slug}-flower-supernode")["command"]
         assert (
             f"--root-certificates=/demo/hospitals/{slug}/certificates/ca.crt"
             in supernode
@@ -285,14 +293,15 @@ def test_every_flower_connection_across_a_boundary_uses_tls() -> None:
         for name, spec in config()["services"].items()
         if "--insecure" in (spec.get("command") or [])
     }
-    assert insecure == {f"{slug}-clientapp" for slug in HOSPITAL_SLUGS}
+    assert insecure == {f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS}
 
 
 def test_the_superlink_keeps_its_state_with_the_startup() -> None:
     assert (
-        "--database=/demo/startup/superlink/state.db" in service("superlink")["command"]
+        "--database=/demo/startup/superlink/state.db"
+        in service("flower-superlink")["command"]
     )
-    assert mounts("superlink")["/demo/startup/superlink"] == (
+    assert mounts("flower-superlink")["/demo/startup/superlink"] == (
         "startup/superlink",
         False,
     )
