@@ -111,7 +111,6 @@ def deliver(order: "Order") -> "LabOrder":
             screened_indication=order.screened_indication,
             registered_sex=RegisteredSex(order.registered_sex),
             age=order.age,
-            general_practitioner=order.sample.patient.general_practitioner.name,
             ordered_at=order.ordered_at,
         ),
     )

@@ -145,7 +145,6 @@ def lab_sample(
             screened_indication=screened_indication,
             registered_sex=sex,
             age=age,
-            general_practitioner="Dr. Demo A",
             ordered_at=NOW,
         ),
     )

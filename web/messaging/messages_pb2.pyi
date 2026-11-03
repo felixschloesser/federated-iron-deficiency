@@ -75,7 +75,6 @@ class LabOrder(_message.Message):
     SCREENED_INDICATION_FIELD_NUMBER: _builtins.int
     REGISTERED_SEX_FIELD_NUMBER: _builtins.int
     AGE_FIELD_NUMBER: _builtins.int
-    GENERAL_PRACTITIONER_FIELD_NUMBER: _builtins.int
     ORDERED_AT_FIELD_NUMBER: _builtins.int
     sample_id: _builtins.str
     test: Test.ValueType
@@ -83,8 +82,6 @@ class LabOrder(_message.Message):
     """false when absent: never screened by mistake"""
     registered_sex: RegisteredSex.ValueType
     age: _builtins.int
-    general_practitioner: _builtins.str
-    """the ordering general practitioner's name"""
     @_builtins.property
     def ordered_at(self) -> _timestamp_pb2.Timestamp: ...
     def __init__(
@@ -95,7 +92,6 @@ class LabOrder(_message.Message):
         screened_indication: _builtins.bool = ...,
         registered_sex: RegisteredSex.ValueType = ...,
         age: _builtins.int = ...,
-        general_practitioner: _builtins.str = ...,
         ordered_at: _timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
     type _HasFieldArgType = _typing.Literal["ordered_at", b"ordered_at"]  # noqa: Y015
@@ -103,8 +99,6 @@ class LabOrder(_message.Message):
     type _ClearFieldArgType = _typing.Literal[
         "age",
         b"age",
-        "general_practitioner",
-        b"general_practitioner",
         "ordered_at",
         b"ordered_at",
         "registered_sex",

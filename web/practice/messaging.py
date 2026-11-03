@@ -73,7 +73,6 @@ def _send(
                 RegisteredSex(order.registered_sex), messages_pb2.RegisteredSex
             ),
             age=order.age,
-            general_practitioner=order.sample.patient.general_practitioner.name,
             ordered_at=timestamp(order.ordered_at),
         ),
         timeout=timeout,
@@ -87,7 +86,7 @@ def _send_pending(
     timeout: float = TIMEOUT_SECONDS,
 ) -> int:
     pending = Order.objects.filter(sent_at__isnull=True).select_related(
-        "sample__patient__general_practitioner"
+        "sample__patient"
     )
     for order in pending:
         _send(laboratory, order, timeout=timeout)

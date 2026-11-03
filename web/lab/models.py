@@ -100,7 +100,6 @@ class LabOrderDetails:
     screened_indication: bool
     registered_sex: RegisteredSex
     age: int
-    general_practitioner: str
     ordered_at: datetime
 
 
@@ -158,7 +157,6 @@ class LabOrderManager(models.Manager["LabOrder"]):
                 "screened_indication": details.screened_indication,
                 "registered_sex": details.registered_sex,
                 "age": details.age,
-                "general_practitioner": details.general_practitioner,
                 "ordered_at": details.ordered_at,
             },
         )
@@ -188,7 +186,7 @@ class LabOrder(models.Model):
     screened_indication = models.BooleanField(default=False)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
-    general_practitioner = models.CharField(max_length=100)
+    # No general practitioner: the sample's practice says who ordered (R13, R14).
     ordered_at = models.DateTimeField()
     # Absent until the analyser has run.
     analysed_at = models.DateTimeField(null=True, blank=True)

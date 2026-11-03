@@ -237,10 +237,10 @@ def has_one_lab_order(world: World, name: str, patient: str) -> None:
 @then(
     parsers.parse(
         "the lab order holds sample ID, test, whether its indication is screened,"
-        ' registered sex, age and "{owner}"'
+        ' registered sex and age, from practice "{practice}"'
     )
 )
-def lab_order_holds(world: World, owner: str) -> None:
+def lab_order_holds(world: World, practice: str) -> None:
     lab_order = LabOrder.objects.select_related("sample").get()
     placed = world["order"]
     assert lab_order.sample.sample_id == placed.sample.sample_id
@@ -250,7 +250,8 @@ def lab_order_holds(world: World, owner: str) -> None:
         placed.registered_sex,
         placed.age,
     )
-    assert lab_order.general_practitioner == owner
+    # The practice by its certificate name, from the channel; no general practitioner.
+    assert lab_order.sample.practice == practice
 
 
 @then("the connection is refused")

@@ -29,12 +29,13 @@ message LabOrder {
   reserved 2, 3, 4, 7;              // were strings: test, indication, sex, ordered_at
   reserved 9;                       // was the clinical indication itself
   reserved "indication";
+  reserved 6;                       // was the general practitioner's name: the
+  reserved "general_practitioner";  // practice's certificate says who ordered (R13)
   string sample_id = 1;
   Test test = 8;
   bool screened_indication = 12;    // false when absent: never screened by mistake
   RegisteredSex registered_sex = 10;
   uint32 age = 5;
-  string general_practitioner = 6;  // the ordering general practitioner's name
   google.protobuf.Timestamp ordered_at = 11;
 }
 

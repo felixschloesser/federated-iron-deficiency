@@ -27,6 +27,8 @@ staff is replaced and the report's word moves to the rejected column.
 | general practitioner | Report, Stakeholders table ("GP", spelled out); one per practice: user decision, 2026-11-03 | The report's orderer and reader of the lab report; spelled out everywhere in the app. A practice, and so its app, has exactly one | GP (abbreviation), requester, ordering physician (WHO 5-4, p. 66) |
 | laboratory staff | WHO LQMS, the handbook's word for the people who work in the laboratory (44 uses; e.g. ch. 5, Sample management) | Run the analyser; one record per person (`LaboratoryStaffMember`) | lab technician ("technician" in WHO LQMS means equipment service only), technologist (a qualified grade), laboratorian, laboratory worker |
 | patient | Report, Use case | The report's word | participant (NHANES word; data origin only) |
+| practice | Report, "Federated version": "Each GP practice runs its own app"; "Design choices and assumptions", DF24: "Lab orders, with the sending practice" | Who orders at the hospital: a general practitioner's practice, through its app, with one general practitioner (R13). The lab holds each sample by its practice | client (WHO 13-2; the code's word until 2026-11-03), sender, requester |
+| certificate name | Report, "Security solutions in place": the hospital "tells practices apart by certificate name" | The practice's name in the client certificate its hospital's authority issued it; the lab's key for the practice. Each hospital issues one practice certificate (demo.toml), so a name cannot be issued twice | client ID, practice ID, RIZIV/INAMI number |
 | order | Report, DF23 "lab order"; WHO glossary *path of workflow*, "physician's order" (p. 228) | Report and WHO agree | request, requisition (WHO), examination request (ISO 15189) |
 | test | Report, Use case "ferritin test" | Order picks one: CBC or ferritin | examination (ISO 15189) |
 | CBC (complete blood count) | Report, Use case | The report's word for the routine test | blood count (report uses both; one word only) |
@@ -128,7 +130,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R11 | *Order ferritin* is offered beside the comment of a lab report with *ferritin suggested* while that lab report's sample has no ferritin order (R26); it opens the ferritin order page on that sample, so the laboratory measures ferritin on the stored sample (R2). It is never offered without a suggestion: ferritin is ordered on suspicion (report, Use case). A ferritin order from the patient page collects a new sample and does not count. | `reports.feature` |
 | R12 | A ferritin sample is never screened; its lab report is visible once analysed. | `lab.feature`, `screening.feature`, `reports.feature` |
 | R13 | A practice has exactly one general practitioner: a second is refused (`one_general_practitioner`), by the database too. The practice's patients, orders and lab reports are that general practitioner's. | `access.feature` |
-| R14 | Lab queries select only sample ID, ordering general practitioner, registered sex, age, test, whether the indication is screened and results; never the patient's name, never the clinical indication. | `access.feature` |
+| R14 | Lab queries select only sample ID, registered sex, age, test, whether the indication is screened and results, by the sample's practice; never the patient's name, the general practitioner's name or the clinical indication. | `access.feature` |
 | R15 | `DEMO_LOGIN` (default off) shows one POST login button per seeded user. A deploy check fails when `DEMO_LOGIN` is on and `DEBUG` is off. | `access.feature` |
 | R22 | Placing an order sends a lab order (DF23) to the general practitioner's one hospital, waiting at most 2 seconds; if the hospital does not answer, the next check for reports (R23) sends it. The hospital records it once, however often the same message arrives. | `messaging.feature` |
 | R23 | The general practitioner's app fetches its new lab reports (DF25) from its hospital every `REPORT_CHECK_SECONDS` (60; the demo 5) and on *Check for reports*, and a lab report it is still waiting for says within how many seconds new ones arrive; it is always the client, the hospital never connects to it. | `messaging.feature` |
@@ -339,7 +341,7 @@ vocabulary member (`web.messaging.choices`), and its times are
 
 | Message | Fields | Never |
 |---|---|---|
-| Lab order (DF23) | sample ID, test, whether the indication is screened (CBC only), registered sex, age, ordering general practitioner's name | patient name, blood values, clinical indication |
+| Lab order (DF23) | sample ID, test, whether the indication is screened (CBC only), registered sex, age; the sending practice by its certificate name, from the channel | patient name, blood values, clinical indication, general practitioner's name |
 | Lab report (DF25) | sample ID, test, results, *ferritin suggested* (one bit), released at | score, screening result beyond that bit, not-screened reason, free text |
 
 The tube itself is not a message: the hospital's analyser stand-in looks up

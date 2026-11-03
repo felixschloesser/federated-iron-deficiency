@@ -65,7 +65,6 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
                     )
                 ),
                 "age": request.age,
-                "general_practitioner": request.general_practitioner,
                 "ordered_at": moment(request.ordered_at)
                 if request.HasField("ordered_at")
                 else None,

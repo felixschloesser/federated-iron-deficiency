@@ -14,5 +14,4 @@ class LabOrderForm(forms.Form):
         choices=RegisteredSex.choices, coerce=RegisteredSex
     )
     age = forms.IntegerField(min_value=0)
-    general_practitioner = forms.CharField(max_length=100)
     ordered_at = forms.DateTimeField()
