@@ -85,7 +85,7 @@ def test_one_service_per_process_of_each_party() -> None:
     assert set(config()["services"]) == STARTUP_SERVICES | NETWORK_SERVICES | {
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
-        for role in ("supernode", "clientapp", "web", "lab-orders")
+        for role in ("supernode", "clientapp", "web")
     } | {f"{slug}-web" for slug in PRACTICE_SLUGS}
 
 
@@ -124,11 +124,10 @@ def test_the_startups_code_at_a_hospital_sees_only_the_cohort_and_final_models(
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-@pytest.mark.parametrize("role", ["web", "lab-orders"])
 def test_the_hospitals_own_apps_see_no_cohort_no_supernode_key_and_read_only_final_models(
-    slug: str, role: str
+    slug: str,
 ) -> None:
-    name = f"{slug}-{role}"
+    name = f"{slug}-web"
     assert set(service(name)["tmpfs"]) == {
         f"/demo/hospitals/{slug}/cohort",
         f"/demo/hospitals/{slug}/supernode",
@@ -206,9 +205,28 @@ def test_each_practice_reaches_only_its_own_hospitals_lab_order_endpoint(
         if f"{hospital}-lab-orders" in spec.get("networks", {})
     }
     assert members == {
-        f"{hospital}-lab-orders",
+        f"{hospital}-web",
         f"{practice}-web",
     }
+
+
+@pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
+def test_the_hospital_serves_its_pages_and_its_lab_orders_each_on_one_network_only(
+    slug: str,
+) -> None:
+    # One container, two servers: each listens on a name only one network
+    # knows, so its practice reaches port 8441 and never the pages on 8000.
+    spec = service(f"{slug}-web")
+    assert spec["networks"] == {
+        slug: {"aliases": [f"{slug}-pages"]},
+        f"{slug}-lab-orders": {"aliases": [f"{slug}-lab-orders"]},
+    }
+    script = spec["command"][-1]
+    assert f"--bind={slug}-pages:8000" in script
+    assert f"serve_messages {slug}-lab-orders:8441" in script
+    # Either server stopping stops the container, which compose restarts.
+    assert "wait -n" in script
+    assert spec["restart"] == "unless-stopped"
 
 
 def test_each_web_app_knows_its_party_name_and_colour() -> None:
