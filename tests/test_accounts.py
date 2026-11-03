@@ -84,3 +84,10 @@ def test_a_wrong_password_marks_both_fields_invalid(client: Client) -> None:
     assertContains(response, 'aria-invalid="true"', count=2)
     # The form's error summary is the kit's error alert.
     assertContains(response, '<article role="alert" data-level="error"')
+
+
+def test_login_labels_have_no_trailing_colon(client: Client) -> None:
+    """The kit's labels read as names, not as prompts: "Username", not "Username:"."""
+    response = client.get(reverse("login"))
+    assertContains(response, '<label for="id_username">Username</label>')
+    assertContains(response, '<label for="id_password">Password</label>')

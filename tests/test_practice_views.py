@@ -296,6 +296,9 @@ def test_service_refusal_is_shown_on_its_field(
     assert [error.code for error in errors["indication"]] == ["indication_required"]
     # The summary links to the first radio button: a radio group's label has no id.
     assertContains(response, '<a href="#id_indication_0">')
+    # The group's legend, and the summary's link, name the field without a colon.
+    assertContains(response, "<legend>Clinical indication</legend>")
+    assertContains(response, "Clinical indication: A CBC needs a clinical indication.")
     assert not Order.objects.exists()
 
 
