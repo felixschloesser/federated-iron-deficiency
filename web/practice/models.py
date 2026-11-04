@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -17,18 +18,24 @@ TAKES_INDICATION = [test.value for test in Test if test.takes_indication()]
 
 class Laboratory(models.Model):
     """A hospital's laboratory the practice sends samples to (R22, R24). Its
-    certificates are in PRACTICE_DIR/laboratories/<slug> (add_laboratory)."""
+    certificates are in PRACTICE_DIR/laboratories/<folder> (add_laboratory)."""
 
     name = models.CharField(max_length=100, unique=True)
     # host:port of the hospital's messaging endpoint.
     address = models.CharField(max_length=200)
+    folder = models.CharField(max_length=100, unique=True)
 
     def __str__(self) -> str:
         return self.name
 
-    @property
-    def slug(self) -> str:
-        return slugify(self.name)
+    def certificate_folder(self) -> str:
+        """Its folder under laboratories/: fixed when it is added, from its name
+        then ("UZ Leuven": uz-leuven), so a later rename keeps its certificates."""
+        return self.folder or slugify(self.name)
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.folder = self.certificate_folder()
+        super().save(*args, **kwargs)
 
 
 class GeneralPractitioner(models.Model):

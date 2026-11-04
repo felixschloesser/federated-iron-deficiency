@@ -46,7 +46,7 @@ def connection_to(laboratory: Laboratory) -> Connection | None:
 
 def certificates_of(laboratory: Laboratory, practice_dir: Path) -> Path:
     """Where the practice keeps the certificates a laboratory's hospital issued it."""
-    return practice_dir / "laboratories" / laboratory.slug
+    return practice_dir / "laboratories" / laboratory.certificate_folder()
 
 
 @contextmanager
