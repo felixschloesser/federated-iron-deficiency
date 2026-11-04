@@ -88,8 +88,8 @@ def test_patients_lists_the_practices_patients(
 ) -> None:
     make_patient(general_practitioner, "Test Patient 3", RegisteredSex.MALE, 60)
     logged_in(client, general_practitioner)
-    # Session, user with general practitioner, ferritin suggestions, patients.
-    with django_assert_num_queries(4):
+    # Session, user with general practitioner, patients with their mark.
+    with django_assert_num_queries(3):
         response = client.get(reverse("practice:patients"))
     names = [listed.name for listed in response.context["patients"]]
     assert names == ["Test Patient 1", "Test Patient 3"]
@@ -516,13 +516,13 @@ def test_patients_can_be_searched_by_name(
 ) -> None:
     make_patient(general_practitioner, "Maria Peeters", RegisteredSex.FEMALE, 30)
     logged_in(client, general_practitioner)
-    with django_assert_num_queries(4):
+    with django_assert_num_queries(3):
         response = client.get(reverse("practice:patients"), {"q": "peet"})
     assert [listed.name for listed in response.context["patients"]] == ["Maria Peeters"]
     assertContains(response, 'value="peet"')
 
 
-def test_the_patients_page_lists_ferritin_suggestions_with_order_ferritin(
+def test_the_patients_list_marks_a_patient_awaiting_ferritin(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
     from web.practice.models import LabReport
@@ -536,13 +536,14 @@ def test_the_patients_page_lists_ferritin_suggestions_with_order_ferritin(
         released_at="2026-10-30T12:00:00+00:00",
         fetched_at="2026-10-30T12:05:00+00:00",
     )
+    # One table: the mark beside the name; Order ferritin is on the patient's
+    # page, beside the lab report (R11).
     response = client.get(reverse("practice:patients"))
-    assertContains(response, "Ferritin suggested (1)")
-    assertContains(
-        response, f'href="{sample_order_url(patient, OrderedTest.FERRITIN)}"'
-    )
+    assertContains(response, "<mark>Ferritin suggested</mark>", count=1)
+    assertNotContains(response, "Ferritin suggested (")
+    assertNotContains(response, "Order ferritin")
     client.post(sample_order_url(patient, OrderedTest.FERRITIN))
-    assertNotContains(client.get(reverse("practice:patients")), "Ferritin suggested (")
+    assertNotContains(client.get(reverse("practice:patients")), "Ferritin suggested")
 
 
 def test_an_order_says_whether_its_lab_order_is_sent(

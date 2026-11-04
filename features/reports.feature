@@ -21,11 +21,11 @@ Feature: Lab reports for the general practitioner
     Then the lab report has no comment
     And the lab report's note is "No ferritin suggestion. This does not rule out iron deficiency."
 
-  Scenario: A suggestion awaits the general practitioner until ferritin is ordered
+  Scenario: A patient is marked ferritin suggested until ferritin is ordered
     Given a CBC lab report for "Test Patient 1" with ferritin suggested
-    Then "Dr. Demo A" has the lab report among the ferritin suggestions
+    Then "Test Patient 1" is marked ferritin suggested
     When ferritin is ordered on the lab report's sample
-    Then "Dr. Demo A" has no ferritin suggestions
+    Then "Test Patient 1" is not marked ferritin suggested
 
   Scenario: Order ferritin is offered beside the suggestion
     Given a CBC lab report for "Test Patient 1" with ferritin suggested

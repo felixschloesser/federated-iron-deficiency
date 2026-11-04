@@ -19,7 +19,6 @@ from web.practice.forms import CollectSampleForm, OrderForm
 from web.practice.models import (
     GeneralPractitioner,
     Laboratory,
-    LabReport,
     Order,
     OrderQuerySet,
     Patient,
@@ -48,32 +47,15 @@ class PatientIndexView(GeneralPractitionerRequiredMixin, ListView[Patient]):
     context_object_name = "patients"
 
     def get_queryset(self) -> QuerySet[Patient]:
-        patients = self.general_practitioner.patients.order_by("name", "pk")
+        patients = self.general_practitioner.patients.with_ferritin_suggested()
+        patients = patients.order_by("name", "pk")
         if query := self.request.GET.get("q", "").strip():
             patients = patients.filter(name__icontains=query)
         return patients
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        suggestions = [
-            {
-                "lab_report": lab_report,
-                "patient": lab_report.order.sample.patient,
-                "order_ferritin_url": reverse(
-                    "practice:new_order",
-                    kwargs={
-                        "patient": lab_report.order.sample.patient_id,
-                        "sample": lab_report.order.sample_id,
-                        "test": Test.FERRITIN,
-                    },
-                ),
-            }
-            for lab_report in LabReport.objects.ferritin_suggestions(
-                self.general_practitioner
-            )
-        ]
         return {
             **super().get_context_data(**kwargs),
-            "suggestions": suggestions,
             "query": self.request.GET.get("q", "").strip(),
         }
 
