@@ -310,12 +310,12 @@ containers; P1 and P5 are not built).
 | `flower-server-app` | built: SuperExec with the app's dependencies | `startup` | `startup/trust`, `startup/final-models` |
 | `<hospital>-flower-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-flower-client-app` | its `certificates/` and `supernode/` (read-only) |
 | `<hospital>-flower-client-app` | built: SuperExec with the app's dependencies | `<hospital>-flower-client-app` | its `cohort/` (read-only), `final-models/` (R28) |
-| `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `<hospital>-lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/` and `supernode/` masked and `final-models/` read-only |
-| `<practice>-web` | built: the project | `<practice>`, and every hospital's `<hospital>-lab-orders` (R22) | its folder, with `laboratories/<hospital>/` holding each hospital's certificates |
+| `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/` and `supernode/` masked and `final-models/` read-only |
+| `<practice>-web` | built: the project | `<practice>`, and `lab-orders`, reaching every hospital's endpoint (R22) | its folder, with `laboratories/<hospital>/` holding each hospital's certificates |
 | `proxy` | `nginx` (`docker/sni-proxy.conf`) | every `<hospital>` and `<practice>` network | none |
 
 `startup`, `model-updates` (DF7–DF10), each `<hospital>-flower-client-app` (TB4) and
-each `<hospital>-lab-orders` (DF23, DF25) are internal networks: nothing on
+`lab-orders` (DF23, DF25), where every practice reaches every hospital's endpoint and so could reach the other practices too, are internal networks: nothing on
 them reaches outside the deployment. Only the `proxy` is published, on
 `127.0.0.1:443` (`DEMO_HTTPS_PORT`): it routes each `<party>.localhost`
 (RFC 6761) to that party's web app by the name in the TLS handshake, without

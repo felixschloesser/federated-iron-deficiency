@@ -10,7 +10,8 @@
 # Browsers reach https://<party>.localhost through the proxy, the only
 # published port. Networks: startup (TB2), <hospital> (TB1), <hospital>-flower-client-app (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
-# <hospital>-lab-orders crosses TB3-TB1 (DF23, DF25).
+# lab-orders crosses TB3-TB1 (DF23, DF25): every practice reaches every hospital's
+# endpoint there, by the alias <hospital>-lab-orders.
 
 name: iron-deficiency
 
@@ -198,7 +199,7 @@ services:
     tmpfs: [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/supernode]
     networks:
       uz-leuven: {aliases: [uz-leuven-pages]}
-      uz-leuven-lab-orders: {aliases: [uz-leuven-lab-orders]}
+      lab-orders: {aliases: [uz-leuven-lab-orders]}
 
   # TB1 and TB4, Heilig Hart Leuven.
   heilig-hart-leuven-flower-supernode:
@@ -252,7 +253,7 @@ services:
     tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort, /demo/hospitals/heilig-hart-leuven/supernode]
     networks:
       heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
-      heilig-hart-leuven-lab-orders: {aliases: [heilig-hart-leuven-lab-orders]}
+      lab-orders: {aliases: [heilig-hart-leuven-lab-orders]}
 
   # TB1 and TB4, AZ Diest.
   az-diest-flower-supernode:
@@ -306,10 +307,10 @@ services:
     tmpfs: [/demo/hospitals/az-diest/cohort, /demo/hospitals/az-diest/supernode]
     networks:
       az-diest: {aliases: [az-diest-pages]}
-      az-diest-lab-orders: {aliases: [az-diest-lab-orders]}
+      lab-orders: {aliases: [az-diest-lab-orders]}
 
   # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory (R22): on each hospital's lab-orders network.
+  # laboratory (R22): on the lab-orders network.
   huisartsenpraktijk-de-akker-web:
     <<: *web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
@@ -321,7 +322,7 @@ services:
       PARTY_COLOUR: green
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-akker, target: /demo/practices/huisartsenpraktijk-de-akker}
-    networks: [huisartsenpraktijk-de-akker, uz-leuven-lab-orders, heilig-hart-leuven-lab-orders, az-diest-lab-orders]
+    networks: [huisartsenpraktijk-de-akker, lab-orders]
 
   huisartsenpraktijk-de-berk-web:
     <<: *web
@@ -334,7 +335,7 @@ services:
       PARTY_COLOUR: amber
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-berk, target: /demo/practices/huisartsenpraktijk-de-berk}
-    networks: [huisartsenpraktijk-de-berk, uz-leuven-lab-orders, heilig-hart-leuven-lab-orders, az-diest-lab-orders]
+    networks: [huisartsenpraktijk-de-berk, lab-orders]
 
   huisartsenpraktijk-de-ceder-web:
     <<: *web
@@ -347,7 +348,7 @@ services:
       PARTY_COLOUR: purple
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-ceder, target: /demo/practices/huisartsenpraktijk-de-ceder}
-    networks: [huisartsenpraktijk-de-ceder, uz-leuven-lab-orders, heilig-hart-leuven-lab-orders, az-diest-lab-orders]
+    networks: [huisartsenpraktijk-de-ceder, lab-orders]
 
   # Between the browser and the parties, like the internet: routes each
   # <party>.localhost by SNI, never decrypting. The only published port.
@@ -366,15 +367,13 @@ networks:
   setup: {}
   startup: {internal: true}
   model-updates: {internal: true}
+  lab-orders: {internal: true}
   uz-leuven: {}
   uz-leuven-flower-client-app: {internal: true}
-  uz-leuven-lab-orders: {internal: true}
   heilig-hart-leuven: {}
   heilig-hart-leuven-flower-client-app: {internal: true}
-  heilig-hart-leuven-lab-orders: {internal: true}
   az-diest: {}
   az-diest-flower-client-app: {internal: true}
-  az-diest-lab-orders: {internal: true}
   huisartsenpraktijk-de-akker: {}
   huisartsenpraktijk-de-berk: {}
   huisartsenpraktijk-de-ceder: {}
