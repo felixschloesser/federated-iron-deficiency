@@ -26,7 +26,15 @@ from pathlib import Path
 from tqdm import tqdm
 
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
-from tools.certificates import Authority, covers, issue, make_authority, make_key_pair
+from tools.certificates import (
+    Authority,
+    covers,
+    issue,
+    make_authority,
+    make_key_pair,
+    request,
+    sign,
+)
 from web.seeding.accounts import (
     GENERAL_PRACTITIONER,
     LABORATORY_DIRECTOR,
@@ -244,11 +252,16 @@ def prepare_lab_orders(demo_dir: Path) -> None:
             # startup's.
             folder = practice_dir(demo_dir, sender) / "laboratories" / slug
             if not (folder / "certificate.pem").exists():
-                issue(authority, folder, PRACTICES[sender_cycle], server=False)
+                # The practice makes its key pair and sends the request; the
+                # hospital signs it and returns the certificate (R24).
+                sign(authority, request(folder, PRACTICES[sender_cycle]), server=False)
                 shutil.copy(authority.certificate, folder / "ca.crt")
         endpoint = hospital / "messaging" / "certificate.pem"
         if not covers(endpoint, lab_orders_host(slug)):
             issue(authority, endpoint.parent, lab_orders_host(slug), server=True)
+        # The endpoint's own copy of the CA certificate, to check the practices:
+        # its container never sees ca/, where the CA's key is.
+        shutil.copy(authority.certificate, endpoint.parent / "client-ca.crt")
 
 
 def prepare(demo_dir: Path) -> None:

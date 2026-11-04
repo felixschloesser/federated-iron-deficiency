@@ -23,7 +23,7 @@ class Command(BaseCommand):
             certificate=(folder / "messaging" / "certificate.pem").read_bytes(),
             private_key=(folder / "messaging" / "key.pem").read_bytes(),
             # Only the practice this hospital's own CA certified gets in (R24).
-            client_authority=(folder / "ca" / "ca.crt").read_bytes(),
+            client_authority=(folder / "messaging" / "client-ca.crt").read_bytes(),
         )
         self.stdout.write(f"Messaging endpoint on {options['address']}")
         # The demo sends stdout to a file, which would hold the line until exit.

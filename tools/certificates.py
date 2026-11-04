@@ -81,16 +81,22 @@ def make_authority(
     return Authority(name, directory / "ca.crt", directory / "ca.key")
 
 
-def issue(
-    authority: Authority, directory: Path, common_name: str, *, server: bool
-) -> tuple[Path, Path]:
-    """A certificate and key signed by `authority`, for a server on localhost or a client."""
+def request(directory: Path, common_name: str) -> Path:
+    """At the owner: its key pair, the private key kept in `directory` for the
+    owner alone, and a request carrying the public key; returns the request."""
     directory.mkdir(parents=True, exist_ok=True)
     _openssl(
         directory,
         *("req", "-newkey", "rsa:2048", "-nodes", "-subj", f"/CN={common_name}"),
         *("-keyout", "key.pem", "-out", "request.csr"),
     )
+    (directory / "key.pem").chmod(0o600)
+    return directory / "request.csr"
+
+
+def sign(authority: Authority, request_file: Path, *, server: bool) -> Path:
+    """At the authority: a certificate for the request, beside it, for a server on
+    localhost or a client. It reads the request alone, never a private key."""
     usage = "serverAuth" if server else "clientAuth"
     # Key identifiers and usage, as strict verifiers (Python 3.13, browsers) require.
     extensions = (
@@ -101,16 +107,50 @@ def issue(
         "authorityKeyIdentifier=keyid,issuer\n"
     )
     if server:
+        common_name = subject_name(request_file)
         # The common name is the server's host in compose.yaml; localhost for tests.
         extensions += f"subjectAltName=DNS:{common_name},DNS:localhost,IP:127.0.0.1\n"
+    certificate = request_file.parent / "certificate.pem"
     with tempfile.NamedTemporaryFile("w", suffix=".ext") as file:
         file.write(extensions)
         file.flush()
         _openssl(
-            directory,
-            *("x509", "-req", "-in", "request.csr", "-days", DAYS),
+            request_file.parent,
+            *("x509", "-req", "-in", request_file.name, "-days", DAYS),
             *("-CA", str(authority.certificate), "-CAkey", str(authority.key)),
-            *("-CAcreateserial", "-out", "certificate.pem", "-extfile", file.name),
+            *("-CAcreateserial", "-out", certificate.name, "-extfile", file.name),
         )
-    (directory / "key.pem").chmod(0o600)
-    return directory / "certificate.pem", directory / "key.pem"
+    return certificate
+
+
+def subject_name(request_file: Path) -> str:
+    """The common name a request asks for."""
+    result = subprocess.run(
+        [
+            "openssl",
+            "req",
+            "-in",
+            str(request_file),
+            "-noout",
+            "-subject",
+            "-nameopt",
+            "multiline",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    for line in result.stdout.splitlines():
+        if line.strip().startswith("commonName"):
+            return line.split("=", 1)[1].strip()
+    raise ValueError(f"{request_file} names no common name")
+
+
+def issue(
+    authority: Authority, directory: Path, common_name: str, *, server: bool
+) -> tuple[Path, Path]:
+    """Request and sign in one go, for a party that is its own authority's: the
+    SuperLink, a hospital's endpoint, a web app; its private key stays in
+    `directory`."""
+    certificate = sign(authority, request(directory, common_name), server=server)
+    return certificate, directory / "key.pem"

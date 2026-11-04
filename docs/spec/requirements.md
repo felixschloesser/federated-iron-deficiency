@@ -279,7 +279,7 @@ On the host, `demo/` (gitignored) keeps only what a reset must not delete:
     │   ├── web-tls/             the web app's certificate from the browser CA (R29)
     │   ├── supernode/           the SuperNode's key pair; the private key never leaves (R27)
     │   ├── final-models/        DS5 one file per training run (R16)
-    │   ├── ca/, messaging/      its CA; the lab-order endpoint's certificate
+    │   ├── ca/, messaging/      its CA (prepare alone reads its key); the lab-order endpoint's certificate and key, and client-ca.crt, its copy of the CA's certificate
     │   └── web.sqlite3          DS8 screening records, DS6 deployment history
     ├── heilig-hart-leuven/      TB1 (2015–2016, 50%)
     └── az-diest/                TB1 (2017–2018, 25%)
@@ -306,11 +306,11 @@ containers; P1 and P5 are not built).
 
 | Container | Image | Network | Mounts |
 |---|---|---|---|
-| `flower-superlink` | `flwr/superlink` | `startup`, `model-updates` | `startup/superlink`, `startup/certificates` (read-only) |
+| `flower-superlink` | `flwr/superlink` | `startup`, `model-updates` | `startup/superlink`; `startup/certificates/superlink` and `startup/trust` (read-only): its own certificate and key and the startup CA's certificate, never the CA's key |
 | `flower-server-app` | built: SuperExec with the app's dependencies | `startup` | `startup/trust`, `startup/final-models` |
 | `<hospital>-flower-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-flower-client-app` | its `certificates/` and `supernode/` (read-only) |
 | `<hospital>-flower-client-app` | built: SuperExec with the app's dependencies | `<hospital>-flower-client-app` | its `cohort/` (read-only), `final-models/` (R28) |
-| `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/` and `supernode/` masked and `final-models/` read-only |
+| `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/`, `supernode/` and `ca/` (its CA's key) masked and `final-models/` read-only |
 | `<practice>-web` | built: the project | `<practice>`, and `lab-orders`, reaching every hospital's endpoint (R22) | its folder, with `laboratories/<hospital>/` holding each hospital's certificates |
 | `proxy` | `nginx` (`docker/sni-proxy.conf`) | every `<hospital>` and `<practice>` network | none |
 
@@ -339,6 +339,15 @@ the browser CA in `demo/browser-ca/`, which belongs to no party.
 `docker compose down -v` deletes every party's volume, so the next `docker compose up` prepares everything afresh; the browser CA and the Hugging Face downloads in `demo/` stay.
 
 Each web app takes a Pico colour theme from `PARTY_COLOUR` (vendored themes only; absent: Pico's default), so the parties' pages are told apart at a glance: UZ Leuven jade and De Akker green, Heilig Hart Leuven pumpkin and De Berk amber, AZ Diest violet and De Ceder purple.
+
+Who holds which private key: each key pair belongs to the party it identifies,
+which makes it and keeps the private key; only certificates and public keys
+travel, to whoever checks them. A practice makes its key pair for a
+hospital's laboratory and sends the request; the hospital signs it and
+returns the certificate, never seeing the practice's private key
+(`tools.certificates.request` and `sign`). A certificate authority's key is
+for issuing only: `prepare` alone reads it, and no running container mounts
+it (`tests/test_compose.py`).
 
 ## 10. Messages between the general practitioner and the hospital (DF23, DF25)
 

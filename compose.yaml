@@ -93,12 +93,14 @@ services:
       - --isolation=process
       # Only SuperNodes registered by `register` get in (R27).
       - --enable-supernode-auth
-      - --ssl-ca-certfile=/demo/startup/certificates/ca.crt
+      - --ssl-ca-certfile=/demo/startup/trust/ca.crt
       - --ssl-certfile=/demo/startup/certificates/superlink/certificate.pem
       - --ssl-keyfile=/demo/startup/certificates/superlink/key.pem
     volumes:
       - {type: volume, source: startup, target: /demo/startup/superlink, volume: {subpath: superlink}}
-      - {type: volume, source: startup, target: /demo/startup/certificates, read_only: true, volume: {subpath: certificates}}
+      # Its own certificate and key, and the startup CA's certificate: never ca.key.
+      - {type: volume, source: startup, target: /demo/startup/certificates/superlink, read_only: true, volume: {subpath: certificates/superlink}}
+      - {type: volume, source: startup, target: /demo/startup/trust, read_only: true, volume: {subpath: trust}}
     networks: [startup, model-updates]
     healthcheck:
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 9092))"]
@@ -196,7 +198,9 @@ services:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/final-models, read_only: true, volume: {subpath: final-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
     # DEBUG off: Django's deploy settings, HTTPS with the browser CA's certificate (R29).
-    tmpfs: [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/supernode]
+    # Masked: the startup's data, the SuperNode's key, and the CA's key (only
+    # prepare issues certificates).
+    tmpfs: [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/supernode, /demo/hospitals/uz-leuven/ca]
     networks:
       uz-leuven: {aliases: [uz-leuven-pages]}
       lab-orders: {aliases: [uz-leuven-lab-orders]}
@@ -250,7 +254,9 @@ services:
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/final-models, read_only: true, volume: {subpath: final-models}}
-    tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort, /demo/hospitals/heilig-hart-leuven/supernode]
+    # Masked: the startup's data, the SuperNode's key, and the CA's key (only
+    # prepare issues certificates).
+    tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort, /demo/hospitals/heilig-hart-leuven/supernode, /demo/hospitals/heilig-hart-leuven/ca]
     networks:
       heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
       lab-orders: {aliases: [heilig-hart-leuven-lab-orders]}
@@ -304,7 +310,9 @@ services:
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/final-models, read_only: true, volume: {subpath: final-models}}
-    tmpfs: [/demo/hospitals/az-diest/cohort, /demo/hospitals/az-diest/supernode]
+    # Masked: the startup's data, the SuperNode's key, and the CA's key (only
+    # prepare issues certificates).
+    tmpfs: [/demo/hospitals/az-diest/cohort, /demo/hospitals/az-diest/supernode, /demo/hospitals/az-diest/ca]
     networks:
       az-diest: {aliases: [az-diest-pages]}
       lab-orders: {aliases: [az-diest-lab-orders]}
