@@ -201,10 +201,8 @@ def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
 def test_crossings_and_the_startup_are_internal_networks() -> None:
     networks = config()["networks"]
     internal = {name for name, spec in networks.items() if spec.get("internal")}
-    assert internal == {"startup", "model-updates"} | {
-        f"{slug}-{kind}"
-        for slug in HOSPITAL_SLUGS
-        for kind in ("flower-client-app", "lab-orders")
+    assert internal == {"startup", "model-updates", "lab-orders"} | {
+        f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS
     }
 
 
@@ -226,23 +224,19 @@ def test_each_practice_reaches_every_hospitals_lab_order_endpoint_and_nothing_el
     """A practice chooses the laboratory per sample (R22); its laboratories are
     rows add_laboratory made, not environment variables."""
     spec = service(f"{practice}-web")
-    lab_orders = {f"{hospital}-lab-orders" for hospital in HOSPITAL_SLUGS}
-    assert set(spec["networks"]) == {practice} | lab_orders
+    assert set(spec["networks"]) == {practice, "lab-orders"}
     assert "MESSAGING_ADDRESS" not in spec["environment"]
 
 
-@pytest.mark.parametrize("hospital", HOSPITAL_SLUGS)
-def test_a_hospitals_lab_order_network_holds_it_and_the_practices_only(
-    hospital: str,
-) -> None:
+def test_one_lab_orders_network_holds_every_hospital_and_practice_only() -> None:
+    """Every practice may send to every hospital (R22): one crossing, TB3-TB1,
+    like the internet between them; separate networks would isolate nothing."""
     members = {
         name
         for name, spec in config()["services"].items()
-        if f"{hospital}-lab-orders" in spec.get("networks", {})
+        if "lab-orders" in spec.get("networks", {})
     }
-    assert members == {f"{hospital}-web"} | {
-        f"{practice}-web" for practice in PRACTICE_SLUGS
-    }
+    assert members == {f"{slug}-web" for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS}
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
@@ -254,7 +248,7 @@ def test_the_hospital_serves_its_pages_and_its_lab_orders_each_on_one_network_on
     spec = service(f"{slug}-web")
     assert spec["networks"] == {
         slug: {"aliases": [f"{slug}-pages"]},
-        f"{slug}-lab-orders": {"aliases": [f"{slug}-lab-orders"]},
+        "lab-orders": {"aliases": [f"{slug}-lab-orders"]},
     }
     script = spec["command"][-1]
     assert f"--bind={slug}-pages:8000" in script
