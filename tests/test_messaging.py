@@ -534,19 +534,22 @@ def test_check_for_reports_on_a_patients_page_returns_to_it(
     assert LabReport.objects.filter(order__sample__patient=record).exists()
     other = reverse("practice:patient_check_for_reports", kwargs={"patient": 0})
     assert client.post(other).status_code == 404
-    Laboratory.objects.all().delete()
-    assertNotContains(client.get(page), "Check for reports")
-    assert client.post(check).status_code == 404
 
 
 def test_check_for_reports_is_offered_only_with_a_laboratory_to_ask(
     client: Client, practice: Path, owner: GeneralPractitioner
 ) -> None:
+    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    page = reverse("practice:patient", kwargs={"pk": record.pk})
+    check = reverse("practice:patient_check_for_reports", kwargs={"patient": record.pk})
     client.force_login(owner.user)
     assertContains(client.get(reverse("practice:orders")), "Check for reports")
+    assertContains(client.get(page), "Check for reports")
     Laboratory.objects.all().delete()
     assertNotContains(client.get(reverse("practice:orders")), "Check for reports")
+    assertNotContains(client.get(page), "Check for reports")
     assert client.post(reverse("practice:check_for_reports")).status_code == 404
+    assert client.post(check).status_code == 404
 
 
 def test_an_awaited_lab_report_says_how_to_fetch_it(

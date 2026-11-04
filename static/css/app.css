@@ -105,9 +105,18 @@ article[data-level="error"] {
 }
 
 /* The index header's actions: links and POST buttons in one row (a form
-   cannot sit in a <p>), spaced like a paragraph. */
+   cannot sit in a <p>), spaced like a paragraph; a gap between them, not the
+   space character, and the same gap when they wrap. */
 .action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pico-spacing);
   margin-bottom: var(--pico-typography-spacing-vertical);
+}
+
+.action-row > *,
+.action-row button {
+  margin-bottom: 0;
 }
 
 /* A page-level POST action: as wide as its label, not the full width Pico

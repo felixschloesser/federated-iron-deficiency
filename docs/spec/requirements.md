@@ -200,7 +200,7 @@ All are POSTs that redirect on success; model and manager methods take `now`.
 
 | Operation | Actor | Precondition | Postcondition | Requirements |
 |---|---|---|---|---|
-| Fetch lab reports | General practitioner's app | *Check for reports* | New lab reports stored at the general practitioner's app, from each of its laboratories | R23 |
+| Fetch lab reports | General practitioner's app | *Check for reports*, on Orders or a patient's page | New lab reports stored at the general practitioner's app, from each of its laboratories | R23 |
 | Collect sample | general practitioner | Patient is the practice's; a laboratory chosen if the practice works with several | A sample with the patient's next sample ID, for that laboratory, collected at `now`; nothing sent; then the sample's CBC order page | R13, R22, R26 |
 | Place order | general practitioner | Sample is one of the practice's patient's; indication given iff test is CBC; the test not yet on the sample | The order on the sample, sex and age copied; its lab order sent, else with the next check (R22) | R1, R13, R22, R26 |
 | Run analyser | Laboratory staff | Lab order arrived, not analysed | Values recorded; a CBC screened, or not screened with its reason; lab report released | R3, R8, R12 |

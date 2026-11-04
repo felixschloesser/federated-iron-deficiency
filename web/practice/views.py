@@ -88,6 +88,13 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
         laboratories = Laboratory.objects.count()
         # Several laboratories: the choice comes first, on its own page (R22).
         collect_action = {"url": collect, "label": "Collect sample"}
+        # Where a doctor waits for a lab report, so they need not go to Orders.
+        check_action = {
+            "url": reverse(
+                "practice:patient_check_for_reports", kwargs={"patient": patient.pk}
+            ),
+            "label": "Check for reports",
+        }
         # Each sample with the tests on it, in the order they were placed, so a
         # ferritin ordered beside a suggestion shows right under it (R9, R11).
         # Only the newest opens; the others summarise their tests and whether a
@@ -96,7 +103,8 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             **super().get_context_data(**kwargs),
             "subtitle": f"{patient.get_registered_sex_display()}, aged {patient.age}",
             "actions": [collect_action] if laboratories > 1 else [],
-            "post_actions": [] if laboratories > 1 else [collect_action],
+            "post_actions": ([] if laboratories > 1 else [collect_action])
+            + ([check_action] if laboratories > 0 else []),
             # Only an app with a laboratory to ask fetches lab reports (R23).
             "fetches_reports": laboratories > 0,
             "samples": [
@@ -186,7 +194,12 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
     """Sends pending lab orders and fetches new lab reports from every laboratory
     now (R23)."""
 
-    def post(self, request: HttpRequest) -> HttpResponse:
+    def post(self, request: HttpRequest, patient: int | None = None) -> HttpResponse:
+        # From a patient's page, back to it; from Orders, back there.
+        back = reverse("practice:orders")
+        if patient is not None:
+            record = get_object_or_404(self.general_practitioner.patients, pk=patient)
+            back = reverse("practice:patient", kwargs={"pk": record.pk})
         if not Laboratory.objects.exists():
             raise Http404
         check = messaging.check_every_laboratory(now=timezone.now())
@@ -203,7 +216,7 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
                 request,
                 f"{fetched or 'No'} new lab report{pluralize(fetched)}.",
             )
-        return redirect("practice:orders")
+        return redirect(back)
 
 
 class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSampleForm]):

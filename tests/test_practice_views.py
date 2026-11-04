@@ -576,7 +576,10 @@ def test_with_several_laboratories_collecting_starts_with_the_choice(
     assert page.context["actions"] == [
         {"url": collect_url(patient), "label": "Collect sample"}
     ]
-    assert page.context["post_actions"] == []
+    # Check for reports is the one button, as on any page with a laboratory.
+    assert [action["label"] for action in page.context["post_actions"]] == [
+        "Check for reports"
+    ]
     choice = client.get(collect_url(patient))
     assert [
         str(laboratory)
@@ -604,8 +607,13 @@ def test_with_one_laboratory_collecting_is_one_click(
     logged_in(client, general_practitioner)
     page = client.get(patient_url(patient))
     assert page.context["actions"] == []
-    assert page.context["post_actions"] == [
-        {"url": collect_url(patient), "label": "Collect sample"}
+    assert page.context["post_actions"][0] == {
+        "url": collect_url(patient),
+        "label": "Collect sample",
+    }
+    assert [action["label"] for action in page.context["post_actions"]] == [
+        "Collect sample",
+        "Check for reports",
     ]
     client.post(collect_url(patient))
     assert patient.samples.get().laboratory == only

@@ -9,7 +9,7 @@
   {% for entry in item.entries %}
   <article>
     <h3>{{ entry.order.get_test_display|capfirst }}{% if entry.order.indication %} ({{ entry.order.get_indication_display|lower }}){% endif %}</h3>
-    <p>{% if entry.lab_report %}<ins>Lab report released {{ entry.lab_report.released_at|date:"j M Y, H:i" }}</ins>{% elif entry.sent %}<mark>Awaiting lab report</mark>{% else %}<mark>Lab order not sent yet</mark>{% endif %} · Ordered {{ entry.order.ordered_at|date:"j M Y, H:i" }}{% if entry.sent and not entry.lab_report and fetches_reports %}<br><small>Check for reports on Orders to fetch it.</small>{% endif %}</p>
+    <p>{% if entry.lab_report %}<ins>Lab report released {{ entry.lab_report.released_at|date:"j M Y, H:i" }}</ins>{% elif entry.sent %}<mark>Awaiting lab report</mark>{% else %}<mark>Lab order not sent yet</mark>{% endif %} · Ordered {{ entry.order.ordered_at|date:"j M Y, H:i" }}{% if entry.sent and not entry.lab_report and fetches_reports %}<br><small>Check for reports to fetch it.</small>{% endif %}</p>
     {% if entry.lab_report %}
     {% if entry.lab_report.comment %}<p><strong>{{ entry.lab_report.comment }}</strong></p>{% endif %}
     {% if entry.lab_report.note %}<p>{{ entry.lab_report.note }}</p>{% endif %}
