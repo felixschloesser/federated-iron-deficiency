@@ -196,6 +196,11 @@ def test_every_practice_holds_a_certificate_from_every_hospitals_authority(
     for _, hospital in hospitals():
         endpoint = tmp_path / "hospitals" / hospital / "messaging" / "certificate.pem"
         assert covers(endpoint, lab_orders_host(hospital))
+        # The endpoint's own copy of its CA certificate, to check the practices,
+        # so that its container need not see the CA's folder and key.
+        client_ca = endpoint.parent / "client-ca.crt"
+        ca = tmp_path / "hospitals" / hospital / "ca" / "ca.crt"
+        assert client_ca.read_bytes() == ca.read_bytes()
     assert len(issued) == len(practices()) * len(hospitals())
     # Running again issues nothing new.
     prepare_lab_orders(tmp_path)

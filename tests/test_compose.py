@@ -157,6 +157,8 @@ def test_the_hospitals_own_apps_see_no_cohort_no_supernode_key_and_read_only_fin
     assert set(service(name)["tmpfs"]) == {
         f"/demo/hospitals/{slug}/cohort",
         f"/demo/hospitals/{slug}/supernode",
+        # Its CA's key: only prepare issues certificates.
+        f"/demo/hospitals/{slug}/ca",
     }
     final_models = f"/demo/hospitals/{slug}/final-models"
     assert mounts(name)[final_models] == (f"hospitals/{slug}/final-models", True)
@@ -362,3 +364,38 @@ def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -
     script = prepare["entrypoint"][-2]
     assert "chown" in script
     assert "exec setpriv" in script
+
+
+# Where each authority's private key lives, under its party's folder.
+CA_FOLDERS = ["startup/certificates"] + [
+    f"hospitals/{slug}/ca" for slug in HOSPITAL_SLUGS
+]
+
+
+@pytest.mark.parametrize(
+    "name", [name for name in config()["services"] if name != "prepare"]
+)
+def test_no_running_service_can_read_a_certificate_authoritys_key(name: str) -> None:
+    """A CA's private key is for issuing, which only prepare does; at run time it
+    is nowhere, while each private key stays with the party it identifies."""
+    spec = service(name)
+    masked = set(spec.get("tmpfs", []))
+    for target, (source, _) in mounts(name).items():
+        for folder in CA_FOLDERS:
+            if folder == source or folder.startswith(f"{source}/"):
+                inside = target + folder.removeprefix(source)
+                assert inside in masked, f"{name} sees {folder} at {inside}"
+
+
+def test_the_superlink_reads_its_own_certificate_and_the_startups_ca_certificate_only() -> (
+    None
+):
+    assert set(mounts("flower-superlink")) == {
+        "/demo/startup/superlink",
+        "/demo/startup/certificates/superlink",
+        "/demo/startup/trust",
+    }
+    assert (
+        "--ssl-ca-certfile=/demo/startup/trust/ca.crt"
+        in service("flower-superlink")["command"]
+    )

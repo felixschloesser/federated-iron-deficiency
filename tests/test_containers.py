@@ -287,14 +287,13 @@ def hospital_app(compose: Compose) -> str:
         "prepare",
         "python",
         "-c",
-        "from pathlib import Path; from tools.certificates import issue, make_authority;"
-        " from tools.demo import hospital_dir, lab_orders_host, prepare_browser;"
+        "from pathlib import Path;"
+        " from tools.demo import hospital_dir, prepare_browser, prepare_lab_orders;"
         " prepare_browser(Path('/demo'));"
+        " prepare_lab_orders(Path('/demo'));"
         f" hospital = hospital_dir(Path('/demo'), {APP_HOSPITAL!r});"
         # A volume's subpath must exist before a container mounts it.
-        " (hospital / 'final-models').mkdir(exist_ok=True);"
-        f" authority = make_authority(hospital / 'ca', 'AZ Diest');"
-        f" issue(authority, hospital / 'messaging', lab_orders_host({APP_HOSPITAL!r}), server=True)",
+        " (hospital / 'final-models').mkdir(exist_ok=True)",
     )
     name = f"{APP_HOSPITAL}-web"
     compose("run", "--rm", "--no-deps", name, "python", "manage.py", "migrate", "-v0")
