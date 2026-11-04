@@ -35,6 +35,15 @@ article[data-level] > :last-child {
   margin-bottom: 0;
 }
 
+/* The error summary's lines, each a link to its field: no list bullets. */
+article[data-level] > ul {
+  padding-left: 0;
+}
+
+article[data-level] > ul > li {
+  list-style: none;
+}
+
 article[data-level="success"] {
   --alert-color: var(--pico-ins-color);
 }

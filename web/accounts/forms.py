@@ -11,6 +11,10 @@ from web.forms import NamedLabels
 class RoleAuthenticationForm(NamedLabels, AuthenticationForm):
     """Lets in only accounts that have a role in this app."""
 
+    def get_invalid_login_error(self) -> ValidationError:
+        # Plain, and as before not telling which of the two was wrong.
+        return ValidationError("Wrong username or password.", code="invalid_login")
+
     def clean(self) -> dict[str, Any]:
         try:
             return super().clean()

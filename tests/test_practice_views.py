@@ -294,6 +294,8 @@ def test_service_refusal_is_shown_on_its_field(
     assert response.status_code == 200
     errors = response.context["form"].errors.as_data()
     assert [error.code for error in errors["indication"]] == ["indication_required"]
+    # A field's error: the summary's heading, and a link to the field.
+    assertContains(response, "There is a problem")
     # The summary links to the first radio button: a radio group's label has no id.
     assertContains(response, '<a href="#id_indication_0">')
     # The group's legend, and the summary's link, name the field without a colon.
@@ -357,7 +359,7 @@ def test_error_page_names_the_hospital(settings: Settings) -> None:
 
 def test_form_error_is_shown_once_in_the_summary(client: Client) -> None:
     response = client.post(reverse("login"), {"username": "x", "password": "y"})
-    assert response.content.decode().count("Please enter a correct username") == 1
+    assert response.content.decode().count("Wrong username or password.") == 1
 
 
 def sample_order_url(patient: Patient, test: OrderedTest) -> str:

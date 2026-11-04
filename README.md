@@ -275,6 +275,10 @@ screening comes back to the practice.
 A `demo/` from before the volumes (2026-11-03) still holds `startup/`,
 `hospitals/` and `practices/`; nothing reads them any more, so delete those
 three once. The first `up` downloads the cohorts again.
+A browser CA from before then is named *Demo browser certificate authority*;
+for the new name (*Iron deficiency demo localhost …*), run
+`CAROOT=$PWD/demo/browser-ca mkcert -uninstall`, delete `demo/browser-ca/`,
+`up`, and trust it again.
 
 ### Without Docker
 

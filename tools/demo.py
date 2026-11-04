@@ -38,6 +38,9 @@ ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API over HTTPS on this one address, the
 # SuperLink's service name in compose.yaml.
 SUPERLINK = "flower-superlink:9092"
+# Shown among the roots a person trusts: which project, and that it vouches
+# only for localhost (R29); make_authority appends "certificate authority".
+BROWSER_CA = "Iron deficiency demo localhost"
 # The demo's parties, declared in demo.toml; keyed here by cycle, like HOSPITALS.
 PARTIES = tomllib.loads((ROOT / "demo.toml").read_text())["hospitals"]
 _ENTRIES = {cycle: PARTIES[hospital_slug(name)] for cycle, name in HOSPITALS.items()}
@@ -198,9 +201,9 @@ def prepare_browser(demo_dir: Path) -> None:
     # constraint, so it is replaced and every web certificate reissued.
     fresh = not (folder / "rootCA.pem").exists()
     if fresh:
-        make_authority(folder, "Demo browser", loopback_only=True)
+        make_authority(folder, BROWSER_CA, loopback_only=True)
         shutil.copy(folder / "ca.crt", folder / "rootCA.pem")
-    authority = Authority("Demo browser", folder / "ca.crt", folder / "ca.key")
+    authority = Authority(BROWSER_CA, folder / "ca.crt", folder / "ca.key")
     parties = [hospital_dir(demo_dir, slug) for _, slug in hospitals()]
     parties += [practice_dir(demo_dir, slug) for _, slug in practices()]
     for party in parties:
