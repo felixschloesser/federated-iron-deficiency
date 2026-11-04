@@ -3,7 +3,9 @@ Feature: Collecting a sample and ordering tests on it
   orders tests on it: blood is drawn into the standard tubes first and the tests
   are chosen afterwards (a simplification of WHO LQMS 5-3, where the request
   comes first). The order carries only what the lab needs: the sample ID, the
-  test, the clinical indication, registered sex and age. Covers R1, R26.
+  test, the clinical indication, registered sex and age. Ferritin is ordered
+  only on suspicion: beside a lab report of the sample that suggests it.
+  Covers R1, R11, R26.
 
   Background:
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1", registered sex female, aged 32
@@ -19,12 +21,23 @@ Feature: Collecting a sample and ordering tests on it
     Then the order is refused with code "indication_required"
 
   Scenario: A ferritin order has no indication
+    Given the sample has a CBC lab report suggesting ferritin
     When "Dr. Demo A" orders ferritin for "Test Patient 1"
     Then the order has test ferritin and no indication
 
   Scenario: A ferritin order with an indication is refused
+    Given the sample has a CBC lab report suggesting ferritin
     When "Dr. Demo A" orders ferritin for "Test Patient 1" with indication other
     Then the order is refused with code "indication_not_applicable"
+
+  Scenario: Ferritin without a suggestion is refused
+    When "Dr. Demo A" orders ferritin for "Test Patient 1"
+    Then the order is refused with code "ferritin_not_suggested" on field "test"
+
+  Scenario: Ferritin beside a lab report without a suggestion is refused
+    Given the sample has a CBC lab report without a suggestion
+    When "Dr. Demo A" orders ferritin for "Test Patient 1"
+    Then the order is refused with code "ferritin_not_suggested" on field "test"
 
   Scenario: A collected sample gets the patient's next sample ID
     Then the sample is sample 1 of "Test Patient 1", collected at the current time
@@ -34,7 +47,7 @@ Feature: Collecting a sample and ordering tests on it
     Then the sample is sample 2 of "Test Patient 1", collected at the current time
 
   Scenario: Several tests go on one sample
-    Given "Dr. Demo A" ordered a CBC for "Test Patient 1" with indication other
+    Given the sample has a CBC lab report suggesting ferritin
     When "Dr. Demo A" orders ferritin for "Test Patient 1"
     Then the order is on sample 1 of "Test Patient 1"
 

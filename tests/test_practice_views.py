@@ -6,6 +6,7 @@ from django.http import HttpResponseServerError
 from django.template.loader import render_to_string
 from django.test import Client, RequestFactory
 from django.urls import reverse
+from django.utils import timezone
 from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
@@ -14,7 +15,7 @@ from tests.conftest import make_general_practitioner, make_patient
 from web.accounts.models import User
 from web.practice.models import GeneralPractitioner, Order, Patient
 from web.views import ServerErrorView
-from web.vocabulary import RegisteredSex
+from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
 pytestmark = pytest.mark.django_db
@@ -46,9 +47,31 @@ def collect_url(patient: Patient) -> str:
 
 
 def order_url(client: Client, patient: Patient, test: OrderedTest) -> str:
-    """Collect a sample from the patient; the order page for a test on it."""
+    """Collect a sample from the patient; the order page for a test on it. For
+    ferritin, the sample first gets a CBC lab report suggesting it (R11)."""
     client.post(collect_url(patient))
+    if test == OrderedTest.FERRITIN:
+        suggest_ferritin(patient)
     return sample_order_url(patient, test)
+
+
+def suggest_ferritin(patient: Patient) -> None:
+    """A CBC on the patient's latest sample, with a lab report suggesting ferritin."""
+    from web.practice.models import LabReport
+
+    cbc = patient.general_practitioner.place_order(
+        sample=patient.samples.latest("pk"),
+        test=OrderedTest.CBC,
+        indication=ClinicalIndication.OTHER,
+        now=timezone.now(),
+    )
+    LabReport.objects.create(
+        order=cbc,
+        results={},
+        ferritin_suggested=True,
+        released_at=timezone.now(),
+        fetched_at=timezone.now(),
+    )
 
 
 def test_anonymous_is_sent_to_login(client: Client) -> None:
@@ -127,10 +150,8 @@ def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
     response = client.get(patient_url(patient))
     assertContains(response, "No tests ordered yet.")
     (item,) = response.context["samples"]
-    assert [action["label"] for action in item["actions"]] == [
-        "Order CBC",
-        "Order ferritin",
-    ]
+    # Ferritin only beside a lab report suggesting it (R11).
+    assert [action["label"] for action in item["actions"]] == ["Order CBC"]
 
 
 @pytest.mark.parametrize("test", list(OrderedTest))
@@ -152,7 +173,8 @@ def test_a_sample_offers_only_tests_it_does_not_have(
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
     (item,) = client.get(patient_url(patient)).context["samples"]
-    assert [action["label"] for action in item["actions"]] == ["Order ferritin"]
+    # Not ferritin: only beside a lab report suggesting it (R11).
+    assert item["actions"] == []
 
 
 def test_patient_page_queries(
@@ -282,7 +304,8 @@ def test_ferritin_needs_only_a_confirmation(
     logged_in(client, general_practitioner).post(
         order_url(client, patient, OrderedTest.FERRITIN)
     )
-    assert Order.objects.get().test == OrderedTest.FERRITIN
+    # Beside the CBC that suggested it, on the same sample.
+    assert Order.objects.filter(test=OrderedTest.FERRITIN).count() == 1
 
 
 def test_service_refusal_is_shown_on_its_field(
@@ -315,7 +338,8 @@ def test_orders_queries(
     for each in (patient, other):
         client.post(order_url(client, each, OrderedTest.CBC), {"indication": "other"})
         client.post(order_url(client, each, OrderedTest.FERRITIN))
-    assert Order.objects.count() == 4
+    # Each ferritin comes with the CBC whose lab report suggested it.
+    assert Order.objects.count() == 6
     # Session, user with general practitioner, orders with their patients, whether
     # there is a laboratory to check for reports.
     with django_assert_num_queries(4):
@@ -488,13 +512,14 @@ def test_each_sample_is_a_details_block_and_only_the_newest_is_open(
         released_at="2026-10-30T12:00:00+00:00",
         fetched_at="2026-10-30T12:05:00+00:00",
     )
+    # The newer sample: a CBC suggesting ferritin, and ferritin beside it.
     client.post(order_url(client, patient, OrderedTest.FERRITIN))
     response = client.get(patient_url(patient))
     newest, older = response.context["samples"]
     assert (newest["open"], newest["tests"], newest["suggested"]) == (
         True,
-        "ferritin",
-        False,
+        "CBC, ferritin",
+        True,
     )
     assert (older["open"], older["tests"], older["suggested"]) == (False, "CBC", True)
     assert response.content.decode().count("<details open>") == 1

@@ -120,6 +120,39 @@ def order_refused(world: World, code: str) -> None:
     assert set(errors) == {NON_FIELD_ERRORS}
 
 
+@then(parsers.parse('the order is refused with code "{code}" on field "{field}"'))
+def order_refused_on(world: World, code: str, field: str) -> None:
+    assert "order" not in world
+    errors = world["error"].error_dict
+    found = {name: [error.code for error in each] for name, each in errors.items()}
+    assert found == {field: [code]}
+
+
+@given(
+    parsers.re(
+        r"the sample has a CBC lab report"
+        r" (?P<suggestion>suggesting ferritin|without a suggestion)$"
+    )
+)
+def sample_has_lab_report(world: World, suggestion: str) -> None:
+    from web.practice.models import LabReport
+
+    sample = world["sample"]
+    cbc = sample.patient.general_practitioner.place_order(
+        sample=sample,
+        test=OrderedTest.CBC,
+        indication=ClinicalIndication.OTHER,
+        now=NOW,
+    )
+    LabReport.objects.create(
+        order=cbc,
+        results={},
+        ferritin_suggested=suggestion == "suggesting ferritin",
+        released_at=NOW,
+        fetched_at=NOW,
+    )
+
+
 @when("a CBC order without an indication is written straight to the database")
 def write_straight(world: World) -> None:
     sample = world["sample"]
