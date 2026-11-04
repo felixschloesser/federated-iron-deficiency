@@ -11,11 +11,15 @@ from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
 
-from tests.conftest import make_general_practitioner, make_patient
+from tests.conftest import (
+    make_general_practitioner,
+    make_patient,
+    suggest_ferritin_on,
+)
 from web.accounts.models import User
 from web.practice.models import GeneralPractitioner, Order, Patient
 from web.views import ServerErrorView
-from web.vocabulary import ClinicalIndication, RegisteredSex
+from web.vocabulary import RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
 pytestmark = pytest.mark.django_db
@@ -56,22 +60,8 @@ def order_url(client: Client, patient: Patient, test: OrderedTest) -> str:
 
 
 def suggest_ferritin(patient: Patient) -> None:
-    """A CBC on the patient's latest sample, with a lab report suggesting ferritin."""
-    from web.practice.models import LabReport
-
-    cbc = patient.general_practitioner.place_order(
-        sample=patient.samples.latest("pk"),
-        test=OrderedTest.CBC,
-        indication=ClinicalIndication.OTHER,
-        now=timezone.now(),
-    )
-    LabReport.objects.create(
-        order=cbc,
-        results={},
-        ferritin_suggested=True,
-        released_at=timezone.now(),
-        fetched_at=timezone.now(),
-    )
+    """The patient's latest sample with a CBC lab report suggesting ferritin."""
+    suggest_ferritin_on(patient.samples.latest("pk"), timezone.now())
 
 
 def test_anonymous_is_sent_to_login(client: Client) -> None:
@@ -402,6 +392,7 @@ def test_ordering_on_a_sample_says_so_and_adds_no_sample(
 ) -> None:
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
+    suggest_ferritin(patient)
     url = sample_order_url(patient, OrderedTest.FERRITIN)
     sample_id = patient.samples.get().sample_id
     assertContains(client.get(url), f"On sample {sample_id}")

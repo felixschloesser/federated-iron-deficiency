@@ -133,7 +133,6 @@ def test_general_practitioner_cannot_run_the_analyser(
 
 def cbc_lab_order(sex: RegisteredSex) -> LabOrder:
     """A CBC for a unexplained fatigue, aged 32, as the lab received it (DF23)."""
-    from web.vocabulary import ClinicalIndication
 
     owner = make_general_practitioner("Dr. Demo A")
     patient = make_patient(owner, "Test Patient 1", sex, 32)
@@ -205,14 +204,10 @@ def test_to_analyse_marks_a_stored_sample(
     from web.practice.models import Order
 
     logged_in(client, staff_member).post(analyse_url(lab_order))
-    order = Order.objects.get()
-    later = order.sample.patient.general_practitioner.place_order(
-        sample=order.sample,
-        test=OrderedTest.CBC,
-        indication=ClinicalIndication.OTHER,
-        now=datetime(2026, 10, 29, 10, 0, tzinfo=UTC),
-    )
-    deliver(later)
+    # The sample's other test reaching the lab after its ferritin was analysed:
+    # here the CBC whose lab report suggested ferritin at the practice.
+    order = Order.objects.get(test=OrderedTest.FERRITIN)
+    deliver(order.sample.orders.get(test=OrderedTest.CBC))
     response = client.get(reverse("lab:to_analyse"))
     sample_id = lab_order.sample.sample_id
     assertContains(response, f"{sample_id}</span> · stored sample")

@@ -20,6 +20,7 @@ from tests.conftest import (
     collect_and_order,
     make_general_practitioner,
     make_patient,
+    suggest_ferritin_on,
 )
 from tools.certificates import Authority, issue, make_authority
 from web.lab.messaging import serve
@@ -283,8 +284,10 @@ def has_lab_report(world: World, owner: str, patient: str) -> None:
 
 @then(parsers.parse('"{owner}" has one lab report of "{patient}"'))
 def has_one_lab_report(world: World, owner: str, patient: str) -> None:
+    # The ferritin's; the CBC's lab report that suggested it came with the setup.
     reports = LabReport.objects.filter(
-        order__sample__patient=world["patients"][patient]
+        order__sample__patient=world["patients"][patient],
+        order__test=OrderedTest.FERRITIN,
     )
     assert reports.count() == 1
 
@@ -434,8 +437,10 @@ def owner() -> GeneralPractitioner:
 
 
 def new_order_url(client: Client, record: Patient) -> str:
-    """Collect a sample from the patient; the ferritin order page on it."""
+    """Collect a sample from the patient; the ferritin order page on it, beside
+    a CBC lab report suggesting ferritin (R11)."""
     client.post(reverse("practice:collect_sample", kwargs={"patient": record.pk}))
+    suggest_ferritin_on(record.samples.latest("pk"), NOW)
     return reverse(
         "practice:new_order",
         kwargs={
@@ -453,7 +458,7 @@ def test_placing_an_order_sends_its_lab_order(
     client.force_login(owner.user)
     client.post(new_order_url(client, record))
     assert LabOrder.objects.filter(sample__sample_id=latest_sample_id(record)).exists()
-    assert Order.objects.get().sent_at is not None
+    assert Order.objects.get(test=OrderedTest.FERRITIN).sent_at is not None
 
 
 def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
@@ -468,7 +473,7 @@ def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
         response, "AZ Diest could not be reached, so the lab order is not sent yet."
     )
     assertNotContains(response, "next check")
-    assert Order.objects.get().sent_at is None
+    assert Order.objects.get(test=OrderedTest.FERRITIN).sent_at is None
 
 
 def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
@@ -480,6 +485,7 @@ def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
     sample = record.samples.create(
         sample_id="x" * 25, collected_at=NOW, laboratory=Laboratory.objects.get()
     )
+    suggest_ferritin_on(sample, NOW)
     owner.place_order(
         sample=sample, test=OrderedTest.FERRITIN, indication=None, now=NOW
     )
@@ -605,6 +611,7 @@ def test_lab_orders_go_only_to_their_samples_laboratory(
     second = make_patient(owner, "Test Patient 2", RegisteredSex.FEMALE, 40)
     for record, laboratory in ((first, az_diest), (second, uz_leuven)):
         sample = owner.collect_sample(patient=record, laboratory=laboratory, now=NOW)
+        suggest_ferritin_on(sample, NOW)
         owner.place_order(
             sample=sample, test=OrderedTest.FERRITIN, indication=None, now=NOW
         )
@@ -614,7 +621,8 @@ def test_lab_orders_go_only_to_their_samples_laboratory(
     assert [lab_order.sample.sample_id for lab_order in LabOrder.objects.all()] == [
         latest_sample_id(first)
     ]
-    assert Order.objects.get(sample__patient=second).sent_at is None
+    unsent = Order.objects.get(sample__patient=second, test=OrderedTest.FERRITIN)
+    assert unsent.sent_at is None
 
 
 def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
@@ -626,6 +634,7 @@ def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
     uz_leuven = second_laboratory(practice, hospital)
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     sample = owner.collect_sample(patient=record, laboratory=uz_leuven, now=NOW)
+    suggest_ferritin_on(sample, NOW)
     placed = owner.place_order(
         sample=sample, test=OrderedTest.FERRITIN, indication=None, now=NOW
     )
@@ -637,7 +646,7 @@ def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
         directory=None, now=NOW
     )
     assert messaging.check_for_lab_reports(az_diest, connection, now=NOW) == 0
-    assert not LabReport.objects.exists()
+    assert not LabReport.objects.filter(order=placed).exists()
 
 
 def test_check_for_reports_names_an_unreachable_laboratory_and_asks_the_others(

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
     from web.deployment.models import LaboratoryDirector
     from web.lab.models import LaboratoryStaffMember, LabOrder
-    from web.practice.models import GeneralPractitioner, Order, Patient
+    from web.practice.models import GeneralPractitioner, Order, Patient, Sample
     from web.vocabulary import ClinicalIndication, Test
 from web.vocabulary import RegisteredSex
 
@@ -116,6 +116,30 @@ def deliver(order: "Order") -> "LabOrder":
     )
 
 
+def suggest_ferritin_on(sample: "Sample", now: "datetime") -> None:
+    """The sample's CBC, placed if missing, with a fetched lab report suggesting
+    ferritin: what any ferritin order needs (R11). The CBC counts as sent, so no
+    test sends it to a laboratory by accident."""
+    from web.practice.models import LabReport, Order
+    from web.vocabulary import ClinicalIndication, Test
+
+    cbc = sample.orders.filter(test=Test.CBC).first()
+    if cbc is None:
+        cbc = sample.patient.general_practitioner.place_order(
+            sample=sample, test=Test.CBC, indication=ClinicalIndication.OTHER, now=now
+        )
+    Order.objects.filter(pk=cbc.pk, sent_at=None).update(sent_at=now)
+    LabReport.objects.update_or_create(
+        order=cbc,
+        defaults={
+            "results": {},
+            "ferritin_suggested": True,
+            "released_at": now,
+            "fetched_at": now,
+        },
+    )
+
+
 def collect_and_order(
     *,
     general_practitioner: "GeneralPractitioner",
@@ -132,6 +156,8 @@ def collect_and_order(
     sample = general_practitioner.collect_sample(
         patient=patient, laboratory=laboratory, now=now
     )
+    if test.on_suspicion():
+        suggest_ferritin_on(sample, now)
     return general_practitioner.place_order(
         sample=sample,
         test=test,

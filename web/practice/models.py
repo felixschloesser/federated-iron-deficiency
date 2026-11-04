@@ -12,6 +12,7 @@ from django.utils.text import slugify
 from web.vocabulary import RESULT_NAMES, ClinicalIndication, RegisteredSex, Test
 
 INDICATION_REQUIRED = "A CBC needs a clinical indication."
+NOT_SUGGESTED = "Ferritin is ordered only beside a lab report suggesting it."
 # The tests an order states a clinical indication for (Test.takes_indication).
 TAKES_INDICATION = [test.value for test in Test if test.takes_indication()]
 
@@ -227,6 +228,15 @@ class Order(models.Model):
                 violation_error_message="Ferritin takes no clinical indication.",
             ),
         )
+
+    def clean(self) -> None:
+        """Ferritin only on suspicion: its sample has a lab report suggesting it
+        (R11). Across rows, so no constraint can hold it."""
+        suggested = self.sample.orders.filter(lab_report__ferritin_suggested=True)
+        if Test(self.test).on_suspicion() and not suggested.exists():
+            raise ValidationError(
+                {"test": ValidationError(NOT_SUGGESTED, code="ferritin_not_suggested")}
+            )
 
     @property
     def screened_indication(self) -> bool:
