@@ -284,11 +284,14 @@ On the host, `demo/` (gitignored) keeps only what a reset must not delete:
     ├── heilig-hart-leuven/      TB1 (2015–2016, 50%)
     └── az-diest/                TB1 (2017–2018, 25%)
 └── practices/                   TB3: each general practitioner's own app
-    ├── huisartsenpraktijk-de-akker/  Heverlee → UZ Leuven
-    │   ├── certificates/        client certificate from UZ Leuven's CA, and that CA's certificate
-    │   └── web.sqlite3          DS7 patients, orders, fetched lab reports
-    ├── huisartsenpraktijk-de-berk/   Kessel-Lo → Heilig Hart Leuven
-    └── huisartsenpraktijk-de-ceder/  Diest → AZ Diest
+    ├── huisartsenpraktijk-de-akker/  Heverlee; sends samples to every hospital (R22)
+    │   ├── laboratories/
+    │   │   ├── uz-leuven/       client certificate from UZ Leuven's CA, and that CA's certificate
+    │   │   ├── heilig-hart-leuven/
+    │   │   └── az-diest/
+    │   └── web.sqlite3          DS7 patients, orders, fetched lab reports, its laboratories
+    ├── huisartsenpraktijk-de-berk/   Kessel-Lo
+    └── huisartsenpraktijk-de-ceder/  Diest
 ```
 
 The three practices are fictional; a real practice may share a name. `demo.toml`
@@ -308,7 +311,7 @@ containers; P1 and P5 are not built).
 | `<hospital>-flower-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-flower-client-app` | its `certificates/` and `supernode/` (read-only) |
 | `<hospital>-flower-client-app` | built: SuperExec with the app's dependencies | `<hospital>-flower-client-app` | its `cohort/` (read-only), `final-models/` (R28) |
 | `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `<hospital>-lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/` and `supernode/` masked and `final-models/` read-only |
-| `<practice>-web` | built: the project | `<practice>`, its hospital's `<hospital>-lab-orders` | its folder |
+| `<practice>-web` | built: the project | `<practice>`, and every hospital's `<hospital>-lab-orders` (R22) | its folder, with `laboratories/<hospital>/` holding each hospital's certificates |
 | `proxy` | `nginx` (`docker/sni-proxy.conf`) | every `<hospital>` and `<practice>` network | none |
 
 `startup`, `model-updates` (DF7–DF10), each `<hospital>-flower-client-app` (TB4) and

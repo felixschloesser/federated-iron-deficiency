@@ -308,7 +308,8 @@ services:
       az-diest: {aliases: [az-diest-pages]}
       az-diest-lab-orders: {aliases: [az-diest-lab-orders]}
 
-  # TB3, each general practitioner's practice, sending to its one hospital.
+  # TB3, each general practitioner's practice, sending samples to every hospital's
+  # laboratory (R22): on each hospital's lab-orders network.
   huisartsenpraktijk-de-akker-web:
     <<: *web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
@@ -318,10 +319,9 @@ services:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PRACTICE_NAME: Huisartsenpraktijk De Akker
       PARTY_COLOUR: green
-      MESSAGING_ADDRESS: uz-leuven-lab-orders:8441
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-akker, target: /demo/practices/huisartsenpraktijk-de-akker}
-    networks: [huisartsenpraktijk-de-akker, uz-leuven-lab-orders]
+    networks: [huisartsenpraktijk-de-akker, uz-leuven-lab-orders, heilig-hart-leuven-lab-orders, az-diest-lab-orders]
 
   huisartsenpraktijk-de-berk-web:
     <<: *web
@@ -332,10 +332,9 @@ services:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PRACTICE_NAME: Huisartsenpraktijk De Berk
       PARTY_COLOUR: amber
-      MESSAGING_ADDRESS: heilig-hart-leuven-lab-orders:8441
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-berk, target: /demo/practices/huisartsenpraktijk-de-berk}
-    networks: [huisartsenpraktijk-de-berk, heilig-hart-leuven-lab-orders]
+    networks: [huisartsenpraktijk-de-berk, uz-leuven-lab-orders, heilig-hart-leuven-lab-orders, az-diest-lab-orders]
 
   huisartsenpraktijk-de-ceder-web:
     <<: *web
@@ -346,10 +345,9 @@ services:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PRACTICE_NAME: Huisartsenpraktijk De Ceder
       PARTY_COLOUR: purple
-      MESSAGING_ADDRESS: az-diest-lab-orders:8441
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-ceder, target: /demo/practices/huisartsenpraktijk-de-ceder}
-    networks: [huisartsenpraktijk-de-ceder, az-diest-lab-orders]
+    networks: [huisartsenpraktijk-de-ceder, uz-leuven-lab-orders, heilig-hart-leuven-lab-orders, az-diest-lab-orders]
 
   # Between the browser and the parties, like the internet: routes each
   # <party>.localhost by SNI, never decrypting. The only published port.

@@ -20,7 +20,6 @@ ROOT = Path(__file__).resolve().parents[1]
 HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
 PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
 # Each practice sends to the hospital of the same cycle (spec §9).
-PRACTICE_HOSPITAL = dict(zip(PRACTICE_SLUGS, HOSPITAL_SLUGS, strict=True))
 STARTUP_SERVICES = {
     "prepare",
     "flower-superlink",
@@ -221,21 +220,28 @@ def test_model_updates_connect_only_the_superlink_and_the_supernodes() -> None:
 
 
 @pytest.mark.parametrize("practice", PRACTICE_SLUGS)
-def test_each_practice_reaches_only_its_own_hospitals_lab_order_endpoint(
+def test_each_practice_reaches_every_hospitals_lab_order_endpoint_and_nothing_else(
     practice: str,
 ) -> None:
-    hospital = PRACTICE_HOSPITAL[practice]
+    """A practice chooses the laboratory per sample (R22); its laboratories are
+    rows add_laboratory made, not environment variables."""
     spec = service(f"{practice}-web")
-    assert set(spec["networks"]) == {practice, f"{hospital}-lab-orders"}
-    assert spec["environment"]["MESSAGING_ADDRESS"] == f"{hospital}-lab-orders:8441"
+    lab_orders = {f"{hospital}-lab-orders" for hospital in HOSPITAL_SLUGS}
+    assert set(spec["networks"]) == {practice} | lab_orders
+    assert "MESSAGING_ADDRESS" not in spec["environment"]
+
+
+@pytest.mark.parametrize("hospital", HOSPITAL_SLUGS)
+def test_a_hospitals_lab_order_network_holds_it_and_the_practices_only(
+    hospital: str,
+) -> None:
     members = {
         name
         for name, spec in config()["services"].items()
         if f"{hospital}-lab-orders" in spec.get("networks", {})
     }
-    assert members == {
-        f"{hospital}-web",
-        f"{practice}-web",
+    assert members == {f"{hospital}-web"} | {
+        f"{practice}-web" for practice in PRACTICE_SLUGS
     }
 
 

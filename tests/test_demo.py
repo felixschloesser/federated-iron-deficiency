@@ -23,11 +23,13 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
         "UZ Leuven  ",
         "https://uz-leuven.localhost/   2 screening models, none deployed",
         "https://heilig-hart-leuven.localhost/   no screening model yet",
-        "Huisartsenpraktijk De Akker → UZ Leuven",
+        "Huisartsenpraktijk De Akker  ",
         "https://huisartsenpraktijk-de-ceder.localhost/",
         "Ctrl-C stops every party.",
     ):
         assert line in text, line
+    # A practice sends samples to every hospital's laboratory, not to one (R22).
+    assert "→" not in text
     assert "Accounts" not in text
 
 
@@ -170,3 +172,31 @@ def test_each_hospitals_practice_colours_and_patients_come_from_demo_toml() -> N
         assert PRACTICES[cycle] == entry["practice"]
         assert COLOURS[cycle] == (entry["colour"], entry["practice_colour"])
         assert PATIENTS[cycle] == entry["patients"]
+
+
+def test_every_practice_holds_a_certificate_from_every_hospitals_authority(
+    tmp_path: Path,
+) -> None:
+    """What add_laboratory needs for each laboratory (R22, R24), once each."""
+    from tools.certificates import covers
+    from tools.demo import hospitals, lab_orders_host, practices, prepare_lab_orders
+
+    prepare_lab_orders(tmp_path)
+    issued = {
+        path: path.read_bytes()
+        for path in tmp_path.rglob("laboratories/*/certificate.pem")
+    }
+    for _, practice in practices():
+        for _, hospital in hospitals():
+            folder = tmp_path / "practices" / practice / "laboratories" / hospital
+            for name in ("ca.crt", "certificate.pem", "key.pem"):
+                assert (folder / name).is_file(), folder / name
+            ca = tmp_path / "hospitals" / hospital / "ca" / "ca.crt"
+            assert (folder / "ca.crt").read_bytes() == ca.read_bytes()
+    for _, hospital in hospitals():
+        endpoint = tmp_path / "hospitals" / hospital / "messaging" / "certificate.pem"
+        assert covers(endpoint, lab_orders_host(hospital))
+    assert len(issued) == len(practices()) * len(hospitals())
+    # Running again issues nothing new.
+    prepare_lab_orders(tmp_path)
+    assert {path: path.read_bytes() for path in issued} == issued

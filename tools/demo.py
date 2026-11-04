@@ -44,7 +44,8 @@ BROWSER_CA = "Iron deficiency demo localhost"
 # The demo's parties, declared in demo.toml; keyed here by cycle, like HOSPITALS.
 PARTIES = tomllib.loads((ROOT / "demo.toml").read_text())["hospitals"]
 _ENTRIES = {cycle: PARTIES[hospital_slug(name)] for cycle, name in HOSPITALS.items()}
-# Each practice sends its lab orders to one hospital (spec §9).
+# Each practice is paired with a hospital for its colour and patients (spec §9);
+# it may send samples to every hospital's laboratory (R22).
 PRACTICES: dict[str, str] = {
     cycle: entry["practice"] for cycle, entry in _ENTRIES.items()
 }
@@ -155,6 +156,19 @@ def prepare_web(folder: Path, party: str, seed_command: str, partition: int) -> 
     )
 
 
+def add_laboratories(practice: Path) -> None:
+    """Every hospital's laboratory, at its lab-order endpoint (R22)."""
+    env = {**os.environ, "PRACTICE_DIR": str(practice), "DJANGO_DEBUG": "1"}
+    for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
+        address = f"{lab_orders_host(slug)}:8441"
+        subprocess.run(
+            manage("add_laboratory", HOSPITALS[cycle], address),
+            env=env,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+
+
 def prepare_flower(demo_dir: Path) -> None:
     """Create what Flower needs and is missing: the SuperLink's certificate, the
     startup's connection to it, and each hospital's copy of the startup's CA
@@ -214,6 +228,29 @@ def prepare_browser(demo_dir: Path) -> None:
             issue(authority, web_tls(party), host, server=True)
 
 
+def prepare_lab_orders(demo_dir: Path) -> None:
+    """Each hospital is its own CA (R24): its lab-order endpoint's certificate, and
+    every practice's, as each practice may send it samples (R22). A practice keeps
+    a hospital's in laboratories/<hospital>, where add_laboratory expects them."""
+    for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
+        hospital = hospital_dir(demo_dir, slug)
+        if not (hospital / "ca" / "ca.key").exists():
+            make_authority(hospital / "ca", HOSPITALS[cycle])
+        authority = Authority(
+            HOSPITALS[cycle], hospital / "ca" / "ca.crt", hospital / "ca" / "ca.key"
+        )
+        for (_, sender), sender_cycle in zip(practices(), CYCLES, strict=True):
+            # The practice trusts this CA for this laboratory only, never the
+            # startup's.
+            folder = practice_dir(demo_dir, sender) / "laboratories" / slug
+            if not (folder / "certificate.pem").exists():
+                issue(authority, folder, PRACTICES[sender_cycle], server=False)
+                shutil.copy(authority.certificate, folder / "ca.crt")
+        endpoint = hospital / "messaging" / "certificate.pem"
+        if not covers(endpoint, lab_orders_host(slug)):
+            issue(authority, endpoint.parent, lab_orders_host(slug), server=True)
+
+
 def prepare(demo_dir: Path) -> None:
     """Create what is missing: Flower's keys and certificates, cohorts,
     connection, web databases."""
@@ -225,25 +262,14 @@ def prepare(demo_dir: Path) -> None:
 
     prepare_flower(demo_dir)
     prepare_browser(demo_dir)
+    prepare_lab_orders(demo_dir)
     federated_dataset = None
     nhanes = None
-    for (partition, slug), (_, practice_slug), cycle in zip(
+    for (partition, slug), (_, practice_slug), _cycle in zip(
         hospitals(), practices(), CYCLES, strict=True
     ):
         hospital = hospital_dir(demo_dir, slug)
         practice = practice_dir(demo_dir, practice_slug)
-        # Each hospital is its own CA: its endpoint's certificate, its practice's.
-        if not (practice / "certificates" / "certificate.pem").exists():
-            authority = make_authority(hospital / "ca", HOSPITALS[cycle])
-            # The practice trusts its hospital's CA, not the startup's.
-            issue(authority, practice / "certificates", PRACTICES[cycle], server=False)
-            shutil.copy(authority.certificate, practice / "certificates" / "ca.crt")
-        endpoint = hospital / "messaging" / "certificate.pem"
-        if not covers(endpoint, lab_orders_host(slug)):
-            authority = Authority(
-                HOSPITALS[cycle], hospital / "ca" / "ca.crt", hospital / "ca" / "ca.key"
-            )
-            issue(authority, endpoint.parent, lab_orders_host(slug), server=True)
         (hospital / "final-models").mkdir(parents=True, exist_ok=True)
         if not (hospital / "cohort").exists():
             federated_dataset = federated_dataset or load_federated_dataset()
@@ -292,6 +318,8 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
         for folder, party, seed, partition, name in webs:
             bar.set_description_str(f"{'Preparing ' + name:<{width}}")
             prepare_web(folder, party, seed, partition)
+            if party == "PRACTICE_DIR":
+                add_laboratories(folder)
             bar.update()
         for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
             bar.set_description_str(f"{'Checking ' + HOSPITALS[cycle]:<{width}}")
@@ -353,7 +381,7 @@ def summary(statuses: dict[str, str], https_port: int = 443) -> str:
     """What the person starting the demo needs: where each party is, which
     account to use, and what to do next."""
     hospital_names = [HOSPITALS[cycle] for cycle in CYCLES]
-    practice_names = [f"{PRACTICES[cycle]} → {HOSPITALS[cycle]}" for cycle in CYCLES]
+    practice_names = [PRACTICES[cycle] for cycle in CYCLES]
     lines = [
         f"Demo prepared. Password for every account: {PASSWORD}",
         (
