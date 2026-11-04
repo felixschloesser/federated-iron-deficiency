@@ -646,3 +646,16 @@ def test_add_laboratory_needs_its_certificates_first(
         (folder / name).write_bytes(b"")
     call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:8441")
     assert Laboratory.objects.get().address == "uz-leuven-lab-orders:8441"
+
+
+def test_renaming_a_laboratory_keeps_its_certificates(
+    practice: Path, owner: GeneralPractitioner
+) -> None:
+    """Its certificate folder is fixed when it is added, not derived from the
+    name each time."""
+    laboratory = Laboratory.objects.get(name="AZ Diest")
+    laboratory.name = "AZ Diest, campus Sint-Jan"
+    laboratory.save()
+    connection = messaging.connection_to(laboratory)
+    assert connection is not None
+    assert messaging.send_pending_lab_orders(laboratory, connection, now=NOW) == 0
