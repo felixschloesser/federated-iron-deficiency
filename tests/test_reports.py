@@ -39,7 +39,6 @@ def lab_report(
     *,
     ferritin_suggested: bool,
 ) -> None:
-    from web.practice.models import LabReport
 
     world["lab_report"] = LabReport.objects.create(
         order=order(world["patients"][patient], test),
@@ -136,16 +135,16 @@ def no_note(world: World) -> None:
     assert world["lab_report"].note == ""
 
 
-@then(parsers.parse('"{name}" has the lab report among the ferritin suggestions'))
-def among_suggestions(world: World, name: str) -> None:
-    owner = world["general_practitioners"][name]
-    assert list(LabReport.objects.ferritin_suggestions(owner)) == [world["lab_report"]]
+@then(parsers.parse('"{patient}" is marked ferritin suggested'))
+def marked(world: World, patient: str) -> None:
+    pk = world["patients"][patient].pk
+    assert Patient.objects.with_ferritin_suggested().get(pk=pk).ferritin_suggested
 
 
-@then(parsers.parse('"{name}" has no ferritin suggestions'))
-def no_suggestions(world: World, name: str) -> None:
-    general_practitioner = world["general_practitioners"][name]
-    assert not LabReport.objects.ferritin_suggestions(general_practitioner).exists()
+@then(parsers.parse('"{patient}" is not marked ferritin suggested'))
+def not_marked(world: World, patient: str) -> None:
+    pk = world["patients"][patient].pk
+    assert not Patient.objects.with_ferritin_suggested().get(pk=pk).ferritin_suggested
 
 
 @then("the lab report has no comment")
