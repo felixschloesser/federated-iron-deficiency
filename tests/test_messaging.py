@@ -520,6 +520,25 @@ def test_check_for_reports_fetches_them(
     assert LabReport.objects.filter(order__sample__patient=record).exists()
 
 
+def test_check_for_reports_on_a_patients_page_returns_to_it(
+    client: Client, practice: Path, owner: GeneralPractitioner
+) -> None:
+    record = released_ferritin(owner)
+    client.force_login(owner.user)
+    page = reverse("practice:patient", kwargs={"pk": record.pk})
+    check = reverse("practice:patient_check_for_reports", kwargs={"patient": record.pk})
+    assertContains(client.get(page), f'action="{check}"')
+    response = client.post(check)
+    assert response["Location"] == page
+    assertContains(client.get(page), "1 new lab report.")
+    assert LabReport.objects.filter(order__sample__patient=record).exists()
+    other = reverse("practice:patient_check_for_reports", kwargs={"patient": 0})
+    assert client.post(other).status_code == 404
+    Laboratory.objects.all().delete()
+    assertNotContains(client.get(page), "Check for reports")
+    assert client.post(check).status_code == 404
+
+
 def test_check_for_reports_is_offered_only_with_a_laboratory_to_ask(
     client: Client, practice: Path, owner: GeneralPractitioner
 ) -> None:
@@ -542,7 +561,7 @@ def test_an_awaited_lab_report_says_how_to_fetch_it(
     assertContains(response, "<mark>Awaiting lab report</mark>")
     assertContains(
         response,
-        "<small>Check for reports on Orders to fetch it.</small>",
+        "<small>Check for reports to fetch it.</small>",
     )
 
 
