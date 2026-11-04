@@ -2,26 +2,6 @@
 {% block title %}Patients{% endblock %}
 {% block content %}
 {% include "kit/index_header.html" with title="Patients" %}
-{% if suggestions %}
-<section>
-  <h2>Ferritin suggested ({{ suggestions|length }})</h2>
-  <div class="overflow-auto"><table>
-    <thead>
-      <tr><th scope="col">Patient</th><th scope="col">Sample ID</th><th scope="col">Lab report released</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
-    </thead>
-    <tbody>
-      {% for item in suggestions %}
-      <tr>
-        <td><a href="{% url 'practice:patient' item.patient.pk %}">{{ item.patient.name }}</a></td>
-        <td class="sample-id">{{ item.lab_report.order.sample.sample_id }}</td>
-        <td>{{ item.lab_report.released_at|date:"j M Y, H:i" }}</td>
-        <td><a href="{{ item.order_ferritin_url }}" role="button" aria-label="Order ferritin on sample {{ item.lab_report.order.sample.sample_id }}">Order ferritin</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table></div>
-</section>
-{% endif %}
 {% include "kit/search.html" with label="Search patients by name" query=query %}
 {% if patients %}
 <div class="overflow-auto"><table>
@@ -31,7 +11,7 @@
   <tbody>
     {% for patient in patients %}
     <tr>
-      <td><a href="{% url 'practice:patient' patient.pk %}">{{ patient.name }}</a></td>
+      <td><a href="{% url 'practice:patient' patient.pk %}">{{ patient.name }}</a>{% if patient.ferritin_suggested %} <mark>Ferritin suggested</mark>{% endif %}</td>
       <td>{{ patient.get_registered_sex_display }}</td>
       <td>{{ patient.age }}</td>
     </tr>

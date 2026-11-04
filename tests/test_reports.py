@@ -137,14 +137,12 @@ def no_note(world: World) -> None:
 
 @then(parsers.parse('"{patient}" is marked ferritin suggested'))
 def marked(world: World, patient: str) -> None:
-    pk = world["patients"][patient].pk
-    assert Patient.objects.with_ferritin_suggested().get(pk=pk).ferritin_suggested
+    assert world["patients"][patient] in Patient.objects.awaiting_ferritin()
 
 
 @then(parsers.parse('"{patient}" is not marked ferritin suggested'))
 def not_marked(world: World, patient: str) -> None:
-    pk = world["patients"][patient].pk
-    assert not Patient.objects.with_ferritin_suggested().get(pk=pk).ferritin_suggested
+    assert world["patients"][patient] not in Patient.objects.awaiting_ferritin()
 
 
 @then("the lab report has no comment")

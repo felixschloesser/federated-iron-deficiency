@@ -516,7 +516,7 @@ def test_patients_can_be_searched_by_name(
 ) -> None:
     make_patient(general_practitioner, "Maria Peeters", RegisteredSex.FEMALE, 30)
     logged_in(client, general_practitioner)
-    with django_assert_num_queries(4):
+    with django_assert_num_queries(3):
         response = client.get(reverse("practice:patients"), {"q": "peet"})
     assert [listed.name for listed in response.context["patients"]] == ["Maria Peeters"]
     assertContains(response, 'value="peet"')

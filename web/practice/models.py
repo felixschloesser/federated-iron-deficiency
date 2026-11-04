@@ -107,6 +107,26 @@ class GeneralPractitioner(models.Model):
         return order
 
 
+def _awaits_ferritin() -> models.Exists:
+    """Whether the outer patient has a lab report suggesting ferritin on a sample
+    with no ferritin order yet (R11)."""
+    return models.Exists(
+        LabReport.objects.filter(
+            order__sample__patient=models.OuterRef("pk"), ferritin_suggested=True
+        ).exclude(order__sample__orders__test=Test.FERRITIN)
+    )
+
+
+class PatientQuerySet(models.QuerySet["Patient"]):
+    def awaiting_ferritin(self) -> "PatientQuerySet":
+        """The patients whose doctor has a ferritin suggestion to act on (R11)."""
+        return self.filter(_awaits_ferritin())
+
+    def with_ferritin_suggested(self) -> "PatientQuerySet":
+        """Each patient with `ferritin_suggested`, for the patient list's mark."""
+        return self.annotate(ferritin_suggested=_awaits_ferritin())
+
+
 class Patient(models.Model):
     general_practitioner = models.ForeignKey(
         GeneralPractitioner, on_delete=models.PROTECT, related_name="patients"
@@ -117,6 +137,8 @@ class Patient(models.Model):
     # Demo only: the NHANES participant this patient is, which each of their
     # sample IDs starts with so the analyser stand-in can measure it (spec §8).
     nhanes_number = models.CharField(max_length=20, unique=True)
+
+    objects = PatientQuerySet.as_manager()
 
     def __str__(self) -> str:
         return self.name
@@ -222,23 +244,6 @@ class ResultValue:
         return f"{self.value:g}"
 
 
-class LabReportQuerySet(models.QuerySet["LabReport"]):
-    def ferritin_suggestions(
-        self, general_practitioner: GeneralPractitioner
-    ) -> "LabReportQuerySet":
-        """The general practitioner's lab reports suggesting ferritin whose sample
-        has no ferritin order yet: what awaits them, newest first (R11)."""
-        return (
-            self.filter(
-                ferritin_suggested=True,
-                order__sample__patient__general_practitioner=general_practitioner,
-            )
-            .exclude(order__sample__orders__test=Test.FERRITIN)
-            .select_related("order__sample__patient")
-            .order_by("-released_at", "-pk")
-        )
-
-
 class LabReport(models.Model):
     """A lab report fetched from the hospital (DF25): results, and whether
     ferritin is suggested; nothing else of screening (R9, R25)."""
@@ -250,8 +255,6 @@ class LabReport(models.Model):
     ferritin_suggested = models.BooleanField(default=False)
     released_at = models.DateTimeField()
     fetched_at = models.DateTimeField()
-
-    objects = LabReportQuerySet.as_manager()
 
     def ferritin_order_offered(self) -> bool:
         """Order ferritin beside a suggestion, until its sample has ferritin (R11, R26)."""
