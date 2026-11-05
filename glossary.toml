@@ -217,7 +217,7 @@ rejected = ["active release", "fingerprint"]
 
 ["laboratory director"]
 source = "WHO LQMS ch. 2, p. 21: the director assesses \"all potential risks … including services to patients\" (20 uses)"
-why = "Decides which screening model screens patients"
+why = "Decides which screening model screens patients; one per hospital (R13), as WHO's singular has it"
 rejected = [
     "clinical biologist (not in either source)",
     "quality manager (WHO: runs the quality system, does not decide)",
