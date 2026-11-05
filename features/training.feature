@@ -50,3 +50,9 @@ Feature: The startup's training runs
   Scenario: No final model of a run the startup did not keep
     When the startup downloads final model "9" for sale
     Then there is nothing to download
+
+  Scenario: A SuperLink that does not answer in time
+    Given the SuperLink does not answer
+    When the data scientist submits a training run with threshold 0.5
+    Then the submission is refused with code "superlink_no_answer"
+    And the submission waited at most 20 seconds

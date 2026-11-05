@@ -450,3 +450,15 @@ def no_service_sets(declared: dict[str, Any], setting: str) -> None:
         if setting in (spec.get("environment") or {})
     }
     assert with_setting == set()
+
+
+def test_the_startups_web_server_outwaits_a_submission() -> None:
+    # A request that outlives gunicorn's worker timeout ends without the page
+    # saying why; the submission gives up first.
+    from web.training.runs import SUBMIT_TIMEOUT_SECONDS
+
+    command = service("startup-web")["command"]
+    timeouts = [
+        int(arg.split("=")[1]) for arg in command if arg.startswith("--timeout=")
+    ]
+    assert (timeouts or [30])[0] > SUBMIT_TIMEOUT_SECONDS  # gunicorn's default: 30

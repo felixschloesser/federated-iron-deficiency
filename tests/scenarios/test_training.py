@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
@@ -98,10 +99,17 @@ def superlink(monkeypatch: pytest.MonkeyPatch) -> World:
     import json
     import subprocess
 
-    state: World = {"commands": [], "answer": {"success": True, "run-id": "7"}}
+    state: World = {
+        "commands": [],
+        "answer": {"success": True, "run-id": "7"},
+        "hangs": False,
+    }
 
-    def run(command: list[str], **kwargs: object) -> "subprocess.CompletedProcess[str]":
+    def run(command: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
         state["commands"].append(command)
+        state["timeout"] = kwargs.get("timeout")
+        if state["hangs"]:
+            raise subprocess.TimeoutExpired(command, kwargs.get("timeout") or 0)
         return subprocess.CompletedProcess(command, 0, json.dumps(state["answer"]), "")
 
     monkeypatch.setattr(subprocess, "run", run)
@@ -114,6 +122,17 @@ def superlink_refuses(superlink: World) -> None:
         "success": False,
         "error-message": "Run submission failed",
     }
+
+
+@given("the SuperLink does not answer")
+def superlink_hangs(superlink: World) -> None:
+    superlink["hangs"] = True
+
+
+@then(parsers.parse("the submission waited at most {seconds:d} seconds"))
+def waited_at_most(superlink: World, seconds: int) -> None:
+    assert superlink["timeout"] is not None
+    assert superlink["timeout"] <= seconds
 
 
 @when(
