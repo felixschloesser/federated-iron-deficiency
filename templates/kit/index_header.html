@@ -6,5 +6,5 @@ list of {url, label}; omit any for none.{% endcomment %}
   {% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
 </hgroup>
 {% if actions or post_actions %}
-<div class="action-row">{% for action in actions %}<a href="{{ action.url }}" class="button-link">{{ action.label }}</a> {% endfor %}{% for action in post_actions %}<form method="post" action="{{ action.url }}" class="inline-form">{% csrf_token %}<button type="submit">{{ action.label }}</button></form> {% endfor %}</div>
+<div class="action-row">{% for action in actions %}<a href="{{ action.url }}" class="button-link">{{ action.label }}</a> {% endfor %}{% for action in post_actions %}<form method="post" action="{{ action.url }}" class="inline-form">{% csrf_token %}<button>{{ action.label }}</button></form> {% endfor %}</div>
 {% endif %}

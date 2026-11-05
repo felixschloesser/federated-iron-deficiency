@@ -114,8 +114,7 @@ article[data-level="error"] {
   margin-bottom: var(--pico-typography-spacing-vertical);
 }
 
-.action-row > *,
-.action-row button {
+.action-row > * {
   margin-bottom: 0;
 }
 

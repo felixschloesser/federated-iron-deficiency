@@ -220,3 +220,16 @@ def test_analysed_names_no_general_practitioner(
     response = logged_in(client, staff_member).get(reverse("lab:analysed"))
     assertNotContains(response, '<th scope="col">General practitioner</th>')
     assertNotContains(response, "Dr. Demo A")
+
+
+def test_an_action_button_is_plain_so_pico_adds_no_form_margin(
+    client: Client, staff_member: LaboratoryStaffMember, lab_order: LabOrder
+) -> None:
+    # Pico's [type=submit] adds a bottom margin meant for a form's last button;
+    # an action button submits by default and sits in a table cell or a row.
+    response = logged_in(client, staff_member).get(reverse("lab:to_analyse"))
+    sample_id = lab_order.sample.sample_id
+    assertContains(
+        response,
+        f'<button aria-label="Run analyser for sample {sample_id}">Run analyser</button>',
+    )

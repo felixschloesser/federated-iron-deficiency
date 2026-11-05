@@ -692,3 +692,11 @@ def test_log_out_is_a_plain_button_so_picos_nav_rule_applies(
     # the links. A button in a form submits anyway: no type attribute.
     response = logged_in(client, general_practitioner).get(reverse("practice:patients"))
     assertContains(response, '<button class="secondary outline">Log out</button>')
+
+
+def test_a_page_headers_post_action_is_a_plain_button(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    # As Log out: no type attribute, so Pico adds no form margin in the row.
+    response = logged_in(client, general_practitioner).get(patient_url(patient))
+    assertContains(response, "<button>Collect sample</button>")
