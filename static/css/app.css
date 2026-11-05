@@ -225,3 +225,61 @@ article dl {
 article dl dd {
   margin: 0;
 }
+
+/* A link that looks like a button: it leads somewhere, so it stays a link
+   (Enter follows it), not role="button", which promises Space too. Pico's own
+   button rule and states, from its variables (pico-2.1.1). */
+a.button-link {
+  --pico-background-color: var(--pico-primary-background);
+  --pico-border-color: var(--pico-primary-border);
+  --pico-color: var(--pico-primary-inverse);
+  --pico-box-shadow: var(--pico-button-box-shadow, 0 0 0 rgba(0, 0, 0, 0));
+  display: inline-block;
+  padding: var(--pico-form-element-spacing-vertical) var(--pico-form-element-spacing-horizontal);
+  border: var(--pico-border-width) solid var(--pico-border-color);
+  border-radius: var(--pico-border-radius);
+  outline: 0;
+  background-color: var(--pico-background-color);
+  box-shadow: var(--pico-box-shadow);
+  color: var(--pico-color);
+  font-weight: var(--pico-font-weight);
+  font-size: 1rem;
+  line-height: var(--pico-line-height);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--pico-transition),
+    border-color var(--pico-transition),
+    color var(--pico-transition),
+    box-shadow var(--pico-transition);
+}
+
+a.button-link:is(:hover, :active, :focus) {
+  --pico-background-color: var(--pico-primary-hover-background);
+  --pico-border-color: var(--pico-primary-hover-border);
+  --pico-box-shadow: var(--pico-button-hover-box-shadow, 0 0 0 rgba(0, 0, 0, 0));
+  --pico-color: var(--pico-primary-inverse);
+  text-decoration: none;
+}
+
+a.button-link:focus {
+  --pico-box-shadow: var(--pico-button-hover-box-shadow, 0 0 0 rgba(0, 0, 0, 0)),
+    0 0 0 var(--pico-outline-width) var(--pico-primary-focus);
+}
+
+a.button-link.secondary.outline {
+  --pico-background-color: transparent;
+  --pico-color: var(--pico-secondary);
+  --pico-border-color: var(--pico-secondary);
+}
+
+a.button-link.secondary.outline:is(:hover, :active, :focus) {
+  --pico-background-color: transparent;
+  --pico-color: var(--pico-secondary-hover);
+  --pico-border-color: var(--pico-secondary-hover);
+}
+
+a.button-link.secondary.outline:focus {
+  --pico-box-shadow: 0 0 0 var(--pico-outline-width) var(--pico-secondary-focus);
+}
