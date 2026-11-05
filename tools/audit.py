@@ -21,7 +21,7 @@ ALLOWLIST = Path("tools") / "audit_allowlist.toml"
 GLOSSARY = Path("glossary.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
 BUILD_OUTPUT = {"staticfiles"}
-# The parts of the training package a hospital's web app may import (R21);
+# The parts of the training package a hospital's web app may import (features/quality/party_isolation.feature);
 # everything else under web/ only the cohort's terms and the dataset's loaders.
 HOSPITAL_SIDE = {
     "iron_deficiency.screening",
@@ -37,6 +37,10 @@ SUPPRESSIONS = (
     "csrf" + "_exempt",
     "filter" + "warnings",
 )
+# The deleted spec's requirements, obstacles and sections; DF and TB name the
+# report's DFD and stay. Built so that this file does not match itself.
+SPEC_CITATION = re.compile(r"\b[R" + "O]\\d+\\b|" + "\u00a7" + r"\s?\d+")
+CODE_FILES = ("*.py", "*.pyi", "*.html", "*.feature", "*.proto", "*.toml", "*.yaml")
 SAFE_MARKERS = ("|sa" + "fe", "mark" + "_safe(")
 MUTATORS = {
     "save",
@@ -240,7 +244,7 @@ def _web_imports(root: Path) -> Iterator[tuple[Path, int, str]]:
 def training_imports(root: Path) -> list[str]:
     """Hospital software uses only the screening side of the training package,
     and the startup's only to read its own final models (iron_deficiency.screening);
-    the rest of web/ only the dataset (R21)."""
+    the rest of web/ only the dataset (features/quality/party_isolation.feature)."""
     readers = set(Party.HOSPITAL.apps()) | set(Party.STARTUP.apps())
     findings = []
     for rel, line, module in _web_imports(root):
@@ -256,7 +260,7 @@ def training_imports(root: Path) -> list[str]:
 
 
 def party_imports(root: Path) -> list[str]:
-    """A party's apps never import the other party's; shared code imports neither (R21)."""
+    """A party's apps never import the other party's; shared code imports neither (features/quality/party_isolation.feature)."""
     owner = {app: party for party in Party for app in party.apps()}
     findings = []
     for rel, line, module in _web_imports(root):
@@ -283,6 +287,17 @@ def glossary_sources(root: Path) -> list[str]:
     return findings
 
 
+def spec_citations(root: Path) -> list[str]:
+    """No code cites the deleted spec: a reason belongs in the docstring, a
+    requirement in its feature file."""
+    return [
+        f"{rel}:{number}: cites the deleted spec ({match[0]})"
+        for pattern in CODE_FILES
+        for rel, number, line in lines(root, pattern)
+        for match in SPEC_CITATION.finditer(line)
+    ]
+
+
 CHECKS: dict[str, Callable[[Path], list[str]]] = {
     check.__name__: check
     for check in (
@@ -293,6 +308,7 @@ CHECKS: dict[str, Callable[[Path], list[str]]] = {
         listed_members,
         get_mutation,
         glossary_sources,
+        spec_citations,
         training_imports,
         party_imports,
     )

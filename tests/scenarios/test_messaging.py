@@ -73,7 +73,7 @@ def general_practitioner(
 ) -> None:
     world["general_practitioners"][name] = make_general_practitioner(name)
     settings.PARTY_NAME = practice
-    # The practice works with the hospital's laboratory (R22).
+    # The practice works with the hospital's laboratory.
     world["laboratory"] = Laboratory.objects.create(
         name=hospital_name, address=world["hospital"]
     )
@@ -382,7 +382,7 @@ def owner() -> GeneralPractitioner:
 
 def new_order_url(client: Client, record: Patient) -> str:
     """Collect a sample from the patient; the ferritin order page on it, beside
-    a CBC lab report suggesting ferritin (R11)."""
+    a CBC lab report suggesting ferritin (features/ordering.feature)."""
     client.post(reverse("practice:collect_sample", kwargs={"patient": record.pk}))
     suggest_ferritin_on(record.samples.latest("pk"), NOW)
     return reverse(
@@ -503,7 +503,7 @@ def test_check_for_reports_is_offered_only_with_a_laboratory_to_ask(
 def test_an_awaited_lab_report_says_how_to_fetch_it(
     client: Client, settings: Settings, practice: Laboratory, owner: GeneralPractitioner
 ) -> None:
-    # No timer fetches lab reports: only Check for reports does (R23).
+    # No timer fetches lab reports: only Check for reports does.
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
     client.post(new_order_url(client, record))

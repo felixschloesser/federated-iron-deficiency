@@ -3,7 +3,7 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
   hospital and fetches lab reports (DF25) from it, over gRPC. Every message
   names the sending practice, and the hospital gives each practice only the lab
   reports of its own lab orders. The report's mutual TLS is left out of the
-  demo. Covers R22–R25.
+  demo.
 
   Background:
     Given hospital "AZ Diest"

@@ -3,7 +3,7 @@ from django.http import HttpRequest
 
 
 def party(request: HttpRequest) -> dict[str, str]:
-    """The party this deployment belongs to (spec §9), and its colour theme."""
+    """The party this deployment belongs to (demo/README.md), and its colour theme."""
     theme = f"pico.{settings.PARTY_COLOUR}" if settings.PARTY_COLOUR else "pico"
     return {
         "party_name": settings.PARTY_NAME,

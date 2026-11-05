@@ -1,15 +1,25 @@
-"""Settings keep a hospital's web app inside its own folder (spec R21)."""
+"""Settings keep each party's web app inside its own folder: scenarios
+(features/quality/party_isolation.feature), and the checks beside them."""
 
 import os
+import re
 import sqlite3
 import subprocess
 import sys
 from contextlib import closing
 from pathlib import Path
+from typing import Any
 
 import pytest
+from pytest_bdd import given, parsers, scenarios, then, when
 
 ROOT = Path(__file__).resolve().parents[2]
+# Each party's folder setting and seed command.
+PARTIES = {
+    "hospital": ("HOSPITAL_DIR", "seed_hospital"),
+    "practice": ("PRACTICE_DIR", "seed_practice"),
+    "startup": ("STARTUP_DIR", "seed_startup"),
+}
 BASE_ENV = {
     name: value
     for name, value in os.environ.items()
@@ -43,12 +53,6 @@ def test_the_database_lives_in_the_hospital_folder(tmp_path: Path) -> None:
     assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
 
 
-def test_a_database_elsewhere_is_refused(tmp_path: Path) -> None:
-    result = database_path({"HOSPITAL_DIR": str(tmp_path), "DATABASE_NAME": "other"})
-    assert result.returncode != 0
-    assert "HOSPITAL_DIR" in result.stderr
-
-
 def test_a_practice_keeps_its_database_in_its_own_folder(tmp_path: Path) -> None:
     result = database_path({"PRACTICE_DIR": str(tmp_path)})
     assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
@@ -61,14 +65,6 @@ def test_the_startup_keeps_its_database_and_final_models_in_its_folder(
     assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
     final_models = setting("FINAL_MODELS_DIR", {"STARTUP_DIR": str(tmp_path)})
     assert final_models == str(tmp_path / "final-models")
-
-
-def test_a_deployment_is_one_party(tmp_path: Path) -> None:
-    result = database_path(
-        {"HOSPITAL_DIR": str(tmp_path / "h"), "PRACTICE_DIR": str(tmp_path / "p")}
-    )
-    assert result.returncode != 0
-    assert "PRACTICE_DIR" in result.stderr
 
 
 def seed_arguments(command: str, nhanes: Path) -> list[str]:
@@ -86,45 +82,70 @@ def run_manage(env: dict[str, str], *args: str) -> None:
     )
 
 
-@pytest.mark.parametrize(
-    ("folder", "command", "own", "others"),
-    [
-        ("HOSPITAL_DIR", "seed_hospital", "lab_laborder", ("practice_", "training_")),
-        (
-            "PRACTICE_DIR",
-            "seed_practice",
-            "practice_patient",
-            ("lab_", "nhanes_", "deployment_", "training_"),
-        ),
-        (
-            "STARTUP_DIR",
-            "seed_startup",
-            "training_datascientist",
-            ("lab_", "nhanes_", "deployment_", "practice_"),
-        ),
-    ],
+scenarios("quality/party_isolation.feature")
+
+
+@given(
+    parsers.parse("a {party} deployment in a folder of its own"),
+    target_fixture="deployment",
 )
-def test_a_party_holds_only_its_own_tables(
-    tmp_path: Path, folder: str, command: str, own: str, others: tuple[str, ...]
-) -> None:
-    """A hospital has no table for patients; a practice none for lab orders,
-    analyser values or final models (R21)."""
+def deployment(tmp_path: Path, party: str) -> dict[str, Any]:
+    setting, command = PARTIES[party]
+    return {"setting": setting, "command": command, "folder": tmp_path}
+
+
+@when("it migrates and seeds its database")
+def migrate_and_seed(deployment: dict[str, Any]) -> None:
     from tests.conftest import nhanes_rows
 
-    nhanes = tmp_path / "nhanes.csv"
+    folder = deployment["folder"]
+    nhanes = folder / "nhanes.csv"
     nhanes_rows().to_csv(nhanes, index=False)
-    env = {folder: str(tmp_path)}
+    env = {deployment["setting"]: str(folder)}
     run_manage(env, "migrate", "-v0")
-    run_manage(env, command, *seed_arguments(command, nhanes))
-    with closing(sqlite3.connect(tmp_path / "web.sqlite3")) as database:
-        tables = {
+    run_manage(
+        env, deployment["command"], *seed_arguments(deployment["command"], nhanes)
+    )
+    with closing(sqlite3.connect(folder / "web.sqlite3")) as database:
+        deployment["tables"] = {
             name
             for (name,) in database.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'table'"
             )
         }
-    assert own in tables
-    assert not [table for table in tables if table.startswith(others)]
+
+
+@when("its settings name a database elsewhere")
+def database_elsewhere(deployment: dict[str, Any]) -> None:
+    deployment["result"] = database_path(
+        {deployment["setting"]: str(deployment["folder"]), "DATABASE_NAME": "other"}
+    )
+
+
+@when("its settings also name a practice's folder")
+def two_parties(deployment: dict[str, Any]) -> None:
+    folder = deployment["folder"]
+    deployment["result"] = database_path(
+        {"HOSPITAL_DIR": str(folder / "h"), "PRACTICE_DIR": str(folder / "p")}
+    )
+
+
+@then(parsers.parse('its database has the table "{own}"'))
+def has_table(deployment: dict[str, Any], own: str) -> None:
+    assert own in deployment["tables"]
+
+
+@then(parsers.parse("its database has no table starting with {others}"))
+def no_other_tables(deployment: dict[str, Any], others: str) -> None:
+    prefixes = tuple(re.findall(r'"([^"]+)"', others))
+    assert prefixes
+    assert not [table for table in deployment["tables"] if table.startswith(prefixes)]
+
+
+@then(parsers.parse('the web app does not start, naming "{setting}"'))
+def does_not_start(deployment: dict[str, Any], setting: str) -> None:
+    assert deployment["result"].returncode != 0
+    assert setting in deployment["result"].stderr
 
 
 # Each seeded account opens its role's pages in the party's own deployment.
@@ -162,7 +183,7 @@ def test_every_page_of_a_party_loads_in_its_own_deployment(
     tmp_path: Path, folder: str, command: str, users: set[str]
 ) -> None:
     """Development serves every party from one database; this runs each party's
-    pages with only its own apps installed (R21)."""
+    pages with only its own apps installed."""
     from tests.conftest import nhanes_rows
 
     nhanes = tmp_path / "nhanes.csv"

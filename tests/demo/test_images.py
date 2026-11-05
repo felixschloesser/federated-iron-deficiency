@@ -1,4 +1,4 @@
-"""What the container images install (spec §9)."""
+"""What the container images install (demo/README.md)."""
 
 import os
 import re

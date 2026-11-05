@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
-# One deployment per party: what it stores lives in its own folder (spec §9, R21).
+# One deployment per party: what it stores lives in its own folder (demo/README.md, features/quality/party_isolation.feature).
 HOSPITAL_DIR = (
     Path(os.environ["HOSPITAL_DIR"]) if "HOSPITAL_DIR" in os.environ else None
 )
@@ -32,17 +32,23 @@ if sum(folder is not None for folder in (HOSPITAL_DIR, PRACTICE_DIR, STARTUP_DIR
 PARTY_DIR = HOSPITAL_DIR or PRACTICE_DIR or STARTUP_DIR
 # None: a development checkout, serving every party's pages from one database.
 PARTY: Party | None = None
-# The party's final models: the hospital's screening models (R16), the startup's
-# copy of each (DS4); without a party folder, an optional folder.
-FINAL_MODELS_DIR: Path | None = (
-    Path(os.environ["FINAL_MODELS_DIR"]) if "FINAL_MODELS_DIR" in os.environ else None
+# The hospital's screening models (features/final_models.feature); without HOSPITAL_DIR, an optional folder.
+SCREENING_MODELS_DIR: Path | None = (
+    Path(os.environ["SCREENING_MODELS_DIR"])
+    if "SCREENING_MODELS_DIR" in os.environ
+    else None
 )
 if HOSPITAL_DIR is not None:
     PARTY = Party.HOSPITAL
-    FINAL_MODELS_DIR = HOSPITAL_DIR / "screening-models"
+    SCREENING_MODELS_DIR = HOSPITAL_DIR / "screening-models"
 elif PRACTICE_DIR is not None:
     PARTY = Party.GENERAL_PRACTITIONER
-elif STARTUP_DIR is not None:
+# The startup's copy of every final model (features/training.feature); without
+# STARTUP_DIR, an optional folder.
+FINAL_MODELS_DIR: Path | None = (
+    Path(os.environ["FINAL_MODELS_DIR"]) if "FINAL_MODELS_DIR" in os.environ else None
+)
+if STARTUP_DIR is not None:
     PARTY = Party.STARTUP
     FINAL_MODELS_DIR = STARTUP_DIR / "final-models"
 # Shown in the title bar and header; never the screening's name.

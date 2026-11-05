@@ -39,13 +39,13 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
         lab_order = get_object_or_404(LabOrder.objects.select_related("sample"), pk=pk)
         try:
             lab_order.run_analyser(
-                directory=settings.FINAL_MODELS_DIR,
+                directory=settings.SCREENING_MODELS_DIR,
                 now=timezone.now(),
             )
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            # Every analysis releases its lab report at once (R8).
+            # Every analysis releases its lab report at once (features/screening.feature).
             released = (
                 f"Sample {lab_order.sample.sample_id}:"
                 f" {lab_order.get_test_display()} analysed, lab report released"

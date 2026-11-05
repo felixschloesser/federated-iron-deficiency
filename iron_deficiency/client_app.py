@@ -142,7 +142,7 @@ def final_models_path(context: Context) -> Path:
 
 @app.query("deploy")
 def deploy(msg: Message, context: Context) -> Message:
-    """Store the final model, for the hospital to deploy or not (spec R16, R20)."""
+    """Store the final model, for the hospital to deploy or not (features/final_models.feature)."""
 
     aggregate = msg.content.metric_records["federated"]
     store_final_model(

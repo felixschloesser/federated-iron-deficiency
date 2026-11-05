@@ -2,7 +2,7 @@ Feature: Deploying a screening model
   Each training run sends a screening model to every hospital. It screens no one
   until the hospital's laboratory director deploys it, after comparing its
   local validation with the deployed model's. A hospital has one laboratory
-  director. Covers R13, R17–R19.
+  director.
 
   Background:
     Given laboratory director "Director One"

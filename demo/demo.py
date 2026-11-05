@@ -1,4 +1,4 @@
-"""Prepare the demo deployment's folders; compose.yaml runs it (spec §9).
+"""Prepare the demo deployment's folders; compose.yaml runs it (demo/README.md).
 
     docker compose up --build --abort-on-container-failure
     docker compose run --rm train   # one training run, submitted inside TB2;
@@ -111,7 +111,7 @@ def seed_arguments(partition: int, nhanes: Path) -> list[str]:
 
 def tube_seeds(nhanes: Path) -> list[list[str]]:
     """Every practice's participants, for a hospital's analyser stand-in: any
-    practice may send it a sample (R22)."""
+    practice may send it a sample (features/messaging.feature)."""
     return [seed_arguments(partition, nhanes) for partition, _ in hospitals()]
 
 
@@ -131,7 +131,7 @@ def prepare_web(
 def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
     """add_laboratory's arguments for every hospital's laboratory; the practice's
     paired hospital's is its primary laboratory, so by default lab orders follow
-    the hospitals' sizes (R22)."""
+    the hospitals' sizes (features/ordering.feature)."""
     return [
         [
             HOSPITALS[cycle],
@@ -143,7 +143,7 @@ def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
 
 
 def add_laboratories(practice: Path, practice_cycle: str) -> None:
-    """Every hospital's laboratory, at its lab-order endpoint (R22)."""
+    """Every hospital's laboratory, at its lab-order endpoint (features/messaging.feature)."""
     env = {**os.environ, "PRACTICE_DIR": str(practice), "DJANGO_DEBUG": "1"}
     for arguments in laboratory_arguments(practice_cycle):
         subprocess.run(

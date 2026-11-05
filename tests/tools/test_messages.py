@@ -1,4 +1,4 @@
-"""The committed gRPC code matches messages.proto (spec §10, R25)."""
+"""The committed gRPC code matches messages.proto (web/messaging/messages.proto, features/messaging.feature)."""
 
 import subprocess
 import sys
@@ -44,7 +44,7 @@ def test_the_contract_types_choices_and_times(
     message: str, field: str, kind: str
 ) -> None:
     """Choices are proto enums and times Timestamps, so the contract itself says
-    what a field may hold (spec §10)."""
+    what a field may hold (web/messaging/messages.proto)."""
     from web.messaging import messages_pb2
 
     descriptor = getattr(messages_pb2, message).DESCRIPTOR.fields_by_name[field]
@@ -53,7 +53,7 @@ def test_the_contract_types_choices_and_times(
     assert typed.name == kind
 
 
-# The vocabularies that cross the wire; the clinical indication does not (R25).
+# The vocabularies that cross the wire; the clinical indication does not (features/messaging.feature).
 VOCABULARIES = ("Test", "RegisteredSex")
 
 
@@ -96,8 +96,7 @@ def test_none_and_unknown_numbers_are_no_choice(vocabulary: str) -> None:
 
 
 def test_a_lab_order_says_whether_its_indication_is_screened_and_nothing_more() -> None:
-    """The laboratory needs the indication only to decide whether to screen (R4,
-    R25): one yes or no, never which indication, pregnancy included."""
+    """The laboratory needs the indication only to decide whether to screen (features/screening.feature, features/messaging.feature): one yes or no, never which indication, pregnancy included."""
     from google.protobuf.descriptor import FieldDescriptor
 
     from web.messaging import messages_pb2

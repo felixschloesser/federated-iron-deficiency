@@ -1,4 +1,5 @@
-"""Final models as each hospital stores them (spec R16, R20)."""
+"""Scenarios: final models as each hospital stores them
+(features/final_models.feature); and reading one back."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -7,14 +8,19 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from pytest_bdd import given, parsers, scenarios, then, when
 
 from iron_deficiency.cohort import FEATURES
 from iron_deficiency.final_models import store_final_model
 from iron_deficiency.screening import Problem, read, score
 from iron_deficiency.task import Net
+from tests.conftest import World
 
 STORED_AT = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
 FEDERATED = {"eval_auroc": 0.85, "eval_loss": 0.41}
+
+
+scenarios("final_models.feature")
 
 
 @pytest.fixture
@@ -38,12 +44,62 @@ def store(directory: Path, cohort: pd.DataFrame, run_id: int) -> Path:
     )
 
 
-def test_stores_one_file_per_run_with_its_metadata(
-    tmp_path: Path, cohort: pd.DataFrame
-) -> None:
-    path = store(tmp_path, cohort, run_id=11)
-    assert path == tmp_path / "11.pt"
-    final_model = torch.load(path)
+@given("a hospital's training cohort", target_fixture="hospital")
+def hospital(tmp_path: Path, cohort: pd.DataFrame) -> World:
+    return {"folder": tmp_path, "cohort": cohort, "error": None}
+
+
+@given(
+    parsers.parse(
+        "the ClientApp stored the final models of runs {first:d} and {second:d}"
+    )
+)
+def stored_two(hospital: World, first: int, second: int) -> None:
+    store(hospital["folder"], hospital["cohort"], run_id=first)
+    store(hospital["folder"], hospital["cohort"], run_id=second)
+    hospital["before"] = (hospital["folder"] / f"{first}.pt").read_bytes()
+
+
+@given(
+    parsers.parse(
+        "the disk fills up while the final model of run {run_id:d} is written"
+    )
+)
+def disk_full(monkeypatch: pytest.MonkeyPatch, run_id: int) -> None:
+    def save_half(contents: object, target: Path) -> None:
+        Path(target).write_bytes(b"PK half a zip")
+        raise OSError("disk full")
+
+    monkeypatch.setattr(torch, "save", save_half)
+
+
+@when(
+    parsers.re(r"the ClientApp stores the final model of run (?P<run_id>\d+)( again)?")
+)
+def stores(hospital: World, run_id: str) -> None:
+    try:
+        hospital["path"] = store(hospital["folder"], hospital["cohort"], int(run_id))
+    except (FileExistsError, OSError) as error:
+        hospital["error"] = error
+
+
+@then(parsers.re(r'the hospital holds "(?P<name>[^"]+)"$'))
+def holds(hospital: World, name: str) -> None:
+    assert hospital["path"] == hospital["folder"] / name
+    assert [path.name for path in hospital["folder"].iterdir()] == [name]
+
+
+@then(parsers.parse('the hospital holds "{first}" and "{second}"'))
+def holds_two(hospital: World, first: str, second: str) -> None:
+    assert sorted(path.name for path in hospital["folder"].iterdir()) == [first, second]
+
+
+@then(
+    "it holds the weights, standardization, threshold, run ID, when it was stored, "
+    "the federated metrics and the local validation"
+)
+def holds_metadata(hospital: World) -> None:
+    final_model = torch.load(hospital["path"])
     assert set(final_model) == {
         "state_dict",
         "mean",
@@ -59,20 +115,30 @@ def test_stores_one_file_per_run_with_its_metadata(
     assert final_model["threshold"] == 0.5
 
 
-def test_never_overwrites_a_final_model(tmp_path: Path, cohort: pd.DataFrame) -> None:
-    first = store(tmp_path, cohort, run_id=11)
-    before = first.read_bytes()
-    store(tmp_path, cohort, run_id=12)
-    with pytest.raises(FileExistsError):
-        store(tmp_path, cohort, run_id=11)
-    assert first.read_bytes() == before
-    assert sorted(path.name for path in tmp_path.iterdir()) == ["11.pt", "12.pt"]
+@then("storing it is refused")
+def refused(hospital: World) -> None:
+    assert isinstance(hospital["error"], FileExistsError)
 
 
-def test_local_validation_is_a_confusion_matrix_and_auroc(
-    tmp_path: Path, cohort: pd.DataFrame
-) -> None:
-    validation = torch.load(store(tmp_path, cohort, run_id=11))["local_validation"]
+@then("storing it fails")
+def fails(hospital: World) -> None:
+    assert isinstance(hospital["error"], OSError)
+    assert str(hospital["error"]) == "disk full"
+
+
+@then(parsers.parse('"{name}" is unchanged'))
+def unchanged(hospital: World, name: str) -> None:
+    assert (hospital["folder"] / name).read_bytes() == hospital["before"]
+
+
+@then("the hospital holds no final model")
+def holds_none(hospital: World) -> None:
+    assert list(hospital["folder"].iterdir()) == []
+
+
+@then("its local validation holds the four counts of its validation split and an AUROC")
+def local_validation(hospital: World) -> None:
+    validation = torch.load(hospital["path"])["local_validation"]
     assert set(validation) == {
         "true_positives",
         "false_negatives",
@@ -86,11 +152,12 @@ def test_local_validation_is_a_confusion_matrix_and_auroc(
     assert 0.0 <= validation["auroc"] <= 1.0
 
 
-def test_holds_only_the_federated_aggregate(
-    tmp_path: Path, cohort: pd.DataFrame
-) -> None:
-    # R20: no other hospital's metrics, only what the ServerApp aggregated.
-    assert torch.load(store(tmp_path, cohort, run_id=11))["federated"] == FEDERATED
+@then("its federated metrics are exactly the aggregate the ServerApp sent")
+def only_aggregate(hospital: World) -> None:
+    assert torch.load(hospital["path"])["federated"] == FEDERATED
+
+
+# Reading a stored final model back, as the hospital's web app does.
 
 
 def test_a_final_model_screens_like_a_deployment(
@@ -122,18 +189,3 @@ def test_a_file_that_is_no_model_reads_as_unreadable(tmp_path: Path) -> None:
     path = tmp_path / "11.pt"
     path.write_bytes(b"not a model")
     assert read(path).problem() is Problem.UNREADABLE
-
-
-def test_a_reader_never_sees_half_a_final_model(
-    tmp_path: Path, cohort: pd.DataFrame, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The web app lists the folder while the ClientApp writes into it."""
-
-    def save_half(contents: object, target: Path) -> None:
-        Path(target).write_bytes(b"PK half a zip")
-        raise OSError("disk full")
-
-    monkeypatch.setattr(torch, "save", save_half)
-    with pytest.raises(OSError, match="disk full"):
-        store(tmp_path, cohort, run_id=11)
-    assert list(tmp_path.iterdir()) == []

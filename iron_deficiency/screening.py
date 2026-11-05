@@ -54,7 +54,7 @@ class FinalModel:
     threshold: float | None = None
     run_id: int | str | None = None
     stored_at: datetime | None = None
-    # Only what the ServerApp aggregated; no other hospital's metrics (R20).
+    # Only what the ServerApp aggregated; no other hospital's metrics (features/final_models.feature).
     federated: dict[str, float] = field(default_factory=dict)
     local_validation: dict[str, float] = field(default_factory=dict)
 
@@ -97,7 +97,7 @@ def final_model_path(directory: Path, run_id: int | str) -> Path:
 
 
 def write(path: Path, model: FinalModel) -> None:
-    """Store a final model; one is never overwritten (R16)."""
+    """Store a final model; one is never overwritten (features/final_models.feature)."""
     if path.exists():
         raise FileExistsError(path)
     contents: dict[str, Any] = {
@@ -162,7 +162,7 @@ def score(samples: pd.DataFrame, model: FinalModel) -> tuple[pd.Series, float]:
 
 def suggests_ferritin(cbc: Mapping[str, float], age: int, model: FinalModel) -> bool:
     """Whether the model scores one CBC at or above its threshold. Who is screened
-    is the caller's decision (R4)."""
+    is the caller's decision (features/screening.feature)."""
     if model.threshold is None:
         raise ValueError(f"This final model cannot screen: {model.problem()}")
     features = pd.DataFrame([{**cbc, "RIDAGEYR": age}], columns=FEATURES)

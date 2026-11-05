@@ -49,7 +49,7 @@ def fill(template: str, **values: str) -> str:
 
 
 HEAD = """\
-# The demo deployment (spec §9): one container per service, one network per
+# The demo deployment (demo/README.md): one container per service, one network per
 # trust boundary of the report's DFDs, and one per crossing, and one volume
 # per party: every container mounts only its own party's parts of it, at the
 # path prepare wrote them to. Only prepare also mounts .demo/ on the host.
@@ -217,7 +217,7 @@ HOSPITAL = """\
     networks: [model-updates, {slug}-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
-  # models, and a network that reaches nothing but its SuperNode (R28).
+  # models, and a network that reaches nothing but its SuperNode (features/quality/client_app_isolation.feature).
   {slug}-flower-client-app:
     <<: *superexec
     depends_on: [{slug}-flower-supernode]
@@ -230,7 +230,7 @@ HOSPITAL = """\
   {slug}-web:
     <<: *web
     # One container, two servers, each on a name only one network knows: the
-    # proxy reaches the pages, the practice only the lab-order endpoint (R21).
+    # proxy reaches the pages, the practice only the lab-order endpoint (features/quality/party_isolation.feature).
     # Either one stopping stops the container, and compose restarts it.
     command:
       - bash
@@ -255,7 +255,7 @@ HOSPITAL = """\
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}}
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/screening-models, read_only: true, volume: {subpath: screening-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
-    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (R29).
+    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (features/quality/web_apps.feature).
     # Masked: the startup's data.
     tmpfs: [/demo/hospitals/{slug}/cohort]
     networks:
@@ -266,7 +266,7 @@ HOSPITAL = """\
 
 PRACTICE_INTRO = """\
   # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory (R22): on the lab-orders network.
+  # laboratory (features/messaging.feature): on the lab-orders network.
 """
 
 PRACTICE = """\

@@ -5,7 +5,6 @@ Feature: Collecting a sample and ordering tests on it
   comes first). The order carries only what the lab needs: the sample ID, the
   test, the clinical indication, registered sex and age. Ferritin is ordered
   only on suspicion: beside a lab report of the sample that suggests it.
-  Covers R1, R11, R26.
 
   Background:
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1", registered sex female, aged 32

@@ -18,13 +18,13 @@ TAKES_INDICATION = [test.value for test in Test if test.takes_indication()]
 class LaboratoryQuerySet(models.QuerySet["Laboratory"]):
     def primary(self) -> "Laboratory | None":
         """The laboratory samples go to unless the general practitioner picks
-        another; None while the practice has named none (R22)."""
+        another; None while the practice has named none (features/ordering.feature)."""
         return self.filter(primary=True).first()
 
     @transaction.atomic
     def add(self, *, name: str, address: str, primary: bool) -> "Laboratory":
         """Add a laboratory or change its address; `primary` makes it the primary
-        laboratory, in place of any other (R22)."""
+        laboratory, in place of any other (features/ordering.feature)."""
         if primary:
             self.exclude(name=name).filter(primary=True).update(primary=False)
         defaults: dict[str, object] = {"address": address}
@@ -35,7 +35,7 @@ class LaboratoryQuerySet(models.QuerySet["Laboratory"]):
 
 
 class Laboratory(models.Model):
-    """A hospital's laboratory the practice sends samples to (R22)."""
+    """A hospital's laboratory the practice sends samples to (features/messaging.feature)."""
 
     name = models.CharField(max_length=100, unique=True)
     # host:port of the hospital's messaging endpoint.
@@ -69,7 +69,7 @@ class GeneralPractitioner(models.Model):
 
     class Meta:
         constraints = (
-            # A practice has one general practitioner (R13): any second row
+            # A practice has one general practitioner (features/access.feature): any second row
             # repeats the constant.
             models.UniqueConstraint(
                 models.Value(1),
@@ -92,7 +92,7 @@ class GeneralPractitioner(models.Model):
     ) -> "Sample":
         """Record blood collected from a patient of the practice, with the patient's
         next sample ID, for the laboratory chosen for it; tests are ordered on it
-        afterwards and follow it there (R2, R22, R26)."""
+        afterwards and follow it there (features/lab.feature, features/messaging.feature, features/ordering.feature)."""
         if laboratory is None and Laboratory.objects.exists():
             raise ValidationError(
                 {
@@ -119,8 +119,7 @@ class GeneralPractitioner(models.Model):
         now: datetime,
     ) -> "Order":
         """Order one test on a collected sample, copying the patient's registered
-        sex and age, also a later one such as ferritin beside a suggestion (R1, R2,
-        R11, R14, R26)."""
+        sex and age, also a later one such as ferritin beside a suggestion (features/ordering.feature, features/lab.feature, features/access.feature)."""
         order = self._order(sample=sample, test=test, indication=indication, now=now)
         order.full_clean()
         order.save()
@@ -130,7 +129,7 @@ class GeneralPractitioner(models.Model):
         self, *, sample: "Sample", test: Test, now: datetime
     ) -> ValidationError | None:
         """What would refuse this test on this sample whatever its indication: a
-        test the sample has (R26), ferritin without a suggestion (R11). The order
+        test the sample has (features/ordering.feature), ferritin without a suggestion (features/ordering.feature). The order
         page asks before showing its form; place_order checks it again."""
         order = self._order(sample=sample, test=test, indication=None, now=now)
         try:
@@ -147,7 +146,7 @@ class GeneralPractitioner(models.Model):
         indication: ClinicalIndication | None,
         now: datetime,
     ) -> "Order":
-        """The order as placed: the patient's registered sex and age copied (R1)."""
+        """The order as placed: the patient's registered sex and age copied (features/ordering.feature)."""
         return Order(
             sample=sample,
             test=test,
@@ -160,7 +159,7 @@ class GeneralPractitioner(models.Model):
 
 def _awaits_ferritin() -> models.Exists:
     """Whether the outer patient has a lab report suggesting ferritin on a sample
-    with no ferritin order yet (R11)."""
+    with no ferritin order yet (features/ordering.feature)."""
     return models.Exists(
         LabReport.objects.filter(
             order__sample__patient=models.OuterRef("pk"), ferritin_suggested=True
@@ -170,7 +169,7 @@ def _awaits_ferritin() -> models.Exists:
 
 class PatientQuerySet(models.QuerySet["Patient"]):
     def awaiting_ferritin(self) -> "PatientQuerySet":
-        """The patients whose doctor has a ferritin suggestion to act on (R11)."""
+        """The patients whose doctor has a ferritin suggestion to act on (features/ordering.feature)."""
         return self.filter(_awaits_ferritin())
 
     def with_ferritin_suggested(self) -> "PatientQuerySet":
@@ -186,7 +185,7 @@ class Patient(models.Model):
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
     # Demo only: the NHANES participant this patient is, which each of their
-    # sample IDs starts with so the analyser stand-in can measure it (spec §8).
+    # sample IDs starts with so the analyser stand-in can measure it.
     nhanes_number = models.CharField(max_length=20, unique=True)
 
     objects = PatientQuerySet.as_manager()
@@ -201,14 +200,14 @@ class Patient(models.Model):
 
 class Sample(models.Model):
     """Blood collected from a patient at the practice; its tests are ordered on
-    it, and its sample ID goes on the label (R26)."""
+    it, and its sample ID goes on the label (features/ordering.feature)."""
 
     patient = models.ForeignKey(
         Patient, on_delete=models.PROTECT, related_name="samples"
     )
     sample_id = models.CharField(max_length=20, unique=True)
     collected_at = models.DateTimeField()
-    # Where the sample went, so every test on it goes there too (R2, R22); absent
+    # Where the sample went, so every test on it goes there too (features/lab.feature, features/messaging.feature); absent
     # only at a practice with no laboratory, as in development.
     laboratory = models.ForeignKey(
         Laboratory,
@@ -226,7 +225,7 @@ class OrderQuerySet(models.QuerySet["Order"]):
     def of_general_practitioner(
         self, general_practitioner: GeneralPractitioner
     ) -> "OrderQuerySet":
-        """Only this general practitioner's orders (R13)."""
+        """Only this general practitioner's orders (features/access.feature)."""
         return self.filter(sample__patient__general_practitioner=general_practitioner)
 
 
@@ -237,7 +236,7 @@ class Order(models.Model):
     indication = models.CharField(
         max_length=24, choices=ClinicalIndication.choices, null=True, blank=True
     )
-    # Copied at ordering: all the lab learns about the patient (R1, R14).
+    # Copied at ordering: all the lab learns about the patient (features/ordering.feature, features/access.feature).
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
     ordered_at = models.DateTimeField()
@@ -248,14 +247,14 @@ class Order(models.Model):
 
     class Meta:
         constraints = (
-            # Each test at most once per sample (R26).
+            # Each test at most once per sample (features/ordering.feature).
             models.UniqueConstraint(
                 fields=["sample", "test"],
                 name="one_order_per_sample_and_test",
                 violation_error_code="already_ordered",
                 violation_error_message="This sample already has this test.",
             ),
-            # A clinical indication exactly for the tests that take one (R1).
+            # A clinical indication exactly for the tests that take one (features/ordering.feature).
             models.CheckConstraint(
                 condition=~models.Q(test__in=TAKES_INDICATION)
                 | models.Q(indication__isnull=False),
@@ -274,7 +273,7 @@ class Order(models.Model):
 
     def clean(self) -> None:
         """Ferritin only on suspicion: its sample has a lab report suggesting it
-        (R11). Across rows, so no constraint can hold it."""
+        (features/ordering.feature). Across rows, so no constraint can hold it."""
         suggested = self.sample.orders.filter(lab_report__ferritin_suggested=True)
         if Test(self.test).on_suspicion() and not suggested.exists():
             raise ValidationError(
@@ -283,7 +282,7 @@ class Order(models.Model):
 
     @property
     def screened_indication(self) -> bool:
-        """All the lab order says of the indication (R4, R25): whether it is a
+        """All the lab order says of the indication (features/screening.feature, features/messaging.feature): whether it is a
         screened one. Which indication it is stays at the practice."""
         return (
             self.indication is not None
@@ -306,7 +305,7 @@ class ResultValue:
 
 class LabReport(models.Model):
     """A lab report fetched from the hospital (DF25): results, and whether
-    ferritin is suggested; nothing else of screening (R9, R25)."""
+    ferritin is suggested; nothing else of screening (features/reports.feature, features/messaging.feature)."""
 
     order = models.OneToOneField(
         Order, on_delete=models.PROTECT, related_name="lab_report"
@@ -317,7 +316,7 @@ class LabReport(models.Model):
     fetched_at = models.DateTimeField()
 
     def ferritin_order_offered(self) -> bool:
-        """Order ferritin beside a suggestion, until its sample has ferritin (R11, R26)."""
+        """Order ferritin beside a suggestion, until its sample has ferritin (features/ordering.feature)."""
         # .all(), not .filter(): uses the sample's orders when the page prefetched them.
         return self.ferritin_suggested and not any(
             order.test == Test.FERRITIN for order in self.order.sample.orders.all()
@@ -325,7 +324,7 @@ class LabReport(models.Model):
 
     @property
     def comment(self) -> str:
-        """The comment the general practitioner reads: only for a suggestion (R9),
+        """The comment the general practitioner reads: only for a suggestion (features/reports.feature),
         saying where it comes from and that it is no diagnosis."""
         if not self.ferritin_suggested:
             return ""
@@ -344,7 +343,7 @@ class LabReport(models.Model):
 
     def values(self) -> list[ResultValue]:
         """The measured values under NHANES's names and units, uninterpreted;
-        empty when NHANES has none (R3)."""
+        empty when NHANES has none (features/lab.feature)."""
         return [
             ResultValue(variable, names.name, names.unit, self.results[variable])
             for variable, names in RESULT_NAMES.items()

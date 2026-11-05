@@ -131,7 +131,7 @@ def deliver(order: "Order") -> "LabOrder":
 
 def suggest_ferritin_on(sample: "Sample", now: "datetime") -> None:
     """The sample's CBC, placed if missing, with a fetched lab report suggesting
-    ferritin: what any ferritin order needs (R11). The CBC counts as sent, so no
+    ferritin: what any ferritin order needs (features/ordering.feature). The CBC counts as sent, so no
     test sends it to a laboratory by accident."""
     from web.practice.models import LabReport, Order
     from web.vocabulary import ClinicalIndication, Test
@@ -164,7 +164,7 @@ def collect_and_order(
     """Collect a sample from the patient and order one test on it."""
     from web.practice.models import Laboratory
 
-    # The practice's first laboratory, if it works with any (R22).
+    # The practice's first laboratory, if it works with any (features/messaging.feature).
     laboratory = Laboratory.objects.order_by("pk").first()
     sample = general_practitioner.collect_sample(
         patient=patient, laboratory=laboratory, now=now

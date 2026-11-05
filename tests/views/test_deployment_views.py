@@ -28,10 +28,10 @@ VALIDATION = {
 
 
 @pytest.fixture
-def final_models_dir(tmp_path: Path, settings: Settings) -> Path:
-    directory = tmp_path / "final-models"
+def screening_models_dir(tmp_path: Path, settings: Settings) -> Path:
+    directory = tmp_path / "screening-models"
     directory.mkdir()
-    settings.FINAL_MODELS_DIR = directory
+    settings.SCREENING_MODELS_DIR = directory
     stored_at = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
     write_final_model(directory, "run-1", VALIDATION, stored_at)
     (directory / "run-2.pt").write_bytes(b"not a model")
@@ -48,7 +48,7 @@ def director(client: Client) -> LaboratoryDirector:
 def test_models_page(
     client: Client,
     director: LaboratoryDirector,
-    final_models_dir: Path,
+    screening_models_dir: Path,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     # Session, user with role, deployed model, deployment history.
@@ -77,7 +77,7 @@ def test_models_page(
 
 
 def test_deploying_redirects_with_a_message(
-    client: Client, director: LaboratoryDirector, final_models_dir: Path
+    client: Client, director: LaboratoryDirector, screening_models_dir: Path
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
     response = client.post(url, follow=True)
@@ -87,7 +87,7 @@ def test_deploying_redirects_with_a_message(
 
 
 def test_a_refused_deployment_says_why(
-    client: Client, director: LaboratoryDirector, final_models_dir: Path
+    client: Client, director: LaboratoryDirector, screening_models_dir: Path
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "run-2"})
     assertContains(client.post(url, follow=True), "not a readable model file")
@@ -95,14 +95,14 @@ def test_a_refused_deployment_says_why(
 
 
 def test_deploy_is_post_only(
-    client: Client, director: LaboratoryDirector, final_models_dir: Path
+    client: Client, director: LaboratoryDirector, screening_models_dir: Path
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
     assert client.get(url).status_code == 405
 
 
 def test_laboratory_staff_are_sent_to_their_start_page(
-    client: Client, final_models_dir: Path
+    client: Client, screening_models_dir: Path
 ) -> None:
     client.force_login(make_laboratory_staff_member("Lab One").user)
     response = client.get(reverse("deployment:models"), follow=True)
@@ -110,10 +110,10 @@ def test_laboratory_staff_are_sent_to_their_start_page(
     assertContains(response, "That page is for laboratory directors.")
 
 
-def test_without_a_final_models_folder(
+def test_without_a_screening_models_folder(
     client: Client, director: LaboratoryDirector, settings: Settings
 ) -> None:
-    settings.FINAL_MODELS_DIR = None
+    settings.SCREENING_MODELS_DIR = None
     assertContains(client.get(reverse("deployment:models")), "No models have arrived.")
 
 
@@ -128,14 +128,14 @@ def status(settings: Settings) -> str:
 
 
 def test_screening_status_without_models(settings: Settings, tmp_path: Path) -> None:
-    settings.FINAL_MODELS_DIR = tmp_path / "final-models"
+    settings.SCREENING_MODELS_DIR = tmp_path / "screening-models"
     assert status(settings) == "no screening model yet"
 
 
 def test_screening_status_before_and_after_deploying(
     client: Client,
     director: LaboratoryDirector,
-    final_models_dir: Path,
+    screening_models_dir: Path,
     settings: Settings,
 ) -> None:
     assert status(settings) == "2 screening models, none deployed"

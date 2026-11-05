@@ -1,4 +1,4 @@
-"""The contract's enums and times, to and from web.vocabulary and datetimes (spec §10).
+"""The contract's enums and times, to and from web.vocabulary and datetimes (web/messaging/messages.proto).
 
 A proto enum value is named after its vocabulary member with the enum's prefix, as
 the proto style guide asks: Test.CBC is TEST_CBC. Value 0, UNSPECIFIED, is none.

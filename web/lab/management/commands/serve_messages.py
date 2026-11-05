@@ -1,4 +1,4 @@
-"""Run the hospital's messaging endpoint (spec §10, R22-R25) until stopped."""
+"""Run the hospital's messaging endpoint (web/messaging/messages.proto, features/messaging.feature) until stopped."""
 
 from typing import Any
 

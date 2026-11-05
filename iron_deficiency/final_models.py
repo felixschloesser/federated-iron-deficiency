@@ -95,7 +95,7 @@ def store_final_model(
     """Store a training run's final model with this hospital's standardization.
 
     `federated` is what the ServerApp aggregated; no other hospital's metrics
-    reach this file (spec R20). A final model is never overwritten (R16).
+    reach this file (features/final_models.feature). A final model is never overwritten (features/final_models.feature).
     """
     path = final_model_path(directory, run_id)
     if path.exists():

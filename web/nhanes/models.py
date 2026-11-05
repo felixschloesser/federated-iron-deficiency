@@ -15,7 +15,7 @@ class Participant(models.Model):
     seqn = models.PositiveIntegerField(unique=True)
     # The 13 CBC values keyed by NHANES variable name (iron_deficiency.cohort.CBC_VARS).
     cbc = models.JSONField()
-    # NHANES measured ferritin for only some participants (spec §8).
+    # NHANES measured ferritin for only some participants.
     ferritin = models.FloatField(null=True, blank=True)
     # Made up for the demo where NHANES has no ferritin (web.seeding.command).
     made_up_ferritin = models.FloatField(null=True, blank=True)

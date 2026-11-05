@@ -1,4 +1,4 @@
-"""Each kind of deployment serves only its own party's pages (spec §9)."""
+"""Each kind of deployment serves only its own party's pages (demo/README.md)."""
 
 import pytest
 
