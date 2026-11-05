@@ -263,7 +263,7 @@ volume per party, holding its folder (`startup`, each `<hospital>`, each
 `<practice>`). Each container mounts only the parts of its own party's volume
 its process needs, at the path under `/demo` that `prepare` wrote them to.
 On the host, `demo/` (gitignored) keeps only what a reset must not delete:
-`browser-ca/` and `huggingface/` (`HF_HOME`), which only `prepare` mounts.
+`browser-ca/` and `huggingface/` (`HF_HOME`, and the NHANES 2021–2023 cycle the seed commands pick participants from), which only `prepare` mounts. Each party's folder holds only its DFD stores and the keys and certificates its processes use.
 
 ```
 /demo/
