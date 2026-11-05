@@ -39,6 +39,19 @@ Feature: Collecting a sample and ordering tests on it
     When "Dr. Demo A" orders ferritin for "Test Patient 1"
     Then the order is refused with code "ferritin_not_suggested" on field "test"
 
+  Scenario: An order's refusal is known before its indication is asked
+    When "Dr. Demo A" asks whether ferritin can be ordered for "Test Patient 1"
+    Then it would be refused with code "ferritin_not_suggested" on field "test"
+
+  Scenario: A test the sample has is known to be refused before its form
+    Given "Dr. Demo A" ordered a CBC for "Test Patient 1" with indication other
+    When "Dr. Demo A" asks whether a CBC can be ordered for "Test Patient 1"
+    Then it would be refused with code "already_ordered"
+
+  Scenario: A CBC on a fresh sample would not be refused, whatever its indication
+    When "Dr. Demo A" asks whether a CBC can be ordered for "Test Patient 1"
+    Then it would not be refused
+
   Scenario: A collected sample gets the patient's next sample ID
     Then the sample is sample 1 of "Test Patient 1", collected at the current time
 

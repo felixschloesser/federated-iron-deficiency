@@ -153,6 +153,44 @@ def sample_has_lab_report(world: World, suggestion: str) -> None:
     )
 
 
+@when(
+    parsers.re(
+        r'"(?P<general_practitioner>[^"]+)" asks whether (?P<test>a CBC|ferritin)'
+        r' can be ordered for "(?P<patient>[^"]+)"$'
+    )
+)
+def ask_refusal(
+    world: World, general_practitioner: str, test: str, patient: str
+) -> None:
+    world["refusal"] = world["general_practitioners"][
+        general_practitioner
+    ].order_refusal(
+        sample=world["patients"][patient].samples.latest("pk"),
+        test=TESTS[test],
+        now=NOW,
+    )
+
+
+@then(
+    parsers.re(
+        r'it would be refused with code "(?P<code>[^"]+)"'
+        r'(?: on field "(?P<field>[^"]+)")?$'
+    )
+)
+def would_be_refused(world: World, code: str, field: str | None) -> None:
+    errors = world["refusal"].error_dict
+    found = {name: [error.code for error in each] for name, each in errors.items()}
+    assert found == {field or NON_FIELD_ERRORS: [code]}
+    # Asking places nothing.
+    assert not Order.objects.filter(test=OrderedTest.FERRITIN).exists()
+
+
+@then("it would not be refused")
+def would_not_be_refused(world: World) -> None:
+    assert world["refusal"] is None
+    assert not Order.objects.exists()
+
+
 @when("a CBC order without an indication is written straight to the database")
 def write_straight(world: World) -> None:
     sample = world["sample"]

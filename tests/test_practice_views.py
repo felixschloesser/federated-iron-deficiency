@@ -401,6 +401,25 @@ def test_ordering_on_a_sample_says_so_and_adds_no_sample(
     assert Order.objects.filter(sample__sample_id=sample_id).count() == 2
 
 
+def test_an_order_page_that_would_be_refused_says_so_at_once(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    # Ferritin without a suggestion (R11), then a test the sample has (R26):
+    # the refusal on opening the page, and no button to place it.
+    logged_in(client, general_practitioner)
+    client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
+    for test, code in (
+        (OrderedTest.FERRITIN, "ferritin_not_suggested"),
+        (OrderedTest.CBC, "already_ordered"),
+    ):
+        response = client.get(sample_order_url(patient, test))
+        assert response.status_code == 200
+        errors = response.context["form"].non_field_errors().as_data()
+        assert [error.code for error in errors] == [code], test
+        assertNotContains(response, "Place order")
+    assert Order.objects.count() == 1
+
+
 def test_a_test_the_sample_has_is_refused_in_the_summary(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
