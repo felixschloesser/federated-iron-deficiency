@@ -150,7 +150,6 @@ def deploy(msg: Message, context: Context) -> Message:
         run_id=context.run_id,
         state_dict=msg.content.array_records["arrays"].to_torch_state_dict(),
         cohort=load_cohort(context),
-        threshold=config_float(msg, "threshold"),
         federated={
             name: float(value)
             for name, value in aggregate.items()

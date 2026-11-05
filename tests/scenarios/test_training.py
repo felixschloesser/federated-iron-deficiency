@@ -141,7 +141,8 @@ def submit(world: World, superlink: World) -> None:
 def superlink_receives(superlink: World) -> None:
     [command] = superlink["commands"]
     assert "run" in command
-    assert not any("threshold" in part for part in command)
+    # The key the ServerApp read the threshold from.
+    assert not any("screening-threshold" in part for part in command)
 
 
 @then("the submission gives the run's ID")

@@ -13,7 +13,6 @@ class KeptFinalModel:
 
     run_id: str
     stored_at: datetime | None
-    threshold: float | None
     federated_auroc: float | None
 
 
@@ -28,7 +27,6 @@ def final_models(directory: Path | None) -> list[KeptFinalModel]:
             KeptFinalModel(
                 run_id=path.stem,
                 stored_at=model.stored_at,
-                threshold=model.threshold,
                 federated_auroc=model.federated.get("eval_auroc"),
             )
         )
@@ -40,13 +38,14 @@ def final_models(directory: Path | None) -> list[KeptFinalModel]:
 
 
 def for_sale(directory: Path | None, run_id: str) -> bytes | None:
-    """A final model as the startup sells it (DF16): its weights and threshold,
-    in the final model file format; a buyer standardizes on its own cohort, as
-    each hospital does. None for a run the startup kept no readable model of."""
+    """A final model as the startup sells it (DF16): its weights only, in the final
+    model file format; a buyer standardizes on its own cohort and chooses its
+    threshold there, as each hospital does. None for a run the startup kept no
+    readable model of."""
     path = None if directory is None else final_model_path(directory, run_id)
     if path is None or not path.is_file():
         return None
     model = from_bytes(path.read_bytes())
     if model.state_dict is None:
         return None
-    return to_bytes(FinalModel(state_dict=model.state_dict, threshold=model.threshold))
+    return to_bytes(FinalModel(state_dict=model.state_dict))

@@ -28,6 +28,9 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, default=10)
     parser.add_argument("--input", type=Path, default=Path("demo_data/new_samples.csv"))
     parser.add_argument("--output", type=Path, default=Path("seed_sweep.csv"))
+    # The report's fixed 0.5: every hospital deploys at one threshold, so the
+    # arms differ only in their weights and standardization.
+    parser.add_argument("--threshold", type=float, default=0.5)
     args = parser.parse_args()
 
     samples = pd.read_csv(args.input, usecols=COLUMNS)
@@ -61,17 +64,17 @@ def main() -> None:
                     "seed": seed,
                     "arm": "federated",
                     "hospital": hospital,
-                    **evaluate(federated, samples, ferritin),
+                    **evaluate(federated, samples, ferritin, args.threshold),
                 }
             )
-            # Deploy the centralized weights with this hospital's standardization and threshold.
+            # Deploy the centralized weights with this hospital's standardization.
             centralized_model = dataclasses.replace(federated, state_dict=centralized)
             rows.append(
                 {
                     "seed": seed,
                     "arm": "centralized",
                     "hospital": hospital,
-                    **evaluate(centralized_model, samples, ferritin),
+                    **evaluate(centralized_model, samples, ferritin, args.threshold),
                 }
             )
         print(f"Seed {seed} done")

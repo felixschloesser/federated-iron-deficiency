@@ -386,3 +386,23 @@ def test_every_problem_of_a_file_is_a_reason_it_cannot_be_deployed(
 
     # The reason code is what the scenarios and the refusal's error code name.
     assert CannotDeploy.because(problem).value == problem.value
+
+
+@pytest.mark.parametrize("threshold", [0.0, 1.0])
+def test_the_database_refuses_a_threshold_outside_zero_and_one(
+    threshold: float,
+) -> None:
+    from django.db import IntegrityError, transaction
+
+    from web.deployment.models import ScreeningModel
+
+    screening_model = ScreeningModel(
+        run_id="run-1", sha256="0" * 64, threshold=threshold
+    )
+    with pytest.raises(ValidationError) as refused:
+        screening_model.full_clean()
+    assert [error.code for error in refused.value.error_dict["__all__"]] == [
+        "threshold_not_between_zero_and_one"
+    ]
+    with pytest.raises(IntegrityError), transaction.atomic():
+        screening_model.save()

@@ -17,39 +17,25 @@ SUBMIT_TIMEOUT_SECONDS = 20
 CONNECTION = "demo"
 
 
-def run_configuration(threshold: float) -> str:
-    """The run configuration the ServerApp reads: the threshold it sends every
-    hospital, and, in a deployment, the demo folder above the startup's."""
-    parts = [f"screening-threshold={threshold}"]
-    if settings.STARTUP_DIR is not None:
-        parts.insert(0, f"demo-dir='{settings.STARTUP_DIR.parent}'")
-    return " ".join(parts)
+def run_configuration() -> str:
+    """The run configuration the ServerApp reads: in a deployment, the demo folder
+    above the startup's. No threshold: each hospital's laboratory director
+    chooses one (features/deployment.feature)."""
+    if settings.STARTUP_DIR is None:
+        return ""
+    return f"demo-dir='{settings.STARTUP_DIR.parent}'"
 
 
-def submit_run(*, threshold: float) -> int:
-    """Submit one training run of this app with the threshold; return its run ID."""
-    if threshold <= 0:
-        raise ValidationError(
-            {
-                "threshold": ValidationError(
-                    "The threshold must be above 0.", code="threshold_not_above_zero"
-                )
-            }
-        )
-    if threshold >= 1:
-        raise ValidationError(
-            {
-                "threshold": ValidationError(
-                    "The threshold must be below 1.", code="threshold_not_below_one"
-                )
-            }
-        )
+def submit_run() -> int:
+    """Submit one training run of this app; return its run ID."""
+    configuration = run_configuration()
     try:
         result = subprocess.run(
             [
                 str(Path(sys.executable).parent / "flwr"),
                 *("run", str(settings.BASE_DIR), CONNECTION),
-                *("--run-config", run_configuration(threshold), "--format", "json"),
+                *(("--run-config", configuration) if configuration else ()),
+                *("--format", "json"),
             ],
             capture_output=True,
             text=True,

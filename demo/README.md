@@ -26,11 +26,11 @@ not a process of the report's DFDs:
 | P2 SuperNode, ClientApp | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
 | P3 SuperLink | `flower-superlink` |
 | P4 ServerApp | `flower-server-app` |
-| P5 Model sale | *Download for sale* on `startup-web`: a final model's weights and threshold as a file |
+| P5 Model sale | *Download for sale* on `startup-web`: a final model's weights as a file, without a threshold |
 | E3 Other hospitals | not built |
 | P6 Model deployment, P8 Messaging endpoint, P9 Lab analysis, P10 Screening | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis, and its messaging endpoint, each server on its own network |
 | P7 Practice app | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
-| E1 Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models (DS4) and submits a training run with its threshold; or `train`, run by hand |
+| E1 Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models (DS4) and submits a training run; or `train`, run by hand |
 
 One container has no DFD element: `proxy`, which stands for the network
 between your browser and the parties.
@@ -106,10 +106,10 @@ addresses.
 ## 5. Train, deploy, order
 
 Log in to http://startup.localhost as `data-scientist` and submit a training
-run with a threshold, or from a second terminal:
+run, or from a second terminal:
 
 ```shell
-docker compose run --rm train   # the threshold in pyproject.toml, 0.5
+docker compose run --rm train
 ```
 
 This is the startup's data scientist submitting a training run. Both run in a
@@ -118,7 +118,8 @@ scientist sits in the report's DFD; the SuperLink's control API is never
 published to your machine, and the proxy reaches the startup's web app on a
 network of its own, `startup-web`, never the SuperLink. When the run
 finishes, its final model appears on the startup's page. Each hospital receives the final model; log in as
-`director` to compare it on local validation and deploy it. Then order a
+`director` to compare its local validation at each threshold and deploy it at
+one. Then order a
 CBC as `doctor`, analyse it as `staff`, and the lab report with its
 screening comes back to the practice.
 

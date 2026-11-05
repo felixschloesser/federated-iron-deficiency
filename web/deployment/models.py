@@ -18,7 +18,6 @@ from iron_deficiency.screening import (
     suggests_ferritin,
 )
 from web.deployment.model_files import (
-    CannotDeploy,
     model_name,
     screening_model_file,
     sha256,
@@ -58,7 +57,8 @@ class LaboratoryDirector(models.Model):
 
 
 class ScreeningModel(models.Model):
-    """A screening model as it was when deployed; the file itself stays on disk."""
+    """A screening model as it was deployed, at the threshold its laboratory
+    director chose; the file itself stays on disk."""
 
     run_id = models.CharField(max_length=64)
     sha256 = models.CharField(max_length=64)
@@ -66,12 +66,20 @@ class ScreeningModel(models.Model):
     stored_at = models.DateTimeField(null=True, blank=True)
     federated_auroc = models.FloatField(null=True, blank=True)
     threshold = models.FloatField()
+    # The confusion matrix at the threshold, and AUROC.
     local_validation = models.JSONField(default=dict)
 
     class Meta:
         constraints = (
             models.UniqueConstraint(
-                fields=["run_id", "sha256"], name="one_record_per_file"
+                fields=["run_id", "sha256", "threshold"],
+                name="one_record_per_file_and_threshold",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(threshold__gt=0, threshold__lt=1),
+                name="threshold_between_zero_and_one",
+                violation_error_code="threshold_not_between_zero_and_one",
+                violation_error_message="A threshold lies between 0 and 1.",
             ),
         )
 
@@ -86,10 +94,10 @@ class ScreeningModel(models.Model):
 class DeploymentManager(models.Manager["Deployment"]):
     @transaction.atomic
     def deploy(
-        self, *, run_id: str, directory: Path | None, now: datetime
+        self, *, run_id: str, threshold: float, directory: Path | None, now: datetime
     ) -> Deployment:
-        """Make a screening model in the hospital's folder the deployed model, from
-        `now` (features/deployment.feature)."""
+        """Make a screening model in the hospital's folder the deployed model, at a
+        threshold its local validation holds, from `now` (features/deployment.feature)."""
         path = None if directory is None else final_model_path(directory, run_id)
         if path is None or not path.is_file():
             raise ValidationError(
@@ -98,23 +106,33 @@ class DeploymentManager(models.Manager["Deployment"]):
         # One read: what is checked is what is hashed.
         data = path.read_bytes()
         file = screening_model_file(run_id, data)
-        threshold = file.threshold
-        if file.problem is not None or threshold is None:
-            # Without a problem a file has a threshold; the second test only narrows
-            # the type.
-            problem = file.problem or CannotDeploy.THRESHOLD_MISSING
+        if file.problem is not None:
             raise ValidationError(
-                f"{file.name} cannot be deployed: {problem.label}.",
-                code=problem.value,
+                f"{file.name} cannot be deployed: {file.problem.label}.",
+                code=file.problem.value,
+            )
+        validation = file.at(threshold)
+        if validation is None:
+            raise ValidationError(
+                {
+                    "threshold": ValidationError(
+                        f"{file.name} has no local validation at threshold"
+                        f" {threshold:.2f}.",
+                        code="threshold_not_offered",
+                    )
+                }
             )
         screening_model, _ = ScreeningModel.objects.get_or_create(
             run_id=run_id,
             sha256=sha256(data),
+            threshold=threshold,
             defaults={
                 "stored_at": file.stored_at,
-                "threshold": threshold,
                 "federated_auroc": file.federated_auroc,
-                "local_validation": file.local_validation,
+                "local_validation": {
+                    **validation.counts,
+                    **({} if file.local_auroc is None else {"auroc": file.local_auroc}),
+                },
             },
         )
         return self.create(screening_model=screening_model, deployed_at=now)
@@ -159,4 +177,6 @@ class Screener:
     final_model: FinalModel
 
     def suggests_ferritin(self, cbc: Mapping[str, float], age: int) -> bool:
-        return suggests_ferritin(cbc, age, self.final_model)
+        return suggests_ferritin(
+            cbc, age, self.final_model, self.screening_model.threshold
+        )

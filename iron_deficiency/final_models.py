@@ -9,6 +9,7 @@ import torch
 
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 from iron_deficiency.screening import (
+    THRESHOLDS,
     FinalModel,
     final_model_path,
     read,
@@ -37,7 +38,6 @@ def keep_final_model(
     *,
     run_id: int,
     state_dict: dict[str, torch.Tensor],
-    threshold: float,
     federated: dict[str, float],
     stored_at: datetime,
 ) -> Path:
@@ -48,7 +48,6 @@ def keep_final_model(
         path,
         FinalModel(
             state_dict=state_dict,
-            threshold=threshold,
             run_id=run_id,
             stored_at=stored_at,
             federated=federated,
@@ -64,22 +63,25 @@ def latest_final_model(directory: Path) -> Path:
 
 
 def local_validation(
-    state_dict: dict[str, torch.Tensor], cohort: pd.DataFrame, threshold: float
-) -> dict[str, float]:
-    """The confusion matrix at the threshold, and AUROC, on this cohort's validation split."""
+    state_dict: dict[str, torch.Tensor], cohort: pd.DataFrame
+) -> tuple[dict[float, dict[str, int]], float]:
+    """The confusion matrix at each threshold a laboratory director chooses from,
+    and AUROC, on this cohort's validation split."""
     net = Net()
     net.load_state_dict(state_dict)
     _, valloader, _ = load_data(cohort)
     _, metrics, probabilities, labels = test(net, valloader)
-    suggested = probabilities >= threshold
     deficient = labels == 1
-    return {
-        "true_positives": int((suggested & deficient).sum()),
-        "false_negatives": int((~suggested & deficient).sum()),
-        "false_positives": int((suggested & ~deficient).sum()),
-        "true_negatives": int((~suggested & ~deficient).sum()),
-        "auroc": metrics["auroc"],
-    }
+    matrices = {}
+    for threshold in THRESHOLDS:
+        suggested = probabilities >= threshold
+        matrices[threshold] = {
+            "true_positives": int((suggested & deficient).sum()),
+            "false_negatives": int((~suggested & deficient).sum()),
+            "false_positives": int((suggested & ~deficient).sum()),
+            "true_negatives": int((~suggested & ~deficient).sum()),
+        }
+    return matrices, float(metrics["auroc"])
 
 
 def store_final_model(
@@ -88,7 +90,6 @@ def store_final_model(
     run_id: int,
     state_dict: dict[str, torch.Tensor],
     cohort: pd.DataFrame,
-    threshold: float,
     federated: dict[str, float],
     stored_at: datetime,
 ) -> Path:
@@ -101,17 +102,18 @@ def store_final_model(
     if path.exists():
         raise FileExistsError(path)
     mean, std = standardization(cohort)
+    matrices, local_auroc = local_validation(state_dict, cohort)
     write(
         path,
         FinalModel(
             state_dict=state_dict,
             mean=standardization_tensor(mean),
             std=standardization_tensor(std),
-            threshold=threshold,
             run_id=run_id,
             stored_at=stored_at,
             federated=federated,
-            local_validation=local_validation(state_dict, cohort, threshold),
+            confusion_matrices=matrices,
+            local_auroc=local_auroc,
         ),
     )
     return path
