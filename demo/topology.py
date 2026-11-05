@@ -281,6 +281,7 @@ PRACTICE = """\
     environment:
       PRACTICE_DIR: /demo/practices/{slug}
       PRACTICE_NAME: {name}
+      PRACTICE_CERTIFICATE_NAME: {slug}
       PARTY_COLOUR: {colour}
     volumes:
       - {type: volume, source: {slug}, target: /demo/practices/{slug}}

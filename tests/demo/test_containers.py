@@ -483,6 +483,9 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
     seed = ["--seed", "0", "--nhanes", "/tmp/nhanes.csv"]
     manage = ["python", "manage.py"]
     compose(*seeding, *nhanes, hospital_app, *manage, "seed_hospital", *seed)
+    # As prepare does: the hospital knows the practice by its folder name.
+    known = ["add_practice", APP_PRACTICE, "Huisartsenpraktijk De Ceder"]
+    compose(*seeding, hospital_app, *manage, *known)
     # As prepare does: the practice's own image serves it, without the seeding.
     as_practice = [*seeding, "-e", f"PRACTICE_DIR=/demo/practices/{APP_PRACTICE}"]
     compose(*as_practice, "prepare", *manage, "migrate", "-v0")

@@ -78,7 +78,7 @@ class LabOrder(_message.Message):
     AGE_FIELD_NUMBER: _builtins.int
     ORDERED_AT_FIELD_NUMBER: _builtins.int
     practice: _builtins.str
-    """the sending practice's name (features/messaging.feature)"""
+    """the sending practice's certificate name (features/messaging.feature)"""
     sample_id: _builtins.str
     test: Test.ValueType
     screened_indication: _builtins.bool
@@ -216,6 +216,7 @@ class FetchLabReports(_message.Message):
 
     PRACTICE_FIELD_NUMBER: _builtins.int
     practice: _builtins.str
+    """the sending practice's certificate name"""
     def __init__(
         self,
         *,
@@ -258,6 +259,7 @@ class Acknowledgement(_message.Message):
     PRACTICE_FIELD_NUMBER: _builtins.int
     REPORT_IDS_FIELD_NUMBER: _builtins.int
     practice: _builtins.str
+    """the sending practice's certificate name"""
     @_builtins.property
     def report_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
     def __init__(

@@ -70,13 +70,41 @@ class LaboratoryStaffMember(models.Model):
         return self.name
 
 
+class PracticeManager(models.Manager["Practice"]):
+    @transaction.atomic
+    def add(self, *, certificate_name: str, name: str) -> Practice:
+        """Register a practice the hospital works with, or change its name
+        (features/messaging.feature)."""
+        practice, _ = self.update_or_create(
+            certificate_name=certificate_name, defaults={"name": name}
+        )
+        return practice
+
+
+class Practice(models.Model):
+    """A practice the hospital works with, by the certificate name the hospital
+    issued it (glossary.toml): the lab's key for it, which the practice's app
+    sends in every message. With the report's mutual TLS it would come from the
+    practice's certificate instead; the demo leaves that out."""
+
+    certificate_name = models.SlugField(max_length=100, unique=True)
+    # As the hospital knows the practice; never sent.
+    name = models.CharField(max_length=100)
+
+    objects = PracticeManager()
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Sample(models.Model):
     """A sample, known by the sample ID on its label and the practice that sent it
     (features/lab.feature, features/messaging.feature): two practices may use the same sample ID. It arrives with its lab
     order; a later test on it is measured on the stored sample."""
 
-    # The practice name, as the practice sent it (features/messaging.feature).
-    practice = models.CharField(max_length=100)
+    practice = models.ForeignKey(
+        Practice, on_delete=models.PROTECT, related_name="samples"
+    )
     sample_id = models.CharField(max_length=20)
 
     class Meta:
@@ -131,7 +159,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
             .order_by("-analysed_at", "-pk")
         )
 
-    def reports_to_send(self, practice: str) -> models.QuerySet[LabOrder]:
+    def reports_to_send(self, practice: Practice) -> models.QuerySet[LabOrder]:
         """`practice`'s analysed lab orders it has not acknowledged yet (features/messaging.feature)."""
         return (
             self.filter(
@@ -144,7 +172,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
         )
 
     @transaction.atomic
-    def record(self, *, practice: str, details: LabOrderDetails) -> LabOrder:
+    def record(self, *, practice: Practice, details: LabOrderDetails) -> LabOrder:
         """Record a lab order (DF23) from `practice` once, however often it arrives
         (features/messaging.feature)."""
         sample, _ = Sample.objects.get_or_create(
@@ -164,7 +192,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
 
     @transaction.atomic
     def acknowledge(
-        self, *, practice: str, report_ids: list[int], now: datetime
+        self, *, practice: Practice, report_ids: list[int], now: datetime
     ) -> None:
         """`practice` has these lab reports of its own: hand them out no more."""
         self.filter(

@@ -58,14 +58,21 @@ rejected = [
     "requester",
 ]
 
+["certificate name"]
+source = "Report, Solutions table, mutual TLS: \"each hospital is its own CA and tells practices apart by certificate name\"; user decision, 2026-11-05"
+why = "The name the hospital issued a practice and registers it by (`add_practice`): the lab's key for the practice, which its app sends in every message (`PRACTICE_CERTIFICATE_NAME`). The demo trusts it as sent; with the report's mutual TLS it would come from the practice's certificate. A message from a name the hospital does not know is refused"
+rejected = [
+    "practice ID (no source)",
+    "practice name (chosen by the sender, neither stable nor unique; the lab's key until 2026-11-05)",
+    "client ID",
+    "RIZIV/INAMI number (identifies a doctor, not a practice)",
+]
+
 ["practice name"]
 source = "Report, \"Design choices and assumptions\", DF24: \"Lab orders, with the sending practice\"; the names in demo.toml (`practice = \"Huisartsenpraktijk De Akker\"`)"
-why = "The practice's own name, which its app sends in every message (`PRACTICE_NAME`); the lab's key for the practice. The demo trusts it as sent: the report's certificate name, from mutual TLS, is left out for simplicity"
+why = "The practice's own name (`PRACTICE_NAME`), shown on its pages; the hospital registers it beside the certificate name, which is the lab's key, and it is never sent"
 rejected = [
-    "certificate name (the report's control, not in the demo)",
-    "client ID",
-    "practice ID",
-    "RIZIV/INAMI number",
+    "client name",
 ]
 
 ["order"]

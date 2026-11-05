@@ -344,6 +344,7 @@ services:
     environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PRACTICE_NAME: Huisartsenpraktijk De Akker
+      PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-akker
       PARTY_COLOUR: green
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-akker, target: /demo/practices/huisartsenpraktijk-de-akker}
@@ -359,6 +360,7 @@ services:
     environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PRACTICE_NAME: Huisartsenpraktijk De Berk
+      PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-berk
       PARTY_COLOUR: amber
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-berk, target: /demo/practices/huisartsenpraktijk-de-berk}
@@ -374,6 +376,7 @@ services:
     environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PRACTICE_NAME: Huisartsenpraktijk De Ceder
+      PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-ceder
       PARTY_COLOUR: purple
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-ceder, target: /demo/practices/huisartsenpraktijk-de-ceder}

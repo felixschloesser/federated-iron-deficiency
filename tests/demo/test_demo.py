@@ -70,6 +70,19 @@ def test_every_hospital_has_a_tube_for_every_practices_patients() -> None:
     ]
 
 
+def test_every_hospital_knows_every_practice_by_its_folder_name() -> None:
+    """Any practice may send a sample to any hospital (features/messaging.feature),
+    so each hospital registers every practice, by the certificate name its app
+    sends: its folder name, as compose.yaml sets it."""
+    from demo.demo import practice_arguments
+    from demo.topology import PRACTICES
+    from iron_deficiency.dataset import CYCLES, hospital_slug
+
+    assert practice_arguments() == [
+        [hospital_slug(PRACTICES[cycle]), PRACTICES[cycle]] for cycle in CYCLES
+    ]
+
+
 def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise() -> None:
     """Every hospital's laboratory, its paired hospital's the primary one, so
     lab orders follow the hospitals' sizes by default."""

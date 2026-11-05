@@ -19,10 +19,11 @@ from tests.conftest import (
     collect_and_order,
     make_general_practitioner,
     make_patient,
+    make_practice,
     suggest_ferritin_on,
 )
 from web.lab.messaging import serve
-from web.lab.models import LabOrder, Sample
+from web.lab.models import LabOrder, Practice, Sample
 from web.messaging import messages_pb2, messages_pb2_grpc
 from web.nhanes.models import Participant
 from web.practice import messaging
@@ -82,6 +83,19 @@ def general_practitioner(
 
 @given(
     parsers.parse(
+        '"{name}" knows practice "{practice}" by certificate name "{certificate_name}"'
+    )
+)
+def knows_practice(
+    settings: Settings, name: str, practice: str, certificate_name: str
+) -> None:
+    """The hospital registered the practice, and issued its app the name."""
+    Practice.objects.add(certificate_name=certificate_name, name=practice)
+    settings.PRACTICE_CERTIFICATE_NAME = certificate_name
+
+
+@given(
+    parsers.parse(
         'patient "{patient}" of "{owner}", registered sex {sex}, aged {age:d}'
     )
 )
@@ -136,7 +150,7 @@ def send_again(world: World) -> None:
 @when(parsers.parse('a lab order that names no practice is sent to "{name}"'))
 def sends_without_practice(world: World) -> None:
     unsent = order(world, "Test Patient 1", OrderedTest.CBC, "other")
-    with override_settings(PARTY_NAME=""):
+    with override_settings(PRACTICE_CERTIFICATE_NAME=""):
         try:
             messaging.send_lab_order(unsent, world["laboratory"])
         except grpc.RpcError as error:
@@ -151,9 +165,7 @@ def sends_without_practice(world: World) -> None:
 )
 def sends_from_unknown_practice(world: World, certificate_name: str) -> None:
     unsent = order(world, "Test Patient 1", OrderedTest.CBC, "other")
-    with override_settings(
-        PARTY_NAME=certificate_name, PRACTICE_CERTIFICATE_NAME=certificate_name
-    ):
+    with override_settings(PRACTICE_CERTIFICATE_NAME=certificate_name):
         try:
             messaging.send_lab_order(unsent, world["laboratory"])
         except grpc.RpcError as error:
@@ -242,10 +254,10 @@ def has_one_lab_order(world: World, name: str, patient: str) -> None:
 @then(
     parsers.parse(
         "the lab order holds sample ID, test, whether its indication is screened,"
-        ' registered sex and age, from practice "{practice}"'
+        ' registered sex and age, from certificate name "{certificate_name}"'
     )
 )
-def lab_order_holds(world: World, practice: str) -> None:
+def lab_order_holds(world: World, certificate_name: str) -> None:
     lab_order = LabOrder.objects.select_related("sample").get()
     placed = world["order"]
     assert lab_order.sample.sample_id == placed.sample.sample_id
@@ -255,8 +267,8 @@ def lab_order_holds(world: World, practice: str) -> None:
         placed.registered_sex,
         placed.age,
     )
-    # The practice by the name it sent; no general practitioner.
-    assert lab_order.sample.practice == practice
+    # The practice by the certificate name it sent; no general practitioner.
+    assert lab_order.sample.practice.certificate_name == certificate_name
 
 
 @then("it is refused as practice required")
@@ -287,9 +299,14 @@ def has_one_lab_report(world: World, owner: str, patient: str) -> None:
     assert reports.count() == 1
 
 
-@given(parsers.parse('the app of another practice "{practice}"'))
-def other_app(world: World, practice: str) -> None:
-    world["other"] = practice
+@given(
+    parsers.parse(
+        'the app of another practice "{certificate_name}", which "{name}" knows'
+    )
+)
+def other_app(world: World, certificate_name: str) -> None:
+    make_practice(certificate_name)
+    world["other"] = certificate_name
 
 
 @when("the other app checks for lab reports")
@@ -338,7 +355,7 @@ def other_acknowledges(world: World, patient: str) -> None:
     parsers.parse('the other app sends a lab order with the sample ID of "{patient}"')
 )
 def other_sends(world: World, patient: str) -> None:
-    with override_settings(PARTY_NAME=world["other"]):
+    with override_settings(PRACTICE_CERTIFICATE_NAME=world["other"]):
         messaging.send_lab_order(world["order"], world["laboratory"])
 
 
@@ -410,8 +427,10 @@ def lab_report_fields() -> None:
 
 @pytest.fixture
 def practice(settings: Settings, hospital: str) -> Laboratory:
-    """Practice "De Ceder", working with the hospital's laboratory "AZ Diest"."""
+    """Practice "De Ceder", working with the hospital's laboratory "AZ Diest",
+    which knows it."""
     settings.PARTY_NAME = "De Ceder"
+    make_practice(settings.PRACTICE_CERTIFICATE_NAME)
     return Laboratory.objects.create(name="AZ Diest", address=hospital)
 
 

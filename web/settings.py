@@ -58,6 +58,9 @@ elif STARTUP_DIR:
     PARTY_NAME = os.environ.get("STARTUP_NAME", "Demo startup")
 else:
     PARTY_NAME = os.environ.get("HOSPITAL_NAME", "Demo hospital")
+# The name the hospitals issued this practice and know it by, which its app
+# sends in every message (glossary.toml, certificate name).
+PRACTICE_CERTIFICATE_NAME = os.environ.get("PRACTICE_CERTIFICATE_NAME", "demo-practice")
 # A Pico colour theme per party, so its pages are told apart at a glance; absent:
 # Pico's default. Only a vendored theme will do.
 PICO_DIR = BASE_DIR / "static" / "css" / "vendor" / "pico-2.1.1"
