@@ -134,7 +134,10 @@ def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
     # Straight to the routine first test on the new sample.
     assert response["Location"] == sample_order_url(patient, OrderedTest.CBC)
     assertContains(
-        client.get(response["Location"]), f"Sample {sample.sample_id} collected."
+        client.get(response["Location"]),
+        f'<article role="status" data-level="success">'
+        f"Sample {sample.sample_id} collected.</article>",
+        html=True,
     )
     assert not Order.objects.exists()
     response = client.get(patient_url(patient))
@@ -416,7 +419,12 @@ def test_an_order_that_would_be_refused_returns_to_the_patient(
     ):
         response = client.get(sample_order_url(patient, test))
         assert response["Location"] == patient_url(patient), test
-        assertContains(client.get(patient_url(patient)), message)
+        # An error the reader must act on is announced at once; success is not.
+        assertContains(
+            client.get(patient_url(patient)),
+            f'<article role="alert" data-level="error">{message}</article>',
+            html=True,
+        )
     assert Order.objects.count() == 1
 
 
