@@ -476,3 +476,16 @@ def test_the_startups_web_server_outwaits_a_submission() -> None:
         int(arg.split("=")[1]) for arg in command if arg.startswith("--timeout=")
     ]
     assert (timeouts or [30])[0] > SUBMIT_TIMEOUT_SECONDS  # gunicorn's default: 30
+
+
+def test_a_health_check_runs_often_only_while_its_service_starts() -> None:
+    # Each check starts a process in the container: every 2 s until the service
+    # is up, so `up --wait` is quick, then rarely.
+    checks = {
+        name: spec["healthcheck"]
+        for name, spec in config()["services"].items()
+        if "healthcheck" in spec
+    }
+    assert len(checks) == 9
+    for name, check in checks.items():
+        assert (check["start_interval"], check["interval"]) == ("2s", "5m0s"), name
