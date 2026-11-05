@@ -59,13 +59,85 @@ def test_a_laboratory_director_is_sent_to_their_own_page(client: Client) -> None
     assertRedirects(response, reverse("deployment:models"))
 
 
-def answering(monkeypatch: pytest.MonkeyPatch, answer: dict[str, object]) -> None:
-    """`flwr run` answering as Flower's JSON output does."""
+def answering(
+    monkeypatch: pytest.MonkeyPatch,
+    answer: dict[str, object],
+    listing: dict[str, object] | None = None,
+) -> None:
+    """`flwr run` and `flwr ls` answering as Flower's JSON output does."""
 
     def run(command: list[str], **kwargs: object) -> "subprocess.CompletedProcess[str]":
-        return subprocess.CompletedProcess(command, 0, json.dumps(answer), "")
+        said = (
+            (listing or {"success": True, "runs": []}) if command[1] == "ls" else answer
+        )
+        return subprocess.CompletedProcess(command, 0, json.dumps(said), "")
 
     monkeypatch.setattr(subprocess, "run", run)
+
+
+@pytest.fixture(autouse=True)
+def superlink(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No page here reaches a real SuperLink: one that knows no runs yet."""
+    answering(monkeypatch, {"success": True, "run-id": "7"})
+
+
+RUNNING = {
+    "run-id": "7",
+    "status": "running",
+    "status-details": "N/A",
+    "elapsed": 61.0,
+    "pending-at": "2026-10-30 14:01:00Z",
+    "starting-at": "2026-10-30 14:01:30Z",
+    "running-at": "2026-10-30 14:02:00Z",
+    "finished-at": "N/A",
+}
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_the_page_shows_each_training_runs_status(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    answering(monkeypatch, {}, {"success": True, "runs": [RUNNING]})
+    response = client.get(reverse("training:final_models"))
+    assertContains(
+        response,
+        "<tr><td>7</td><td>Running</td><td>30 Oct 2026, 15:02</td><td>0:01:01</td>"
+        "<td>—</td></tr>",
+        html=True,
+    )
+    assertContains(response, "reload the page")
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_without_the_superlink_the_page_says_the_statuses_are_unknown(
+    client: Client, monkeypatch: pytest.MonkeyPatch, final_models_dir: Path
+) -> None:
+    answering(
+        monkeypatch,
+        {},
+        {"success": False, "error-message": "Connection to 127.0.0.1:9093 unavailable"},
+    )
+    response = client.get(reverse("training:final_models"))
+    assertContains(response, "the training runs&#x27; statuses are unknown")
+    assertNotContains(response, "127.0.0.1")
+    # The final models still show.
+    assertContains(response, 'href="/training/final-models/7/for-sale/"')
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_submission_without_an_answer_points_to_the_training_runs(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def run(command: list[str], **kwargs: object) -> "subprocess.CompletedProcess[str]":
+        if command[1] == "ls":
+            return subprocess.CompletedProcess(
+                command, 0, json.dumps({"success": True, "runs": []}), ""
+            )
+        raise subprocess.TimeoutExpired(command, 20)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    response = client.post(reverse("training:final_models"))
+    assertContains(response, "check the training runs below before submitting again")
 
 
 @pytest.fixture
@@ -111,6 +183,10 @@ def test_a_run_without_an_answer_shows_no_server_paths(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def run(command: list[str], **kwargs: object) -> "subprocess.CompletedProcess[str]":
+        if command[1] == "ls":
+            return subprocess.CompletedProcess(
+                command, 0, json.dumps({"success": True, "runs": []}), ""
+            )
         return subprocess.CompletedProcess(command, 1, "", "/srv/flwr-home/config.toml")
 
     monkeypatch.setattr(subprocess, "run", run)
