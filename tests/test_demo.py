@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -80,3 +82,70 @@ def test_each_hospitals_practice_colours_and_patients_come_from_demo_toml() -> N
         assert PRACTICES[cycle] == entry["practice"]
         assert COLOURS[cycle] == (entry["colour"], entry["practice_colour"])
         assert PATIENTS[cycle] == entry["patients"]
+
+
+# What each party's folder may hold: the report's DFD stores, and the Django
+# secret key its web app uses (spec §9). Nothing from the NHANES cycle
+# that stands in for new samples: the seed commands get their participants
+# from prepare alone.
+PARTY_FOLDERS = {
+    "startup": {
+        "superlink",  # DS3
+        "final-models",  # DS4
+        "flwr-home",
+    },
+    "hospitals": {
+        "cohort",  # DS2
+        "final-models",  # DS5
+        "web.sqlite3",  # DS6, DS8
+        ".secret_key",
+    },
+    "practices": {
+        "web.sqlite3",  # DS7
+        ".secret_key",
+    },
+}
+
+
+def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pandas as pd
+
+    import iron_deficiency.dataset
+    from iron_deficiency.dataset import CBC_VARS
+    from tools.demo import hospitals, nhanes_csv, practices, prepare
+
+    class Cohort:
+        def save_to_disk(self, path: Path) -> None:
+            path.mkdir(parents=True)
+
+    class Cohorts:
+        def load_partition(self, partition: int) -> Cohort:
+            return Cohort()
+
+    samples = pd.DataFrame(
+        {"sample_id": [1], "sex": ["Female"], "age": [30]}
+        | {var: [1.0] for var in CBC_VARS}
+    )
+    ferritin = pd.DataFrame({"sample_id": [1], "LBXFER": [20.0]})
+    monkeypatch.setattr(iron_deficiency.dataset, "load_federated_dataset", Cohorts)
+    monkeypatch.setattr(iron_deficiency.dataset, "load_new_samples", lambda: samples)
+    monkeypatch.setattr(iron_deficiency.dataset, "load_ferritin", lambda: ferritin)
+    # A folder prepared before the participants stayed with prepare.
+    stale = [tmp_path / "hospitals" / hospitals()[0][1]]
+    stale += [tmp_path / "practices" / practices()[0][1]]
+    for folder in stale:
+        folder.mkdir(parents=True)
+        (folder / "nhanes.csv").write_text("sample_id\n1\n")
+
+    prepare(tmp_path)
+
+    folders = [(tmp_path / "startup", "startup")]
+    folders += [(tmp_path / "hospitals" / slug, "hospitals") for _, slug in hospitals()]
+    folders += [(tmp_path / "practices" / slug, "practices") for _, slug in practices()]
+    for folder, kind in folders:
+        held = {entry.name for entry in folder.iterdir()}
+        assert held <= PARTY_FOLDERS[kind], (folder.name, held - PARTY_FOLDERS[kind])
+    # The seed commands still get the cycle, from where only prepare looks.
+    assert nhanes_csv(tmp_path).is_file()

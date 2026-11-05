@@ -79,6 +79,12 @@ def lab_orders_host(slug: str) -> str:
     return f"{slug}-lab-orders"
 
 
+def nhanes_csv(demo_dir: Path) -> Path:
+    """The NHANES cycle the seed commands pick participants from: beside the
+    downloads it comes from, which only prepare mounts, never in a party's folder."""
+    return demo_dir / "huggingface" / "nhanes-2021-2023.csv"
+
+
 def practices() -> list[tuple[int, str]]:
     """Each practice's folder name, numbered as its hospital's partition."""
     return [
@@ -118,11 +124,13 @@ def seed_arguments(partition: int, nhanes: Path) -> list[str]:
     ]
 
 
-def prepare_web(folder: Path, party: str, seed_command: str, partition: int) -> None:
+def prepare_web(
+    folder: Path, party: str, seed_command: str, partition: int, nhanes: Path
+) -> None:
     """Migrate the party's database and seed its demo accounts."""
     env = {**os.environ, party: str(folder), "DJANGO_DEBUG": "1"}
     subprocess.run(manage("migrate", "-v0"), env=env, check=True)
-    seed = seed_arguments(partition, folder / "nhanes.csv")
+    seed = seed_arguments(partition, nhanes)
     # Quiet: the summary at startup names the accounts once.
     subprocess.run(
         manage(seed_command, *seed), env=env, check=True, stdout=subprocess.DEVNULL
@@ -166,28 +174,30 @@ def prepare(demo_dir: Path) -> None:
 
     prepare_flower(demo_dir)
     federated_dataset = None
-    nhanes = None
     for (partition, slug), (_, practice_slug), _cycle in zip(
         hospitals(), practices(), CYCLES, strict=True
     ):
         hospital = hospital_dir(demo_dir, slug)
         practice = practice_dir(demo_dir, practice_slug)
         (hospital / "final-models").mkdir(parents=True, exist_ok=True)
+        practice.mkdir(parents=True, exist_ok=True)
         if not (hospital / "cohort").exists():
             federated_dataset = federated_dataset or load_federated_dataset()
             cohort = from_hub(partial(federated_dataset.load_partition, partition))
             cohort.save_to_disk(hospital / "cohort")
-        # The same NHANES 2021-2023 participants: the practice's patients and
-        # the hospital's analyser stand-in, loaded once.
+        # Folders prepared before the cycle stayed with prepare held a copy.
         for folder in (hospital, practice):
-            if not (folder / "nhanes.csv").exists():
-                if nhanes is None:
-                    nhanes = from_hub(
-                        lambda: load_new_samples().merge(
-                            load_ferritin(), on="sample_id", how="left"
-                        )
-                    )
-                nhanes.to_csv(folder / "nhanes.csv", index=False)
+            (folder / "nhanes.csv").unlink(missing_ok=True)
+    # The same NHANES 2021-2023 participants: the practices' patients and the
+    # hospitals' analyser stand-in.
+    if not nhanes_csv(demo_dir).exists():
+        nhanes_csv(demo_dir).parent.mkdir(parents=True, exist_ok=True)
+        nhanes = from_hub(
+            lambda: load_new_samples().merge(
+                load_ferritin(), on="sample_id", how="left"
+            )
+        )
+        nhanes.to_csv(nhanes_csv(demo_dir), index=False)
 
 
 def prepare_webs(demo_dir: Path) -> dict[str, str]:
@@ -219,7 +229,7 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
     with tqdm(total=len(webs) + len(hospitals()), unit="step", leave=False) as bar:
         for folder, party, seed, partition, name in webs:
             bar.set_description_str(f"{'Preparing ' + name:<{width}}")
-            prepare_web(folder, party, seed, partition)
+            prepare_web(folder, party, seed, partition, nhanes_csv(demo_dir))
             if party == "PRACTICE_DIR":
                 add_laboratories(folder)
             bar.update()
