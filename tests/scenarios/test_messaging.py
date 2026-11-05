@@ -1,8 +1,10 @@
 """Scenarios: lab orders and lab reports between the general practitioner's app
-and the hospital, as JSON over HTTP (features/messaging.feature)."""
+and the hospital, over gRPC (features/messaging.feature)."""
 
+from collections.abc import Iterator
 from datetime import UTC, datetime
 
+import grpc
 import pytest
 from django.core.management import call_command
 from django.test import Client, override_settings
@@ -10,7 +12,6 @@ from django.urls import reverse
 from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
-from pytest_django.live_server_helper import LiveServer
 
 from tests.conftest import (
     World,
@@ -19,8 +20,9 @@ from tests.conftest import (
     make_patient,
     suggest_ferritin_on,
 )
+from web.lab.messaging import serve
 from web.lab.models import LabOrder, Sample
-from web.messaging import schemas
+from web.messaging import messages_pb2
 from web.nhanes.models import Participant
 from web.practice import messaging
 from web.practice.models import (
@@ -35,7 +37,7 @@ from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 30, 10, 0, tzinfo=UTC)
-# The live server runs in its own threads, so the test may not hold a transaction.
+# The server runs in its own threads, so the test may not hold a transaction.
 pytestmark = pytest.mark.django_db(transaction=True)
 
 
@@ -48,10 +50,11 @@ scenarios("messaging.feature")
 
 
 @pytest.fixture
-def hospital(live_server: LiveServer) -> str:
-    """The hospital's endpoint, running; its address, host:port. The development
-    URLconf serves it beside every party's pages (web.urls)."""
-    return live_server.url.removeprefix("http://")
+def hospital() -> Iterator[str]:
+    """The hospital's endpoint, running; its address."""
+    server, port = serve("127.0.0.1:0")
+    yield f"127.0.0.1:{port}"
+    server.stop(grace=None)
 
 
 @given(parsers.parse('hospital "{name}"'))
@@ -130,16 +133,13 @@ def send_again(world: World) -> None:
 
 
 @when(parsers.parse('a lab order that names no practice is sent to "{name}"'))
-def sends_without_practice(world: World, client: Client) -> None:
+def sends_without_practice(world: World) -> None:
     unsent = order(world, "Test Patient 1", OrderedTest.CBC, "other")
     with override_settings(PARTY_NAME=""):
-        message = messaging.lab_order(unsent)
-    # In-process, so the refusal's body can be read.
-    world["refused"] = client.post(
-        reverse("messaging:send_lab_order"),
-        message.model_dump_json(),
-        content_type="application/json",
-    )
+        try:
+            messaging.send_lab_order(unsent, world["laboratory"])
+        except grpc.RpcError as error:
+            world["refused"] = error
 
 
 @given(parsers.parse('"{name}" released a lab report for the sample of "{patient}"'))
@@ -221,9 +221,8 @@ def lab_order_holds(world: World, practice: str) -> None:
 
 @then("it is refused as practice required")
 def refused_practice_required(world: World) -> None:
-    assert world["refused"].status_code == 422
-    errors = world["refused"].json()["detail"]
-    assert [error["loc"][-1] for error in errors] == ["practice"]
+    assert world["refused"].code() == grpc.StatusCode.INVALID_ARGUMENT
+    assert world["refused"].details() == "practice_required"
 
 
 @then(parsers.parse('"{name}" has no lab order'))
@@ -255,14 +254,15 @@ def other_app(world: World, practice: str) -> None:
 
 @when("the other app checks for lab reports")
 def other_checks(world: World) -> None:
-    world["received"] = messaging.exchange(
-        world["laboratory"], "lab-reports/", query={"practice": world["other"]}
-    )
+    with messaging.open_laboratory(world["laboratory"]) as laboratory:
+        world["received"] = laboratory.FetchNewLabReports(
+            messages_pb2.FetchLabReports(practice=world["other"]), timeout=10
+        )
 
 
 @then("it receives no lab reports")
 def receives_none(world: World) -> None:
-    assert world["received"] == []
+    assert list(world["received"].reports) == []
 
 
 def lab_order_of(world: World, patient: str) -> LabOrder:
@@ -284,13 +284,14 @@ def no_longer_new(world: World, patient: str, name: str) -> None:
 
 @when(parsers.parse('the other app acknowledges the lab report of "{patient}"'))
 def other_acknowledges(world: World, patient: str) -> None:
-    messaging.exchange(
-        world["laboratory"],
-        "lab-reports/acknowledge/",
-        message=schemas.Acknowledgement(
-            practice=world["other"], report_ids=[lab_order_of(world, patient).pk]
-        ),
-    )
+    with messaging.open_laboratory(world["laboratory"]) as laboratory:
+        report_id = str(lab_order_of(world, patient).pk)
+        laboratory.AcknowledgeLabReports(
+            messages_pb2.Acknowledgement(
+                practice=world["other"], report_ids=[report_id]
+            ),
+            timeout=10,
+        )
 
 
 @when(
@@ -337,7 +338,8 @@ def released_unknown(world: World, name: str, owner: str) -> None:
     " only the practice's name"
 )
 def lab_order_fields() -> None:
-    assert set(schemas.LabOrder.model_fields) == {
+    fields = {field.name for field in messages_pb2.LabOrder.DESCRIPTOR.fields}
+    assert fields == {
         "practice",
         "sample_id",
         "test",
@@ -352,7 +354,8 @@ def lab_order_fields() -> None:
     "the lab report says only whether ferritin is suggested, nothing else of screening"
 )
 def lab_report_fields() -> None:
-    assert set(schemas.LabReport.model_fields) == {
+    fields = {field.name for field in messages_pb2.LabReport.DESCRIPTOR.fields}
+    assert fields == {
         "report_id",
         "sample_id",
         "test",
@@ -420,8 +423,8 @@ def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
 def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
     client: Client, practice: Laboratory, owner: GeneralPractitioner
 ) -> None:
-    """A message the hospital's schema rejects (422) is a fault to report, not a
-    network problem to wait out."""
+    """A message the hospital's form rejects (INVALID_ARGUMENT) is a fault to
+    report, not a network problem to wait out."""
     record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
     sample = record.samples.create(
         sample_id="x" * 25, collected_at=NOW, laboratory=Laboratory.objects.get()
@@ -434,7 +437,7 @@ def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
     response = client.post(reverse("practice:check_for_reports"), follow=True)
     assertNotContains(response, "could not be reached")
     assertContains(response, "AZ Diest refused a message. Tell the administrator.")
-    assertNotContains(response, "422")
+    assertNotContains(response, "INVALID_ARGUMENT")
 
 
 def released_ferritin(owner: GeneralPractitioner) -> Patient:
@@ -523,7 +526,9 @@ def says_screened(world: World, screened: str) -> None:
 def names_no_indication() -> None:
     # Neither the message (DF23) nor what the hospital stores (DS8) has a field
     # for it: the laboratory never learns why a CBC was ordered.
-    assert "indication" not in schemas.LabOrder.model_fields
+    from web.messaging import messages_pb2
+
+    assert "indication" not in messages_pb2.LabOrder.DESCRIPTOR.fields_by_name
     stored = {field.name for field in LabOrder._meta.get_fields()}
     assert "indication" not in stored
 

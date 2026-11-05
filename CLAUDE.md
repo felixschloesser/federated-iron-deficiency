@@ -49,7 +49,7 @@ uv run --frozen python tools/audit.py
 - **Absence is `None`.** `X | None`, never a placeholder choice like `UNDECIDED`. `null=True` only where absence is a real state.
 - **Domain logic lives on the models.** Behaviour of one row is a model method; operations on a table and named queries are methods of the model's custom QuerySet or Manager; a rule the database can hold is a constraint with `violation_error_code`. Code that is not ORM (model files, messaging) lives in a module named after what it does. Views stay thin: parse the form, call one model or manager method, redirect or re-render.
 - **Writes are atomic.** A model or manager method that writes is decorated `@transaction.atomic`; the audit treats a call to one as a write.
-- **Inject the clock.** Methods that record a time take `now` as an argument; only entry points (views, management commands, messaging endpoints) call `timezone.now()`.
+- **Inject the clock.** Methods that record a time take `now` as an argument; only entry points (views, management commands, gRPC handlers) call `timezone.now()`.
 - **One error per failing condition.** Each guard raises its own `ValidationError` with its own `code`, attached to its field (`add_error(field, …)`); non-field errors only for cross-field conditions.
 - **No capability without a path to it.** Every writing model or manager method is reachable from a view; every view from the URLconf and a link or form on a page.
 - **POST-redirect-GET.** Every mutation is a POST that redirects on success. GET never mutates.
