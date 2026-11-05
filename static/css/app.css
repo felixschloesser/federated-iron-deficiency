@@ -238,7 +238,6 @@ a.button-link {
   padding: var(--pico-form-element-spacing-vertical) var(--pico-form-element-spacing-horizontal);
   border: var(--pico-border-width) solid var(--pico-border-color);
   border-radius: var(--pico-border-radius);
-  outline: 0;
   background-color: var(--pico-background-color);
   box-shadow: var(--pico-box-shadow);
   color: var(--pico-color);
