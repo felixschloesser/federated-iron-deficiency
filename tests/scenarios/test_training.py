@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from flwr.common.constant import Status, SubStatus
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from tests.conftest import World
@@ -295,14 +294,16 @@ def looking_refused(world: World, code: str) -> None:
     assert world["error"].code == code
 
 
-def constants(holder: type) -> list[str]:
-    """A Flower constants class's values, as `flwr ls` prints them."""
-    return [value for name, value in vars(holder).items() if name.isupper()]
-
-
+# What `flwr ls` reports (Flower 1.40, flwr.common.constant Status and SubStatus).
+# Importing Flower here would raise Click's DeprecationWarning under -W error.
 FLOWER_STATUSES = [
-    status for status in constants(Status) if status != Status.FINISHED
-] + [f"{Status.FINISHED}:{sub_status}" for sub_status in constants(SubStatus)]
+    "pending",
+    "starting",
+    "running",
+    "finished:completed",
+    "finished:failed",
+    "finished:stopped",
+]
 
 
 @pytest.mark.parametrize("status_text", FLOWER_STATUSES)

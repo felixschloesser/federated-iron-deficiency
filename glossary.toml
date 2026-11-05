@@ -327,3 +327,8 @@ rejected = ["start", "launch", "trigger"]
 source = "Report, P5 \"Model sale\"; Stakeholders table: other hospitals \"May buy the model from the startup\"; DF16 \"Final model weights, if sold\""
 why = "What the startup's *Download for sale* stands in for: the final model's weights only; a buyer standardizes and chooses a threshold on its own cohort, as each hospital does. Never a hospital's standardization or any metrics"
 rejected = ["export", "share", "release"]
+
+["run status"]
+source = "Flower CLI, `flwr ls`: \"Current status of the run (pending, starting, running, finished)\"; a finished run is completed, failed or stopped (Flower, `flwr.common.constant.SubStatus`)"
+why = "Where a training run is, in the data scientist's own tool's words: Pending, Starting, Running, Completed, Failed, Stopped"
+rejected = ["progress", "state", "in progress / done"]
