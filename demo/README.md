@@ -126,6 +126,12 @@ screening comes back to the practice.
   Hugging Face downloads (`.demo/huggingface/`), with the NHANES 2021–2023
   cycle the seeded patients come from; no party's folder holds that cycle.
   `prepare` still asks Hugging Face, but downloads nothing twice.
+- When a change to `demo.toml` or the topology renames or drops a network,
+  `docker compose down --remove-orphans` leaves the old one behind, and Docker
+  has room for only about 30 networks. With the demo stopped,
+  `docker network prune --filter label=com.docker.compose.project=iron-deficiency`
+  removes this demo's networks that no container uses; the next `up` creates
+  the ones it needs again.
 - To look into a party's database while the demo runs:
   `docker compose exec uz-leuven-web python -m sqlite3 /demo/hospitals/uz-leuven/web.sqlite3`.
 

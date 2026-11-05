@@ -40,6 +40,12 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
     folder = tmp_path_factory.mktemp("compose")
     (folder / "demo").mkdir()
+    # The proxy joins every party's network in the demo; here only the hospital
+    # under test, so the project takes the networks it tests and no more.
+    override = folder / "demo" / "test-override.yaml"
+    override.write_text(
+        f"services:\n  proxy:\n    networks: !override [{APP_HOSPITAL}]\n"
+    )
     name = f"test-{uuid.uuid4().hex[:8]}"
 
     def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -54,7 +60,7 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
                 "--project-directory",
                 str(folder / "demo"),
             ]
-            + ["-f", str(ROOT / "demo" / "compose.yaml"), *args],
+            + ["-f", str(ROOT / "demo" / "compose.yaml"), "-f", str(override), *args],
             capture_output=True,
             text=True,
             check=check,
