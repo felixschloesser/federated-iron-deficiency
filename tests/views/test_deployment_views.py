@@ -19,11 +19,18 @@ from web.deployment.models import Deployment, LaboratoryDirector
 
 pytestmark = pytest.mark.django_db
 VALIDATION = {
-    "true_positives": 7,
-    "false_negatives": 3,
-    "false_positives": 5,
-    "true_negatives": 37,
-    "auroc": 0.84,
+    0.4: {
+        "true_positives": 9,
+        "false_negatives": 1,
+        "false_positives": 12,
+        "true_negatives": 30,
+    },
+    0.5: {
+        "true_positives": 7,
+        "false_negatives": 3,
+        "false_positives": 5,
+        "true_negatives": 37,
+    },
 }
 
 
@@ -60,17 +67,21 @@ def test_models_page(
         html=True,
     )
     assertContains(
-        response, 'aria-label="Deploy Screening model of 30 Oct 2026, 10:00"'
+        response,
+        'aria-label="Deploy Screening model of 30 Oct 2026, 10:00 at the chosen'
+        ' threshold"',
     )
-    for term, value in (
-        ("Sensitivity", "7 of 10 iron-deficient women (70%)"),
-        ("Specificity", "37 of 42 women without iron deficiency (88%)"),
-        ("Positive predictive value", "7 of 12 ferritin suggestions (58%)"),
-        ("Negative predictive value", "37 of 40 women without a suggestion (92%)"),
-        ("AUROC here", "0.84"),
-        ("AUROC across hospitals", "0.87"),
-        ("Threshold", "0.5"),
+    # One row per threshold, each with its radio button and four measures.
+    for threshold, cells in (
+        ("0.4", ("9 of 10 (90%)", "30 of 42 (71%)", "9 of 21 (43%)", "30 of 31 (97%)")),
+        ("0.5", ("7 of 10 (70%)", "37 of 42 (88%)", "7 of 12 (58%)", "37 of 40 (92%)")),
     ):
+        assertContains(
+            response, f'name="threshold" value="{threshold}" required', count=1
+        )
+        for cell in cells:
+            assertContains(response, f"<td>{cell}</td>", html=True)
+    for term, value in (("AUROC here", "0.84"), ("AUROC across hospitals", "0.87")):
         assertContains(response, f"<dt>{term}</dt><dd>{value}</dd>", html=True)
     assertContains(response, "Cannot be deployed: not a readable model file")
     assertContains(response, "No screening model is deployed")
@@ -80,17 +91,38 @@ def test_deploying_redirects_with_a_message(
     client: Client, director: LaboratoryDirector, screening_models_dir: Path
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
-    response = client.post(url, follow=True)
+    response = client.post(url, {"threshold": "0.4"}, follow=True)
     assert response.redirect_chain == [(reverse("deployment:models"), 302)]
-    assertContains(response, "Screening model of 30 Oct 2026, 10:00 deployed.")
-    assert Deployment.objects.get().screening_model.run_id == "run-1"
+    assertContains(
+        response, "Screening model of 30 Oct 2026, 10:00 deployed at threshold 0.40."
+    )
+    screening_model = Deployment.objects.get().screening_model
+    assert (screening_model.run_id, screening_model.threshold) == ("run-1", 0.4)
+    # The deployed threshold is the one chosen when the page shows again.
+    assertContains(response, "Deployed at threshold 0.40")
+    assertContains(response, 'value="0.4" required checked')
+
+
+@pytest.mark.parametrize("posted", [{}, {"threshold": "high"}])
+def test_deploying_without_a_threshold_says_so(
+    client: Client,
+    director: LaboratoryDirector,
+    screening_models_dir: Path,
+    posted: dict[str, str],
+) -> None:
+    url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
+    response = client.post(url, posted, follow=True)
+    assert response.redirect_chain == [(reverse("deployment:models"), 302)]
+    assertContains(response, "Choose a threshold to deploy at.")
+    assert not Deployment.objects.exists()
 
 
 def test_a_refused_deployment_says_why(
     client: Client, director: LaboratoryDirector, screening_models_dir: Path
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "run-2"})
-    assertContains(client.post(url, follow=True), "not a readable model file")
+    response = client.post(url, {"threshold": "0.5"}, follow=True)
+    assertContains(response, "not a readable model file")
     assert not Deployment.objects.exists()
 
 
@@ -139,7 +171,9 @@ def test_screening_status_before_and_after_deploying(
     settings: Settings,
 ) -> None:
     assert status(settings) == "2 screening models, none deployed"
-    client.post(reverse("deployment:deploy", kwargs={"run_id": "run-1"}))
+    client.post(
+        reverse("deployment:deploy", kwargs={"run_id": "run-1"}), {"threshold": "0.5"}
+    )
     assert (
         status(settings) == "Screening model of 30 Oct 2026, 10:00 deployed (2 in all)"
     )

@@ -283,3 +283,9 @@ mark {
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
+
+/* A fieldset is as wide as its content by default, so a wide table inside one
+   pushed the page sideways instead of scrolling in its .overflow-auto box. */
+fieldset {
+  min-width: 0;
+}

@@ -4,7 +4,7 @@
 {% include "kit/index_header.html" with title="Final models" %}
 
 <h2>Submit a training run</h2>
-<p>Every hospital trains on its own cohort; at the end each is sent the final model with this threshold.</p>
+<p>Every hospital trains on its own cohort; at the end each is sent the final model, and its laboratory director chooses the threshold it screens at.</p>
 {% include "kit/form.html" with form=form submit_label="Submit training run" %}
 
 <h2>Final models</h2>
@@ -12,13 +12,12 @@
 <p>The final model of each training run, newest first, as every hospital was sent it.</p>
 {% if final_models %}
 <div class="overflow-auto"><table>
-  <thead><tr><th scope="col">Stored</th><th scope="col">Run</th><th scope="col">Threshold</th><th scope="col">AUROC across hospitals</th><th scope="col">Model sale</th></tr></thead>
+  <thead><tr><th scope="col">Stored</th><th scope="col">Run</th><th scope="col">AUROC across hospitals</th><th scope="col">Model sale</th></tr></thead>
   <tbody>
     {% for model in final_models %}
     <tr>
       <td>{{ model.stored_at|date:"j M Y, H:i"|default:"—" }}</td>
       <td>{{ model.run_id }}</td>
-      <td>{{ model.threshold|default_if_none:"—" }}</td>
       <td>{{ model.federated_auroc|floatformat:2|default:"—" }}</td>
       <td><a href="{% url "training:for_sale" model.run_id %}" download aria-label="Download final model of run {{ model.run_id }} for sale">Download for sale</a></td>
     </tr>

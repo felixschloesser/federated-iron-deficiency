@@ -28,7 +28,6 @@ def final_models_dir(tmp_path: Path, settings: Settings) -> Path:
         directory,
         run_id=7,
         state_dict=Net().state_dict(),
-        threshold=0.4,
         federated={"eval_auroc": 0.861},
         stored_at=datetime(2026, 10, 30, 9, 0, tzinfo=UTC),
     )
@@ -46,7 +45,7 @@ def test_final_models_page(
         response = client.get(reverse("training:final_models"))
     assertContains(
         response,
-        "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.4</td><td>0.86</td>"
+        "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.86</td>"
         '<td><a href="/training/final-models/7/for-sale/" download'
         ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
         "</td></tr>",
@@ -79,7 +78,7 @@ def test_submitting_a_run_redirects_to_the_final_models(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answering(monkeypatch, {"success": True, "run-id": "7"})
-    response = client.post(reverse("training:final_models"), {"threshold": "0.4"})
+    response = client.post(reverse("training:final_models"))
     assertRedirects(response, reverse("training:final_models"))
     assert [str(message) for message in get_messages(response.wsgi_request)] == [
         "Training run 7 submitted. Its final model appears here when the run finishes."
@@ -87,35 +86,11 @@ def test_submitting_a_run_redirects_to_the_final_models(
 
 
 @pytest.mark.usefixtures("data_scientist")
-@pytest.mark.parametrize(
-    ("threshold", "field", "code"),
-    [
-        ("0", "threshold", "threshold_not_above_zero"),
-        ("1", "threshold", "threshold_not_below_one"),
-        ("", "threshold", "required"),
-    ],
-)
-def test_a_refused_threshold_stays_on_the_page(
-    client: Client,
-    monkeypatch: pytest.MonkeyPatch,
-    threshold: str,
-    field: str,
-    code: str,
-) -> None:
-    answering(monkeypatch, {"success": True, "run-id": "7"})
-    response = client.post(reverse("training:final_models"), {"threshold": threshold})
-    assert response.status_code == 200
-    assert [
-        error.code for error in response.context["form"].errors.as_data()[field]
-    ] == [code]
-
-
-@pytest.mark.usefixtures("data_scientist")
 def test_a_refused_run_says_why(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answering(monkeypatch, {"success": False, "error-message": "unavailable"})
-    response = client.post(reverse("training:final_models"), {"threshold": "0.5"})
+    response = client.post(reverse("training:final_models"))
     assert response.status_code == 200
     errors = response.context["form"].errors.as_data()["__all__"]
     assert [error.code for error in errors] == ["superlink_refused"]
@@ -128,7 +103,7 @@ def test_a_deployment_tells_the_server_app_its_demo_folder(
     from web.training.runs import run_configuration
 
     settings.STARTUP_DIR = tmp_path / "startup"
-    assert run_configuration(0.4) == f"demo-dir='{tmp_path}' screening-threshold=0.4"
+    assert run_configuration() == f"demo-dir='{tmp_path}'"
 
 
 @pytest.mark.usefixtures("data_scientist")
@@ -139,7 +114,7 @@ def test_a_run_without_an_answer_shows_no_server_paths(
         return subprocess.CompletedProcess(command, 1, "", "/srv/flwr-home/config.toml")
 
     monkeypatch.setattr(subprocess, "run", run)
-    response = client.post(reverse("training:final_models"), {"threshold": "0.5"})
+    response = client.post(reverse("training:final_models"))
     assertContains(response, "The SuperLink refused the run: it gave no answer")
     assertNotContains(response, "/srv/flwr-home")
 
@@ -155,7 +130,7 @@ def test_a_final_model_downloads_for_sale(
     assert response["Content-Disposition"] == (
         'attachment; filename="final-model-run-7.pt"'
     )
-    assert from_bytes(response.content).threshold == 0.4
+    assert from_bytes(response.content).state_dict is not None
 
 
 @pytest.mark.usefixtures("data_scientist")

@@ -209,7 +209,7 @@ rejected = [
 
 ["deploy"]
 source = "Report, Use case: the model \"is then deployed to every hospital\""
-why = "The laboratory director's decision that a screening model screens this hospital's patients"
+why = "The laboratory director's decision that a screening model screens this hospital's patients, at the threshold they choose"
 rejected = ["activate", "release", "roll out"]
 
 ["deployment (of a party)"]
@@ -233,7 +233,7 @@ rejected = [
 
 ["local validation"]
 source = "Built from *validation* (report, DF10 \"validation example count\")"
-why = "A screening model on this hospital's own validation split: the confusion matrix at its threshold, as counts, then AUROC"
+why = "A screening model on this hospital's own validation split: the confusion matrix at each threshold from 0.05 to 0.95, as counts, then AUROC; what the laboratory director chooses a threshold from"
 rejected = ["local evaluation", "shadow run", "flag rate"]
 
 ["sensitivity"]
@@ -264,7 +264,7 @@ rejected = []
 
 ["threshold"]
 source = "Report, Design choices"
-why = "The report's word"
+why = "The report's word. The laboratory director chooses it when deploying, from local validation; a training run sets none, and a model sold carries none"
 rejected = ["cutoff (reserved for ferritin's 15 ng/mL)"]
 
 ["lab report"]
@@ -325,5 +325,5 @@ rejected = ["start", "launch", "trigger"]
 
 ["model sale"]
 source = "Report, P5 \"Model sale\"; Stakeholders table: other hospitals \"May buy the model from the startup\"; DF16 \"Final model weights, if sold\""
-why = "What the startup's *Download for sale* stands in for: the final model's weights and threshold, which a buyer needs to screen; never a hospital's standardization or any metrics"
+why = "What the startup's *Download for sale* stands in for: the final model's weights only; a buyer standardizes and chooses a threshold on its own cohort, as each hospital does. Never a hospital's standardization or any metrics"
 rejected = ["export", "share", "release"]

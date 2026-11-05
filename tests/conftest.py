@@ -191,12 +191,14 @@ def collect_and_order(
 def write_final_model(
     directory: "Path",
     run_id: str,
-    validation: dict[str, float],
+    validation: dict[float, dict[str, int]],
     stored_at: "datetime",
+    local_auroc: float = 0.84,
     leave_out: tuple[str, ...] = (),
     n_features: int = len(FEATURES),
 ) -> "Path":
-    """A final model as the ClientApp stores it (iron_deficiency.final_models)."""
+    """A final model as the ClientApp stores it (iron_deficiency.final_models),
+    with `validation`, its confusion matrix at each threshold."""
     import torch
 
     from iron_deficiency.task import Net
@@ -205,11 +207,11 @@ def write_final_model(
         "state_dict": Net(n_features=n_features).state_dict(),
         "mean": torch.zeros(len(FEATURES)),
         "std": torch.ones(len(FEATURES)),
-        "threshold": 0.5,
         "run_id": run_id,
         "stored_at": stored_at.isoformat(),
         "federated": {"eval_auroc": 0.87},
-        "local_validation": validation,
+        "confusion_matrices": validation,
+        "local_auroc": local_auroc,
     }
     for key in leave_out:
         del contents[key]
