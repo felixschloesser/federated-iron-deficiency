@@ -5,6 +5,7 @@ SuperNode and ClientApp. Needs a running Docker engine.
 """
 
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -35,13 +36,6 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
     """A compose project of its own, built from this checkout, in a temporary folder."""
     if not engine_running():
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
-    subprocess.run(
-        # Every image: the web apps, the practices' and the startup's.
-        ["docker", "compose", "build"],
-        cwd=ROOT,
-        capture_output=True,
-        check=True,
-    )
     folder = tmp_path_factory.mktemp("compose")
     (folder / "demo").mkdir()
     name = f"test-{uuid.uuid4().hex[:8]}"
@@ -63,13 +57,29 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
             text=True,
             check=check,
             timeout=300,
+            # Any free port for the proxy, so a running demo on 80 is no matter.
+            env={**os.environ, "DEMO_HTTP_PORT": "0"},
         )
 
     try:
+        # Its own images, named after the project: no other build replaces them.
+        # From demo/, where the compose file's build contexts point.
+        subprocess.run(
+            ["docker", "compose", "-p", name, "-f", str(ROOT / "demo" / "compose.yaml")]
+            + ["build"],
+            cwd=ROOT / "demo",
+            capture_output=True,
+            check=True,
+            timeout=900,
+        )
         start(run, folder)
         yield run
     finally:
         run("down", "--volumes", "--remove-orphans", check=False)
+        built = [f"{name}-{image}" for image in ("web", "practice-web", "superexec")]
+        subprocess.run(
+            ["docker", "image", "rm", *built], capture_output=True, check=False
+        )
 
 
 @pytest.fixture(scope="module")
@@ -105,13 +115,7 @@ def start(run: Compose, folder: Path) -> None:
         " (hospital / 'cohort' / 'rows.arrow').write_text('cohort');"
         " (hospital / 'web.sqlite3').write_text('lab orders')",
     )
-    run("up", "--detach", "--no-deps", "--no-build", "flower-superlink")
-    deadline = time.monotonic() + 120
-    while (
-        "healthy" not in run("ps", "--format", "{{.Status}}", "flower-superlink").stdout
-    ):
-        assert time.monotonic() < deadline, run("logs", "flower-superlink").stdout
-        time.sleep(2)
+    up(run, "flower-superlink")
     run(
         "up",
         "--detach",
@@ -121,6 +125,20 @@ def start(run: Compose, folder: Path) -> None:
         "flower-server-app",
         f"{HOSPITAL}-flower-supernode",
         f"{HOSPITAL}-flower-client-app",
+    )
+
+
+def up(run: Compose, service: str) -> None:
+    """Start one service and wait until its health check passes."""
+    run(
+        "up",
+        "--detach",
+        "--wait",
+        "--wait-timeout",
+        "240",
+        "--no-deps",
+        "--no-build",
+        service,
     )
 
 
@@ -197,7 +215,7 @@ def get(path):
 status, _, page = get("/login/")
 stylesheet = re.search(rb'href="(/static/[^"]+[.]css)"', page)
 css = get(stylesheet[1].decode()) if stylesheet else (None, None, b"")
-print(json.dumps({"login": status, "css": [css[0], css[1]]}))
+print(json.dumps({"login": status, "css": [css[0], css[1]], "stylesheet": stylesheet[1].decode() if stylesheet else None, "page": page.decode(errors="replace")[:2000] if css[0] != 200 else ""}))
 """
 
 # Which of a server's ports answer, from wherever the probe runs.
@@ -254,16 +272,8 @@ def hospital_app(compose: Compose) -> str:
     )
     name = f"{APP_HOSPITAL}-web"
     compose("run", "--rm", "--no-deps", name, "python", "manage.py", "migrate", "-v0")
-    compose("up", "--detach", "--no-deps", "--no-build", name)
-    # Both servers take a moment to start.
-    deadline = time.monotonic() + 120
-    ports = {"8000": "", "8441": ""}
-    while set(ports.values()) != {"open"}:
-        assert time.monotonic() < deadline, (ports, compose("logs", name).stdout)
-        time.sleep(2)
-        ports = probe(compose, name, PORTS, f"{APP_HOSPITAL}-pages", "8000") | probe(
-            compose, f"{APP_PRACTICE}-web", PORTS, f"{APP_HOSPITAL}-lab-orders", "8441"
-        )
+    # Healthy once both its servers answer (its health check).
+    up(compose, name)
     return name
 
 
@@ -305,18 +315,12 @@ def test_the_proxy_routes_a_partys_name_to_its_web_app(
 ) -> None:
     # compose.yaml mounts it relative to the project folder, here a temporary one.
     shutil.copy(ROOT / "demo" / "proxy.conf", compose_folder / "demo")
-    # Not `up`: run publishes no port, so a demo running on 80 is no matter.
-    proxy = f"proxy-{uuid.uuid4().hex[:8]}"
-    compose("run", "--detach", "--no-deps", "--name", proxy, "proxy")
+    up(compose, "proxy")
 
     def ask(server_name: str) -> str:
-        status: str = probe(compose, hospital_app, THROUGH_PROXY, proxy, server_name)
+        status: str = probe(compose, hospital_app, THROUGH_PROXY, "proxy", server_name)
         return status
 
-    # The proxy takes a moment to start; until then no 200.
-    deadline = time.monotonic() + 120
-    while (status := ask(f"{APP_HOSPITAL}.localhost")) != "200":
-        assert time.monotonic() < deadline, status
-        time.sleep(2)
+    assert ask(f"{APP_HOSPITAL}.localhost") == "200"
     # A name the proxy does not route gets no web app at all.
     assert ask("bank.example") != "200"
