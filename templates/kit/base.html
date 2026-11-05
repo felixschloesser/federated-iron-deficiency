@@ -29,7 +29,12 @@
   </header>
   <main id="main" class="container">
     {% for message in messages %}
+    {# An error the reader must act on is announced at once (kit/alert.html). #}
+    {% if message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
+    {% include "kit/alert.html" with level=message.tags role="alert" text=message %}
+    {% else %}
     {% include "kit/alert.html" with level=message.tags role="status" text=message %}
+    {% endif %}
     {% endfor %}
     {% block content %}{% endblock %}
   </main>

@@ -277,23 +277,30 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        # Refused whatever the indication: said on opening, in place of the form,
-        # so the page offers no button that cannot succeed, only the way back.
-        refusal = self.general_practitioner.order_refusal(
-            sample=self.sample, test=self.kwargs["test"], now=timezone.now()
-        )
-        back = {
-            "url": reverse("practice:patient", kwargs={"pk": self.patient.pk}),
-            "label": f"Back to {self.patient.name}",
-        }
         return {
             **context,
             "patient": self.patient,
             "sample": self.sample,
             "test": self.kwargs["test"],
-            "refusal": refusal,
-            "actions": [back] if refusal is not None else [],
         }
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        return self.refused() or super().get(request, *args, **kwargs)
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        return self.refused() or super().post(request, *args, **kwargs)
+
+    def refused(self) -> HttpResponse | None:
+        """An order refused whatever its indication (a typed or stale URL): back to
+        the patient, with why. place_order checks again, for two tabs at once."""
+        refusal = self.general_practitioner.order_refusal(
+            sample=self.sample, test=self.kwargs["test"], now=timezone.now()
+        )
+        if refusal is None:
+            return None
+        for message in refusal.messages:
+            messages.error(self.request, message)
+        return redirect("practice:patient", pk=self.patient.pk)
 
     def get_success_url(self) -> str:
         return reverse("practice:patient", kwargs={"pk": self.patient.pk})
