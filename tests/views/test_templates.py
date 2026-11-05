@@ -107,6 +107,7 @@ def test_the_header_wraps_and_a_status_mark_does_not() -> None:
     from pathlib import Path
 
     css = (Path(__file__).resolve().parents[2] / "static/css/app.css").read_text()
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
     rules = {
         selector.strip(): body
         for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
