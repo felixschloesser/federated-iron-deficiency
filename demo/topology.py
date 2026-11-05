@@ -74,20 +74,20 @@ name: iron-deficiency
 x-user: &user "${DEMO_USER:-1000:1000}"
 
 x-web: &web
-  image: iron-deficiency-web
+  image: ${COMPOSE_PROJECT_NAME}-web
   user: *user
   depends_on:
     prepare: {condition: service_completed_successfully}
 
 # A practice's web app: Django and gRPC only, no training package dependencies.
 x-practice-web: &practice-web
-  image: iron-deficiency-practice-web
+  image: ${COMPOSE_PROJECT_NAME}-practice-web
   user: *user
   depends_on:
     prepare: {condition: service_completed_successfully}
 
 x-superexec: &superexec
-  image: iron-deficiency-superexec
+  image: ${COMPOSE_PROJECT_NAME}-superexec
   user: *user
 
 x-supernode: &supernode
@@ -222,6 +222,11 @@ HOSPITAL = """\
         wait -n
         exit 1
     restart: unless-stopped
+    # Ready when both servers answer, each on its own network's name.
+    healthcheck:
+      test: [CMD, python, -c, "import socket; [socket.create_connection(a).close() for a in (('{slug}-pages', 8000), ('{slug}-lab-orders', 8441))]"]
+      interval: 2s
+      retries: 60
     environment:
       HOSPITAL_DIR: /demo/hospitals/{slug}
       HOSPITAL_NAME: {name}
@@ -248,6 +253,10 @@ PRACTICE = """\
   {slug}-web:
     <<: *practice-web
 {build}    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      interval: 2s
+      retries: 60
     environment:
       PRACTICE_DIR: /demo/practices/{slug}
       PRACTICE_NAME: {name}
@@ -270,6 +279,10 @@ PROXY = """\
       prepare: {condition: service_completed_successfully}
     ports: ["127.0.0.1:${DEMO_HTTP_PORT:-80}:8080"]
     volumes: ["./proxy.conf:/etc/nginx/nginx.conf:ro"]
+    healthcheck:
+      test: [CMD, nc, -z, 127.0.0.1, "8080"]
+      interval: 2s
+      retries: 60
 """
 
 PROXY_HEAD = """\

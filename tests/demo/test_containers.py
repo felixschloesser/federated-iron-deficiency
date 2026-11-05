@@ -36,13 +36,6 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
     """A compose project of its own, built from this checkout, in a temporary folder."""
     if not engine_running():
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
-    subprocess.run(
-        # Every image: the web apps, the practices' and the startup's.
-        ["docker", "compose", "build"],
-        cwd=ROOT,
-        capture_output=True,
-        check=True,
-    )
     folder = tmp_path_factory.mktemp("compose")
     (folder / "demo").mkdir()
     name = f"test-{uuid.uuid4().hex[:8]}"
@@ -69,10 +62,24 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
         )
 
     try:
+        # Its own images, named after the project: no other build replaces them.
+        # From demo/, where the compose file's build contexts point.
+        subprocess.run(
+            ["docker", "compose", "-p", name, "-f", str(ROOT / "demo" / "compose.yaml")]
+            + ["build"],
+            cwd=ROOT / "demo",
+            capture_output=True,
+            check=True,
+            timeout=900,
+        )
         start(run, folder)
         yield run
     finally:
         run("down", "--volumes", "--remove-orphans", check=False)
+        built = [f"{name}-{image}" for image in ("web", "practice-web", "superexec")]
+        subprocess.run(
+            ["docker", "image", "rm", *built], capture_output=True, check=False
+        )
 
 
 @pytest.fixture(scope="module")
