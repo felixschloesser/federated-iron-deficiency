@@ -118,16 +118,6 @@ article[data-level="error"] {
   margin-bottom: 0;
 }
 
-/* A page-level POST action: as wide as its label, not the full width Pico
-   gives buttons in forms. */
-.inline-form {
-  display: inline;
-}
-
-.inline-form button {
-  width: auto;
-}
-
 /* A card's title with its action or state on the right; wraps on narrow screens. */
 .card-header {
   display: flex;
@@ -139,10 +129,6 @@ article[data-level="error"] {
 
 .card-header > * {
   margin-bottom: 0;
-}
-
-.card-header button {
-  width: auto;
 }
 
 /* A sample ID such as 139264-2 never breaks at its hyphen: it is what matches a
