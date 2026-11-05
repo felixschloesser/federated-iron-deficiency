@@ -266,8 +266,9 @@ screening comes back to the practice.
   `docker compose down -v` deletes them all, so the next `up` starts over;
   `demo/` on your machine keeps only what that must not cost you: the
   browser CA you trusted (`demo/browser-ca/`) and the Hugging Face downloads
-  (`demo/huggingface/`). `prepare` still asks Hugging Face, but downloads
-  nothing twice.
+  (`demo/huggingface/`), with the NHANES 2021–2023 cycle the seeded patients
+  come from; no party's folder holds that cycle. `prepare` still asks Hugging
+  Face, but downloads nothing twice.
 - To look into a party's database while the demo runs:
   `docker compose exec uz-leuven-web python -m sqlite3 /demo/hospitals/uz-leuven/web.sqlite3`.
 - `CAROOT=$PWD/demo/browser-ca mkcert -uninstall` removes the trust again.

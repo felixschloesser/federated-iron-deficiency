@@ -245,20 +245,19 @@ PARTY_FOLDERS = {
 def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import datasets
     import pandas as pd
 
     import iron_deficiency.dataset
-    from iron_deficiency.dataset import CBC_VARS, FEATURES
-    from tools.demo import hospitals, practices, prepare
+    from iron_deficiency.dataset import CBC_VARS
+    from tools.demo import hospitals, nhanes_csv, practices, prepare
 
-    cohort = datasets.Dataset.from_dict(
-        {column: [1.0] for column in FEATURES} | {"iron_deficient": [0], "cycle": ["x"]}
-    )
+    class Cohort:
+        def save_to_disk(self, path: Path) -> None:
+            path.mkdir(parents=True)
 
     class Cohorts:
-        def load_partition(self, partition: int) -> datasets.Dataset:
-            return cohort
+        def load_partition(self, partition: int) -> Cohort:
+            return Cohort()
 
     samples = pd.DataFrame(
         {"sample_id": [1], "sex": ["Female"], "age": [30]}
@@ -283,3 +282,5 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
     for folder, kind in folders:
         held = {entry.name for entry in folder.iterdir()}
         assert held <= PARTY_FOLDERS[kind], (folder.name, held - PARTY_FOLDERS[kind])
+    # The seed commands still get the cycle, from where only prepare looks.
+    assert nhanes_csv(tmp_path).is_file()
