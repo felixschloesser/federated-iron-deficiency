@@ -127,7 +127,7 @@ for user in User.objects.order_by("username"):
 @pytest.mark.parametrize(
     ("folder", "command", "users"),
     [
-        ("HOSPITAL_DIR", "seed_hospital", {"director-1", "lab-1"}),
+        ("HOSPITAL_DIR", "seed_hospital", {"director", "staff"}),
         ("PRACTICE_DIR", "seed_practice", {"doctor"}),
     ],
 )

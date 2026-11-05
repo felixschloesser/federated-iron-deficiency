@@ -403,7 +403,7 @@ back, page = doctor.post(order_page, page, indication="other")
 seen["ordered"] = back == patient and "Awaiting lab report" in page
 seen["sent_to"] = laboratory in page
 
-lab.log_in("lab-1")
+lab.log_in("staff")
 _, to_analyse = lab.get("/lab/lab-orders/")
 analyse = re.search(r'action="(/lab/lab-orders/\d+/analyse/)"', to_analyse)[1]
 lab.post(analyse, to_analyse)

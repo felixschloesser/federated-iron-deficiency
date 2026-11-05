@@ -19,7 +19,7 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
 
     text = summary(STATUSES)
     assert "Password for every account: demo-pass-2026" in text
-    assert "laboratory staff: lab-1 · laboratory director: director-1" in text
+    assert "laboratory staff: staff · laboratory director: director" in text
     assert "general practitioner: doctor" in text
     for line in (
         "UZ Leuven  ",
@@ -40,7 +40,7 @@ def test_the_next_step_follows_the_hospitals_state() -> None:
 
     assert "Next: train with `docker compose run --rm train`" in summary(STATUSES)
     trained = {**STATUSES, "heilig-hart-leuven": "1 screening model, none deployed"}
-    assert "Next: deploy a screening model as director-1" in summary(trained)
+    assert "Next: deploy a screening model as director" in summary(trained)
     deployed = dict.fromkeys(STATUSES, "Screening model of … deployed (1 in all)")
     assert "Next:" not in summary(deployed)
 
