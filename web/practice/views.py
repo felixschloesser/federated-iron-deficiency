@@ -231,6 +231,10 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSample
             self.general_practitioner.patients, pk=self.kwargs["patient"]
         )
 
+    def get_initial(self) -> dict[str, Any]:
+        # The primary laboratory preselected; the general practitioner may pick another.
+        return {"laboratory": Laboratory.objects.primary()}
+
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         return {**super().get_context_data(**kwargs), "patient": self.patient}
 

@@ -70,7 +70,7 @@ def test_every_hospital_has_a_tube_for_every_practices_patients() -> None:
 def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise() -> None:
     """Every hospital's laboratory, its paired hospital's the primary one, so
     lab orders follow the hospitals' sizes by default."""
-    from demo.demo import laboratory_arguments, lab_orders_host
+    from demo.demo import lab_orders_host, laboratory_arguments
     from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 
     for cycle in CYCLES:

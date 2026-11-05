@@ -24,6 +24,16 @@ rejected = [
     "hospital (the organisation, not where the tube goes)",
 ]
 
+["primary laboratory"]
+source = "User decision, 2026-11-05 (\"primary lab\"); stands for the report's single laboratory, \"Federated version\": the practice \"sends its hospital's laboratory lab orders\""
+why = "The laboratory a practice sends its samples to unless the general practitioner picks another, preselected at *Collect sample*; in the demo the paired hospital's, so lab orders follow the hospitals' sizes"
+rejected = [
+    "default laboratory (developer word)",
+    "home laboratory",
+    "paired hospital (demo.toml's pairing, not a laboratory)",
+    "lab (kept only in \"lab order\" and \"lab report\")",
+]
+
 ["laboratory staff"]
 source = "WHO LQMS, the handbook's word for the people who work in the laboratory (44 uses; e.g. ch. 5, Sample management)"
 why = "Run the analyser; one record per person (`LaboratoryStaffMember`)"
