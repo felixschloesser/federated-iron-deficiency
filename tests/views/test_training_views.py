@@ -46,7 +46,10 @@ def test_final_models_page(
         response = client.get(reverse("training:final_models"))
     assertContains(
         response,
-        "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.4</td><td>0.86</td></tr>",
+        "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.4</td><td>0.86</td>"
+        '<td><a href="/training/final-models/7/for-sale/" download'
+        ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
+        "</td></tr>",
         html=True,
     )
 
@@ -139,3 +142,44 @@ def test_a_run_without_an_answer_shows_no_server_paths(
     response = client.post(reverse("training:final_models"), {"threshold": "0.5"})
     assertContains(response, "The SuperLink refused the run: it gave no answer")
     assertNotContains(response, "/srv/flwr-home")
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_final_model_downloads_for_sale(
+    client: Client, final_models_dir: Path
+) -> None:
+    from iron_deficiency.screening import from_bytes
+
+    response = client.get(reverse("training:for_sale", kwargs={"run_id": "7"}))
+    assert response.status_code == 200
+    assert response["Content-Disposition"] == (
+        'attachment; filename="final-model-run-7.pt"'
+    )
+    assert from_bytes(response.content).threshold == 0.4
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_run_without_a_final_model_is_not_found(
+    client: Client, final_models_dir: Path
+) -> None:
+    response = client.get(reverse("training:for_sale", kwargs={"run_id": "9"}))
+    assert response.status_code == 404
+
+
+def test_only_the_data_scientist_downloads_for_sale(
+    client: Client, final_models_dir: Path
+) -> None:
+    client.force_login(make_laboratory_director("Director One").user)
+    response = client.get(reverse("training:for_sale", kwargs={"run_id": "7"}))
+    assertRedirects(response, reverse("deployment:models"))
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_each_final_model_links_to_its_sale(
+    client: Client, final_models_dir: Path
+) -> None:
+    response = client.get(reverse("training:final_models"))
+    assertContains(
+        response,
+        f'href="{reverse("training:for_sale", kwargs={"run_id": "7"})}"',
+    )

@@ -3,13 +3,14 @@ from typing import Any
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import FormView
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
-from web.training.final_models import final_models
+from web.training.final_models import final_models, for_sale
 from web.training.forms import SubmitRunForm
 from web.training.runs import submit_run
 
@@ -43,3 +44,17 @@ class FinalModelsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
             " the run finishes.",
         )
         return super().form_valid(form)
+
+
+class ForSaleView(DataScientistRequiredMixin, View):
+    """A final model's weights and threshold as a file: the model sale (P5)."""
+
+    def get(self, request: HttpRequest, run_id: str) -> HttpResponse:
+        data = for_sale(settings.FINAL_MODELS_DIR, run_id)
+        if data is None:
+            raise Http404(f"No final model of run {run_id}.")
+        response = HttpResponse(data, content_type="application/octet-stream")
+        response["Content-Disposition"] = (
+            f'attachment; filename="final-model-run-{run_id}.pt"'
+        )
+        return response

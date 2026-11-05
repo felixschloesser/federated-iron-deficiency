@@ -96,11 +96,9 @@ def final_model_path(directory: Path, run_id: int | str) -> Path:
     return directory / f"{run_id}.pt"
 
 
-def write(path: Path, model: FinalModel) -> None:
-    """Store a final model; one is never overwritten (features/final_models.feature)."""
-    if path.exists():
-        raise FileExistsError(path)
-    contents: dict[str, Any] = {
+def file_contents(model: FinalModel) -> dict[str, Any]:
+    """What the file holds of a final model; parts it lacks are left out."""
+    held: dict[str, Any] = {
         "state_dict": model.state_dict,
         "mean": model.mean,
         "std": model.std,
@@ -110,15 +108,26 @@ def write(path: Path, model: FinalModel) -> None:
         "federated": model.federated,
         "local_validation": model.local_validation,
     }
+    return {key: value for key, value in held.items() if value is not None}
+
+
+def to_bytes(model: FinalModel) -> bytes:
+    """A final model in the one file format, as bytes."""
+    buffer = io.BytesIO()
+    torch.save(file_contents(model), buffer)
+    return buffer.getvalue()
+
+
+def write(path: Path, model: FinalModel) -> None:
+    """Store a final model; one is never overwritten (features/final_models.feature)."""
+    if path.exists():
+        raise FileExistsError(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     # Written beside it, then renamed: a reader of the folder never sees half a file,
     # and "*.pt" never matches the partial one.
     partial = path.with_name(f".{path.name}.partial")
     try:
-        torch.save(
-            {key: value for key, value in contents.items() if value is not None},
-            partial,
-        )
+        torch.save(file_contents(model), partial)
         partial.replace(path)
     finally:
         partial.unlink(missing_ok=True)

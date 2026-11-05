@@ -40,3 +40,13 @@ Feature: The startup's training runs
     Given the SuperLink refuses runs
     When the data scientist submits a training run with threshold 0.5
     Then the submission is refused with code "superlink_refused"
+
+  Scenario: A final model for sale holds its weights and threshold only
+    Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
+    When the startup downloads final model "7" for sale
+    Then the download holds the final model's weights and its threshold 0.5
+    And it holds no standardization and no metrics: the buyer standardizes on its own cohort
+
+  Scenario: No final model of a run the startup did not keep
+    When the startup downloads final model "9" for sale
+    Then there is nothing to download
