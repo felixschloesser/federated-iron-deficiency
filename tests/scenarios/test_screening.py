@@ -75,14 +75,14 @@ def write_model(directory: Path, run_id: str, threshold: float) -> None:
 def screening_model(
     world: World, tmp_path: Path, run_id: str, threshold: float
 ) -> None:
-    world["final_models_dir"] = tmp_path / "final-models"
-    write_model(world["final_models_dir"], run_id, threshold)
+    world["screening_models_dir"] = tmp_path / "screening-models"
+    write_model(world["screening_models_dir"], run_id, threshold)
 
 
 @given(parsers.parse('the laboratory director deployed "{run_id}"'))
 def deployed(world: World, run_id: str) -> None:
     Deployment.objects.deploy(
-        run_id=run_id, directory=world["final_models_dir"], now=NOW
+        run_id=run_id, directory=world["screening_models_dir"], now=NOW
     )
 
 
@@ -94,7 +94,7 @@ def nothing_deployed() -> None:
 @given(parsers.parse('the file of the deployed "{run_id}" has changed on disk'))
 def changed_on_disk(world: World, run_id: str) -> None:
     deployed(world, run_id)
-    write_model(world["final_models_dir"], run_id, threshold=0.6)
+    write_model(world["screening_models_dir"], run_id, threshold=0.6)
 
 
 def lab_sample(
@@ -153,7 +153,7 @@ def scores(world: World, side: str) -> None:
 @when("laboratory staff run the analyser")
 def run_analyser(world: World) -> None:
     world["lab_order"] = LabOrder.objects.get(pk=world["lab_order"].pk).run_analyser(
-        directory=world["final_models_dir"],
+        directory=world["screening_models_dir"],
         now=NOW,
     )
 
@@ -192,7 +192,7 @@ def screened(world: World) -> None:
 def records_final_model(world: World, run_id: str, threshold: float) -> None:
     screening_model = world["lab_order"].screened_by
     assert screening_model.run_id == run_id
-    path = final_model_path(world["final_models_dir"], run_id)
+    path = final_model_path(world["screening_models_dir"], run_id)
     assert screening_model.sha256 == sha256(path.read_bytes())
     assert screening_model.threshold == threshold
 
