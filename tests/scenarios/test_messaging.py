@@ -3,6 +3,7 @@ and the hospital, over gRPC (features/messaging.feature)."""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from typing import Any
 
 import grpc
 import pytest
@@ -18,11 +19,12 @@ from tests.conftest import (
     collect_and_order,
     make_general_practitioner,
     make_patient,
+    make_practice,
     suggest_ferritin_on,
 )
 from web.lab.messaging import serve
-from web.lab.models import LabOrder, Sample
-from web.messaging import messages_pb2
+from web.lab.models import LabOrder, Practice, Sample
+from web.messaging import messages_pb2, messages_pb2_grpc
 from web.nhanes.models import Participant
 from web.practice import messaging
 from web.practice.models import (
@@ -81,6 +83,19 @@ def general_practitioner(
 
 @given(
     parsers.parse(
+        '"{name}" knows practice "{practice}" by certificate name "{certificate_name}"'
+    )
+)
+def knows_practice(
+    settings: Settings, name: str, practice: str, certificate_name: str
+) -> None:
+    """The hospital registered the practice, and issued its app the name."""
+    Practice.objects.add(certificate_name=certificate_name, name=practice)
+    settings.PRACTICE_CERTIFICATE_NAME = certificate_name
+
+
+@given(
+    parsers.parse(
         'patient "{patient}" of "{owner}", registered sex {sex}, aged {age:d}'
     )
 )
@@ -135,11 +150,48 @@ def send_again(world: World) -> None:
 @when(parsers.parse('a lab order that names no practice is sent to "{name}"'))
 def sends_without_practice(world: World) -> None:
     unsent = order(world, "Test Patient 1", OrderedTest.CBC, "other")
-    with override_settings(PARTY_NAME=""):
+    with override_settings(PRACTICE_CERTIFICATE_NAME=""):
         try:
             messaging.send_lab_order(unsent, world["laboratory"])
         except grpc.RpcError as error:
             world["refused"] = error
+
+
+@when(
+    parsers.parse(
+        'a lab order from practice "{certificate_name}", which "{name}" does not'
+        " know, is sent"
+    )
+)
+def sends_from_unknown_practice(world: World, certificate_name: str) -> None:
+    unsent = order(world, "Test Patient 1", OrderedTest.CBC, "other")
+    with override_settings(PRACTICE_CERTIFICATE_NAME=certificate_name):
+        try:
+            messaging.send_lab_order(unsent, world["laboratory"])
+        except grpc.RpcError as error:
+            world["refused"] = error
+
+
+@then("it is refused as unknown practice")
+def refused_unknown_practice(world: World) -> None:
+    assert world["refused"].code() == grpc.StatusCode.PERMISSION_DENIED
+    assert world["refused"].details() == "unknown_practice"
+
+
+# Every call of the service, from its descriptor, so a new one is covered too.
+CALLS = list(messages_pb2.DESCRIPTOR.services_by_name["Laboratory"].methods)
+
+
+@pytest.mark.parametrize("call", CALLS, ids=[call.name for call in CALLS])
+def test_every_message_from_a_practice_the_hospital_does_not_know_is_refused(
+    hospital: str, call: Any
+) -> None:
+    request = getattr(messages_pb2, call.input_type.name)(practice="de-linde")
+    with grpc.insecure_channel(hospital) as channel:
+        endpoint = messages_pb2_grpc.LaboratoryStub(channel)
+        with pytest.raises(grpc.RpcError) as refusal:
+            getattr(endpoint, call.name)(request, timeout=10)
+    assert refusal.value.code() == grpc.StatusCode.PERMISSION_DENIED
 
 
 @given(parsers.parse('"{name}" released a lab report for the sample of "{patient}"'))
@@ -202,10 +254,10 @@ def has_one_lab_order(world: World, name: str, patient: str) -> None:
 @then(
     parsers.parse(
         "the lab order holds sample ID, test, whether its indication is screened,"
-        ' registered sex and age, from practice "{practice}"'
+        ' registered sex and age, from certificate name "{certificate_name}"'
     )
 )
-def lab_order_holds(world: World, practice: str) -> None:
+def lab_order_holds(world: World, certificate_name: str) -> None:
     lab_order = LabOrder.objects.select_related("sample").get()
     placed = world["order"]
     assert lab_order.sample.sample_id == placed.sample.sample_id
@@ -215,8 +267,8 @@ def lab_order_holds(world: World, practice: str) -> None:
         placed.registered_sex,
         placed.age,
     )
-    # The practice by the name it sent; no general practitioner.
-    assert lab_order.sample.practice == practice
+    # The practice by the certificate name it sent; no general practitioner.
+    assert lab_order.sample.practice.certificate_name == certificate_name
 
 
 @then("it is refused as practice required")
@@ -247,9 +299,14 @@ def has_one_lab_report(world: World, owner: str, patient: str) -> None:
     assert reports.count() == 1
 
 
-@given(parsers.parse('the app of another practice "{practice}"'))
-def other_app(world: World, practice: str) -> None:
-    world["other"] = practice
+@given(
+    parsers.parse(
+        'the app of another practice "{certificate_name}", which "{name}" knows'
+    )
+)
+def other_app(world: World, certificate_name: str) -> None:
+    make_practice(certificate_name)
+    world["other"] = certificate_name
 
 
 @when("the other app checks for lab reports")
@@ -298,7 +355,7 @@ def other_acknowledges(world: World, patient: str) -> None:
     parsers.parse('the other app sends a lab order with the sample ID of "{patient}"')
 )
 def other_sends(world: World, patient: str) -> None:
-    with override_settings(PARTY_NAME=world["other"]):
+    with override_settings(PRACTICE_CERTIFICATE_NAME=world["other"]):
         messaging.send_lab_order(world["order"], world["laboratory"])
 
 
@@ -370,8 +427,10 @@ def lab_report_fields() -> None:
 
 @pytest.fixture
 def practice(settings: Settings, hospital: str) -> Laboratory:
-    """Practice "De Ceder", working with the hospital's laboratory "AZ Diest"."""
+    """Practice "De Ceder", working with the hospital's laboratory "AZ Diest",
+    which knows it."""
     settings.PARTY_NAME = "De Ceder"
+    make_practice(settings.PRACTICE_CERTIFICATE_NAME)
     return Laboratory.objects.create(name="AZ Diest", address=hospital)
 
 
@@ -610,3 +669,17 @@ def test_add_laboratory_adds_it_then_changes_its_address() -> None:
     call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:8441")
     call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:9441")
     assert Laboratory.objects.get().address == "uz-leuven-lab-orders:9441"
+
+
+def test_add_practice_adds_it_then_changes_its_name() -> None:
+    """The hospital registers each practice it works with by the certificate name
+    it issued (glossary.toml); the name shown can change, the key cannot."""
+    from web.lab.models import Practice
+
+    call_command("add_practice", "de-ceder", "Huisartsenpraktijk De Ceder")
+    call_command("add_practice", "de-ceder", "Groepspraktijk De Ceder")
+    practice = Practice.objects.get()
+    assert (practice.certificate_name, practice.name) == (
+        "de-ceder",
+        "Groepspraktijk De Ceder",
+    )

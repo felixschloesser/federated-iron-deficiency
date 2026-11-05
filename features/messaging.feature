@@ -1,19 +1,21 @@
 Feature: Lab orders and lab reports between the general practitioner and the hospital
   The general practitioner's own app sends lab orders (DF23) to its one
   hospital and fetches lab reports (DF25) from it, over gRPC. Every message
-  names the sending practice, and the hospital gives each practice only the lab
-  reports of its own lab orders. The report's mutual TLS is left out of the
-  demo.
+  names the sending practice by the certificate name the hospital issued it; the
+  hospital refuses a practice it does not know, and gives each practice only the
+  lab reports of its own lab orders. The report's mutual TLS, which would take
+  the certificate name from the connection, is left out of the demo.
 
   Background:
     Given hospital "AZ Diest"
     And general practitioner "Dr. Demo A" of practice "De Ceder", working with "AZ Diest"
+    And "AZ Diest" knows practice "De Ceder" by certificate name "de-ceder"
     And patient "Test Patient 1" of "Dr. Demo A", registered sex female, aged 32
 
   Scenario: A placed order reaches the hospital
     When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication unexplained fatigue
     Then "AZ Diest" has a lab order for the sample of "Test Patient 1"
-    And the lab order holds sample ID, test, whether its indication is screened, registered sex and age, from practice "De Ceder"
+    And the lab order holds sample ID, test, whether its indication is screened, registered sex and age, from certificate name "de-ceder"
 
   Scenario Outline: The lab order says only whether the indication is screened, never which
     When "Dr. Demo A" orders a CBC for "Test Patient 1" with indication <indication>
@@ -39,6 +41,11 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
     Then it is refused as practice required
     And "AZ Diest" has no lab order
 
+  Scenario: A lab order from a practice the hospital does not know is refused
+    When a lab order from practice "de-linde", which "AZ Diest" does not know, is sent
+    Then it is refused as unknown practice
+    And "AZ Diest" has no lab order
+
   Scenario: The general practitioner's app fetches its lab reports
     Given "AZ Diest" released a lab report for the sample of "Test Patient 1"
     When the general practitioner's app checks for lab reports
@@ -57,20 +64,20 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
 
   Scenario: Another practice's app gets none of these lab reports
     Given "AZ Diest" released a lab report for the sample of "Test Patient 1"
-    And the app of another practice "De Berk"
+    And the app of another practice "de-berk", which "AZ Diest" knows
     When the other app checks for lab reports
     Then it receives no lab reports
     And the lab report of "Test Patient 1" is still new at "AZ Diest"
 
   Scenario: Another practice's app cannot acknowledge these lab reports
     Given "AZ Diest" released a lab report for the sample of "Test Patient 1"
-    And the app of another practice "De Berk"
+    And the app of another practice "de-berk", which "AZ Diest" knows
     When the other app acknowledges the lab report of "Test Patient 1"
     Then the lab report of "Test Patient 1" is still new at "AZ Diest"
 
   Scenario: The same sample ID from two practices is two samples
     Given "Dr. Demo A" ordered a CBC for "Test Patient 1" with indication other
-    And the app of another practice "De Berk"
+    And the app of another practice "de-berk", which "AZ Diest" knows
     When the other app sends a lab order with the sample ID of "Test Patient 1"
     Then "AZ Diest" has two samples with the sample ID of "Test Patient 1"
 

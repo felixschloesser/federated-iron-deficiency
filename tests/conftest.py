@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from web.deployment.models import LaboratoryDirector
-    from web.lab.models import LaboratoryStaffMember, LabOrder
+    from web.lab.models import LaboratoryStaffMember, LabOrder, Practice
     from web.practice.models import GeneralPractitioner, Order, Patient, Sample
     from web.training.models import DataScientist
     from web.vocabulary import ClinicalIndication, Test
@@ -111,13 +111,22 @@ def make_data_scientist(name: str) -> "DataScientist":
     return DataScientist.objects.create(user=user, name=name)
 
 
+def make_practice(certificate_name: str = "practice") -> "Practice":
+    """A practice the hospital works with, by its certificate name."""
+    from web.lab.models import Practice
+
+    return Practice.objects.add(
+        certificate_name=certificate_name, name=certificate_name.title()
+    )
+
+
 def deliver(order: "Order") -> "LabOrder":
     """The lab order (DF23) arriving at the hospital, as its messaging endpoint records it."""
     from web.lab.models import LabOrder, LabOrderDetails
     from web.vocabulary import RegisteredSex, Test
 
     return LabOrder.objects.record(
-        practice="practice",
+        practice=make_practice(),
         details=LabOrderDetails(
             sample_id=order.sample.sample_id,
             test=Test(order.test),

@@ -9,7 +9,7 @@ from django.db import close_old_connections, models
 from django.utils import timezone
 
 from web.lab.forms import LabOrderForm
-from web.lab.models import LabOrder, LabOrderDetails
+from web.lab.models import LabOrder, LabOrderDetails, Practice
 from web.messaging import messages_pb2, messages_pb2_grpc
 from web.messaging.choices import from_proto, moment, timestamp, to_proto
 from web.vocabulary import RegisteredSex, Test
@@ -39,12 +39,17 @@ type FromPractice = (
 )
 
 
-def practice_of(request: FromPractice, context: grpc.ServicerContext) -> str:
-    """The calling practice, by the name it sends (features/messaging.feature); a message without one is
-    refused before anything is read or recorded."""
+def practice_of(request: FromPractice, context: grpc.ServicerContext) -> Practice:
+    """The calling practice, by the certificate name it sends; a message without
+    one, or from a practice the hospital does not know, is refused before anything
+    is read or recorded (features/messaging.feature). With the report's mutual TLS
+    the name would come from the connection, context.peer_identities()."""
     if not request.practice:
         context.abort(grpc.StatusCode.INVALID_ARGUMENT, "practice_required")
-    return request.practice
+    practice = Practice.objects.filter(certificate_name=request.practice).first()
+    if practice is None:
+        context.abort(grpc.StatusCode.PERMISSION_DENIED, "unknown_practice")
+    return practice
 
 
 class Laboratory(messages_pb2_grpc.LaboratoryServicer):

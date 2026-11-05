@@ -18,7 +18,7 @@ from iron_deficiency.screening import (
     write,
 )
 from iron_deficiency.task import Net
-from tests.conftest import World
+from tests.conftest import World, make_practice
 from web.deployment.model_files import sha256
 from web.deployment.models import Deployment, NoUsableModel
 from web.lab.models import (
@@ -127,7 +127,7 @@ def lab_sample(
         seqn=seqn, cbc={var: 0.0 for var in CBC_VARS}, ferritin=10.0
     )
     world["lab_order"] = LabOrder.objects.record(
-        practice=PRACTICE,
+        practice=make_practice(PRACTICE),
         details=LabOrderDetails(
             sample_id=str(seqn),
             test=test,
@@ -240,7 +240,7 @@ def no_screening_result(world: World) -> None:
     )
 )
 def released(world: World, suggested: str) -> None:
-    (lab_order,) = LabOrder.objects.reports_to_send(PRACTICE)
+    (lab_order,) = LabOrder.objects.reports_to_send(make_practice(PRACTICE))
     assert lab_order.pk == world["lab_order"].pk
     assert lab_order.ferritin_suggested is (suggested == "with")
 

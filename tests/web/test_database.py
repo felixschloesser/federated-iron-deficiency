@@ -15,9 +15,11 @@ OTHER_COMMITS_AFTER_SECONDS = 1.0
 
 
 def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
+    from tests.conftest import make_practice
     from web.lab.models import LabOrder, LabOrderDetails
     from web.vocabulary import RegisteredSex, Test
 
+    practice = make_practice()
     other = sqlite3.connect(
         connection.settings_dict["NAME"], isolation_level=None, check_same_thread=False
     )
@@ -28,7 +30,7 @@ def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
     commit.start()
     try:
         LabOrder.objects.record(
-            practice="practice",
+            practice=practice,
             details=LabOrderDetails(
                 sample_id="135318-1",
                 test=Test.CBC,

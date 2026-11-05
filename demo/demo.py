@@ -142,6 +142,28 @@ def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
     ]
 
 
+def practice_arguments() -> list[list[str]]:
+    """add_practice's arguments for every practice, its certificate name its
+    folder name: every hospital knows them all, as every practice may send it a
+    sample (features/messaging.feature)."""
+    return [
+        [slug, PRACTICES[cycle]]
+        for (_, slug), cycle in zip(practices(), CYCLES, strict=True)
+    ]
+
+
+def add_practices(hospital: Path) -> None:
+    """Every practice, at the hospital, by its certificate name."""
+    env = {**os.environ, "HOSPITAL_DIR": str(hospital), "DJANGO_DEBUG": "1"}
+    for arguments in practice_arguments():
+        subprocess.run(
+            manage("add_practice", *arguments),
+            env=env,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+
+
 def add_laboratories(practice: Path, practice_cycle: str) -> None:
     """Every hospital's laboratory, at its lab-order endpoint (features/messaging.feature)."""
     env = {**os.environ, "PRACTICE_DIR": str(practice), "DJANGO_DEBUG": "1"}
@@ -253,6 +275,8 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
             prepare_web(folder, party, seed_command, seeds)
             if party == "PRACTICE_DIR":
                 add_laboratories(folder, cycle)
+            if party == "HOSPITAL_DIR":
+                add_practices(folder)
             bar.update()
         for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
             bar.set_description_str(f"{'Checking ' + HOSPITALS[cycle]:<{width}}")

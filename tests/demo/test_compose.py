@@ -263,6 +263,9 @@ def test_each_web_app_knows_its_party_name_and_colour() -> None:
         assert hospital["PARTY_COLOUR"] == hospital_colour
         practice = service(f"{hospital_slug(PRACTICES[cycle])}-web")["environment"]
         assert practice["PRACTICE_NAME"] == PRACTICES[cycle]
+        # What every hospital registers it by (demo.demo.practice_arguments).
+        slug = hospital_slug(PRACTICES[cycle])
+        assert practice["PRACTICE_CERTIFICATE_NAME"] == slug
         assert practice["PARTY_COLOUR"] == practice_colour
         for colour in (hospital_colour, practice_colour):
             assert (vendor / f"pico.{colour}.min.css").is_file(), colour
