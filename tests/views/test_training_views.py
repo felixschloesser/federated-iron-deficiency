@@ -10,7 +10,7 @@ from django.contrib.messages import get_messages
 from django.test import Client
 from django.urls import reverse
 from pytest_django import DjangoAssertNumQueries
-from pytest_django.asserts import assertContains, assertRedirects
+from pytest_django.asserts import assertContains, assertNotContains, assertRedirects
 from pytest_django.fixtures import Settings
 
 from iron_deficiency.final_models import keep_final_model
@@ -126,3 +126,16 @@ def test_a_deployment_tells_the_server_app_its_demo_folder(
 
     settings.STARTUP_DIR = tmp_path / "startup"
     assert run_configuration(0.4) == f"demo-dir='{tmp_path}' screening-threshold=0.4"
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_run_without_an_answer_shows_no_server_paths(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def run(command: list[str], **kwargs: object) -> "subprocess.CompletedProcess[str]":
+        return subprocess.CompletedProcess(command, 1, "", "/srv/flwr-home/config.toml")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    response = client.post(reverse("training:final_models"), {"threshold": "0.5"})
+    assertContains(response, "The SuperLink refused the run: it gave no answer")
+    assertNotContains(response, "/srv/flwr-home")

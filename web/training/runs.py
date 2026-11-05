@@ -1,6 +1,7 @@
 """Submitting a training run to the startup's SuperLink (DF4), as `flwr run` does."""
 
 import json
+import logging
 import subprocess
 import sys
 from pathlib import Path
@@ -8,6 +9,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 
+logger = logging.getLogger(__name__)
 # The SuperLink connection in FLWR_HOME's config.toml (demo/demo.py writes it).
 CONNECTION = "demo"
 
@@ -52,7 +54,9 @@ def submit_run(*, threshold: float) -> int:
     try:
         answer = json.loads(result.stdout)
     except json.JSONDecodeError:
-        answer = {"error-message": result.stderr.strip() or "no answer"}
+        # The CLI's own output names server paths: for the log, not the page.
+        logger.error("flwr run gave no answer: %s", result.stderr.strip())
+        answer = {"error-message": "it gave no answer"}
     if not answer.get("success"):
         # Not the threshold's fault: an error of the whole submission.
         raise ValidationError(
