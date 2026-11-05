@@ -3,6 +3,7 @@ and the hospital, over gRPC (features/messaging.feature)."""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from typing import Any
 
 import grpc
 import pytest
@@ -22,7 +23,7 @@ from tests.conftest import (
 )
 from web.lab.messaging import serve
 from web.lab.models import LabOrder, Sample
-from web.messaging import messages_pb2
+from web.messaging import messages_pb2, messages_pb2_grpc
 from web.nhanes.models import Participant
 from web.practice import messaging
 from web.practice.models import (
@@ -140,6 +141,45 @@ def sends_without_practice(world: World) -> None:
             messaging.send_lab_order(unsent, world["laboratory"])
         except grpc.RpcError as error:
             world["refused"] = error
+
+
+@when(
+    parsers.parse(
+        'a lab order from practice "{certificate_name}", which "{name}" does not'
+        " know, is sent"
+    )
+)
+def sends_from_unknown_practice(world: World, certificate_name: str) -> None:
+    unsent = order(world, "Test Patient 1", OrderedTest.CBC, "other")
+    with override_settings(
+        PARTY_NAME=certificate_name, PRACTICE_CERTIFICATE_NAME=certificate_name
+    ):
+        try:
+            messaging.send_lab_order(unsent, world["laboratory"])
+        except grpc.RpcError as error:
+            world["refused"] = error
+
+
+@then("it is refused as unknown practice")
+def refused_unknown_practice(world: World) -> None:
+    assert world["refused"].code() == grpc.StatusCode.PERMISSION_DENIED
+    assert world["refused"].details() == "unknown_practice"
+
+
+# Every call of the service, from its descriptor, so a new one is covered too.
+CALLS = list(messages_pb2.DESCRIPTOR.services_by_name["Laboratory"].methods)
+
+
+@pytest.mark.parametrize("call", CALLS, ids=[call.name for call in CALLS])
+def test_every_message_from_a_practice_the_hospital_does_not_know_is_refused(
+    hospital: str, call: Any
+) -> None:
+    request = getattr(messages_pb2, call.input_type.name)(practice="de-linde")
+    with grpc.insecure_channel(hospital) as channel:
+        endpoint = messages_pb2_grpc.LaboratoryStub(channel)
+        with pytest.raises(grpc.RpcError) as refusal:
+            getattr(endpoint, call.name)(request, timeout=10)
+    assert refusal.value.code() == grpc.StatusCode.PERMISSION_DENIED
 
 
 @given(parsers.parse('"{name}" released a lab report for the sample of "{patient}"'))
@@ -610,3 +650,17 @@ def test_add_laboratory_adds_it_then_changes_its_address() -> None:
     call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:8441")
     call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:9441")
     assert Laboratory.objects.get().address == "uz-leuven-lab-orders:9441"
+
+
+def test_add_practice_adds_it_then_changes_its_name() -> None:
+    """The hospital registers each practice it works with by the certificate name
+    it issued (glossary.toml); the name shown can change, the key cannot."""
+    from web.lab.models import Practice
+
+    call_command("add_practice", "de-ceder", "Huisartsenpraktijk De Ceder")
+    call_command("add_practice", "de-ceder", "Groepspraktijk De Ceder")
+    practice = Practice.objects.get()
+    assert (practice.certificate_name, practice.name) == (
+        "de-ceder",
+        "Groepspraktijk De Ceder",
+    )

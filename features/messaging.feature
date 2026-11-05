@@ -39,6 +39,11 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
     Then it is refused as practice required
     And "AZ Diest" has no lab order
 
+  Scenario: A lab order from a practice the hospital does not know is refused
+    When a lab order from practice "de-linde", which "AZ Diest" does not know, is sent
+    Then it is refused as unknown practice
+    And "AZ Diest" has no lab order
+
   Scenario: The general practitioner's app fetches its lab reports
     Given "AZ Diest" released a lab report for the sample of "Test Patient 1"
     When the general practitioner's app checks for lab reports
