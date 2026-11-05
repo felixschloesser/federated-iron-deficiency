@@ -21,10 +21,12 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
     assert "Password for every account: demo-pass-2026" in text
     assert "laboratory staff: staff · laboratory director: director" in text
     assert "general practitioner: doctor" in text
+    assert "data scientist: data-scientist" in text
     for line in (
         "UZ Leuven  ",
         "http://uz-leuven.localhost/   2 screening models, none deployed",
         "http://heilig-hart-leuven.localhost/   no screening model yet",
+        "  http://startup.localhost/",
         "Huisartsenpraktijk De Akker  ",
         "http://huisartsenpraktijk-de-ceder.localhost/",
         "Ctrl-C stops every party.",
@@ -38,7 +40,8 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
 def test_the_next_step_follows_the_hospitals_state() -> None:
     from demo.demo import summary
 
-    assert "Next: train with `docker compose run --rm train`" in summary(STATUSES)
+    assert "Next: submit a training run as data-scientist" in summary(STATUSES)
+    assert "`docker compose run --rm train`" in summary(STATUSES)
     trained = {**STATUSES, "heilig-hart-leuven": "1 screening model, none deployed"}
     assert "Next: deploy a screening model as director" in summary(trained)
     deployed = dict.fromkeys(STATUSES, "Screening model of … deployed (1 in all)")
@@ -100,6 +103,8 @@ PARTY_FOLDERS = {
         "superlink",  # DS3
         "final-models",  # DS4
         "flwr-home",
+        "web.sqlite3",  # the data scientist's account
+        ".secret_key",
     },
     "hospitals": {
         "cohort",  # DS2

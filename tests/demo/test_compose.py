@@ -25,6 +25,7 @@ STARTUP_SERVICES = {
     "flower-superlink",
     "flower-server-app",
     "train",
+    "startup-web",
 }
 # Out-of-band setup (report, assumptions): the one service that sees every party.
 SETUP_SERVICES = {"prepare"}
@@ -177,10 +178,36 @@ def test_only_the_proxy_is_published_and_only_on_localhost(
 
 
 def test_the_proxy_reaches_every_web_app_and_nothing_else() -> None:
-    assert set(service("proxy")["networks"]) == set(HOSPITAL_SLUGS + PRACTICE_SLUGS)
+    assert set(service("proxy")["networks"]) == {
+        "startup-web",
+        *HOSPITAL_SLUGS,
+        *PRACTICE_SLUGS,
+    }
 
 
-@pytest.mark.parametrize("slug", HOSPITAL_SLUGS + PRACTICE_SLUGS)
+def test_the_startups_web_app_reaches_the_superlink_and_the_proxy_never_does() -> None:
+    assert set(service("startup-web")["networks"]) == {"startup", "startup-web"}
+    members = {
+        name
+        for name, spec in config()["services"].items()
+        if "startup-web" in spec.get("networks", {})
+    }
+    assert members == {"startup-web", "proxy"}
+
+
+def test_the_startups_web_app_reads_the_final_models_and_not_the_superlinks_state() -> (
+    None
+):
+    spec = service("startup-web")
+    assert set(spec["tmpfs"]) == {"/demo/startup/superlink"}
+    assert mounts("startup-web")["/demo/startup/final-models"] == (
+        "startup/final-models",
+        True,
+    )
+    assert spec["environment"]["STARTUP_DIR"] == "/demo/startup"
+
+
+@pytest.mark.parametrize("slug", ["startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS])
 def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
     # Routing by the Host header: plain HTTP, the report's TLS left out.
     conf = (ROOT / "demo" / "proxy.conf").read_text()
@@ -342,7 +369,8 @@ def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -
 
 @pytest.mark.parametrize(
     "name",
-    [f"{slug}-web" for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS] + ["proxy"],
+    [f"{slug}-web" for slug in ["startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS]]
+    + ["proxy"],
 )
 def test_what_others_wait_for_says_when_it_is_ready(name: str) -> None:
     # Compose, and the container tests (`up --wait`), wait on health, not a clock.

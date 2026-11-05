@@ -458,3 +458,24 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
     assert seen["analysed"], seen
     assert seen["fetched"], seen
     assert seen["released"], seen
+
+
+# Runs in the startup's web app's container: does it reach the SuperLink, and
+# what does it see of the SuperLink's state.
+STARTUP_SIGHT = """
+import json, os, socket
+try:
+    socket.create_connection(("flower-superlink", 9092), timeout=5).close()
+    superlink = "open"
+except OSError as error:
+    superlink = type(error).__name__
+print(json.dumps({"superlink": superlink, "state": os.listdir("/demo/startup/superlink")}))
+"""
+
+
+def test_the_startups_web_app_reaches_the_superlink_but_not_its_state(
+    compose: Compose,
+) -> None:
+    # Last: it adds the startup-web network, which the listing above leaves out.
+    report = probe(compose, "startup-web", STARTUP_SIGHT)
+    assert report == {"superlink": "open", "state": []}
