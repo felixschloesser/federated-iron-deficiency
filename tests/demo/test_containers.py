@@ -22,6 +22,8 @@ ROOT = Path(__file__).resolve().parents[2]
 HOSPITAL = "uz-leuven"
 
 Compose = Callable[..., subprocess.CompletedProcess[str]]
+# Each compose fixture's project name, for the checks that look at Docker itself.
+PROJECT: dict[Compose, str] = {}
 
 
 def engine_running() -> bool:
@@ -38,6 +40,12 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
     folder = tmp_path_factory.mktemp("compose")
     (folder / "demo").mkdir()
+    # The proxy joins every party's network in the demo; here only the hospital
+    # under test, so the project takes the networks it tests and no more.
+    override = folder / "demo" / "test-override.yaml"
+    override.write_text(
+        f"services:\n  proxy:\n    networks: !override [{APP_HOSPITAL}]\n"
+    )
     name = f"test-{uuid.uuid4().hex[:8]}"
 
     def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -52,7 +60,7 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
                 "--project-directory",
                 str(folder / "demo"),
             ]
-            + ["-f", str(ROOT / "demo" / "compose.yaml"), *args],
+            + ["-f", str(ROOT / "demo" / "compose.yaml"), "-f", str(override), *args],
             capture_output=True,
             text=True,
             check=check,
@@ -61,6 +69,7 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
             env={**os.environ, "DEMO_HTTP_PORT": "0"},
         )
 
+    PROJECT[run] = name
     try:
         # Its own images, named after the project: no other build replaces them.
         # From demo/, where the compose file's build contexts point.
@@ -324,3 +333,25 @@ def test_the_proxy_routes_a_partys_name_to_its_web_app(
     assert ask(f"{APP_HOSPITAL}.localhost") == "200"
     # A name the proxy does not route gets no web app at all.
     assert ask("bank.example") != "200"
+    # Every service under test is up now: the project holds only the networks
+    # they need, so it shares Docker's address pool with a running demo.
+    listing = subprocess.run(
+        ["docker", "network", "ls", "--format", "{{.Name}}", "--filter"]
+        + [f"label=com.docker.compose.project={PROJECT[compose]}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    project = PROJECT[compose]
+    assert set(listing.stdout.split()) == {
+        f"{project}_{network}"
+        for network in (
+            "setup",
+            "startup",
+            "model-updates",
+            f"{HOSPITAL}-flower-client-app",
+            APP_HOSPITAL,
+            "lab-orders",
+            APP_PRACTICE,
+        )
+    }

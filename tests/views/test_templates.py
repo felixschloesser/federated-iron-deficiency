@@ -97,3 +97,24 @@ def test_a_button_link_keeps_the_house_focus_outline() -> None:
     rules = re.findall(r"([^{}]*button-link[^{}]*)\{([^{}]*)\}", css)
     assert rules
     assert [selector.strip() for selector, body in rules if "outline:" in body] == []
+
+
+def test_the_header_wraps_and_a_status_mark_keeps_its_padding_on_every_line() -> None:
+    # Pico's nav is one flex row that never wraps, so on a phone the party's
+    # name, the links and Log out overflow the page. A <mark> may wrap, as a
+    # table cell on a phone must, but its padding must be drawn on each line;
+    # nowrap instead widened the patient list past a 320px screen.
+    import re
+    from pathlib import Path
+
+    css = (Path(__file__).resolve().parents[2] / "static/css/app.css").read_text()
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
+    rules = {
+        selector.strip(): body
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+    }
+    assert "flex-wrap: wrap" in rules.get("header nav,\nheader nav ul", ""), (
+        rules.keys()
+    )
+    assert "box-decoration-break: clone" in rules.get("mark", "")
+    assert "nowrap" not in rules.get("mark", "")
