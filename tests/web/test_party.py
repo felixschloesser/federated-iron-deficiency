@@ -27,5 +27,7 @@ def test_the_startup_serves_only_its_training_pages() -> None:
     assert prefixes(Party.STARTUP) == {"training/"}
 
 
-def test_development_serves_every_party() -> None:
-    assert prefixes(None) == {prefix for party in Party for prefix in prefixes(party)}
+def test_development_serves_every_party_and_the_messaging_endpoint() -> None:
+    pages = {prefix for party in Party for prefix in prefixes(party)}
+    # The endpoint's URLconf at the root (web.lab.messaging).
+    assert prefixes(None) == pages | {""}

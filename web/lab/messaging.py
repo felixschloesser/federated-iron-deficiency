@@ -1,122 +1,66 @@
-"""The hospital's messaging endpoint: gRPC, plaintext in the demo (web/messaging/messages.proto, features/messaging.feature)."""
+"""The hospital's messaging endpoint: JSON over plain HTTP in the demo, which
+leaves out the report's mutual TLS (web/messaging/schemas.py,
+features/messaging.feature).
 
-import functools
-from collections.abc import Callable
-from concurrent import futures
+Its own URLconf: in a deployment its own server serves it, on a network name
+only the practices reach, and the pages' server never does (web/settings.py)."""
 
-import grpc
-from django.db import close_old_connections, models
+from typing import Annotated
+
+from django.http import HttpRequest
+from django.urls import path
 from django.utils import timezone
+from ninja import NinjaAPI, Query, Status
 
-from web.lab.forms import LabOrderForm
 from web.lab.models import LabOrder, LabOrderDetails
-from web.messaging import messages_pb2, messages_pb2_grpc
-from web.messaging.choices import from_proto, moment, timestamp, to_proto
-from web.vocabulary import RegisteredSex, Test
+from web.messaging import schemas
+from web.vocabulary import Test
+
+# No browser pages here: the schema only, at openapi.json.
+api = NinjaAPI(title="Laboratory", urls_namespace="messaging", docs_url=None)
+
+type Practice = Annotated[str, Query(min_length=1, max_length=100)]
 
 
-def with_database[**P, R](handler: Callable[P, R]) -> Callable[P, R]:
-    """Open and close the database connection around a call, as Django does per request."""
-
-    @functools.wraps(handler)
-    def handle(*args: P.args, **kwargs: P.kwargs) -> R:
-        close_old_connections()
-        try:
-            return handler(*args, **kwargs)
-        finally:
-            close_old_connections()
-
-    return handle
+@api.post("lab-orders/", response={204: None})
+def send_lab_order(request: HttpRequest, lab_order: schemas.LabOrder) -> Status[None]:
+    """Record a lab order once, however often it arrives."""
+    LabOrder.objects.record(
+        practice=lab_order.practice,
+        details=LabOrderDetails(**lab_order.model_dump(exclude={"practice"})),
+    )
+    return Status(204, None)
 
 
-def _value(choice: models.TextChoices | None) -> str:
-    """A choice as the form reads it; empty for none, which a required field refuses."""
-    return "" if choice is None else choice.value
-
-
-type FromPractice = (
-    messages_pb2.LabOrder | messages_pb2.FetchLabReports | messages_pb2.Acknowledgement
-)
-
-
-def practice_of(request: FromPractice, context: grpc.ServicerContext) -> str:
-    """The calling practice, by the name it sends (features/messaging.feature); a message without one is
-    refused before anything is read or recorded."""
-    if not request.practice:
-        context.abort(grpc.StatusCode.INVALID_ARGUMENT, "practice_required")
-    return request.practice
-
-
-class Laboratory(messages_pb2_grpc.LaboratoryServicer):
-    """Receives lab orders and hands out lab reports, like a view: form, service."""
-
-    @with_database
-    def SendLabOrder(
-        self, request: messages_pb2.LabOrder, context: grpc.ServicerContext
-    ) -> messages_pb2.Received:
-        practice = practice_of(request, context)
-        form = LabOrderForm(
-            {
-                "sample_id": request.sample_id,
-                "test": _value(from_proto(request.test, messages_pb2.Test, Test)),
-                "screened_indication": request.screened_indication,
-                "registered_sex": _value(
-                    from_proto(
-                        request.registered_sex,
-                        messages_pb2.RegisteredSex,
-                        RegisteredSex,
-                    )
-                ),
-                "age": request.age,
-                "ordered_at": moment(request.ordered_at)
-                if request.HasField("ordered_at")
-                else None,
-            }
+@api.get("lab-reports/", response=list[schemas.LabReport])
+def fetch_new_lab_reports(
+    request: HttpRequest, practice: Practice
+) -> list[schemas.LabReport]:
+    """The practice's released lab reports it has not acknowledged yet."""
+    return [
+        schemas.LabReport(
+            report_id=lab_order.pk,
+            sample_id=lab_order.sample.sample_id,
+            test=Test(lab_order.test),
+            results=lab_order.results or {},
+            ferritin_suggested=lab_order.ferritin_suggested,
+            released_at=lab_order.analysed_at,
         )
-        if not form.is_valid():
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, form.errors.as_json())
-        LabOrder.objects.record(
-            practice=practice,
-            details=LabOrderDetails(**form.cleaned_data),
-        )
-        return messages_pb2.Received()
-
-    @with_database
-    def FetchNewLabReports(
-        self, request: messages_pb2.FetchLabReports, context: grpc.ServicerContext
-    ) -> messages_pb2.LabReports:
-        practice = practice_of(request, context)
-        return messages_pb2.LabReports(
-            reports=[
-                messages_pb2.LabReport(
-                    report_id=str(lab_order.pk),
-                    sample_id=lab_order.sample.sample_id,
-                    test=to_proto(Test(lab_order.test), messages_pb2.Test),
-                    results=lab_order.results or {},
-                    ferritin_suggested=lab_order.ferritin_suggested,
-                    released_at=timestamp(lab_order.analysed_at),
-                )
-                for lab_order in LabOrder.objects.reports_to_send(practice)
-                if lab_order.analysed_at is not None
-            ]
-        )
-
-    @with_database
-    def AcknowledgeLabReports(
-        self, request: messages_pb2.Acknowledgement, context: grpc.ServicerContext
-    ) -> messages_pb2.Received:
-        LabOrder.objects.acknowledge(
-            practice=practice_of(request, context),
-            report_ids=[int(report_id) for report_id in request.report_ids],
-            now=timezone.now(),
-        )
-        return messages_pb2.Received()
+        for lab_order in LabOrder.objects.reports_to_send(practice)
+        if lab_order.analysed_at is not None
+    ]
 
 
-def serve(address: str) -> tuple[grpc.Server, int]:
-    """Start the endpoint, plaintext: the demo leaves out the report's mutual TLS."""
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
-    messages_pb2_grpc.add_LaboratoryServicer_to_server(Laboratory(), server)
-    port = server.add_insecure_port(address)
-    server.start()
-    return server, port
+@api.post("lab-reports/acknowledge/", response={204: None})
+def acknowledge_lab_reports(
+    request: HttpRequest, acknowledgement: schemas.Acknowledgement
+) -> Status[None]:
+    LabOrder.objects.acknowledge(
+        practice=acknowledgement.practice,
+        report_ids=acknowledgement.report_ids,
+        now=timezone.now(),
+    )
+    return Status(204, None)
+
+
+urlpatterns = [path("", api.urls)]

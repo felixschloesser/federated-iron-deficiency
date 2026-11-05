@@ -79,7 +79,7 @@ x-web: &web
   depends_on:
     prepare: {condition: service_completed_successfully}
 
-# A practice's web app: Django and gRPC only, no training package dependencies.
+# A practice's web app: Django only, no training package dependencies.
 x-practice-web: &practice-web
   image: ${COMPOSE_PROJECT_NAME}-practice-web
   user: *user
@@ -238,7 +238,7 @@ HOSPITAL = """\
       - |
         trap 'kill $$(jobs -p)' TERM INT
         gunicorn web.wsgi --bind={slug}-pages:8000 --workers=2 --access-logfile=- &
-        python manage.py serve_messages {slug}-lab-orders:8441 &
+        LAB_ORDER_ENDPOINT=1 DJANGO_ALLOWED_HOSTS={slug}-lab-orders gunicorn web.wsgi --bind={slug}-lab-orders:8441 --workers=2 --access-logfile=- &
         wait -n
         exit 1
     restart: unless-stopped
