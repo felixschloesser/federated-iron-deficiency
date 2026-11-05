@@ -62,3 +62,21 @@ Screenshots: `01-ferritin-no-cbc-{1400,375}`, `02-ferritin-cbc-awaiting-{1400,37
 - A refusal with more than one message. None of the reachable cases produce
   two.
 - Dark mode, other browsers, headed Chrome, the mouse, and 320px width.
+
+## Recheck
+
+I rechecked item 4 against commit acdcc62, after the fix to
+`templates/kit/base.html`. The setup was the same, with a fresh practice
+folder and the same data shape: sample 1 has nothing, sample 2 has a CBC
+without a report, and sample 3 has a CBC with a report suggesting ferritin.
+
+| # | Item | Result | Note |
+|---|------|--------|------|
+| 4 | Error message announced as an alert | Pass | Ferritin on sample 1 and CBC on sample 2 each redirect to the patient page with `<article role="alert" data-level="error">` (`11`, `12`). The message is gone on the next load. Focus on arrival is on the document. Tab goes Skip to content, Patients, Orders, Log out, Collect sample, then the sample's summary, the same as before. |
+| 4a | A success message stays a status | Pass | Placing ferritin beside the suggestion returns to the patient page with `<article role="status" data-level="success">` "Ferritin ordered on sample 134314-1." (`13`). |
+| 6 | Layout unchanged at 375 and 1400 | Pass | The measurements match the first run. At 1400 the message is 1200 by 72px, with 20px padding and a 10px left bar. At 375 it is 343px wide, with 16px padding and an 8px bar. The ferritin message is 82px high (two lines) and the already-ordered message 58px (one line). The page is 385px wide at 375 only because of the known header overflow. |
+
+Screenshots: `11-recheck-ferritin-{1400,375}`, `12-recheck-cbc-already-{1400,375}`,
+`13-recheck-success-1400`.
+
+The defect above is fixed.
