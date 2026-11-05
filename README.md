@@ -36,12 +36,12 @@ and three Belgian hospitals.
   hospital (about 5:2:1). The latest cycle, 2021–2023, no longer trains, so it
   can stand in for new blood counts screened after training.
 - **Final models.** The original app stops after training. Here the ServerApp
-  sends the final model, the `screening-threshold` and the aggregated
-  evaluation metrics to every hospital. Each stores it as a new file named
-  after the run ID in its `final-models-path`, with its own standardization
-  and a local validation on its validation split: the confusion matrix at the
-  threshold, and AUROC (`iron_deficiency/final_models.py`). A hospital decides
-  itself which final model to deploy. The startup keeps a copy of every final
+  sends the final model and the aggregated evaluation metrics to every
+  hospital. Each stores it as a new file named after the run ID in its
+  `final-models-path`, with its own standardization and a local validation on
+  its validation split: the confusion matrix at each threshold from 0.05 to
+  0.95 in steps of 0.05, and AUROC (`iron_deficiency/final_models.py`). A
+  hospital decides itself which final model to deploy, and at which threshold. The startup keeps a copy of every final
   model in `<demo-dir>/startup/final-models/`, so the assessment can cover how
   the model is used, not only how it is trained.
 - **Local screening** (`iron_deficiency/screening.py`). Only registered women
@@ -142,12 +142,13 @@ screened, as the model was trained on them alone:
 python -m iron_deficiency.screening \
   --model ~/.cache/iron-deficiency/hospitals/az-diest/screening-models/<run-id>.pt \
   --input demo_data/new_samples.csv \
+  --threshold 0.5 \
   --output flags.csv
 ```
 
 The output holds only each `sample_id` and its result: `flagged`, `not flagged`,
-or `not screened`. The flag threshold is the `screening-threshold` run config
-value, which the ServerApp sends with the deployed model.
+or `not screened`. The flag threshold is the one the hospital deploys the model
+at; a training run sets none.
 
 ## Evaluate a screening
 
@@ -157,7 +158,8 @@ women's actual ferritin, print its AUROC and the confusion matrix of its flags:
 ```shell
 python -m analysis.evaluate_screening \
   --model ~/.cache/iron-deficiency/hospitals/az-diest/screening-models/<run-id>.pt \
-  --input demo_data/new_samples.csv
+  --input demo_data/new_samples.csv \
+  --threshold 0.5
 ```
 
 Training is seeded with the `model-seed` run config value, so repeated runs give

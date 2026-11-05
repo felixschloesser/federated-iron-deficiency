@@ -12,10 +12,11 @@ from iron_deficiency.screening import COLUMNS, FinalModel, read, score
 
 
 def evaluate(
-    model: FinalModel, samples: pd.DataFrame, ferritin: pd.DataFrame
+    model: FinalModel, samples: pd.DataFrame, ferritin: pd.DataFrame, threshold: float
 ) -> dict[str, float]:
-    """Return the AUROC and confusion matrix of a deployed model's flags."""
-    probabilities, threshold = score(samples, model)
+    """Return the AUROC and confusion matrix of a model's flags, deployed at the
+    threshold."""
+    probabilities = score(samples, model)
     eligible = samples.loc[probabilities.index].assign(probability=probabilities)
     eligible = eligible.merge(ferritin, on="sample_id", how="left")
     # NHANES measures ferritin only in a subsample; women without it can't be scored.
@@ -38,10 +39,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--input", type=Path, required=True)
+    parser.add_argument(
+        "--threshold", type=float, required=True, help="the deployed threshold"
+    )
     args = parser.parse_args()
 
     result = evaluate(
-        read(args.model), pd.read_csv(args.input, usecols=COLUMNS), load_ferritin()
+        read(args.model),
+        pd.read_csv(args.input, usecols=COLUMNS),
+        load_ferritin(),
+        args.threshold,
     )
     print(f"Eligible: {result['eligible']}, with ferritin: {result['with_ferritin']}")
     print(f"Flagged: {result['flagged']}")

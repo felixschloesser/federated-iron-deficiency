@@ -11,6 +11,7 @@ from django.views.generic import TemplateView
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
+from web.deployment.forms import DeployForm
 from web.deployment.model_files import screening_models
 from web.deployment.models import Deployment, NoUsableModel
 
@@ -42,14 +43,26 @@ class ModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
 
 class DeployView(LaboratoryDirectorRequiredMixin, View):
     def post(self, request: HttpRequest, run_id: str) -> HttpResponse:
+        form = DeployForm(request.POST)
+        if not form.is_valid():
+            # The page shows every model, so its errors go in a message.
+            messages.error(
+                request, " ".join(str(error) for error in form.errors["threshold"])
+            )
+            return redirect("deployment:models")
         try:
             deployment = Deployment.objects.deploy(
                 run_id=run_id,
+                threshold=form.cleaned_data["threshold"],
                 directory=settings.SCREENING_MODELS_DIR,
                 now=timezone.now(),
             )
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            messages.success(request, f"{deployment.screening_model.name} deployed.")
+            deployed = deployment.screening_model
+            messages.success(
+                request,
+                f"{deployed.name} deployed at threshold {deployed.threshold:.2f}.",
+            )
         return redirect("deployment:models")

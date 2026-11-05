@@ -34,7 +34,7 @@ class FinalModelsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
 
     def form_valid(self, form: SubmitRunForm) -> HttpResponse:
         try:
-            run_id = submit_run(threshold=form.cleaned_data["threshold"])
+            run_id = submit_run()
         except ValidationError as error:
             form.add_error(None, error)
             return self.form_invalid(form)

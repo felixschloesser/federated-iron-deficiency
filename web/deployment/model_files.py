@@ -23,7 +23,7 @@ def model_name(stored_at: datetime | None, run_id: str) -> str:
 class CannotDeploy(models.TextChoices):
     UNREADABLE = "unreadable", "not a readable model file"
     FEATURES_DIFFER = "features_differ", "trained on other features"
-    THRESHOLD_MISSING = "threshold_missing", "no threshold"
+    LOCAL_VALIDATION_MISSING = "local_validation_missing", "no local validation"
     STANDARDIZATION_MISSING = "standardization_missing", "no standardization"
 
     @classmethod
@@ -33,8 +33,8 @@ class CannotDeploy(models.TextChoices):
                 return cls.UNREADABLE
             case Problem.FEATURES_DIFFER:
                 return cls.FEATURES_DIFFER
-            case Problem.THRESHOLD_MISSING:
-                return cls.THRESHOLD_MISSING
+            case Problem.LOCAL_VALIDATION_MISSING:
+                return cls.LOCAL_VALIDATION_MISSING
             case Problem.STANDARDIZATION_MISSING:
                 return cls.STANDARDIZATION_MISSING
             case _:
@@ -58,23 +58,15 @@ class Ratio:
 
 
 @dataclass(frozen=True)
-class ScreeningModelFile:
-    """A screening model as its file says, and why it cannot be deployed, if it cannot."""
+class LocalValidationAt:
+    """A screening model's local validation at one threshold: its confusion matrix."""
 
-    run_id: str
-    problem: CannotDeploy | None
-    stored_at: datetime | None = None
-    threshold: float | None = None
-    federated_auroc: float | None = None
-    local_validation: dict[str, float] = field(default_factory=dict)
-
-    @property
-    def name(self) -> str:
-        return model_name(self.stored_at, self.run_id)
+    threshold: float
+    counts: dict[str, int]
 
     def count(self, cell: str) -> int:
-        """One cell of the local validation's confusion matrix."""
-        return int(self.local_validation.get(cell, 0))
+        """One cell of the confusion matrix."""
+        return int(self.counts.get(cell, 0))
 
     # The laboratory's measures of a method's ability to detect disease (WHO LQMS
     # 3-3, p. 40), each as the counts it comes from.
@@ -98,9 +90,28 @@ class ScreeningModelFile:
         cleared = self.count("true_negatives")
         return Ratio(cleared, cleared + self.count("false_negatives"))
 
+
+@dataclass(frozen=True)
+class ScreeningModelFile:
+    """A screening model as its file says, and why it cannot be deployed, if it cannot."""
+
+    run_id: str
+    problem: CannotDeploy | None
+    stored_at: datetime | None = None
+    federated_auroc: float | None = None
+    local_auroc: float | None = None
+    # One row per threshold the laboratory director may deploy at, lowest first.
+    local_validation: list[LocalValidationAt] = field(default_factory=list)
+
     @property
-    def local_auroc(self) -> float | None:
-        return self.local_validation.get("auroc")
+    def name(self) -> str:
+        return model_name(self.stored_at, self.run_id)
+
+    def at(self, threshold: float) -> LocalValidationAt | None:
+        """The local validation at a threshold; None if the file holds none there."""
+        return next(
+            (row for row in self.local_validation if row.threshold == threshold), None
+        )
 
 
 def screening_model_file(run_id: str, data: bytes) -> ScreeningModelFile:
@@ -111,9 +122,12 @@ def screening_model_file(run_id: str, data: bytes) -> ScreeningModelFile:
         run_id=run_id,
         problem=None if problem is None else CannotDeploy.because(problem),
         stored_at=model.stored_at,
-        threshold=model.threshold,
         federated_auroc=model.federated.get("eval_auroc"),
-        local_validation=model.local_validation,
+        local_auroc=model.local_auroc,
+        local_validation=[
+            LocalValidationAt(threshold, counts)
+            for threshold, counts in sorted(model.confusion_matrices.items())
+        ],
     )
 
 

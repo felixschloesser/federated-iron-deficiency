@@ -91,16 +91,15 @@ def main(grid: Grid, context: Context) -> None:
         if last_round is not None
         else MetricRecord()
     )
-    threshold = float(context.run_config["screening-threshold"])
 
     # The startup keeps every final model on its own server, one per run (DS4),
-    # with what it sends: the threshold and the federated aggregate
+    # with what it sends: the federated aggregate. No threshold: each hospital's
+    # laboratory director chooses one (features/deployment.feature).
     demo_dir = str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR
     keep_final_model(
         startup_final_models(Path(demo_dir)),
         run_id=context.run_id,
         state_dict=result.arrays.to_torch_state_dict(),
-        threshold=threshold,
         federated={
             name: float(value)
             for name, value in federated.items()
@@ -116,7 +115,6 @@ def main(grid: Grid, context: Context) -> None:
                 content=RecordDict(
                     {
                         "arrays": result.arrays,
-                        "config": ConfigRecord({"threshold": threshold}),
                         "federated": federated,
                     }
                 ),

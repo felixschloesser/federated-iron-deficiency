@@ -56,7 +56,19 @@ def deciding_model() -> dict[str, torch.Tensor]:
     return state
 
 
-def write_model(directory: Path, run_id: str, threshold: float) -> None:
+# Local validation at the thresholds the scenarios deploy at; the counts are not read.
+CONFUSION_MATRICES = {
+    threshold: {
+        "true_positives": 7,
+        "false_negatives": 3,
+        "false_positives": 5,
+        "true_negatives": 37,
+    }
+    for threshold in (0.4, 0.5)
+}
+
+
+def write_model(directory: Path, run_id: str, local_auroc: float) -> None:
     zeros = pd.Series(0.0, index=FEATURES)
     path = final_model_path(directory, run_id)
     path.unlink(missing_ok=True)  # "changed on disk" replaces the deployed file
@@ -66,23 +78,29 @@ def write_model(directory: Path, run_id: str, threshold: float) -> None:
             state_dict=deciding_model(),
             mean=standardization_tensor(zeros),
             std=standardization_tensor(zeros + 1),
-            threshold=threshold,
+            confusion_matrices=CONFUSION_MATRICES,
+            local_auroc=local_auroc,
         ),
     )
 
 
-@given(parsers.parse('screening model "{run_id}" with threshold {threshold:g}'))
-def screening_model(
-    world: World, tmp_path: Path, run_id: str, threshold: float
-) -> None:
+@given(parsers.parse('screening model "{run_id}"'))
+def screening_model(world: World, tmp_path: Path, run_id: str) -> None:
     world["screening_models_dir"] = tmp_path / "screening-models"
-    write_model(world["screening_models_dir"], run_id, threshold)
+    write_model(world["screening_models_dir"], run_id, local_auroc=0.84)
 
 
-@given(parsers.parse('the laboratory director deployed "{run_id}"'))
-def deployed(world: World, run_id: str) -> None:
+@given(
+    parsers.parse(
+        'the laboratory director deployed "{run_id}" at threshold {threshold:g}'
+    )
+)
+def deployed(world: World, run_id: str, threshold: float) -> None:
     Deployment.objects.deploy(
-        run_id=run_id, directory=world["screening_models_dir"], now=NOW
+        run_id=run_id,
+        threshold=threshold,
+        directory=world["screening_models_dir"],
+        now=NOW,
     )
 
 
@@ -93,8 +111,8 @@ def nothing_deployed() -> None:
 
 @given(parsers.parse('the file of the deployed "{run_id}" has changed on disk'))
 def changed_on_disk(world: World, run_id: str) -> None:
-    deployed(world, run_id)
-    write_model(world["screening_models_dir"], run_id, threshold=0.6)
+    deployed(world, run_id, threshold=0.5)
+    write_model(world["screening_models_dir"], run_id, local_auroc=0.6)
 
 
 def lab_sample(

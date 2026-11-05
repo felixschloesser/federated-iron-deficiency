@@ -23,6 +23,10 @@ from iron_deficiency.task import Net
 # One lab export row: sample ID, registered sex, age, and the 13 CBC values.
 COLUMNS = ["sample_id", "sex", "age", *CBC_VARS]
 
+# The thresholds a laboratory director chooses from: each hospital counts its
+# local validation at every one (features/deployment.feature).
+THRESHOLDS = tuple(step / 20 for step in range(1, 20))
+
 # What torch.load raises on a file that is no model file, or none it loads safely.
 UNREADABLE_ERRORS = (
     pickle.UnpicklingError,
@@ -38,7 +42,7 @@ class Problem(enum.Enum):
 
     UNREADABLE = "unreadable"
     FEATURES_DIFFER = "features_differ"
-    THRESHOLD_MISSING = "threshold_missing"
+    LOCAL_VALIDATION_MISSING = "local_validation_missing"
     STANDARDIZATION_MISSING = "standardization_missing"
 
 
@@ -51,12 +55,13 @@ class FinalModel:
     # This hospital's standardization, in FEATURES order.
     mean: torch.Tensor | None = None
     std: torch.Tensor | None = None
-    threshold: float | None = None
     run_id: int | str | None = None
     stored_at: datetime | None = None
     # Only what the ServerApp aggregated; no other hospital's metrics (features/final_models.feature).
     federated: dict[str, float] = field(default_factory=dict)
-    local_validation: dict[str, float] = field(default_factory=dict)
+    # Local validation: the confusion matrix at each threshold, and AUROC.
+    confusion_matrices: dict[float, dict[str, int]] = field(default_factory=dict)
+    local_auroc: float | None = None
 
     def problem(self) -> Problem | None:
         if self.state_dict is None:
@@ -65,8 +70,8 @@ class FinalModel:
             Net().load_state_dict(self.state_dict)
         except RuntimeError:
             return Problem.FEATURES_DIFFER
-        if self.threshold is None:
-            return Problem.THRESHOLD_MISSING
+        if not self.confusion_matrices:
+            return Problem.LOCAL_VALIDATION_MISSING
         if self.mean is None or self.std is None:
             return Problem.STANDARDIZATION_MISSING
         return None
@@ -97,18 +102,23 @@ def final_model_path(directory: Path, run_id: int | str) -> Path:
 
 
 def file_contents(model: FinalModel) -> dict[str, Any]:
-    """What the file holds of a final model; parts it lacks are left out."""
+    """What the file holds of a final model; parts it lacks, or holds empty, are
+    left out."""
     held: dict[str, Any] = {
         "state_dict": model.state_dict,
         "mean": model.mean,
         "std": model.std,
-        "threshold": model.threshold,
         "run_id": model.run_id,
         "stored_at": model.stored_at.isoformat() if model.stored_at else None,
         "federated": model.federated,
-        "local_validation": model.local_validation,
+        "confusion_matrices": model.confusion_matrices,
+        "local_auroc": model.local_auroc,
     }
-    return {key: value for key, value in held.items() if value is not None}
+    return {
+        key: value
+        for key, value in held.items()
+        if value is not None and not (isinstance(value, dict) and not value)
+    }
 
 
 def to_bytes(model: FinalModel) -> bytes:
@@ -142,16 +152,21 @@ def from_bytes(data: bytes) -> FinalModel:
     if not isinstance(contents, dict):
         return FinalModel()
     stored_at = contents.get("stored_at")
-    threshold = contents.get("threshold")
+    local_auroc = contents.get("local_auroc")
+    # An older file's single "threshold" and "local_validation" are not read: it
+    # has no local validation at the thresholds a director chooses from.
     return FinalModel(
         state_dict=contents.get("state_dict"),
         mean=contents.get("mean"),
         std=contents.get("std"),
-        threshold=float(threshold) if threshold is not None else None,
         run_id=contents.get("run_id"),
         stored_at=datetime.fromisoformat(stored_at) if stored_at else None,
         federated=dict(contents.get("federated", {})),
-        local_validation=dict(contents.get("local_validation", {})),
+        confusion_matrices={
+            float(threshold): dict(counts)
+            for threshold, counts in contents.get("confusion_matrices", {}).items()
+        },
+        local_auroc=float(local_auroc) if local_auroc is not None else None,
     )
 
 
@@ -159,30 +174,28 @@ def read(path: Path) -> FinalModel:
     return from_bytes(path.read_bytes())
 
 
-def score(samples: pd.DataFrame, model: FinalModel) -> tuple[pd.Series, float]:
-    """Return the eligible samples' probabilities of iron deficiency, and the threshold."""
-    if model.threshold is None:
-        raise ValueError(f"This final model cannot screen: {model.problem()}")
+def score(samples: pd.DataFrame, model: FinalModel) -> pd.Series:
+    """Return the eligible samples' probabilities of iron deficiency."""
     features = samples[CBC_VARS].assign(RIDAGEYR=samples["age"])[FEATURES]
     scored = eligible(samples["sex"], samples["age"]) & features.notna().all(axis=1)
     probabilities = model.probabilities(features[scored])
-    return pd.Series(probabilities, index=samples.index[scored]), model.threshold
+    return pd.Series(probabilities, index=samples.index[scored])
 
 
-def suggests_ferritin(cbc: Mapping[str, float], age: int, model: FinalModel) -> bool:
-    """Whether the model scores one CBC at or above its threshold. Who is screened
-    is the caller's decision (features/screening.feature)."""
-    if model.threshold is None:
-        raise ValueError(f"This final model cannot screen: {model.problem()}")
+def suggests_ferritin(
+    cbc: Mapping[str, float], age: int, model: FinalModel, threshold: float
+) -> bool:
+    """Whether the model scores one CBC at or above the threshold it was deployed
+    at. Who is screened is the caller's decision (features/screening.feature)."""
     features = pd.DataFrame([{**cbc, "RIDAGEYR": age}], columns=FEATURES)
     if features.isna().any(axis=None):
         raise ValueError("A CBC without all its values cannot be screened.")
-    return bool(model.probabilities(features)[0] >= model.threshold)
+    return bool(model.probabilities(features)[0] >= threshold)
 
 
-def screen(samples: pd.DataFrame, model: FinalModel) -> pd.DataFrame:
+def screen(samples: pd.DataFrame, model: FinalModel, threshold: float) -> pd.DataFrame:
     """Return each sample's ID and result: flagged, not flagged, or not screened."""
-    probabilities, threshold = score(samples, model)
+    probabilities = score(samples, model)
     result = pd.Series("not screened", index=samples.index)
     result[probabilities.index] = np.where(
         probabilities >= threshold, "flagged", "not flagged"
@@ -199,9 +212,14 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--threshold", type=float, required=True, help="the deployed threshold"
+    )
     args = parser.parse_args()
 
-    results = screen(pd.read_csv(args.input, usecols=COLUMNS), read(args.model))
+    results = screen(
+        pd.read_csv(args.input, usecols=COLUMNS), read(args.model), args.threshold
+    )
     results.to_csv(args.output, index=False)
     # Print counts only, so no sample ID ends up in the terminal or its logs.
     print(results["result"].value_counts().to_string())
