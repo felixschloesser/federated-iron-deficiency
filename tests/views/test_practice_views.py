@@ -682,3 +682,13 @@ def test_with_one_laboratory_collecting_is_one_click(
     ]
     client.post(collect_url(patient))
     assert patient.samples.get().laboratory == only
+
+
+def test_log_out_is_a_plain_button_so_picos_nav_rule_applies(
+    client: Client, general_practitioner: GeneralPractitioner
+) -> None:
+    # Pico's `nav li button { margin-bottom: 0 }` loses to its
+    # `[type=submit] { margin-bottom: ... }`, which put Log out about 10px above
+    # the links. A button in a form submits anyway: no type attribute.
+    response = logged_in(client, general_practitioner).get(reverse("practice:patients"))
+    assertContains(response, '<button class="secondary outline">Log out</button>')
