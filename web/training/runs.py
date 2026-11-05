@@ -8,7 +8,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, assert_never
 
 from django.conf import settings
 from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
@@ -96,6 +96,17 @@ class RunStatus(models.TextChoices):
     COMPLETED = "finished:completed", "Completed"
     FAILED = "finished:failed", "Failed"
     STOPPED = "finished:stopped", "Stopped"
+
+    @property
+    def in_progress(self) -> bool:
+        """Whether the run has yet to finish: the page marks it out."""
+        match self:
+            case RunStatus.PENDING | RunStatus.STARTING | RunStatus.RUNNING:
+                return True
+            case RunStatus.COMPLETED | RunStatus.FAILED | RunStatus.STOPPED:
+                return False
+            case _:
+                assert_never(self)
 
 
 def flower_time(text: str) -> datetime | None:

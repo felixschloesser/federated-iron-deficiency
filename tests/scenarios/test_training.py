@@ -320,3 +320,10 @@ def test_a_status_flower_adds_later_shows_as_flower_names_it() -> None:
 
     run = TrainingRun.from_flower(flower_run("3", "finished:archived"))
     assert (run.status, run.status_label) == (None, "finished:archived")
+
+
+@pytest.mark.parametrize("status", FLOWER_STATUSES)
+def test_only_an_unfinished_run_is_in_progress(status: str) -> None:
+    from web.training.runs import RunStatus
+
+    assert RunStatus(status).in_progress == (not status.startswith("finished:"))

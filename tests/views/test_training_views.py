@@ -101,7 +101,8 @@ def test_the_page_shows_each_training_runs_status(
     response = client.get(reverse("training:final_models"))
     assertContains(
         response,
-        "<tr><td>7</td><td>Running</td><td>30 Oct 2026, 15:02</td><td>0:01:01</td>"
+        '<tr><td>7</td><td class="no-wrap"><strong>Running</strong></td>'
+        '<td class="no-wrap">30 Oct 2026, 15:02</td><td class="no-wrap">0:01:01</td>'
         "<td>—</td></tr>",
         html=True,
     )

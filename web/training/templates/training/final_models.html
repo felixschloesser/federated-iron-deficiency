@@ -16,7 +16,7 @@
   <thead><tr><th scope="col">Run</th><th scope="col">Status</th><th scope="col">Since</th><th scope="col">Elapsed</th><th scope="col">Details</th></tr></thead>
   <tbody>
     {% for run in training_runs %}
-    <tr><td>{{ run.run_id }}</td><td>{{ run.status_label }}</td><td>{{ run.since|date:"j M Y, H:i"|default:"—" }}</td><td>{{ run.elapsed }}</td><td>{{ run.details|default_if_none:"—" }}</td></tr>
+    <tr><td>{{ run.run_id }}</td><td class="no-wrap">{% if run.status.in_progress %}<strong>{{ run.status_label }}</strong>{% else %}{{ run.status_label }}{% endif %}</td><td class="no-wrap">{{ run.since|date:"j M Y, H:i"|default:"—" }}</td><td class="no-wrap">{{ run.elapsed }}</td><td>{{ run.details|default_if_none:"—" }}</td></tr>
     {% endfor %}
   </tbody>
 </table></div>
