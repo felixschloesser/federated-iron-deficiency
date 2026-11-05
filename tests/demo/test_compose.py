@@ -249,9 +249,7 @@ def test_the_hospital_serves_its_pages_and_its_lab_orders_each_on_one_network_on
     }
     script = spec["command"][-1]
     assert f"--bind={slug}-pages:8000" in script
-    endpoint = f"--bind={slug}-lab-orders:8441"
-    assert f"LAB_ORDER_ENDPOINT=1 DJANGO_ALLOWED_HOSTS={slug}-lab-orders" in script
-    assert endpoint in script
+    assert f"serve_messages {slug}-lab-orders:8441" in script
     # Either server stopping stops the container, which compose restarts.
     assert "wait -n" in script
     assert spec["restart"] == "unless-stopped"
