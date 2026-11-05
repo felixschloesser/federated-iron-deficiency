@@ -141,7 +141,7 @@ services:
     <<: *web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
-      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
       interval: 2s
       retries: 60
     environment:
@@ -192,9 +192,10 @@ services:
         wait -n
         exit 1
     restart: unless-stopped
-    # Ready when both servers answer, each on its own network's name.
+    # Ready when both servers answer, each on its own network's name; the pages
+    # under a name ALLOWED_HOSTS knows.
     healthcheck:
-      test: [CMD, python, -c, "import socket; [socket.create_connection(a).close() for a in (('uz-leuven-pages', 8000), ('uz-leuven-lab-orders', 8441))]"]
+      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://uz-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('uz-leuven-lab-orders', 8441)).close()"]
       interval: 2s
       retries: 60
     environment:
@@ -250,9 +251,10 @@ services:
         wait -n
         exit 1
     restart: unless-stopped
-    # Ready when both servers answer, each on its own network's name.
+    # Ready when both servers answer, each on its own network's name; the pages
+    # under a name ALLOWED_HOSTS knows.
     healthcheck:
-      test: [CMD, python, -c, "import socket; [socket.create_connection(a).close() for a in (('heilig-hart-leuven-pages', 8000), ('heilig-hart-leuven-lab-orders', 8441))]"]
+      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://heilig-hart-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('heilig-hart-leuven-lab-orders', 8441)).close()"]
       interval: 2s
       retries: 60
     environment:
@@ -308,9 +310,10 @@ services:
         wait -n
         exit 1
     restart: unless-stopped
-    # Ready when both servers answer, each on its own network's name.
+    # Ready when both servers answer, each on its own network's name; the pages
+    # under a name ALLOWED_HOSTS knows.
     healthcheck:
-      test: [CMD, python, -c, "import socket; [socket.create_connection(a).close() for a in (('az-diest-pages', 8000), ('az-diest-lab-orders', 8441))]"]
+      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://az-diest-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('az-diest-lab-orders', 8441)).close()"]
       interval: 2s
       retries: 60
     environment:
@@ -335,7 +338,7 @@ services:
     build: {context: .., dockerfile: demo/practice-web.Dockerfile}
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
-      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
       interval: 2s
       retries: 60
     environment:
@@ -350,7 +353,7 @@ services:
     <<: *practice-web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
-      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
       interval: 2s
       retries: 60
     environment:
@@ -365,7 +368,7 @@ services:
     <<: *practice-web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
-      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
       interval: 2s
       retries: 60
     environment:
