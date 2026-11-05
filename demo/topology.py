@@ -188,7 +188,7 @@ MIDDLE = """\
     <<: *web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
-      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
       interval: 2s
       retries: 60
     environment:
@@ -242,9 +242,10 @@ HOSPITAL = """\
         wait -n
         exit 1
     restart: unless-stopped
-    # Ready when both servers answer, each on its own network's name.
+    # Ready when both servers answer, each on its own network's name; the pages
+    # under a name ALLOWED_HOSTS knows.
     healthcheck:
-      test: [CMD, python, -c, "import socket; [socket.create_connection(a).close() for a in (('{slug}-pages', 8000), ('{slug}-lab-orders', 8441))]"]
+      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://{slug}-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('{slug}-lab-orders', 8441)).close()"]
       interval: 2s
       retries: 60
     environment:
@@ -274,7 +275,7 @@ PRACTICE = """\
     <<: *practice-web
 {build}    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
-      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
       interval: 2s
       retries: 60
     environment:

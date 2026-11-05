@@ -334,8 +334,19 @@ def test_what_others_wait_for_says_when_it_is_ready(name: str) -> None:
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
 def test_a_hospital_is_ready_when_both_its_servers_answer(slug: str) -> None:
     check = " ".join(service(f"{slug}-web")["healthcheck"]["test"])
-    assert f"('{slug}-pages', 8000)" in check
+    assert f"'http://{slug}-pages:8000/login/'" in check
     assert f"('{slug}-lab-orders', 8441)" in check
+
+
+@pytest.mark.parametrize(
+    "name", [f"{slug}-web" for slug in ["startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS]]
+)
+def test_a_web_app_is_ready_when_its_login_page_answers(name: str) -> None:
+    # An open port says nothing of Django: the login page needs its settings,
+    # URLconf, templates and stylesheet manifest, and urlopen fails on 4xx and 5xx.
+    check = " ".join(service(name)["healthcheck"]["test"])
+    assert "urllib.request.urlopen(" in check, name
+    assert ":8000/login/'" in check, name
 
 
 def test_each_project_runs_images_of_its_own() -> None:
