@@ -59,7 +59,7 @@ def submit_run() -> int:
         logger.error("flwr run gave no answer: %s", result.stderr.strip())
         answer = {"error-message": "it gave no answer"}
     if not answer.get("success"):
-        # Not the threshold's fault: an error of the whole submission.
+        # An error of the whole submission, not of a field.
         raise ValidationError(
             {
                 NON_FIELD_ERRORS: ValidationError(

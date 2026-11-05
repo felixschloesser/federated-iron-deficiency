@@ -47,7 +47,7 @@ class FinalModelsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
 
 
 class ForSaleView(DataScientistRequiredMixin, View):
-    """A final model's weights and threshold as a file: the model sale (P5)."""
+    """A final model's weights as a file: the model sale (P5)."""
 
     def get(self, request: HttpRequest, run_id: str) -> HttpResponse:
         data = for_sale(settings.FINAL_MODELS_DIR, run_id)

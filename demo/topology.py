@@ -73,6 +73,13 @@ name: iron-deficiency
 # Set DEMO_USER=$(id -u):$(id -g) in .env if your account is not 1000:1000.
 x-user: &user "${DEMO_USER:-1000:1000}"
 
+# Checked every 2 s while a service starts, so `up --wait` is quick; once it
+# is healthy, every 5 minutes: each check starts a process in the container.
+x-health: &health
+  start_period: 2m
+  start_interval: 2s
+  interval: 5m
+
 x-web: &web
   image: ${COMPOSE_PROJECT_NAME}-web
   user: *user
@@ -152,9 +159,8 @@ MIDDLE = """\
       - {type: volume, source: startup, target: /demo/startup/superlink, volume: {subpath: superlink}}
     networks: [startup, model-updates]
     healthcheck:
+      <<: *health
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 9092))"]
-      interval: 2s
-      retries: 30
 
   flower-server-app:
     <<: *superexec
@@ -188,9 +194,8 @@ MIDDLE = """\
     <<: *web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
+      <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
-      interval: 2s
-      retries: 60
     environment:
       STARTUP_DIR: /demo/startup
       FLWR_HOME: /demo/startup/flwr-home
@@ -245,9 +250,8 @@ HOSPITAL = """\
     # Ready when both servers answer, each on its own network's name; the pages
     # under a name ALLOWED_HOSTS knows.
     healthcheck:
+      <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://{slug}-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('{slug}-lab-orders', 8441)).close()"]
-      interval: 2s
-      retries: 60
     environment:
       HOSPITAL_DIR: /demo/hospitals/{slug}
       HOSPITAL_NAME: {name}
@@ -275,9 +279,8 @@ PRACTICE = """\
     <<: *practice-web
 {build}    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
+      <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
-      interval: 2s
-      retries: 60
     environment:
       PRACTICE_DIR: /demo/practices/{slug}
       PRACTICE_NAME: {name}
@@ -302,9 +305,8 @@ PROXY = """\
     ports: ["127.0.0.1:${DEMO_HTTP_PORT:-80}:8080"]
     volumes: ["./proxy.conf:/etc/nginx/nginx.conf:ro"]
     healthcheck:
+      <<: *health
       test: [CMD, nc, -z, 127.0.0.1, "8080"]
-      interval: 2s
-      retries: 60
 """
 
 PROXY_HEAD = """\
