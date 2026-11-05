@@ -16,12 +16,18 @@
     {% if model.problem %}<p>Cannot be deployed: {{ model.problem.label }}</p>
     {% elif deployed and model.run_id == deployed.run_id %}<p><strong>Deployed at threshold {{ deployed.threshold|floatformat:2 }}</strong></p>{% endif %}
   </header>
+  {% if model.local_auroc is not None or model.federated_auroc is not None %}
+  <dl>
+    {% if model.local_auroc is not None %}<dt>AUROC here</dt><dd>{{ model.local_auroc|floatformat:2 }}</dd>{% endif %}
+    {% if model.federated_auroc is not None %}<dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>{% endif %}
+  </dl>
+  {% endif %}
   {% if not model.problem %}
   {% url "deployment:deploy" model.run_id as deploy_url %}
   <form method="post" action="{{ deploy_url }}">
     {% csrf_token %}
     <fieldset>
-      <legend>Threshold</legend>
+      <legend>Choose a threshold</legend>
       <div class="overflow-auto"><table>
         <thead><tr><th scope="col">Threshold</th><th scope="col">Sensitivity</th><th scope="col">Specificity</th><th scope="col">Positive predictive value</th><th scope="col">Negative predictive value</th></tr></thead>
         <tbody>
@@ -40,10 +46,6 @@
     <button aria-label="Deploy {{ model.name }} at the chosen threshold">Deploy</button>
   </form>
   {% endif %}
-  <dl>
-    {% if model.local_auroc is not None %}<dt>AUROC here</dt><dd>{{ model.local_auroc|floatformat:2 }}</dd>{% endif %}
-    {% if model.federated_auroc is not None %}<dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>{% endif %}
-  </dl>
   <footer><small>run {{ model.run_id }}</small></footer>
 </article>
 {% empty %}
