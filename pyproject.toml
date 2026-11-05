@@ -74,8 +74,8 @@ default-groups = ["dev", "web"]
 
 [tool.mypy]
 mypy_path = "typings"
-# Runtime output of tools/demo.py (gitignored), holding unpacked copies of the app.
-exclude = ["^demo/"]
+# Runtime output of demo/demo.py (gitignored), holding unpacked copies of the app.
+exclude = ["^\\.demo/"]
 plugins = ["mypy_django_plugin.main"]
 
 [tool.django-stubs]
@@ -89,7 +89,7 @@ addopts = "-m 'not containers'"
 markers = ["containers: needs a running Docker engine and builds the images"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["iron_deficiency", "tests", "tools", "web"]
+known-first-party = ["demo", "iron_deficiency", "tests", "tools", "web"]
 
 # Torch on Linux from PyTorch's CPU index: the containers screen and train on
 # CPU, and PyPI's x86-64 wheel would pull several GB of CUDA libraries.

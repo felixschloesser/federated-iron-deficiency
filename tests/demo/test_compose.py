@@ -13,8 +13,8 @@ from typing import Any
 
 import pytest
 
+from demo.demo import COLOURS, PRACTICES
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
-from tools.demo import COLOURS, PRACTICES
 
 ROOT = Path(__file__).resolve().parents[2]
 HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
@@ -89,7 +89,7 @@ def mounts(name: str) -> dict[str, tuple[str, bool]]:
 
 
 def party_folder(name: str) -> str:
-    """The folder under demo/ of the party a service belongs to."""
+    """The folder under .demo/ of the party a service belongs to."""
     if name in STARTUP_SERVICES:
         return "startup"
     for slug in HOSPITAL_SLUGS:
@@ -114,7 +114,7 @@ def test_each_service_mounts_only_its_own_partys_folder() -> None:
     parties += [volume_folder(slug) for slug in PRACTICE_SLUGS]
     assert mounts("prepare") == {
         **{f"/demo/{folder}": (folder, False) for folder in parties},
-        **{f"/demo/{name}": (f"bind:demo/{name}", False) for name in HOST_FOLDERS},
+        **{f"/demo/{name}": (f"bind:.demo/{name}", False) for name in HOST_FOLDERS},
     }
     for name in set(config()["services"]) - SETUP_SERVICES - NETWORK_SERVICES:
         folder = party_folder(name)
@@ -183,7 +183,7 @@ def test_the_proxy_reaches_every_web_app_and_nothing_else() -> None:
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS + PRACTICE_SLUGS)
 def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
     # Routing by the Host header: plain HTTP, the report's TLS left out.
-    conf = (ROOT / "docker" / "proxy.conf").read_text()
+    conf = (ROOT / "demo" / "proxy.conf").read_text()
     routes = dict(
         re.findall(r"^\s*([a-z-]+\.localhost)\s+([a-z-]+:\d+);", conf, re.MULTILINE)
     )
@@ -306,8 +306,8 @@ def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
         for source, _ in mounts(name).values()
         if source.startswith("bind:")
     }
-    assert binds == {("prepare", f"bind:demo/{name}") for name in HOST_FOLDERS} | {
-        ("proxy", "bind:docker/proxy.conf")
+    assert binds == {("prepare", f"bind:.demo/{name}") for name in HOST_FOLDERS} | {
+        ("proxy", "bind:demo/proxy.conf")
     }
     assert service("prepare")["environment"]["HF_HOME"] == "/demo/huggingface"
 

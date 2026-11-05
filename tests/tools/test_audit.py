@@ -218,7 +218,7 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
             "web/lab/models.py": "import web.practice.models\n",
             "web/accounts/backends.py": "from web.deployment import models\n",
             "web/messaging/messages_pb2.py": "import grpc\n",
-            "tools/demo.py": "from web.lab.models import LabOrder\n",
+            "demo/demo.py": "from web.lab.models import LabOrder\n",
         },
     )
     assert audit.run(root)["party_imports"] == [

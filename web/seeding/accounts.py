@@ -1,4 +1,4 @@
-"""The demo's seeded accounts: the seed commands create them, tools/demo.py names
+"""The demo's seeded accounts: the seed commands create them, demo/demo.py names
 them. No Django imports, so the launcher may import this outside any party."""
 
 PASSWORD = "demo-pass-2026"

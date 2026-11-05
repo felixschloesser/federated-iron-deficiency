@@ -42,13 +42,22 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
         check=True,
     )
     folder = tmp_path_factory.mktemp("compose")
+    (folder / "demo").mkdir()
     name = f"test-{uuid.uuid4().hex[:8]}"
 
     def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
         # A step that hangs fails the test rather than the whole gate.
         return subprocess.run(
-            ["docker", "compose", "-p", name, "--project-directory", str(folder)]
-            + ["-f", str(ROOT / "compose.yaml"), *args],
+            # From folder/demo, so the compose file's ../.demo is folder/.demo.
+            [
+                "docker",
+                "compose",
+                "-p",
+                name,
+                "--project-directory",
+                str(folder / "demo"),
+            ]
+            + ["-f", str(ROOT / "demo" / "compose.yaml"), *args],
             capture_output=True,
             text=True,
             check=check,
@@ -64,14 +73,17 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
 
 @pytest.fixture(scope="module")
 def compose_folder(compose: Compose) -> Path:
-    """The temporary folder the compose project runs in, holding its demo/."""
+    """The temporary folder the compose project runs in, holding its .demo/."""
     services = json.loads(compose("config", "--format", "json").stdout)["services"]
     (downloads,) = [
         Path(volume["source"])
         for volume in services["prepare"]["volumes"]
         if volume["target"] == "/demo/huggingface"
     ]
-    return downloads.parent.parent
+    folder = downloads.parent.parent
+    # Never the checkout's own .demo/, which holds the user's downloads and CA.
+    assert folder != ROOT and ROOT not in folder.parents, folder
+    return folder
 
 
 def start(run: Compose, folder: Path) -> None:
@@ -85,7 +97,7 @@ def start(run: Compose, folder: Path) -> None:
         "prepare",
         "python",
         "-c",
-        "from pathlib import Path; from tools.demo import prepare_flower;"
+        "from pathlib import Path; from demo.demo import prepare_flower;"
         " prepare_flower(Path('/demo'));"
         f" hospital = Path('/demo/hospitals/{HOSPITAL}');"
         " (hospital / 'cohort').mkdir(); (hospital / 'final-models').mkdir();"
@@ -234,7 +246,7 @@ def hospital_app(compose: Compose) -> str:
         "python",
         "-c",
         "from pathlib import Path;"
-        " from tools.demo import hospital_dir;"
+        " from demo.demo import hospital_dir;"
         f" hospital = hospital_dir(Path('/demo'), {APP_HOSPITAL!r});"
         # A volume's subpath must exist before a container mounts it.
         " (hospital / 'final-models').mkdir(exist_ok=True)",
@@ -291,8 +303,7 @@ def test_the_proxy_routes_a_partys_name_to_its_web_app(
     compose: Compose, compose_folder: Path, hospital_app: str
 ) -> None:
     # compose.yaml mounts it relative to the project folder, here a temporary one.
-    (compose_folder / "docker").mkdir(exist_ok=True)
-    shutil.copy(ROOT / "docker" / "proxy.conf", compose_folder / "docker")
+    shutil.copy(ROOT / "demo" / "proxy.conf", compose_folder / "demo")
     # Not `up`: run publishes no port, so a demo running on 80 is no matter.
     proxy = f"proxy-{uuid.uuid4().hex[:8]}"
     compose("run", "--detach", "--no-deps", "--name", proxy, "proxy")

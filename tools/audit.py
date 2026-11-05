@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BASELINE = Path("tools") / "audit_baseline.json"
 ALLOWLIST = Path("tools") / "audit_allowlist.toml"
 SPEC = Path("docs") / "spec" / "requirements.md"
-# Generated folders: collected static files, and the demo deployment (tools/demo.py).
-BUILD_OUTPUT = {"staticfiles", "demo"}
+# Generated folders: collected static files (the demo's .demo/ is hidden).
+BUILD_OUTPUT = {"staticfiles"}
 # The parts of the training package a hospital's web app may import (R21);
 # everything else under web/ only the dataset's terms and loaders.
 HOSPITAL_SIDE = {"iron_deficiency.screening", "iron_deficiency.dataset"}

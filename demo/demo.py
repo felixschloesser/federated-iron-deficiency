@@ -2,7 +2,7 @@
 
     docker compose up --build --abort-on-container-failure
     docker compose run --rm train   # one training run, submitted inside TB2
-    docker compose down -v          # start over; demo/ on the host stays
+    docker compose down -v          # start over; .demo/ on the host stays
 
 Compose runs `prepare` from here as a one-shot container, each
 party's folder a volume of its own. The startup runs the SuperLink; each
@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # SuperLink's service name in compose.yaml.
 SUPERLINK = "flower-superlink:9092"
 # The demo's parties, declared in demo.toml; keyed here by cycle, like HOSPITALS.
-PARTIES = tomllib.loads((ROOT / "demo.toml").read_text())["hospitals"]
+PARTIES = tomllib.loads((ROOT / "demo" / "demo.toml").read_text())["hospitals"]
 _ENTRIES = {cycle: PARTIES[hospital_slug(name)] for cycle, name in HOSPITALS.items()}
 # Each practice is paired with a hospital for its colour and patients (spec §9);
 # it may send samples to every hospital's laboratory (R22).
@@ -301,7 +301,7 @@ def summary(statuses: dict[str, str], http_port: int = 80) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["prepare"])
-    parser.add_argument("--demo-dir", type=Path, default=ROOT / "demo")
+    parser.add_argument("--demo-dir", type=Path, default=ROOT / ".demo")
     args = parser.parse_args()
     demo_dir = args.demo_dir.resolve()
     prepare(demo_dir)

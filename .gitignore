@@ -6,11 +6,13 @@ wandb/
 *.sqlite3
 staticfiles/
 .claude/worktrees/
-/demo/
 # Per-user compose settings, such as DEMO_USER
 .env
 .DS_Store
 /.demo/
+# Demo output from before demo/ held source: mv demo/browser-ca demo/huggingface .demo/
+/demo/browser-ca/
+/demo/huggingface/
 .ui-audit/
 # Never commit: the repository is public
 report/
