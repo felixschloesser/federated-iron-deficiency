@@ -1,8 +1,7 @@
-"""The running containers keep the trust boundaries (spec R27, R28, R29).
+"""The running containers keep the trust boundaries (spec R28, R29).
 
-One compose project in a temporary demo folder: the SuperLink, the
-registration of every hospital's SuperNode, and UZ Leuven's SuperNode and
-ClientApp. Needs a running Docker engine.
+One compose project in a temporary demo folder: the SuperLink, and UZ Leuven's
+SuperNode and ClientApp. Needs a running Docker engine.
 """
 
 import json
@@ -16,13 +15,8 @@ from typing import Any
 
 import pytest
 
-from tools import certificates
-
 ROOT = Path(__file__).resolve().parents[1]
 HOSPITAL = "uz-leuven"
-# Flower's exit code for a SuperNode the SuperLink does not admit; it logs it,
-# and the container itself exits with 1.
-NOT_ADMITTED = "Exit Code: 305"
 
 Compose = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -79,7 +73,7 @@ def compose_folder(compose: Compose) -> Path:
 
 
 def start(run: Compose, folder: Path) -> None:
-    """Flower's part of `prepare`, then the SuperLink, registration and one hospital."""
+    """Flower's part of `prepare`, then the SuperLink and one hospital."""
     # Into the party volumes, through prepare, which hands them to the demo user.
     # What the hospital holds beside the cohort; the ClientApp must see none of it.
     run(
@@ -103,7 +97,6 @@ def start(run: Compose, folder: Path) -> None:
     ):
         assert time.monotonic() < deadline, run("logs", "flower-superlink").stdout
         time.sleep(2)
-    run("run", "--rm", "--no-deps", "register")
     run(
         "up",
         "--detach",
@@ -171,40 +164,6 @@ def test_the_startups_code_sees_only_the_cohort_and_final_models_and_reaches_not
     assert report["files"] == [f"/demo/hospitals/{HOSPITAL}/cohort/rows.arrow"]
     assert all(path.startswith(allowed) for path in report["files"])
     assert report["reachable"] == []
-
-
-def test_the_superlink_admits_the_registered_hospital_and_refuses_any_other_node(
-    compose: Compose, tmp_path: Path
-) -> None:
-    wait_until_online(compose)
-    stranger = certificates.make_key_pair(tmp_path / "stranger" / "key")
-    supernode = [
-        "--superlink=flower-superlink:9092",
-        f"--root-certificates=/demo/hospitals/{HOSPITAL}/certificates/ca.crt",
-        "--isolation=process",
-    ]
-    for name, extra in (
-        ("stranger", ["-v", f"{stranger.parent}:/stranger:ro"]),
-        ("keyless", []),
-    ):
-        key = (
-            ["--auth-supernode-private-key=/stranger/key"] if name == "stranger" else []
-        )
-        refused = compose(
-            "run",
-            "--rm",
-            "--no-deps",
-            *extra,
-            f"{HOSPITAL}-flower-supernode",
-            *supernode,
-            *key,
-            check=False,
-        )
-        assert refused.returncode != 0, name
-        assert NOT_ADMITTED in refused.stdout + refused.stderr, name
-    # Registering again, as every `up` does, keeps the registration.
-    compose("run", "--rm", "--no-deps", "register")
-    assert online_nodes(compose) == 1
 
 
 # Runs inside the web app's own container: starts the app as compose.yaml

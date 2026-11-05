@@ -38,7 +38,7 @@ x-supernode: &supernode
   environment:
     FLWR_HOME: /tmp/flwr
   depends_on:
-    register: {condition: service_completed_successfully}
+    flower-superlink: {condition: service_healthy}
 
 services:
   # Out-of-band setup, not drawn in the DFDs: certificates, keys, cohorts,
@@ -91,16 +91,11 @@ services:
       - --port=9092
       - --database=/demo/startup/superlink/state.db
       - --isolation=process
-      # Only SuperNodes registered by `register` get in (R27).
-      - --enable-supernode-auth
-      - --ssl-ca-certfile=/demo/startup/trust/ca.crt
-      - --ssl-certfile=/demo/startup/certificates/superlink/certificate.pem
-      - --ssl-keyfile=/demo/startup/certificates/superlink/key.pem
+      # Plaintext, any node admitted: the report's TLS and SuperNode
+      # authentication are left out of the demo for simplicity.
+      - --insecure
     volumes:
       - {type: volume, source: startup, target: /demo/startup/superlink, volume: {subpath: superlink}}
-      # Its own certificate and key, and the startup CA's certificate: never ca.key.
-      - {type: volume, source: startup, target: /demo/startup/certificates/superlink, read_only: true, volume: {subpath: certificates/superlink}}
-      - {type: volume, source: startup, target: /demo/startup/trust, read_only: true, volume: {subpath: trust}}
     networks: [startup, model-updates]
     healthcheck:
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 9092))"]
@@ -114,21 +109,9 @@ services:
       flower-superlink: {condition: service_healthy}
     command:
       - --runtime-api-address=flower-superlink:9092
-      - --root-certificates=/demo/startup/trust/ca.crt
+      - --insecure
     volumes:
-      - {type: volume, source: startup, target: /demo/startup/trust, read_only: true, volume: {subpath: trust}}
       - {type: volume, source: startup, target: /demo/startup/final-models, volume: {subpath: final-models}}
-    networks: [startup]
-
-  register:
-    <<: *web
-    depends_on:
-      flower-superlink: {condition: service_healthy}
-    command: [python, tools/demo.py, register, --demo-dir, /demo]
-    volumes:
-      - {type: volume, source: startup, target: /demo/startup/supernodes, read_only: true, volume: {subpath: supernodes}}
-      - {type: volume, source: startup, target: /demo/startup/flwr-home, volume: {subpath: flwr-home}}
-      - {type: volume, source: startup, target: /demo/startup/trust, read_only: true, volume: {subpath: trust}}
     networks: [startup]
 
   # E1, the data scientist, submits from inside TB2: `docker compose run --rm train`.
@@ -142,7 +125,6 @@ services:
       FLWR_HOME: /demo/startup/flwr-home
     volumes:
       - {type: volume, source: startup, target: /demo/startup/flwr-home, volume: {subpath: flwr-home}}
-      - {type: volume, source: startup, target: /demo/startup/trust, read_only: true, volume: {subpath: trust}}
     networks: [startup]
 
   # TB1 and TB4, UZ Leuven.
@@ -150,15 +132,11 @@ services:
     <<: *supernode
     command:
       - --superlink=flower-superlink:9092
-      - --root-certificates=/demo/hospitals/uz-leuven/certificates/ca.crt
-      - --auth-supernode-private-key=/demo/hospitals/uz-leuven/supernode/key
+      - --insecure
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
       - --node-config=data-path='/demo/hospitals/uz-leuven/cohort' final-models-path='/demo/hospitals/uz-leuven/final-models'
-    volumes:
-      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/certificates, read_only: true, volume: {subpath: certificates}}
-      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/supernode, read_only: true, volume: {subpath: supernode}}
     networks: [model-updates, uz-leuven-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
@@ -198,9 +176,9 @@ services:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/final-models, read_only: true, volume: {subpath: final-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
     # DEBUG off: Django's deploy settings, HTTPS with the browser CA's certificate (R29).
-    # Masked: the startup's data, the SuperNode's key, and the CA's key (only
+    # Masked: the startup's data and the CA's key (only
     # prepare issues certificates).
-    tmpfs: [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/supernode, /demo/hospitals/uz-leuven/ca]
+    tmpfs: [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/ca]
     networks:
       uz-leuven: {aliases: [uz-leuven-pages]}
       lab-orders: {aliases: [uz-leuven-lab-orders]}
@@ -210,15 +188,11 @@ services:
     <<: *supernode
     command:
       - --superlink=flower-superlink:9092
-      - --root-certificates=/demo/hospitals/heilig-hart-leuven/certificates/ca.crt
-      - --auth-supernode-private-key=/demo/hospitals/heilig-hart-leuven/supernode/key
+      - --insecure
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
       - --node-config=data-path='/demo/hospitals/heilig-hart-leuven/cohort' final-models-path='/demo/hospitals/heilig-hart-leuven/final-models'
-    volumes:
-      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/certificates, read_only: true, volume: {subpath: certificates}}
-      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/supernode, read_only: true, volume: {subpath: supernode}}
     networks: [model-updates, heilig-hart-leuven-flower-client-app]
 
   heilig-hart-leuven-flower-client-app:
@@ -254,9 +228,9 @@ services:
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/final-models, read_only: true, volume: {subpath: final-models}}
-    # Masked: the startup's data, the SuperNode's key, and the CA's key (only
+    # Masked: the startup's data and the CA's key (only
     # prepare issues certificates).
-    tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort, /demo/hospitals/heilig-hart-leuven/supernode, /demo/hospitals/heilig-hart-leuven/ca]
+    tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort, /demo/hospitals/heilig-hart-leuven/ca]
     networks:
       heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
       lab-orders: {aliases: [heilig-hart-leuven-lab-orders]}
@@ -266,15 +240,11 @@ services:
     <<: *supernode
     command:
       - --superlink=flower-superlink:9092
-      - --root-certificates=/demo/hospitals/az-diest/certificates/ca.crt
-      - --auth-supernode-private-key=/demo/hospitals/az-diest/supernode/key
+      - --insecure
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
       - --node-config=data-path='/demo/hospitals/az-diest/cohort' final-models-path='/demo/hospitals/az-diest/final-models'
-    volumes:
-      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/certificates, read_only: true, volume: {subpath: certificates}}
-      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/supernode, read_only: true, volume: {subpath: supernode}}
     networks: [model-updates, az-diest-flower-client-app]
 
   az-diest-flower-client-app:
@@ -310,9 +280,9 @@ services:
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/final-models, read_only: true, volume: {subpath: final-models}}
-    # Masked: the startup's data, the SuperNode's key, and the CA's key (only
+    # Masked: the startup's data and the CA's key (only
     # prepare issues certificates).
-    tmpfs: [/demo/hospitals/az-diest/cohort, /demo/hospitals/az-diest/supernode, /demo/hospitals/az-diest/ca]
+    tmpfs: [/demo/hospitals/az-diest/cohort, /demo/hospitals/az-diest/ca]
     networks:
       az-diest: {aliases: [az-diest-pages]}
       lab-orders: {aliases: [az-diest-lab-orders]}

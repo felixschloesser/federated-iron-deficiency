@@ -1,4 +1,4 @@
-"""The demo deployment as compose.yaml declares it (spec §9, R21, R27, R28).
+"""The demo deployment as compose.yaml declares it (spec §9, R21, R28).
 
 Read through `docker compose config`, which also validates the file.
 """
@@ -24,7 +24,6 @@ STARTUP_SERVICES = {
     "prepare",
     "flower-superlink",
     "flower-server-app",
-    "register",
     "train",
 }
 # Out-of-band setup (report, assumptions): the one service that sees every party.
@@ -150,13 +149,12 @@ def test_the_startups_code_at_a_hospital_sees_only_the_cohort_and_final_models(
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_the_hospitals_own_apps_see_no_cohort_no_supernode_key_and_read_only_final_models(
+def test_the_hospitals_own_apps_see_no_cohort_and_read_only_final_models(
     slug: str,
 ) -> None:
     name = f"{slug}-web"
     assert set(service(name)["tmpfs"]) == {
         f"/demo/hospitals/{slug}/cohort",
-        f"/demo/hospitals/{slug}/supernode",
         # Its CA's key: only prepare issues certificates.
         f"/demo/hospitals/{slug}/ca",
     }
@@ -165,11 +163,8 @@ def test_the_hospitals_own_apps_see_no_cohort_no_supernode_key_and_read_only_fin
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_the_supernode_mounts_its_key_and_ca_certificate_but_no_data(slug: str) -> None:
-    assert mounts(f"{slug}-flower-supernode") == {
-        f"/demo/hospitals/{slug}/{folder}": (f"hospitals/{slug}/{folder}", True)
-        for folder in ("certificates", "supernode")
-    }
+def test_the_supernode_mounts_no_data(slug: str) -> None:
+    assert mounts(f"{slug}-flower-supernode") == {}
 
 
 @pytest.mark.parametrize(("https_port", "published"), [(None, "443"), ("8443", "8443")])
@@ -279,23 +274,18 @@ def test_no_practice_service_runs_on_a_timer() -> None:
         assert "REPORT_CHECK_SECONDS" not in (spec.get("environment") or {}), name
 
 
-def test_every_flower_connection_across_a_boundary_uses_tls() -> None:
-    superlink = service("flower-superlink")["command"]
-    for flag in ("--ssl-ca-certfile", "--ssl-certfile", "--ssl-keyfile"):
-        assert any(argument.startswith(f"{flag}=") for argument in superlink), flag
-    for slug in HOSPITAL_SLUGS:
-        supernode = service(f"{slug}-flower-supernode")["command"]
-        assert (
-            f"--root-certificates=/demo/hospitals/{slug}/certificates/ca.crt"
-            in supernode
-        )
-    # Only the Runtime API inside TB4's internal network goes without TLS.
+def test_only_flowers_connections_run_without_tls() -> None:
+    # The report's TLS and SuperNode authentication are left out of the demo.
     insecure = {
         name
         for name, spec in config()["services"].items()
         if "--insecure" in (spec.get("command") or [])
     }
-    assert insecure == {f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS}
+    assert insecure == {"flower-superlink", "flower-server-app"} | {
+        f"{slug}-flower-{role}"
+        for slug in HOSPITAL_SLUGS
+        for role in ("supernode", "client-app")
+    }
 
 
 def test_the_superlink_keeps_its_state_with_the_startup() -> None:
@@ -367,9 +357,7 @@ def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -
 
 
 # Where each authority's private key lives, under its party's folder.
-CA_FOLDERS = ["startup/certificates"] + [
-    f"hospitals/{slug}/ca" for slug in HOSPITAL_SLUGS
-]
+CA_FOLDERS = [f"hospitals/{slug}/ca" for slug in HOSPITAL_SLUGS]
 
 
 @pytest.mark.parametrize(
@@ -385,17 +373,3 @@ def test_no_running_service_can_read_a_certificate_authoritys_key(name: str) -> 
             if folder == source or folder.startswith(f"{source}/"):
                 inside = target + folder.removeprefix(source)
                 assert inside in masked, f"{name} sees {folder} at {inside}"
-
-
-def test_the_superlink_reads_its_own_certificate_and_the_startups_ca_certificate_only() -> (
-    None
-):
-    assert set(mounts("flower-superlink")) == {
-        "/demo/startup/superlink",
-        "/demo/startup/certificates/superlink",
-        "/demo/startup/trust",
-    }
-    assert (
-        "--ssl-ca-certfile=/demo/startup/trust/ca.crt"
-        in service("flower-superlink")["command"]
-    )

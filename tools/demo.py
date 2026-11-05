@@ -4,7 +4,7 @@
     docker compose run --rm train   # one training run, submitted inside TB2
     docker compose down -v          # start over; demo/ on the host stays
 
-Compose runs `prepare` and `register` from here as one-shot containers, each
+Compose runs `prepare` from here as a one-shot container, each
 party's folder a volume of its own. The startup runs the SuperLink; each
 hospital a SuperNode, the startup's ClientApp in a container of its own, and
 one container for its web app and lab-order endpoint; each general
@@ -12,7 +12,6 @@ practitioner's practice its own web app.
 """
 
 import argparse
-import json
 import os
 import shutil
 import subprocess
@@ -31,7 +30,6 @@ from tools.certificates import (
     covers,
     issue,
     make_authority,
-    make_key_pair,
     request,
     sign,
 )
@@ -43,7 +41,7 @@ from web.seeding.accounts import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-# Flower 1.40 serves every SuperLink API over HTTPS on this one address, the
+# Flower 1.40 serves every SuperLink API on this one address, the
 # SuperLink's service name in compose.yaml.
 SUPERLINK = "flower-superlink:9092"
 # Shown among the roots a person trusts: which project, and that it vouches
@@ -88,11 +86,6 @@ def hospitals() -> list[tuple[int, str]]:
     ]
 
 
-def supernode_key(hospital: Path) -> Path:
-    """The private key a hospital's SuperNode signs in with; it never leaves (R27)."""
-    return hospital / "supernode" / "key"
-
-
 def lab_orders_host(slug: str) -> str:
     """The hospital's lab-order endpoint in compose.yaml, which its certificate names."""
     return f"{slug}-lab-orders"
@@ -107,11 +100,6 @@ def browser_ca(demo_dir: Path) -> Path:
 def web_tls(party: Path) -> Path:
     """A party's web app certificate and key, from the browser CA (R29)."""
     return party / "web-tls"
-
-
-def registered_key(demo_dir: Path, slug: str) -> Path:
-    """The startup's copy of a hospital's SuperNode public key, to register (R27)."""
-    return startup_dir(demo_dir) / "supernodes" / f"{slug}.pub"
 
 
 def practices() -> list[tuple[int, str]]:
@@ -178,42 +166,17 @@ def add_laboratories(practice: Path) -> None:
 
 
 def prepare_flower(demo_dir: Path) -> None:
-    """Create what Flower needs and is missing: the SuperLink's certificate, the
-    startup's connection to it, and each hospital's copy of the startup's CA
-    certificate and its own SuperNode key pair, whose public key the startup gets."""
+    """Create the startup's connection to the SuperLink, plaintext: the report's
+    TLS and SuperNode authentication are left out of the demo for simplicity."""
     startup = startup_dir(demo_dir)
-    certificates = startup / "certificates"
-    if not (certificates / "ca.crt").exists():
-        make_authority(certificates, "Demo startup")
-    superlink = certificates / "superlink" / "certificate.pem"
-    if not covers(superlink, SUPERLINK.split(":")[0]):
-        startup_authority = Authority(
-            "Demo startup", certificates / "ca.crt", certificates / "ca.key"
-        )
-        issue(startup_authority, superlink.parent, SUPERLINK.split(":")[0], server=True)
-    # The CA certificate alone, for the startup's own clients; ca.key stays put.
-    (startup / "trust").mkdir(parents=True, exist_ok=True)
-    shutil.copy(certificates / "ca.crt", startup / "trust" / "ca.crt")
     (startup / "final-models").mkdir(parents=True, exist_ok=True)
     (startup / "superlink").mkdir(parents=True, exist_ok=True)
     flwr_home = startup / "flwr-home"
     flwr_home.mkdir(parents=True, exist_ok=True)
     (flwr_home / "config.toml").write_text(
         '[superlink]\ndefault = "demo"\n\n[superlink.demo]\n'
-        f'address = "{SUPERLINK}"\n'
-        f'root-certificates = "{startup / "trust" / "ca.crt"}"\n'
+        f'address = "{SUPERLINK}"\ninsecure = true\n'
     )
-    for _, slug in hospitals():
-        hospital = hospital_dir(demo_dir, slug)
-        # The hospital holds its own copy of the startup's CA certificate.
-        (hospital / "certificates").mkdir(parents=True, exist_ok=True)
-        shutil.copy(certificates / "ca.crt", hospital / "certificates" / "ca.crt")
-        if not supernode_key(hospital).exists():
-            make_key_pair(supernode_key(hospital))
-        registered_key(demo_dir, slug).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(
-            supernode_key(hospital).with_suffix(".pub"), registered_key(demo_dir, slug)
-        )
 
 
 def prepare_browser(demo_dir: Path) -> None:
@@ -354,36 +317,6 @@ def screening_status(demo_dir: Path, slug: str) -> str:
     return result.stdout.strip()
 
 
-def register_supernodes(demo_dir: Path, wait_seconds: int = 60) -> None:
-    """Register each hospital's SuperNode public key with the SuperLink, waiting
-    for it to answer; a key registered by an earlier `up` stays registered (R27)."""
-    deadline = time.monotonic() + wait_seconds
-    for _, slug in hospitals():
-        while True:
-            registration = subprocess.run(
-                [
-                    str(Path(sys.executable).parent / "flwr"),
-                    *("supernode", "register", str(registered_key(demo_dir, slug))),
-                    *("demo", "--name", slug, "--format", "json"),
-                ],
-                env={
-                    **os.environ,
-                    "FLWR_HOME": str(startup_dir(demo_dir) / "flwr-home"),
-                },
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            outcome = json.loads(registration.stdout)
-            error = str(outcome.get("error-message", ""))
-            # Flower's error code 23: this public key is registered already.
-            if outcome["success"] or "[code: 23]" in error:
-                break
-            if "unavailable" not in error or time.monotonic() > deadline:
-                raise SystemExit(f"Registering the SuperNode of {slug} failed: {error}")
-            time.sleep(1)
-
-
 def web_address(slug: str, https_port: int) -> str:
     """Where a browser finds a party's web app, through the proxy."""
     port = "" if https_port == 443 else f":{https_port}"
@@ -435,16 +368,13 @@ def summary(statuses: dict[str, str], https_port: int = 443) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["prepare", "register"])
+    parser.add_argument("action", choices=["prepare"])
     parser.add_argument("--demo-dir", type=Path, default=ROOT / "demo")
     args = parser.parse_args()
     demo_dir = args.demo_dir.resolve()
-    if args.action == "prepare":
-        prepare(demo_dir)
-        https_port = int(os.environ.get("DEMO_HTTPS_PORT", "443"))
-        print(summary(prepare_webs(demo_dir), https_port), flush=True)
-    else:
-        register_supernodes(demo_dir)
+    prepare(demo_dir)
+    https_port = int(os.environ.get("DEMO_HTTPS_PORT", "443"))
+    print(summary(prepare_webs(demo_dir), https_port), flush=True)
 
 
 if __name__ == "__main__":
