@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from demo.demo import COLOURS, PRACTICES
+from demo.topology import COLOURS, PRACTICES
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 
 ROOT = Path(__file__).resolve().parents[2]

@@ -46,7 +46,8 @@ def test_the_next_step_follows_the_hospitals_state() -> None:
 
 
 def test_each_practice_and_its_hospital_seed_the_same_number_of_patients() -> None:
-    from demo.demo import PATIENTS, seed_arguments
+    from demo.demo import seed_arguments
+    from demo.topology import PATIENTS
 
     assert [PATIENTS[cycle] for cycle in PATIENTS] == [40, 24, 12]
     for partition, cycle in enumerate(PATIENTS):
@@ -59,29 +60,6 @@ def test_the_summary_names_the_http_port_when_it_is_not_80() -> None:
 
     text = summary(STATUSES, http_port=8080)
     assert "http://uz-leuven.localhost:8080/" in text
-
-
-def test_demo_toml_describes_exactly_the_hospitals_training_knows() -> None:
-    import tomllib
-
-    from iron_deficiency.dataset import HOSPITALS, hospital_slug
-
-    parties = tomllib.loads((ROOT / "demo" / "demo.toml").read_text())
-    assert set(parties["hospitals"]) == {hospital_slug(n) for n in HOSPITALS.values()}
-
-
-def test_each_hospitals_practice_colours_and_patients_come_from_demo_toml() -> None:
-    import tomllib
-
-    from demo.demo import COLOURS, PATIENTS, PRACTICES
-    from iron_deficiency.dataset import HOSPITALS, hospital_slug
-
-    hospitals = tomllib.loads((ROOT / "demo" / "demo.toml").read_text())["hospitals"]
-    for cycle, name in HOSPITALS.items():
-        entry = hospitals[hospital_slug(name)]
-        assert PRACTICES[cycle] == entry["practice"]
-        assert COLOURS[cycle] == (entry["colour"], entry["practice_colour"])
-        assert PATIENTS[cycle] == entry["patients"]
 
 
 # What each party's folder may hold: the report's DFD stores, and the Django

@@ -7,7 +7,8 @@ runs in its own containers, which see only that party's folder under `.demo/`
 So "UZ Leuven's data never reaches the startup" holds because no network or
 mount connects them, not merely because the code is careful. Who the parties
 are, and each one's colour and number of seeded patients, is declared in
-`demo/demo.toml`.
+`demo/demo.toml`. `demo/compose.yaml` and `demo/proxy.conf` are generated from it:
+after editing it, run `uv run python -m demo.topology`.
 
 ## 1. Install Docker
 
