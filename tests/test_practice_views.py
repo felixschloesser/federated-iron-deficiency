@@ -134,7 +134,10 @@ def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
     # Straight to the routine first test on the new sample.
     assert response["Location"] == sample_order_url(patient, OrderedTest.CBC)
     assertContains(
-        client.get(response["Location"]), f"Sample {sample.sample_id} collected."
+        client.get(response["Location"]),
+        f'<article role="status" data-level="success">'
+        f"Sample {sample.sample_id} collected.</article>",
+        html=True,
     )
     assert not Order.objects.exists()
     response = client.get(patient_url(patient))
@@ -401,49 +404,42 @@ def test_ordering_on_a_sample_says_so_and_adds_no_sample(
     assert Order.objects.filter(sample__sample_id=sample_id).count() == 2
 
 
-def test_an_order_page_that_would_be_refused_says_so_at_once(
+def test_an_order_that_would_be_refused_returns_to_the_patient(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
     # Ferritin without a suggestion (R11), then a test the sample has (R26):
-    # the refusal on opening the page, and no button to place it.
+    # opening its order page goes back to the patient, with the refusal there.
+    from web.practice.models import NOT_SUGGESTED
+
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
-    for test, code in (
-        (OrderedTest.FERRITIN, "ferritin_not_suggested"),
-        (OrderedTest.CBC, "already_ordered"),
+    for test, message in (
+        (OrderedTest.FERRITIN, NOT_SUGGESTED),
+        (OrderedTest.CBC, "This sample already has this test."),
     ):
         response = client.get(sample_order_url(patient, test))
-        assert response.status_code == 200
-        refusal = response.context["refusal"]
-        found = [error.code for each in refusal.error_dict.values() for error in each]
-        assert found == [code], test
-        assertContains(response, refusal.messages[0])
-        assertNotContains(response, "Place order")
-        # The way back, as the page header's one action.
-        assert response.context["actions"] == [
-            {"url": patient_url(patient), "label": f"Back to {patient.name}"}
-        ]
+        assert response["Location"] == patient_url(patient), test
+        # An error the reader must act on is announced at once; success is not.
+        assertContains(
+            client.get(patient_url(patient)),
+            f'<article role="alert" data-level="error">{message}</article>',
+            html=True,
+        )
     assert Order.objects.count() == 1
 
 
-def test_an_order_page_that_can_succeed_offers_no_way_back_action(
+def test_a_stale_form_for_a_test_the_sample_has_returns_to_the_patient(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
-    response = logged_in(client, general_practitioner).get(
-        order_url(client, patient, OrderedTest.CBC)
-    )
-    assert response.context["actions"] == []
-    assertContains(response, "Place order")
-
-
-def test_a_test_the_sample_has_is_refused_in_the_summary(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
-) -> None:
+    # Posted from a page opened before the test was placed (another tab).
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.FERRITIN))
     response = client.post(sample_order_url(patient, OrderedTest.FERRITIN))
-    errors = response.context["form"].non_field_errors().as_data()
-    assert [error.code for error in errors] == ["already_ordered"]
+    assert response["Location"] == patient_url(patient)
+    assertContains(
+        client.get(patient_url(patient)), "This sample already has this test."
+    )
+    assert Order.objects.filter(test=OrderedTest.FERRITIN).count() == 1
 
 
 def test_another_patients_sample_is_not_found(
