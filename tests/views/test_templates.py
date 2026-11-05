@@ -84,3 +84,15 @@ def test_a_link_that_looks_like_a_button_stays_a_link() -> None:
         if 'role="button"' in link
     ]
     assert offenders == []
+
+
+def test_a_button_link_keeps_the_house_focus_outline() -> None:
+    # The focus outline is a :where() rule, so any outline on the class would
+    # beat it and leave keyboard focus only Pico's faint ring.
+    import re
+    from pathlib import Path
+
+    css = (Path(__file__).resolve().parents[1] / "static/css/app.css").read_text()
+    rules = re.findall(r"([^{}]*button-link[^{}]*)\{([^{}]*)\}", css)
+    assert rules
+    assert [selector.strip() for selector, body in rules if "outline:" in body] == []
