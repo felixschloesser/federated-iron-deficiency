@@ -55,6 +55,35 @@ def test_each_practice_and_its_hospital_seed_the_same_number_of_patients() -> No
         assert arguments[arguments.index("--patients") + 1] == str(PATIENTS[cycle])
 
 
+def test_every_hospital_has_a_tube_for_every_practices_patients() -> None:
+    """Any practice may send a sample to any hospital (R22), so every hospital's
+    analyser stand-in seeds every practice's participants."""
+    from demo.demo import seed_arguments, tube_seeds
+    from demo.topology import PATIENTS
+
+    nhanes = Path("nhanes.csv")
+    assert tube_seeds(nhanes) == [
+        seed_arguments(partition, nhanes) for partition in range(len(PATIENTS))
+    ]
+
+
+def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise() -> None:
+    """Every hospital's laboratory, its paired hospital's the primary one, so
+    lab orders follow the hospitals' sizes by default."""
+    from demo.demo import laboratory_arguments, lab_orders_host
+    from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
+
+    for cycle in CYCLES:
+        arguments = laboratory_arguments(cycle)
+        assert [argument[0] for argument in arguments] == [
+            HOSPITALS[other] for other in CYCLES
+        ]
+        for argument, other in zip(arguments, CYCLES, strict=True):
+            host = lab_orders_host(hospital_slug(HOSPITALS[other]))
+            assert argument[1] == f"{host}:8441"
+            assert ("--primary" in argument) is (other == cycle)
+
+
 def test_the_summary_names_the_http_port_when_it_is_not_80() -> None:
     from demo.demo import summary
 

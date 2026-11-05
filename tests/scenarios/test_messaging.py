@@ -595,6 +595,17 @@ def test_check_for_reports_names_an_unreachable_laboratory_and_asks_the_others(
     assert LabReport.objects.filter(order__sample__patient=record).exists()
 
 
+def test_add_laboratory_primary_makes_it_the_primary_one() -> None:
+    call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:8441")
+    call_command("add_laboratory", "AZ Diest", "az-diest-lab-orders:8441", "--primary")
+    primary = Laboratory.objects.primary()
+    assert primary is not None
+    assert primary.name == "AZ Diest"
+    # Adding another without --primary keeps the primary one.
+    call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:9441")
+    assert Laboratory.objects.primary() == primary
+
+
 def test_add_laboratory_adds_it_then_changes_its_address() -> None:
     call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:8441")
     call_command("add_laboratory", "UZ Leuven", "uz-leuven-lab-orders:9441")
