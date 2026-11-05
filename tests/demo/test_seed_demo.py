@@ -3,12 +3,12 @@ and seed_practice, both run in a development checkout."""
 
 from pathlib import Path
 
-import pandas as pd
 import pytest
 from django.core.management import CommandError, call_command
 from pytest_django.fixtures import Settings
 
 from iron_deficiency.dataset import CBC_VARS
+from tests.conftest import PEOPLE, nhanes_rows
 from web.accounts.models import User
 from web.accounts.roles import Role, role_of
 from web.nhanes.models import Participant
@@ -17,32 +17,6 @@ from web.seeding import command as seeding
 from web.vocabulary import RegisteredSex
 
 pytestmark = pytest.mark.django_db
-
-# (sex, age, ferritin) per group, in the order seeding.Group lists them.
-PEOPLE = [
-    ("Female", 30, 8.0),  # eligible, ferritin below 15
-    ("Female", 25, 40.0),  # eligible, ferritin 15 or more
-    ("Male", 35, None),  # men
-    ("Female", 70, None),  # women outside 18-49
-]
-# Eligible women whom NHANES did not measure: never seeded.
-UNMEASURED = ("Female", 40, None)
-
-
-def nhanes_rows() -> pd.DataFrame:
-    """Four participants per group, so the seed has to choose."""
-    rows = [
-        {
-            "sample_id": 1000 + 10 * group + copy,
-            "sex": sex,
-            "age": age,
-            **dict.fromkeys(CBC_VARS, float(group)),
-            "LBXFER": ferritin,
-        }
-        for group, (sex, age, ferritin) in enumerate([*PEOPLE, UNMEASURED])
-        for copy in range(4)
-    ]
-    return pd.DataFrame(rows)
 
 
 def seed(*args: str) -> None:

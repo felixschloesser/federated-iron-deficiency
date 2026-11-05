@@ -1,10 +1,10 @@
-"""The demo's preparation helpers (spec §9); compose.yaml is in tests/test_compose.py."""
+"""The demo's preparation helpers (spec §9); compose.yaml is in tests/demo/test_compose.py."""
 
 from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 STATUSES = {

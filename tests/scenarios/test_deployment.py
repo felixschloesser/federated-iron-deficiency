@@ -4,48 +4,19 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-import torch
 from django.core.exceptions import ValidationError
 from django.test import Client
 from django.urls import reverse
 from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.fixtures import Settings
 
-from iron_deficiency.dataset import FEATURES
 from iron_deficiency.screening import Problem
-from iron_deficiency.task import Net
-from tests.conftest import World, make_laboratory_staff_member
+from tests.conftest import World, make_laboratory_staff_member, write_final_model
 
 NOW = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
 pytestmark = pytest.mark.django_db
 
 scenarios("deployment.feature")
-
-
-def write_final_model(
-    directory: Path,
-    run_id: str,
-    validation: dict[str, float],
-    stored_at: datetime,
-    leave_out: tuple[str, ...] = (),
-    n_features: int = len(FEATURES),
-) -> Path:
-    """A final model as the ClientApp stores it (iron_deficiency.final_models)."""
-    contents = {
-        "state_dict": Net(n_features=n_features).state_dict(),
-        "mean": torch.zeros(len(FEATURES)),
-        "std": torch.ones(len(FEATURES)),
-        "threshold": 0.5,
-        "run_id": run_id,
-        "stored_at": stored_at.isoformat(),
-        "federated": {"eval_auroc": 0.87},
-        "local_validation": validation,
-    }
-    for key in leave_out:
-        del contents[key]
-    path = directory / f"{run_id}.pt"
-    torch.save(contents, path)
-    return path
 
 
 @pytest.fixture

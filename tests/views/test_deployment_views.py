@@ -10,8 +10,11 @@ from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains
 from pytest_django.fixtures import Settings
 
-from tests.conftest import make_laboratory_director, make_laboratory_staff_member
-from tests.test_deployment import write_final_model
+from tests.conftest import (
+    make_laboratory_director,
+    make_laboratory_staff_member,
+    write_final_model,
+)
 from web.deployment.models import Deployment, LaboratoryDirector
 
 pytestmark = pytest.mark.django_db

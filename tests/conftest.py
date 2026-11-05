@@ -9,11 +9,15 @@ from pytest_bdd import given, parsers
 # the tests that use it.
 if TYPE_CHECKING:
     from datetime import datetime
+    from pathlib import Path
+
+    import pandas as pd
 
     from web.deployment.models import LaboratoryDirector
     from web.lab.models import LaboratoryStaffMember, LabOrder
     from web.practice.models import GeneralPractitioner, Order, Patient, Sample
     from web.vocabulary import ClinicalIndication, Test
+from iron_deficiency.dataset import CBC_VARS, FEATURES
 from web.vocabulary import RegisteredSex
 
 World = dict[str, Any]
@@ -164,3 +168,62 @@ def collect_and_order(
         indication=indication,
         now=now,
     )
+
+
+def write_final_model(
+    directory: "Path",
+    run_id: str,
+    validation: dict[str, float],
+    stored_at: "datetime",
+    leave_out: tuple[str, ...] = (),
+    n_features: int = len(FEATURES),
+) -> "Path":
+    """A final model as the ClientApp stores it (iron_deficiency.final_models)."""
+    import torch
+
+    from iron_deficiency.task import Net
+
+    contents = {
+        "state_dict": Net(n_features=n_features).state_dict(),
+        "mean": torch.zeros(len(FEATURES)),
+        "std": torch.ones(len(FEATURES)),
+        "threshold": 0.5,
+        "run_id": run_id,
+        "stored_at": stored_at.isoformat(),
+        "federated": {"eval_auroc": 0.87},
+        "local_validation": validation,
+    }
+    for key in leave_out:
+        del contents[key]
+    path = directory / f"{run_id}.pt"
+    torch.save(contents, path)
+    return path
+
+
+# (sex, age, ferritin) per group, in the order seeding.Group lists them.
+PEOPLE = [
+    ("Female", 30, 8.0),  # eligible, ferritin below 15
+    ("Female", 25, 40.0),  # eligible, ferritin 15 or more
+    ("Male", 35, None),  # men
+    ("Female", 70, None),  # women outside 18-49
+]
+# Eligible women whom NHANES did not measure: never seeded.
+UNMEASURED = ("Female", 40, None)
+
+
+def nhanes_rows() -> "pd.DataFrame":
+    """Four participants per group, so the seed has to choose."""
+    import pandas as pd
+
+    rows = [
+        {
+            "sample_id": 1000 + 10 * group + copy,
+            "sex": sex,
+            "age": age,
+            **dict.fromkeys(CBC_VARS, float(group)),
+            "LBXFER": ferritin,
+        }
+        for group, (sex, age, ferritin) in enumerate([*PEOPLE, UNMEASURED])
+        for copy in range(4)
+    ]
+    return pd.DataFrame(rows)

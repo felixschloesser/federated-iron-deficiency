@@ -16,7 +16,7 @@ import pytest
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 from tools.demo import COLOURS, PRACTICES
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
 PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
 # Each practice sends to the hospital of the same cycle (spec §9).

@@ -3,7 +3,7 @@
 import tomllib
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_no_gpu_libraries_are_locked_for_any_platform() -> None:

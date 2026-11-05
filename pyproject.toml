@@ -84,6 +84,9 @@ django_settings_module = "web.settings"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "web.settings"
 bdd_features_base_dir = "features/"
+# Container-backed tests run only as the merge gate: pytest -m containers
+addopts = "-m 'not containers'"
+markers = ["containers: needs a running Docker engine and builds the images"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["iron_deficiency", "tests", "tools", "web"]

@@ -15,7 +15,9 @@ from typing import Any
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+pytestmark = pytest.mark.containers
+
+ROOT = Path(__file__).resolve().parents[2]
 HOSPITAL = "uz-leuven"
 
 Compose = Callable[..., subprocess.CompletedProcess[str]]
@@ -142,7 +144,7 @@ def test_the_startups_code_sees_only_the_cohort_and_final_models_and_reaches_not
 ) -> None:
     wait_until_online(compose)
     probe = tmp_path / "probe"
-    shutil.copytree(ROOT / "tests" / "probe", probe)
+    shutil.copytree(ROOT / "tests" / "demo" / "probe", probe)
     output = flwr(
         compose,
         "-v",

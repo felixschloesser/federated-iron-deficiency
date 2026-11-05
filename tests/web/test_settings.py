@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 BASE_ENV = {
     name: value
     for name, value in os.environ.items()
@@ -83,7 +83,7 @@ def test_a_party_holds_only_its_own_tables(
 ) -> None:
     """A hospital has no table for patients; a practice none for lab orders,
     analyser values or final models (R21)."""
-    from tests.test_seed_demo import nhanes_rows
+    from tests.conftest import nhanes_rows
 
     nhanes = tmp_path / "nhanes.csv"
     nhanes_rows().to_csv(nhanes, index=False)
@@ -136,7 +136,7 @@ def test_every_page_of_a_party_loads_in_its_own_deployment(
 ) -> None:
     """Development serves every party from one database; this runs each party's
     pages with only its own apps installed (R21)."""
-    from tests.test_seed_demo import nhanes_rows
+    from tests.conftest import nhanes_rows
 
     nhanes = tmp_path / "nhanes.csv"
     nhanes_rows().to_csv(nhanes, index=False)
