@@ -160,17 +160,15 @@ def test_helpers_are_not_views(tmp_path: Path) -> None:
 
 
 def test_unsourced_glossary_term(tmp_path: Path) -> None:
-    spec = (
-        "## 1. Vocabulary\n\n"
-        "| Term | Source | Why chosen | Rejected terms |\n"
-        "|---|---|---|---|\n"
-        "| order | Report, DF1 | Report's word | request |\n"
-        "| read | — **unsourced** | general practitioner marks it | seen |\n"
-        "\n## 2. Goal model\n"
+    glossary = (
+        '[order]\nsource = "Report, DF1"\nwhy = "Report\'s word"\nrejected = ["request"]\n'
+        '[read]\nsource = "unsourced"\nwhy = "x"\nrejected = []\n'
+        '[seen]\nwhy = "no source at all"\nrejected = []\n'
     )
-    root = tree(tmp_path, {"docs/spec/requirements.md": spec})
+    root = tree(tmp_path, {"glossary.toml": glossary})
     assert audit.run(root)["glossary_sources"] == [
-        "docs/spec/requirements.md: term 'read' has no source"
+        "glossary.toml: term 'read' has no source",
+        "glossary.toml: term 'seen' has no source",
     ]
 
 
