@@ -24,12 +24,16 @@ HOSPITAL_DIR = (
 PRACTICE_DIR = (
     Path(os.environ["PRACTICE_DIR"]) if "PRACTICE_DIR" in os.environ else None
 )
-if HOSPITAL_DIR is not None and PRACTICE_DIR is not None:
-    raise ImproperlyConfigured("Set HOSPITAL_DIR or PRACTICE_DIR, not both.")
-PARTY_DIR = HOSPITAL_DIR or PRACTICE_DIR
+STARTUP_DIR = Path(os.environ["STARTUP_DIR"]) if "STARTUP_DIR" in os.environ else None
+if sum(folder is not None for folder in (HOSPITAL_DIR, PRACTICE_DIR, STARTUP_DIR)) > 1:
+    raise ImproperlyConfigured(
+        "Set one of HOSPITAL_DIR, PRACTICE_DIR and STARTUP_DIR, not more."
+    )
+PARTY_DIR = HOSPITAL_DIR or PRACTICE_DIR or STARTUP_DIR
 # None: a development checkout, serving every party's pages from one database.
 PARTY: Party | None = None
-# The hospital's final models (R16); without HOSPITAL_DIR, an optional folder.
+# The party's final models: the hospital's screening models (R16), the startup's
+# copy of each (DS4); without a party folder, an optional folder.
 FINAL_MODELS_DIR: Path | None = (
     Path(os.environ["FINAL_MODELS_DIR"]) if "FINAL_MODELS_DIR" in os.environ else None
 )
@@ -38,12 +42,16 @@ if HOSPITAL_DIR is not None:
     FINAL_MODELS_DIR = HOSPITAL_DIR / "screening-models"
 elif PRACTICE_DIR is not None:
     PARTY = Party.GENERAL_PRACTITIONER
+elif STARTUP_DIR is not None:
+    PARTY = Party.STARTUP
+    FINAL_MODELS_DIR = STARTUP_DIR / "final-models"
 # Shown in the title bar and header; never the screening's name.
-PARTY_NAME = (
-    os.environ.get("PRACTICE_NAME", "Demo practice")
-    if PRACTICE_DIR
-    else os.environ.get("HOSPITAL_NAME", "Demo hospital")
-)
+if PRACTICE_DIR:
+    PARTY_NAME = os.environ.get("PRACTICE_NAME", "Demo practice")
+elif STARTUP_DIR:
+    PARTY_NAME = os.environ.get("STARTUP_NAME", "Demo startup")
+else:
+    PARTY_NAME = os.environ.get("HOSPITAL_NAME", "Demo hospital")
 # A Pico colour theme per party, so its pages are told apart at a glance; absent:
 # Pico's default. Only a vendored theme will do.
 PICO_DIR = BASE_DIR / "static" / "css" / "vendor" / "pico-2.1.1"
@@ -57,7 +65,7 @@ if (
     )
 if PARTY_DIR is not None and "DATABASE_NAME" in os.environ:
     raise ImproperlyConfigured(
-        "DATABASE_NAME cannot be set with HOSPITAL_DIR or PRACTICE_DIR:"
+        "DATABASE_NAME cannot be set with HOSPITAL_DIR, PRACTICE_DIR or STARTUP_DIR:"
         " the database lives in that folder."
     )
 

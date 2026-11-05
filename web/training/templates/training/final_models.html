@@ -1,0 +1,24 @@
+{% extends "kit/base.html" %}
+{% block title %}Final models{% endblock %}
+{% block content %}
+{% include "kit/index_header.html" with title="Final models" %}
+
+<p>The final model of each training run, newest first, as every hospital was sent it.</p>
+{% if final_models %}
+<div class="overflow-auto"><table>
+  <thead><tr><th scope="col">Stored</th><th scope="col">Run</th><th scope="col">Threshold</th><th scope="col">AUROC across hospitals</th></tr></thead>
+  <tbody>
+    {% for model in final_models %}
+    <tr>
+      <td>{{ model.stored_at|date:"j M Y, H:i"|default:"—" }}</td>
+      <td>{{ model.run_id }}</td>
+      <td>{{ model.threshold|default_if_none:"—" }}</td>
+      <td>{{ model.federated_auroc|floatformat:2|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p>No training run has finished yet.</p>
+{% endif %}
+{% endblock %}

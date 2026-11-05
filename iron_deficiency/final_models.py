@@ -1,4 +1,5 @@
-"""Final models as each hospital stores them: one file per training run."""
+"""Final models as each hospital stores them, and the startup's own copy: one
+file per training run."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,6 +30,31 @@ def hospital_final_models(demo_dir: Path, partition_id: int) -> Path:
 def startup_final_models(demo_dir: Path) -> Path:
     """The startup's own copy of every final model (report DS4)."""
     return demo_dir / "startup" / "final-models"
+
+
+def keep_final_model(
+    directory: Path,
+    *,
+    run_id: int,
+    state_dict: dict[str, torch.Tensor],
+    threshold: float,
+    federated: dict[str, float],
+    stored_at: datetime,
+) -> Path:
+    """Keep the startup's copy of a training run's final model (DS4): what every
+    hospital was sent, without any hospital's standardization or validation."""
+    path = final_model_path(directory, run_id)
+    write(
+        path,
+        FinalModel(
+            state_dict=state_dict,
+            threshold=threshold,
+            run_id=run_id,
+            stored_at=stored_at,
+            federated=federated,
+        ),
+    )
+    return path
 
 
 def latest_final_model(directory: Path) -> Path:

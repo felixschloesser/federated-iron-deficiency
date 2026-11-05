@@ -7,3 +7,4 @@ LABORATORY_DIRECTOR = "director"
 # Username and name of a practice's one general practitioner (R13).
 GENERAL_PRACTITIONER = "doctor"
 GENERAL_PRACTITIONER_NAME = "Dr. Demo"
+DATA_SCIENTIST = "data-scientist"

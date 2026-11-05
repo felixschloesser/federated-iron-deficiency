@@ -22,6 +22,7 @@ pytestmark = pytest.mark.django_db
 def seed(*args: str) -> None:
     call_command("seed_hospital", *args)
     call_command("seed_practice", *args)
+    call_command("seed_startup")
 
 
 @pytest.fixture
@@ -67,8 +68,9 @@ def test_the_practices_one_general_practitioner_has_every_patient(
 
 def test_running_twice_changes_nothing(seeded: None) -> None:
     seed()
-    # staff, director, the practice's one general practitioner, no-role.
-    assert User.objects.count() == 4
+    # staff, director, the practice's one general practitioner, the startup's
+    # data scientist, no-role.
+    assert User.objects.count() == 5
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
 
@@ -168,3 +170,14 @@ def test_the_number_of_patients_is_a_parameter(
     # Shared by the groups, the first ones rounding up: 2, 2, 1, 1.
     assert Patient.objects.filter(age=30).count() == 2
     assert Patient.objects.filter(age=70).count() == 1
+
+
+def test_the_startup_seeds_only_its_data_scientist(settings: Settings) -> None:
+    settings.DEBUG = True
+    call_command("seed_startup")
+    assert not Patient.objects.exists()
+    assert not Participant.objects.exists()
+    assert {role_of(user) for user in User.objects.all()} == {
+        Role.DATA_SCIENTIST,
+        None,
+    }

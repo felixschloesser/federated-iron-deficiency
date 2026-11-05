@@ -14,9 +14,9 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from web.deployment.models import LaboratoryDirector
-    from web.training.models import DataScientist
     from web.lab.models import LaboratoryStaffMember, LabOrder
     from web.practice.models import GeneralPractitioner, Order, Patient, Sample
+    from web.training.models import DataScientist
     from web.vocabulary import ClinicalIndication, Test
 from iron_deficiency.cohort import CBC_VARS, FEATURES
 from web.vocabulary import RegisteredSex

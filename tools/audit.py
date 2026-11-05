@@ -239,15 +239,16 @@ def _web_imports(root: Path) -> Iterator[tuple[Path, int, str]]:
 
 def training_imports(root: Path) -> list[str]:
     """Hospital software uses only the screening side of the training package,
+    and the startup's only to read its own final models (iron_deficiency.screening);
     the rest of web/ only the dataset (R21)."""
-    hospital = set(Party.HOSPITAL.apps())
+    readers = set(Party.HOSPITAL.apps()) | set(Party.STARTUP.apps())
     findings = []
     for rel, line, module in _web_imports(root):
         if module.split(".")[0] != "iron_deficiency":
             continue
         if module not in HOSPITAL_SIDE:
             findings.append(f"{rel.as_posix()}:{line}: imports {module}, startup code")
-        elif ".".join(rel.parts[:2]) not in hospital and module not in SHARED_SIDE:
+        elif ".".join(rel.parts[:2]) not in readers and module not in SHARED_SIDE:
             findings.append(
                 f"{rel.as_posix()}:{line}: imports {module}, the hospital's code"
             )
