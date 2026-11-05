@@ -13,7 +13,7 @@
     {% if entry.lab_report %}
     {% if entry.lab_report.comment %}<p><strong>{{ entry.lab_report.comment }}</strong></p>{% endif %}
     {% if entry.lab_report.note %}<p>{{ entry.lab_report.note }}</p>{% endif %}
-    {% if entry.order_ferritin_url %}<div class="action-row"><a href="{{ entry.order_ferritin_url }}" role="button" aria-label="Order ferritin on sample {{ entry.order.sample.sample_id }}">Order ferritin</a></div>{% endif %}
+    {% if entry.order_ferritin_url %}<div class="action-row"><a href="{{ entry.order_ferritin_url }}" class="button-link" aria-label="Order ferritin on sample {{ entry.order.sample.sample_id }}">Order ferritin</a></div>{% endif %}
     {% with values=entry.lab_report.values %}
     {% if values %}
     <div class="overflow-auto"><table>
@@ -34,7 +34,7 @@
     {% endif %}
   </article>
   {% endfor %}
-  {% if item.actions %}<div class="action-row">{% for action in item.actions %}<a href="{{ action.url }}" role="button" class="secondary outline" aria-label="{{ action.label }} on sample {{ item.sample.sample_id }}">{{ action.label }}</a> {% endfor %}</div>{% endif %}
+  {% if item.actions %}<div class="action-row">{% for action in item.actions %}<a href="{{ action.url }}" class="button-link secondary outline" aria-label="{{ action.label }} on sample {{ item.sample.sample_id }}">{{ action.label }}</a> {% endfor %}</div>{% endif %}
 </details>
 {% empty %}
 <p>No samples yet. Collect a sample to order tests.</p>

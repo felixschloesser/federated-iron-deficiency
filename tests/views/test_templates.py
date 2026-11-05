@@ -64,3 +64,36 @@ def test_every_page_says_it_is_a_prototype_with_fictional_patients() -> None:
     assert DISCLAIMER in template.render({}, RequestFactory().get("/"))
     # Django renders 500.html with no context at all.
     assert DISCLAIMER in render_to_string("500.html")
+
+
+def test_a_link_that_looks_like_a_button_stays_a_link() -> None:
+    # role="button" on a link promises Space as well as Enter, which a link
+    # does not answer; a link styled as a button is the button-link class.
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    templates = [
+        *root.glob("templates/**/*.html"),
+        *root.glob("web/*/templates/**/*.html"),
+    ]
+    assert templates, root
+    offenders = [
+        f"{path.relative_to(root)}: {link}"
+        for path in templates
+        for link in re.findall(r"<a\b[^>]*>", path.read_text())
+        if 'role="button"' in link
+    ]
+    assert offenders == []
+
+
+def test_a_button_link_keeps_the_house_focus_outline() -> None:
+    # The focus outline is a :where() rule, so any outline on the class would
+    # beat it and leave keyboard focus only Pico's faint ring.
+    import re
+    from pathlib import Path
+
+    css = (Path(__file__).resolve().parents[2] / "static/css/app.css").read_text()
+    rules = re.findall(r"([^{}]*button-link[^{}]*)\{([^{}]*)\}", css)
+    assert rules
+    assert [selector.strip() for selector, body in rules if "outline:" in body] == []
