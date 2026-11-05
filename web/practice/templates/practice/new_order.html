@@ -3,9 +3,5 @@
 {% block content %}
 {% include "kit/index_header.html" with title="Order "|add:test.label|add:" for "|add:patient.name %}
 <p>On sample {{ sample.sample_id }}, collected {{ sample.collected_at|date:"j M Y, H:i" }}.</p>
-{% if refusal %}
-{% for message in refusal.messages %}{% include "kit/alert.html" with level="error" role="alert" text=message %}{% endfor %}
-{% else %}
 {% include "kit/form.html" with form=form submit_label="Place order" %}
-{% endif %}
 {% endblock %}
