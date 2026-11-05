@@ -419,7 +419,21 @@ def test_an_order_page_that_would_be_refused_says_so_at_once(
         assert found == [code], test
         assertContains(response, refusal.messages[0])
         assertNotContains(response, "Place order")
+        # The way back, as the page header's one action.
+        assert response.context["actions"] == [
+            {"url": patient_url(patient), "label": f"Back to {patient.name}"}
+        ]
     assert Order.objects.count() == 1
+
+
+def test_an_order_page_that_can_succeed_offers_no_way_back_action(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    response = logged_in(client, general_practitioner).get(
+        order_url(client, patient, OrderedTest.CBC)
+    )
+    assert response.context["actions"] == []
+    assertContains(response, "Place order")
 
 
 def test_a_test_the_sample_has_is_refused_in_the_summary(
