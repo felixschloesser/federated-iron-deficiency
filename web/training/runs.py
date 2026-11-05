@@ -10,6 +10,9 @@ from django.conf import settings
 from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 
 logger = logging.getLogger(__name__)
+# Under gunicorn's worker timeout (30 s): the page says why instead of the
+# request ending blank.
+SUBMIT_TIMEOUT_SECONDS = 20
 # The SuperLink connection in FLWR_HOME's config.toml (demo/demo.py writes it).
 CONNECTION = "demo"
 
@@ -41,16 +44,28 @@ def submit_run(*, threshold: float) -> int:
                 )
             }
         )
-    result = subprocess.run(
-        [
-            str(Path(sys.executable).parent / "flwr"),
-            *("run", str(settings.BASE_DIR), CONNECTION),
-            *("--run-config", run_configuration(threshold), "--format", "json"),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [
+                str(Path(sys.executable).parent / "flwr"),
+                *("run", str(settings.BASE_DIR), CONNECTION),
+                *("--run-config", run_configuration(threshold), "--format", "json"),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=SUBMIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise ValidationError(
+            {
+                NON_FIELD_ERRORS: ValidationError(
+                    f"The SuperLink did not answer within {SUBMIT_TIMEOUT_SECONDS}"
+                    " seconds; the run may or may not have been submitted.",
+                    code="superlink_no_answer",
+                )
+            }
+        ) from error
     try:
         answer = json.loads(result.stdout)
     except json.JSONDecodeError:
