@@ -35,6 +35,38 @@ def laboratory_director(
     final_models_dir.mkdir(parents=True)
 
 
+@when(parsers.parse('laboratory director "{name}" is added to the hospital'))
+def add_laboratory_director(world: World, name: str) -> None:
+    from django.db import IntegrityError, transaction
+
+    from web.accounts.models import User
+    from web.deployment.models import LaboratoryDirector
+
+    added = LaboratoryDirector(user=User.objects.create_user(username="two"), name=name)
+    try:
+        added.full_clean()
+    except ValidationError as error:
+        world["error"] = error
+    try:
+        with transaction.atomic():
+            added.save()
+    except IntegrityError as error:
+        world["integrity_error"] = error
+
+
+@then(parsers.parse('adding them is refused with code "{code}"'))
+def adding_refused(world: World, code: str) -> None:
+    from django.core.exceptions import NON_FIELD_ERRORS
+
+    errors = world["error"].error_dict
+    assert [error.code for error in errors[NON_FIELD_ERRORS]] == [code]
+
+
+@then("the database refuses the second director")
+def database_refuses_director(world: World) -> None:
+    assert "integrity_error" in world
+
+
 @given(parsers.parse('screening model "{run_id}" with local validation:'))
 def screening_model(world: World, run_id: str, datatable: list[list[str]]) -> None:
     rows = {row[0].strip(): row[1:] for row in datatable[1:]}

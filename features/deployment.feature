@@ -1,7 +1,8 @@
 Feature: Deploying a screening model
   Each training run sends a screening model to every hospital. It screens no one
   until the hospital's laboratory director deploys it, after comparing its
-  local validation with the deployed model's. Covers R17–R19.
+  local validation with the deployed model's. A hospital has one laboratory
+  director. Covers R13, R17–R19.
 
   Background:
     Given laboratory director "Director One"
@@ -15,6 +16,11 @@ Feature: Deploying a screening model
       | deficient       | 8                  | 2                      |
       | not deficient   | 6                  | 36                     |
     And its local AUROC is 0.86
+
+  Scenario: A hospital has one laboratory director
+    When laboratory director "Director Two" is added to the hospital
+    Then adding them is refused with code "one_laboratory_director"
+    And the database refuses the second director
 
   Scenario: A screening model screens no one until it is deployed
     Then there is no deployed model
