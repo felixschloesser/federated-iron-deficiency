@@ -24,20 +24,20 @@ name: iron-deficiency
 x-user: &user "${DEMO_USER:-1000:1000}"
 
 x-web: &web
-  image: iron-deficiency-web
+  image: ${COMPOSE_PROJECT_NAME}-web
   user: *user
   depends_on:
     prepare: {condition: service_completed_successfully}
 
 # A practice's web app: Django and gRPC only, no training package dependencies.
 x-practice-web: &practice-web
-  image: iron-deficiency-practice-web
+  image: ${COMPOSE_PROJECT_NAME}-practice-web
   user: *user
   depends_on:
     prepare: {condition: service_completed_successfully}
 
 x-superexec: &superexec
-  image: iron-deficiency-superexec
+  image: ${COMPOSE_PROJECT_NAME}-superexec
   user: *user
 
 x-supernode: &supernode
@@ -172,6 +172,11 @@ services:
         wait -n
         exit 1
     restart: unless-stopped
+    # Ready when both servers answer, each on its own network's name.
+    healthcheck:
+      test: [CMD, python, -c, "import socket; [socket.create_connection(a).close() for a in (('uz-leuven-pages', 8000), ('uz-leuven-lab-orders', 8441))]"]
+      interval: 2s
+      retries: 60
     environment:
       HOSPITAL_DIR: /demo/hospitals/uz-leuven
       HOSPITAL_NAME: UZ Leuven
@@ -225,6 +230,11 @@ services:
         wait -n
         exit 1
     restart: unless-stopped
+    # Ready when both servers answer, each on its own network's name.
+    healthcheck:
+      test: [CMD, python, -c, "import socket; [socket.create_connection(a).close() for a in (('heilig-hart-leuven-pages', 8000), ('heilig-hart-leuven-lab-orders', 8441))]"]
+      interval: 2s
+      retries: 60
     environment:
       HOSPITAL_DIR: /demo/hospitals/heilig-hart-leuven
       HOSPITAL_NAME: Heilig Hart Leuven
@@ -278,6 +288,11 @@ services:
         wait -n
         exit 1
     restart: unless-stopped
+    # Ready when both servers answer, each on its own network's name.
+    healthcheck:
+      test: [CMD, python, -c, "import socket; [socket.create_connection(a).close() for a in (('az-diest-pages', 8000), ('az-diest-lab-orders', 8441))]"]
+      interval: 2s
+      retries: 60
     environment:
       HOSPITAL_DIR: /demo/hospitals/az-diest
       HOSPITAL_NAME: AZ Diest
@@ -299,6 +314,10 @@ services:
     <<: *practice-web
     build: {context: .., dockerfile: demo/practice-web.Dockerfile}
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      interval: 2s
+      retries: 60
     environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PRACTICE_NAME: Huisartsenpraktijk De Akker
@@ -310,6 +329,10 @@ services:
   huisartsenpraktijk-de-berk-web:
     <<: *practice-web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      interval: 2s
+      retries: 60
     environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PRACTICE_NAME: Huisartsenpraktijk De Berk
@@ -321,6 +344,10 @@ services:
   huisartsenpraktijk-de-ceder-web:
     <<: *practice-web
     command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      interval: 2s
+      retries: 60
     environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PRACTICE_NAME: Huisartsenpraktijk De Ceder
@@ -338,6 +365,10 @@ services:
       prepare: {condition: service_completed_successfully}
     ports: ["127.0.0.1:${DEMO_HTTP_PORT:-80}:8080"]
     volumes: ["./proxy.conf:/etc/nginx/nginx.conf:ro"]
+    healthcheck:
+      test: [CMD, nc, -z, 127.0.0.1, "8080"]
+      interval: 2s
+      retries: 60
     networks:
       [uz-leuven, heilig-hart-leuven, az-diest,
        huisartsenpraktijk-de-akker, huisartsenpraktijk-de-berk, huisartsenpraktijk-de-ceder]

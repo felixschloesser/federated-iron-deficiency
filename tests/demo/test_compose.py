@@ -294,6 +294,44 @@ def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -
     assert "exec setpriv" in script
 
 
+@pytest.mark.parametrize(
+    "name",
+    [f"{slug}-web" for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS] + ["proxy"],
+)
+def test_what_others_wait_for_says_when_it_is_ready(name: str) -> None:
+    # Compose, and the container tests (`up --wait`), wait on health, not a clock.
+    assert service(name)["healthcheck"]["test"][0] == "CMD", name
+
+
+@pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
+def test_a_hospital_is_ready_when_both_its_servers_answer(slug: str) -> None:
+    check = " ".join(service(f"{slug}-web")["healthcheck"]["test"])
+    assert f"('{slug}-pages', 8000)" in check
+    assert f"('{slug}-lab-orders', 8441)" in check
+
+
+def test_each_project_runs_images_of_its_own() -> None:
+    # Shared tags let another worktree's or test run's build replace the images
+    # a running project uses between its build and its `up`.
+    result = subprocess.run(
+        ["docker", "compose", "-p", "some-project", "config", "--format", "json"],
+        cwd=ROOT / "demo",
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    built = {
+        spec["image"]
+        for spec in json.loads(result.stdout)["services"].values()
+        if not spec["image"].startswith(("flwr/", "nginx:"))
+    }
+    assert built == {
+        "some-project-web",
+        "some-project-practice-web",
+        "some-project-superexec",
+    }
+
+
 # Scenarios on compose.yaml as declared (features/quality/); the running
 # containers are in test_containers.py.
 
