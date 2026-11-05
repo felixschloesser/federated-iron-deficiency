@@ -26,7 +26,8 @@ not a process of the report's DFDs:
 | P2 SuperNode, ClientApp | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
 | P3 SuperLink | `flower-superlink` |
 | P4 ServerApp | `flower-server-app` |
-| P5 Model sale, E3 Other hospitals | not built |
+| P5 Model sale | *Download for sale* on `startup-web`: a final model's weights and threshold as a file |
+| E3 Other hospitals | not built |
 | P6 Model deployment, P8 Messaging endpoint, P9 Lab analysis, P10 Screening | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis, and its messaging endpoint, each server on its own network |
 | P7 Practice app | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
 | E1 Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models (DS4) and submits a training run with its threshold; or `train`, run by hand |
