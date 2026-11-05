@@ -3,6 +3,7 @@ general practitioner (features/access.feature)."""
 
 from datetime import UTC, datetime
 
+import pytest
 from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 from django.db import IntegrityError, transaction
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
@@ -14,6 +15,8 @@ from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 29, 9, 0, tzinfo=UTC)
 TESTS = {"a CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
+
+pytestmark = pytest.mark.django_db
 
 scenarios("ordering.feature")
 
