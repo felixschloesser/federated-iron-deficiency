@@ -1,4 +1,5 @@
-"""The running containers keep the trust boundaries (spec R28).
+"""The running containers keep the trust boundaries: the container-backed
+scenarios of features/quality/, and the checks beside them.
 
 One compose project in a temporary demo folder: the SuperLink, and UZ Leuven's
 SuperNode and ClientApp. Needs a running Docker engine.
@@ -14,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pytest_bdd import given, scenario, then, when
 
 pytestmark = pytest.mark.containers
 
@@ -152,10 +154,30 @@ def wait_until_online(run: Compose) -> None:
         time.sleep(2)
 
 
-def test_the_startups_code_sees_only_the_cohort_and_final_models_and_reaches_nothing(
-    compose: Compose, tmp_path: Path
-) -> None:
+@scenario(
+    "quality/client_app_isolation.feature",
+    "The startup's running code finds only the cohort and reaches nothing",
+)
+def test_the_startups_running_code_finds_only_the_cohort_and_reaches_nothing() -> None:
+    pass
+
+
+@given("the SuperLink and UZ Leuven's SuperNode and ClientApp are running")
+def flower_running(compose: Compose) -> None:
     wait_until_online(compose)
+
+
+@given("UZ Leuven's folder holds a database beside the cohort")
+def bait() -> None:
+    """start() wrote web.sqlite3 beside the cohort, for the probe to miss."""
+
+
+@when(
+    "the data scientist runs an app that lists every file it can read "
+    "and every address it can reach",
+    target_fixture="probe_report",
+)
+def run_probe(compose: Compose, tmp_path: Path) -> dict[str, Any]:
     probe = tmp_path / "probe"
     shutil.copytree(ROOT / "tests" / "demo" / "probe", probe)
     output = flwr(
@@ -170,15 +192,19 @@ def test_the_startups_code_sees_only_the_cohort_and_final_models_and_reaches_not
         "--stream",
     )
     (line,) = [line for line in output.splitlines() if "PROBE {" in line]
-    report = json.loads(line.split("PROBE ", 1)[1])
+    report: dict[str, Any] = json.loads(line.split("PROBE ", 1)[1])
     assert report["hospital"] == HOSPITAL
-    allowed = (
-        f"/demo/hospitals/{HOSPITAL}/cohort/",
-        f"/demo/hospitals/{HOSPITAL}/final-models/",
-    )
-    assert report["files"] == [f"/demo/hospitals/{HOSPITAL}/cohort/rows.arrow"]
-    assert all(path.startswith(allowed) for path in report["files"])
-    assert report["reachable"] == []
+    return report
+
+
+@then("the only file it finds is the cohort's")
+def only_the_cohort(probe_report: dict[str, Any]) -> None:
+    assert probe_report["files"] == [f"/demo/hospitals/{HOSPITAL}/cohort/rows.arrow"]
+
+
+@then("it reaches no address")
+def reaches_nothing(probe_report: dict[str, Any]) -> None:
+    assert probe_report["reachable"] == []
 
 
 # Runs inside the web app's own container: asks the app as compose.yaml starts
@@ -267,13 +293,35 @@ def hospital_app(compose: Compose) -> str:
     return name
 
 
-def test_the_web_app_serves_its_pages_and_stylesheets(
-    compose: Compose, hospital_app: str
-) -> None:
-    report = probe(compose, hospital_app, FETCH, f"{APP_HOSPITAL}-pages")
-    assert report["login"] == 200, report
-    assert report["css"][0] == 200
-    assert report["css"][1].startswith("text/css")
+@scenario(
+    "quality/web_apps.feature",
+    "A hospital's web app serves its pages and stylesheets with DEBUG off",
+)
+def test_a_hospitals_web_app_serves_its_pages_and_stylesheets() -> None:
+    pass
+
+
+@given(
+    "AZ Diest's web app is running as compose.yaml starts it", target_fixture="web_app"
+)
+def web_app(hospital_app: str) -> str:
+    return hospital_app
+
+
+@when(
+    "a browser asks it for the login page and that page's stylesheet",
+    target_fixture="fetched",
+)
+def fetch(compose: Compose, web_app: str) -> dict[str, Any]:
+    report: dict[str, Any] = probe(compose, web_app, FETCH, f"{APP_HOSPITAL}-pages")
+    return report
+
+
+@then('both answer 200, the stylesheet as "text/css"')
+def both_answer(fetched: dict[str, Any]) -> None:
+    assert fetched["login"] == 200, fetched
+    assert fetched["css"][0] == 200
+    assert fetched["css"][1].startswith("text/css")
 
 
 def test_the_practice_reaches_its_hospitals_lab_orders_and_not_its_pages(

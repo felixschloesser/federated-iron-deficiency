@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pytest_bdd import given, parsers, scenario, then, when
 
 from demo.topology import COLOURS, PRACTICES
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
@@ -123,29 +124,6 @@ def test_each_service_mounts_only_its_own_partys_folder() -> None:
             assert source.startswith(folder), (name, source)
             # Every container sees a folder at the path prepare wrote it to.
             assert target == f"/demo/{source}", (name, target)
-
-
-@pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_the_startups_code_at_a_hospital_sees_only_the_cohort_and_final_models(
-    slug: str,
-) -> None:
-    clientapp = f"{slug}-flower-client-app"
-    assert mounts(clientapp) == {
-        f"/demo/hospitals/{slug}/cohort": (f"hospitals/{slug}/cohort", True),
-        f"/demo/hospitals/{slug}/final-models": (
-            f"hospitals/{slug}/final-models",
-            False,
-        ),
-    }
-    # It reaches its SuperNode and nothing else: no web app, no internet.
-    assert set(service(clientapp)["networks"]) == {f"{slug}-flower-client-app"}
-    assert config()["networks"][f"{slug}-flower-client-app"]["internal"] is True
-    members = {
-        name
-        for name, spec in config()["services"].items()
-        if f"{slug}-flower-client-app" in spec.get("networks", {})
-    }
-    assert members == {clientapp, f"{slug}-flower-supernode"}
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
@@ -269,20 +247,6 @@ def test_no_practice_service_runs_on_a_timer() -> None:
         assert "REPORT_CHECK_SECONDS" not in (spec.get("environment") or {}), name
 
 
-def test_every_flower_connection_runs_without_tls() -> None:
-    # The report's TLS and SuperNode authentication are left out of the demo.
-    insecure = {
-        name
-        for name, spec in config()["services"].items()
-        if "--insecure" in (spec.get("command") or [])
-    }
-    assert insecure == {"flower-superlink", "flower-server-app"} | {
-        f"{slug}-flower-{role}"
-        for slug in HOSPITAL_SLUGS
-        for role in ("supernode", "client-app")
-    }
-
-
 def test_the_superlink_keeps_its_state_with_the_startup() -> None:
     assert (
         "--database=/demo/startup/superlink/state.db"
@@ -312,16 +276,6 @@ def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
     assert service("prepare")["environment"]["HF_HOME"] == "/demo/huggingface"
 
 
-def test_no_running_service_runs_with_debug() -> None:
-    # Only prepare seeds the demo accounts, which needs DJANGO_DEBUG (R15).
-    with_debug = {
-        name
-        for name, spec in config()["services"].items()
-        if "DJANGO_DEBUG" in (spec.get("environment") or {})
-    }
-    assert with_debug == set()
-
-
 @pytest.mark.parametrize(
     ("demo_user", "user"), [(None, "1000:1000"), ("1234:5678", "1234:5678")]
 )
@@ -338,3 +292,95 @@ def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -
     script = prepare["entrypoint"][-2]
     assert "chown" in script
     assert "exec setpriv" in script
+
+
+# Scenarios on compose.yaml as declared (features/quality/); the running
+# containers are in test_containers.py.
+
+
+@scenario(
+    "quality/flower_connections.feature",
+    "Every Flower connection in the demo runs without TLS",
+)
+def test_every_flower_connection_runs_without_tls() -> None:
+    pass
+
+
+@scenario(
+    "quality/client_app_isolation.feature",
+    "compose.yaml gives the startup's code only the cohort and final models",
+)
+def test_compose_gives_the_startups_code_only_the_cohort_and_final_models() -> None:
+    pass
+
+
+@scenario("quality/web_apps.feature", "No running service has DEBUG on")
+def test_no_running_service_has_debug_on() -> None:
+    pass
+
+
+@given("the demo deployment as compose.yaml declares it", target_fixture="declared")
+def declared() -> dict[str, Any]:
+    return config()
+
+
+@when("a SuperNode connects to the SuperLink")
+@when("the deployment starts")
+def starts() -> None:
+    """compose.yaml declares how every service starts; nothing to run."""
+
+
+@when(parsers.parse("the ClientApp at {hospital} starts"), target_fixture="slug")
+def client_app_at(hospital: str) -> str:
+    return hospital
+
+
+@then('every Flower component runs with "--insecure", and nothing else does')
+def every_flower_component_insecure(declared: dict[str, Any]) -> None:
+    insecure = {
+        name
+        for name, spec in declared["services"].items()
+        if "--insecure" in (spec.get("command") or [])
+    }
+    assert insecure == {"flower-superlink", "flower-server-app"} | {
+        f"{slug}-flower-{role}"
+        for slug in HOSPITAL_SLUGS
+        for role in ("supernode", "client-app")
+    }
+
+
+@then("it mounts only its hospital's cohort, read-only, and final models")
+def mounts_only_cohort_and_final_models(slug: str) -> None:
+    assert mounts(f"{slug}-flower-client-app") == {
+        f"/demo/hospitals/{slug}/cohort": (f"hospitals/{slug}/cohort", True),
+        f"/demo/hospitals/{slug}/final-models": (
+            f"hospitals/{slug}/final-models",
+            False,
+        ),
+    }
+
+
+@then(
+    "it shares a network only with its hospital's SuperNode, "
+    "and that network is internal"
+)
+def only_its_supernode(declared: dict[str, Any], slug: str) -> None:
+    clientapp = f"{slug}-flower-client-app"
+    assert set(service(clientapp)["networks"]) == {clientapp}
+    assert declared["networks"][clientapp]["internal"] is True
+    members = {
+        name
+        for name, spec in declared["services"].items()
+        if clientapp in spec.get("networks", {})
+    }
+    assert members == {clientapp, f"{slug}-flower-supernode"}
+
+
+@then(parsers.parse('no service sets "{setting}"'))
+def no_service_sets(declared: dict[str, Any], setting: str) -> None:
+    with_setting = {
+        name
+        for name, spec in declared["services"].items()
+        if setting in (spec.get("environment") or {})
+    }
+    assert with_setting == set()
