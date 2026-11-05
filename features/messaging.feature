@@ -1,6 +1,7 @@
 Feature: Lab orders and lab reports between the general practitioner and the hospital
-  The general practitioner's own app sends lab orders (DF23) to its one
-  hospital and fetches lab reports (DF25) from it, over gRPC. Every message
+  The general practitioner's own app sends lab orders (DF23) to the laboratory
+  chosen for each sample, any hospital's, and fetches lab reports (DF25) from
+  each hospital it works with, over gRPC. Every message
   names the sending practice by the certificate name the hospital issued it; the
   hospital refuses a practice it does not know, and gives each practice only the
   lab reports of its own lab orders. The report's mutual TLS, which would take

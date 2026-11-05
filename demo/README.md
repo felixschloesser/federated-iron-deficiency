@@ -92,8 +92,9 @@ security controls; the demo leaves them out for simplicity.
 
 The startup has `data-scientist`; hospitals have `staff` (laboratory staff) and `director` (their one laboratory
 director); each practice has one general practitioner, `doctor`; the password is
-`demo-pass-2026`. A practice's patients are the same NHANES participants whose
-tubes its hospital's analyser stand-in measures.
+`demo-pass-2026`. A practice's patients are NHANES participants whose tubes
+every hospital's analyser stand-in measures, as any hospital may receive their
+samples.
 
 One proxy on `127.0.0.1:80` routes each name to its party's web app by its
 Host header, like the internet between your browser and seven organisations. `*.localhost`
