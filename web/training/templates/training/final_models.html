@@ -3,6 +3,12 @@
 {% block content %}
 {% include "kit/index_header.html" with title="Final models" %}
 
+<h2>Submit a training run</h2>
+<p>Every hospital trains on its own cohort; at the end each is sent the final model with this threshold.</p>
+{% include "kit/form.html" with form=form submit_label="Submit training run" %}
+
+<h2>Final models</h2>
+
 <p>The final model of each training run, newest first, as every hospital was sent it.</p>
 {% if final_models %}
 <div class="overflow-auto"><table>
