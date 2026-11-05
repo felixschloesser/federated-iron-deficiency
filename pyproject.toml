@@ -66,6 +66,8 @@ web = [
     "django-stubs-ext>=6.1.2",
     "grpcio>=1.84.0",
     "gunicorn>=26.2.0",
+    # The lab-order messages; flwr brings it too, but a practice installs no flwr.
+    "protobuf>=6.33.6",
     "whitenoise>=6.12.0",
 ]
 

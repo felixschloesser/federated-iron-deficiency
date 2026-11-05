@@ -92,7 +92,7 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
 
     import iron_deficiency.dataset
     from demo.demo import hospitals, nhanes_csv, practices, prepare
-    from iron_deficiency.dataset import CBC_VARS
+    from iron_deficiency.cohort import CBC_VARS
 
     class Cohort:
         def save_to_disk(self, path: Path) -> None:

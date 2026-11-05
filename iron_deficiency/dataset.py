@@ -7,6 +7,8 @@ import pandas as pd
 from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import NaturalIdPartitioner
 
+from iron_deficiency.cohort import CBC_VARS, FEATURES, FERRITIN_THRESHOLD, eligible
+
 # NHANES merged into one row per participant and cycle, pinned to a fixed revision.
 HF_DATASET = "gracemyu/nhanes-merged"
 HF_REVISION = "2069b6643803fdf1a110b3c632dfc0fe3bb0b08d"
@@ -38,34 +40,6 @@ def hospital_slug(name: str) -> str:
 # No hospital trains on the latest cycle, 2021–2023, so it stands in for new
 # routine blood counts (all sexes and ages) screened after training.
 NEW_SAMPLES_YEAR = 2021
-
-CBC_VARS = [
-    "LBXWBCSI",
-    "LBXRBCSI",
-    "LBXHGB",
-    "LBXHCT",
-    "LBXMCVSI",
-    "LBXMC",
-    "LBXMCHSI",
-    "LBXRDW",
-    "LBXPLTSI",
-    "LBXMPSI",
-    "LBDLYMNO",
-    "LBDNENO",
-    "LBDMONO",
-]
-FEATURES = CBC_VARS + ["RIDAGEYR"]
-FERRITIN_THRESHOLD = 15.0
-# Who is screened: women of reproductive age (R4).
-ELIGIBLE_SEX = "Female"
-ELIGIBLE_AGES = (18, 49)
-
-
-def eligible(sex: pd.Series, age: pd.Series) -> "pd.Series[bool]":
-    """Who is screened, and whom the model is trained on: women aged 18–49 (R4).
-    `sex` holds NHANES's labels."""
-    return (sex == ELIGIBLE_SEX) & age.between(*ELIGIBLE_AGES)
-
 
 # Merged columns are named `{source_table}_{variable}` in lowercase.
 HF_COLUMNS = {

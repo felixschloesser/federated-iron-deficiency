@@ -13,7 +13,7 @@ MADE_UP_FERRITIN = "MADE_UP_LBXFER"
 
 class Participant(models.Model):
     seqn = models.PositiveIntegerField(unique=True)
-    # The 13 CBC values keyed by NHANES variable name (iron_deficiency.dataset.CBC_VARS).
+    # The 13 CBC values keyed by NHANES variable name (iron_deficiency.cohort.CBC_VARS).
     cbc = models.JSONField()
     # NHANES measured ferritin for only some participants (spec §8).
     ferritin = models.FloatField(null=True, blank=True)

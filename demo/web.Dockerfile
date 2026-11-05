@@ -1,5 +1,5 @@
-# Every party's web app, the hospitals' lab-order endpoints, the practices'
-# report checkers, and the one-shot prepare and train steps.
+# Every hospital's web app and lab-order endpoint, and the one-shot prepare
+# and train steps: the project with its training dependencies, and the web group.
 FROM python:3.13-slim
 RUN pip install --no-cache-dir uv \
     && useradd --create-home app

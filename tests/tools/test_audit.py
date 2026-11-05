@@ -196,7 +196,7 @@ def test_update_lowers_the_baseline(tmp_path: Path) -> None:
 
 def test_web_imports_only_the_screening_side(tmp_path: Path) -> None:
     code = (
-        "from iron_deficiency.dataset import CBC_VARS\n"
+        "from iron_deficiency.cohort import CBC_VARS\n"
         "from iron_deficiency.screening import score\n"
         "from iron_deficiency.client_app import app\n"
         "import iron_deficiency.server_app\n"
@@ -230,7 +230,7 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
 
 def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
     code = (
-        "from iron_deficiency.dataset import CBC_VARS\n"
+        "from iron_deficiency.cohort import CBC_VARS\n"
         "from iron_deficiency.screening import score\n"
     )
     root = tree(

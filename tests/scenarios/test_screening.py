@@ -10,7 +10,7 @@ import torch
 from django.db.models import DecimalField, FloatField
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from iron_deficiency.dataset import CBC_VARS, FEATURES, eligible
+from iron_deficiency.cohort import CBC_VARS, FEATURES, eligible
 from iron_deficiency.screening import (
     FinalModel,
     final_model_path,

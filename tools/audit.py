@@ -22,9 +22,13 @@ SPEC = Path("docs") / "spec" / "requirements.md"
 # Generated folders: collected static files (the demo's .demo/ is hidden).
 BUILD_OUTPUT = {"staticfiles"}
 # The parts of the training package a hospital's web app may import (R21);
-# everything else under web/ only the dataset's terms and loaders.
-HOSPITAL_SIDE = {"iron_deficiency.screening", "iron_deficiency.dataset"}
-SHARED_SIDE = {"iron_deficiency.dataset"}
+# everything else under web/ only the cohort's terms and the dataset's loaders.
+HOSPITAL_SIDE = {
+    "iron_deficiency.screening",
+    "iron_deficiency.cohort",
+    "iron_deficiency.dataset",
+}
+SHARED_SIDE = {"iron_deficiency.cohort", "iron_deficiency.dataset"}
 
 # Split so that this file does not match its own patterns.
 SUPPRESSIONS = (

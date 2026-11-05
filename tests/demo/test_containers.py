@@ -36,7 +36,8 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
     if not engine_running():
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
     subprocess.run(
-        ["docker", "compose", "build", "prepare", "flower-server-app"],
+        # Every image: the web apps, the practices' and the startup's.
+        ["docker", "compose", "build"],
         cwd=ROOT,
         capture_output=True,
         check=True,

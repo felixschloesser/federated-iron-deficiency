@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
-from iron_deficiency.dataset import FEATURES
+from iron_deficiency.cohort import FEATURES
 
 SEED = 42
 

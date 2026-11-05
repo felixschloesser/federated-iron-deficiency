@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from iron_deficiency.dataset import CBC_VARS
+from iron_deficiency.cohort import CBC_VARS
 from web.deployment.models import LaboratoryDirector
 from web.lab.models import LaboratoryStaffMember
 from web.nhanes.models import Participant

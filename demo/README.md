@@ -52,7 +52,8 @@ Mac, Docker maps IDs for you.
 docker compose up --build --abort-on-container-failure
 ```
 
-The first start takes a while. It builds two images (the web apps, and the
+The first start takes a while. It builds three images (the hospitals'
+web apps, the practices' leaner ones without PyTorch or Flower, and the
 startup's Flower app with PyTorch, CPU only), then runs these steps in order:
 
 1. **prepare** creates what each party needs and the DFDs do not draw:

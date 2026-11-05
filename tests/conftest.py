@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from web.lab.models import LaboratoryStaffMember, LabOrder
     from web.practice.models import GeneralPractitioner, Order, Patient, Sample
     from web.vocabulary import ClinicalIndication, Test
-from iron_deficiency.dataset import CBC_VARS, FEATURES
+from iron_deficiency.cohort import CBC_VARS, FEATURES
 from web.vocabulary import RegisteredSex
 
 World = dict[str, Any]
@@ -45,7 +45,7 @@ def make_patient(
 ) -> "Patient":
     """A patient whose sample ID is a new NHANES number; the hospital's analyser
     stand-in holds placeholder values for it and no ferritin."""
-    from iron_deficiency.dataset import CBC_VARS
+    from iron_deficiency.cohort import CBC_VARS
     from web.nhanes.models import Participant
     from web.practice.models import Patient
 

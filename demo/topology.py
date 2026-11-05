@@ -67,7 +67,7 @@ HEAD = """\
 name: iron-deficiency
 
 # Each image is built once, by the first service that names it (prepare,
-# flower-server-app); every other service uses it as built.
+# flower-server-app, the first practice); every other service uses it as built.
 # Every container runs as one user, so the volumes and, on Linux, where a bind
 # mount keeps numeric IDs, .demo/ never mix the images' own users (49999, 1000).
 # Set DEMO_USER=$(id -u):$(id -g) in .env if your account is not 1000:1000.
@@ -75,6 +75,13 @@ x-user: &user "${DEMO_USER:-1000:1000}"
 
 x-web: &web
   image: iron-deficiency-web
+  user: *user
+  depends_on:
+    prepare: {condition: service_completed_successfully}
+
+# A practice's web app: Django and gRPC only, no training package dependencies.
+x-practice-web: &practice-web
+  image: iron-deficiency-practice-web
   user: *user
   depends_on:
     prepare: {condition: service_completed_successfully}
@@ -239,8 +246,8 @@ PRACTICE_INTRO = """\
 
 PRACTICE = """\
   {slug}-web:
-    <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    <<: *practice-web
+{build}    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     environment:
       PRACTICE_DIR: /demo/practices/{slug}
       PRACTICE_NAME: {name}
@@ -250,6 +257,8 @@ PRACTICE = """\
     networks: [{slug}, lab-orders]
 
 """
+
+PRACTICE_BUILD = "    build: {context: .., dockerfile: demo/practice-web.Dockerfile}\n"
 
 PROXY = """\
   # Between the browser and the parties, like the internet: routes each
@@ -333,8 +342,10 @@ def compose() -> str:
     for name, slug, colour in hospitals():
         text += fill(HOSPITAL, name=name, slug=slug, colour=colour)
     text += PRACTICE_INTRO
-    for name, slug, colour in practices():
-        text += fill(PRACTICE, name=name, slug=slug, colour=colour)
+    for index, (name, slug, colour) in enumerate(practices()):
+        # The first practice builds the image the others use as built.
+        build = PRACTICE_BUILD if index == 0 else ""
+        text += fill(PRACTICE, name=name, slug=slug, colour=colour, build=build)
     text += PROXY
     text += "    networks:\n      [" + ", ".join(hospital_slugs) + ",\n       "
     text += ", ".join(practice_slugs) + "]\n\n"

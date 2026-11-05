@@ -7,7 +7,7 @@ import pytest
 from django.core.management import CommandError, call_command
 from pytest_django.fixtures import Settings
 
-from iron_deficiency.dataset import CBC_VARS
+from iron_deficiency.cohort import CBC_VARS
 from tests.conftest import PEOPLE, nhanes_rows
 from web.accounts.models import User
 from web.accounts.roles import Role, role_of

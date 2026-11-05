@@ -17,7 +17,7 @@ import numpy.typing as npt
 import pandas as pd
 import torch
 
-from iron_deficiency.dataset import CBC_VARS, FEATURES, eligible
+from iron_deficiency.cohort import CBC_VARS, FEATURES, eligible
 from iron_deficiency.task import Net
 
 # One lab export row: sample ID, registered sex, age, and the 13 CBC values.

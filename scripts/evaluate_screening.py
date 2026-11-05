@@ -6,7 +6,8 @@ from pathlib import Path
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-from iron_deficiency.dataset import FERRITIN_THRESHOLD, load_ferritin
+from iron_deficiency.cohort import FERRITIN_THRESHOLD
+from iron_deficiency.dataset import load_ferritin
 from iron_deficiency.screening import COLUMNS, FinalModel, read, score
 
 

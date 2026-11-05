@@ -14,13 +14,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
-from iron_deficiency.dataset import (
-    ELIGIBLE_SEX,
-    FERRITIN_THRESHOLD,
-    eligible,
-    load_ferritin,
-    load_new_samples,
-)
+from iron_deficiency.cohort import ELIGIBLE_SEX, FERRITIN_THRESHOLD, eligible
+from iron_deficiency.dataset import load_ferritin, load_new_samples
 from web.accounts.models import User
 from web.seeding.accounts import PASSWORD
 from web.vocabulary import RegisteredSex

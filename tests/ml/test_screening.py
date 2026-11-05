@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from iron_deficiency.dataset import CBC_VARS, FEATURES
+from iron_deficiency.cohort import CBC_VARS, FEATURES
 from iron_deficiency.screening import FinalModel, screen, standardization_tensor
 from iron_deficiency.task import Net
 

@@ -93,7 +93,7 @@ class ResultName:
     unit: str
 
 
-# In the order of iron_deficiency.dataset.CBC_VARS, then ferritin, then the demo's
+# In the order of iron_deficiency.cohort.CBC_VARS, then ferritin, then the demo's
 # made-up ferritin (web.nhanes.models.MADE_UP_FERRITIN); a test checks the order.
 RESULT_NAMES = {
     "LBXWBCSI": ResultName("White blood cell count", "1000 cells/µL"),

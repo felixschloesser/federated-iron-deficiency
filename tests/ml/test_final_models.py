@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 import torch
 
-from iron_deficiency.dataset import FEATURES
+from iron_deficiency.cohort import FEATURES
 from iron_deficiency.final_models import store_final_model
 from iron_deficiency.screening import Problem, read, score
 from iron_deficiency.task import Net

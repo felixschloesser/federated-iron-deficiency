@@ -1316,6 +1316,7 @@ web = [
     { name = "django-stubs-ext" },
     { name = "grpcio" },
     { name = "gunicorn" },
+    { name = "protobuf" },
     { name = "whitenoise" },
 ]
 
@@ -1353,6 +1354,7 @@ web = [
     { name = "django-stubs-ext", specifier = ">=6.1.2" },
     { name = "grpcio", specifier = ">=1.84.0" },
     { name = "gunicorn", specifier = ">=26.2.0" },
+    { name = "protobuf", specifier = ">=6.33.6" },
     { name = "whitenoise", specifier = ">=6.12.0" },
 ]
 
