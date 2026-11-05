@@ -282,6 +282,11 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
             "patient": self.patient,
             "sample": self.sample,
             "test": self.kwargs["test"],
+            # Refused whatever the indication: said on opening, in place of the
+            # form, so the page offers no button that cannot succeed.
+            "refusal": self.general_practitioner.order_refusal(
+                sample=self.sample, test=self.kwargs["test"], now=timezone.now()
+            ),
         }
 
     def get_success_url(self) -> str:

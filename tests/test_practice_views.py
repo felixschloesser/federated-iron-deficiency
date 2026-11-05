@@ -414,8 +414,10 @@ def test_an_order_page_that_would_be_refused_says_so_at_once(
     ):
         response = client.get(sample_order_url(patient, test))
         assert response.status_code == 200
-        errors = response.context["form"].non_field_errors().as_data()
-        assert [error.code for error in errors] == [code], test
+        refusal = response.context["refusal"]
+        found = [error.code for each in refusal.error_dict.values() for error in each]
+        assert found == [code], test
+        assertContains(response, refusal.messages[0])
         assertNotContains(response, "Place order")
     assert Order.objects.count() == 1
 

@@ -101,18 +101,41 @@ class GeneralPractitioner(models.Model):
         """Order one test on a collected sample, copying the patient's registered
         sex and age, also a later one such as ferritin beside a suggestion (R1, R2,
         R11, R14, R26)."""
-        patient = sample.patient
-        order = Order(
-            sample=sample,
-            test=test,
-            indication=indication,
-            registered_sex=patient.registered_sex,
-            age=patient.age,
-            ordered_at=now,
-        )
+        order = self._order(sample=sample, test=test, indication=indication, now=now)
         order.full_clean()
         order.save()
         return order
+
+    def order_refusal(
+        self, *, sample: "Sample", test: Test, now: datetime
+    ) -> ValidationError | None:
+        """What would refuse this test on this sample whatever its indication: a
+        test the sample has (R26), ferritin without a suggestion (R11). The order
+        page asks before showing its form; place_order checks it again."""
+        order = self._order(sample=sample, test=test, indication=None, now=now)
+        try:
+            order.full_clean(exclude=["indication"])
+        except ValidationError as refusal:
+            return refusal
+        return None
+
+    def _order(
+        self,
+        *,
+        sample: "Sample",
+        test: Test,
+        indication: ClinicalIndication | None,
+        now: datetime,
+    ) -> "Order":
+        """The order as placed: the patient's registered sex and age copied (R1)."""
+        return Order(
+            sample=sample,
+            test=test,
+            indication=indication,
+            registered_sex=sample.patient.registered_sex,
+            age=sample.patient.age,
+            ordered_at=now,
+        )
 
 
 def _awaits_ferritin() -> models.Exists:
