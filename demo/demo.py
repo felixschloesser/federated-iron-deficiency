@@ -1,11 +1,12 @@
 """Prepare the demo deployment's folders; compose.yaml runs it (spec §9).
 
     docker compose up --build --abort-on-container-failure
-    docker compose run --rm train   # one training run, submitted inside TB2
+    docker compose run --rm train   # one training run, submitted inside TB2;
+                                    # or on the startup's web app
     docker compose down -v          # start over; .demo/ on the host stays
 
 Compose runs `prepare` from here as a one-shot container, each
-party's folder a volume of its own. The startup runs the SuperLink; each
+party's folder a volume of its own. The startup runs the SuperLink and its own web app; each
 hospital a SuperNode, the startup's ClientApp in a container of its own, and
 one container for its web app and lab-order endpoint; each general
 practitioner's practice its own web app.
@@ -25,6 +26,7 @@ from tqdm import tqdm
 from demo.topology import PATIENTS, PRACTICES
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 from web.seeding.accounts import (
+    DATA_SCIENTIST,
     GENERAL_PRACTITIONER,
     LABORATORY_DIRECTOR,
     LABORATORY_STAFF,
@@ -237,6 +239,11 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
             ),
         )
     ]
+    # The startup's web app seeds only its data scientist, once.
+    webs.insert(
+        0,
+        (startup_dir(demo_dir), "STARTUP_DIR", "seed_startup", [[]], "the startup", ""),
+    )
     statuses = {}
     # Every step's label as wide as the longest, so the bar does not jump.
     width = len("Preparing ") + max(len(web[4]) for web in webs)
@@ -281,6 +288,9 @@ def summary(statuses: dict[str, str], http_port: int = 80) -> str:
     lines = [
         f"Demo prepared. Password for every account: {PASSWORD}",
         "",
+        f"Startup     data scientist: {DATA_SCIENTIST}",
+        f"  {web_address('startup', http_port)}",
+        "",
         (
             f"Hospitals   laboratory staff: {LABORATORY_STAFF}"
             f" · laboratory director: {LABORATORY_DIRECTOR}"
@@ -301,8 +311,9 @@ def summary(statuses: dict[str, str], http_port: int = 80) -> str:
     lines.append("")
     if any(status == "no screening model yet" for status in statuses.values()):
         lines.append(
-            "Next: train with `docker compose run --rm train` in another"
-            f" terminal, then deploy as {LABORATORY_DIRECTOR}."
+            f"Next: submit a training run as {DATA_SCIENTIST} (or"
+            " `docker compose run --rm train` in another terminal), then deploy"
+            f" as {LABORATORY_DIRECTOR}."
         )
     elif any(status.endswith("none deployed") for status in statuses.values()):
         lines.append(
