@@ -7,7 +7,7 @@
 #   docker compose run --rm train
 #   docker compose down -v          # start over; demo/ on the host stays
 #
-# Browsers reach https://<party>.localhost through the proxy, the only
+# Browsers reach http://<party>.localhost through the proxy, the only
 # published port. Networks: startup (TB2), <hospital> (TB1), <hospital>-flower-client-app (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
 # lab-orders crosses TB3-TB1 (DF23, DF25): every practice reaches every hospital's
@@ -41,7 +41,7 @@ x-supernode: &supernode
     flower-superlink: {condition: service_healthy}
 
 services:
-  # Out-of-band setup, not drawn in the DFDs: certificates, keys, cohorts,
+  # Out-of-band setup, not drawn in the DFDs: cohorts,
   # databases. The one container that sees every party's folder.
   prepare:
     <<: *web
@@ -53,7 +53,7 @@ services:
       - bash
       - -c
       - |
-        chown "$$DEMO_USER" /demo/startup /demo/hospitals/* /demo/practices/* /demo/browser-ca /demo/huggingface
+        chown "$$DEMO_USER" /demo/startup /demo/hospitals/* /demo/practices/* /demo/huggingface
         exec setpriv --reuid="$${DEMO_USER%%:*}" --regid="$${DEMO_USER##*:}" --clear-groups "$$@"
       - prepare
     command: [python, tools/demo.py, prepare, --demo-dir, /demo]
@@ -64,7 +64,7 @@ services:
       # Downloads stay on the host, so a reset fetches nothing twice.
       HF_HOME: /demo/huggingface
       # Only for the summary's addresses.
-      DEMO_HTTPS_PORT: ${DEMO_HTTPS_PORT:-443}
+      DEMO_HTTP_PORT: ${DEMO_HTTP_PORT:-80}
     volumes:
       - {type: volume, source: startup, target: /demo/startup}
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
@@ -73,8 +73,7 @@ services:
       - {type: volume, source: huisartsenpraktijk-de-akker, target: /demo/practices/huisartsenpraktijk-de-akker}
       - {type: volume, source: huisartsenpraktijk-de-berk, target: /demo/practices/huisartsenpraktijk-de-berk}
       - {type: volume, source: huisartsenpraktijk-de-ceder, target: /demo/practices/huisartsenpraktijk-de-ceder}
-      # On the host, kept by `down -v`: the CA the browser trusts, the downloads.
-      - ./demo/browser-ca:/demo/browser-ca
+      # On the host, kept by `down -v`: the downloads.
       - ./demo/huggingface:/demo/huggingface
     networks: [setup]
 
@@ -160,9 +159,7 @@ services:
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn web.wsgi --bind=uz-leuven-pages:8000 --workers=2 --access-logfile=- \
-          --certfile=/demo/hospitals/uz-leuven/web-tls/certificate.pem \
-          --keyfile=/demo/hospitals/uz-leuven/web-tls/key.pem &
+        gunicorn web.wsgi --bind=uz-leuven-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_messages uz-leuven-lab-orders:8441 &
         wait -n
         exit 1
@@ -175,7 +172,7 @@ services:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/final-models, read_only: true, volume: {subpath: final-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
-    # DEBUG off: Django's deploy settings, HTTPS with the browser CA's certificate (R29).
+    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (R29).
     # Masked: the startup's data.
     tmpfs: [/demo/hospitals/uz-leuven/cohort]
     networks:
@@ -213,9 +210,7 @@ services:
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn web.wsgi --bind=heilig-hart-leuven-pages:8000 --workers=2 --access-logfile=- \
-          --certfile=/demo/hospitals/heilig-hart-leuven/web-tls/certificate.pem \
-          --keyfile=/demo/hospitals/heilig-hart-leuven/web-tls/key.pem &
+        gunicorn web.wsgi --bind=heilig-hart-leuven-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_messages heilig-hart-leuven-lab-orders:8441 &
         wait -n
         exit 1
@@ -264,9 +259,7 @@ services:
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn web.wsgi --bind=az-diest-pages:8000 --workers=2 --access-logfile=- \
-          --certfile=/demo/hospitals/az-diest/web-tls/certificate.pem \
-          --keyfile=/demo/hospitals/az-diest/web-tls/key.pem &
+        gunicorn web.wsgi --bind=az-diest-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_messages az-diest-lab-orders:8441 &
         wait -n
         exit 1
@@ -288,9 +281,7 @@ services:
   # laboratory (R22): on the lab-orders network.
   huisartsenpraktijk-de-akker-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
-              --certfile=/demo/practices/huisartsenpraktijk-de-akker/web-tls/certificate.pem,
-              --keyfile=/demo/practices/huisartsenpraktijk-de-akker/web-tls/key.pem]
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PRACTICE_NAME: Huisartsenpraktijk De Akker
@@ -301,9 +292,7 @@ services:
 
   huisartsenpraktijk-de-berk-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
-              --certfile=/demo/practices/huisartsenpraktijk-de-berk/web-tls/certificate.pem,
-              --keyfile=/demo/practices/huisartsenpraktijk-de-berk/web-tls/key.pem]
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PRACTICE_NAME: Huisartsenpraktijk De Berk
@@ -314,9 +303,7 @@ services:
 
   huisartsenpraktijk-de-ceder-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-,
-              --certfile=/demo/practices/huisartsenpraktijk-de-ceder/web-tls/certificate.pem,
-              --keyfile=/demo/practices/huisartsenpraktijk-de-ceder/web-tls/key.pem]
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     environment:
       PRACTICE_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PRACTICE_NAME: Huisartsenpraktijk De Ceder
@@ -326,14 +313,14 @@ services:
     networks: [huisartsenpraktijk-de-ceder, lab-orders]
 
   # Between the browser and the parties, like the internet: routes each
-  # <party>.localhost by SNI, never decrypting. The only published port.
+  # <party>.localhost by its Host header. The only published port.
   proxy:
     image: nginx:1.28-alpine
     user: *user
     depends_on:
       prepare: {condition: service_completed_successfully}
-    ports: ["127.0.0.1:${DEMO_HTTPS_PORT:-443}:8443"]
-    volumes: ["./docker/sni-proxy.conf:/etc/nginx/nginx.conf:ro"]
+    ports: ["127.0.0.1:${DEMO_HTTP_PORT:-80}:8080"]
+    volumes: ["./docker/proxy.conf:/etc/nginx/nginx.conf:ro"]
     networks:
       [uz-leuven, heilig-hart-leuven, az-diest,
        huisartsenpraktijk-de-akker, huisartsenpraktijk-de-berk, huisartsenpraktijk-de-ceder]

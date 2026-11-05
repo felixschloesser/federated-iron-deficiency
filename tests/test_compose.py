@@ -28,14 +28,14 @@ STARTUP_SERVICES = {
 }
 # Out-of-band setup (report, assumptions): the one service that sees every party.
 SETUP_SERVICES = {"prepare"}
-# What a reset keeps, on the host: the CA the browser trusts, and the downloads.
-HOST_FOLDERS = {"browser-ca", "huggingface"}
+# What a reset keeps, on the host: the downloads.
+HOST_FOLDERS = {"huggingface"}
 # Between the browser and the parties, like the internet: it sees only names.
 NETWORK_SERVICES = {"proxy"}
 
 
 # Settings a person may put in .env; the tests read the file without them.
-SETTINGS = ("DEMO_USER", "DEMO_HTTPS_PORT")
+SETTINGS = ("DEMO_USER", "DEMO_HTTP_PORT")
 
 
 @cache
@@ -163,11 +163,11 @@ def test_the_supernode_mounts_no_data(slug: str) -> None:
     assert mounts(f"{slug}-flower-supernode") == {}
 
 
-@pytest.mark.parametrize(("https_port", "published"), [(None, "443"), ("8443", "8443")])
-def test_only_the_sni_proxy_is_published_and_only_on_localhost(
-    https_port: str | None, published: str
+@pytest.mark.parametrize(("http_port", "published"), [(None, "80"), ("8080", "8080")])
+def test_only_the_proxy_is_published_and_only_on_localhost(
+    http_port: str | None, published: str
 ) -> None:
-    environment = {} if https_port is None else {"DEMO_HTTPS_PORT": https_port}
+    environment = {} if http_port is None else {"DEMO_HTTP_PORT": http_port}
     ports = {
         (name, port["host_ip"], port["published"])
         for name, spec in config(**environment)["services"].items()
@@ -182,13 +182,12 @@ def test_the_proxy_reaches_every_web_app_and_nothing_else() -> None:
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS + PRACTICE_SLUGS)
 def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
-    # Routing by the name in the TLS handshake: the proxy never decrypts.
-    conf = (ROOT / "docker" / "sni-proxy.conf").read_text()
+    # Routing by the Host header: plain HTTP, the report's TLS left out.
+    conf = (ROOT / "docker" / "proxy.conf").read_text()
     routes = dict(
         re.findall(r"^\s*([a-z-]+\.localhost)\s+([a-z-]+:\d+);", conf, re.MULTILINE)
     )
     assert routes[f"{slug}.localhost"] == f"{slug}-web:8000"
-    assert "ssl_preread on;" in conf
 
 
 def test_crossings_and_the_startup_are_internal_networks() -> None:
@@ -270,7 +269,7 @@ def test_no_practice_service_runs_on_a_timer() -> None:
         assert "REPORT_CHECK_SECONDS" not in (spec.get("environment") or {}), name
 
 
-def test_only_flowers_connections_run_without_tls() -> None:
+def test_every_flower_connection_runs_without_tls() -> None:
     # The report's TLS and SuperNode authentication are left out of the demo.
     insecure = {
         name
@@ -295,20 +294,9 @@ def test_the_superlink_keeps_its_state_with_the_startup() -> None:
     )
 
 
-@pytest.mark.parametrize("slug", HOSPITAL_SLUGS + PRACTICE_SLUGS)
-def test_every_web_app_serves_https_with_its_partys_own_certificate(slug: str) -> None:
-    name = f"{slug}-web"
-    folder = party_folder(name)
-    # A practice runs gunicorn alone; a hospital beside its messaging endpoint.
-    command = " ".join(service(name)["command"])
-    assert "gunicorn web.wsgi" in command
-    assert f"--certfile=/demo/{folder}/web-tls/certificate.pem" in command
-    assert f"--keyfile=/demo/{folder}/web-tls/key.pem" in command
-
-
 def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
     # One volume per party, none external, so `docker compose down -v` deletes
-    # them all; the downloads and the browser's CA stay on the host.
+    # them all; the downloads stay on the host.
     volumes = config()["volumes"]
     assert set(volumes) == {"startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS}
     assert not any(spec.get("external") for spec in volumes.values())
@@ -319,7 +307,7 @@ def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
         if source.startswith("bind:")
     }
     assert binds == {("prepare", f"bind:demo/{name}") for name in HOST_FOLDERS} | {
-        ("proxy", "bind:docker/sni-proxy.conf")
+        ("proxy", "bind:docker/proxy.conf")
     }
     assert service("prepare")["environment"]["HF_HOME"] == "/demo/huggingface"
 

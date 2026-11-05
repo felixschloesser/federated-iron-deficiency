@@ -157,8 +157,8 @@ not a process of the report's DFDs:
 | P7 Practice app | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
 | E1 Data scientist | `train`, run by hand |
 
-Two containers have no DFD element: `register`, part of setup, and `proxy`,
-which stands for the network between your browser and the parties.
+One container has no DFD element: `proxy`, which stands for the network
+between your browser and the parties.
 
 ### 2. On Linux: tell compose who you are
 
@@ -182,14 +182,12 @@ The first start takes a while. It builds two images (the web apps, and the
 startup's Flower app with PyTorch, CPU only), then runs these steps in order:
 
 1. **prepare** creates what each party needs and the DFDs do not draw:
-   certificates, keys, the hospitals' training cohorts and the 2021–2023
+   the hospitals' training cohorts and the 2021–2023
    blood counts (downloaded from Hugging Face; set `HF_TOKEN` in `.env` if
    it refuses), and each party's database with its demo accounts. It is the
    only container that sees every party's folder: setup done once, out of
-   band, like a hospital's IT handing a public key to the startup.
-2. **register** gives the startup's SuperLink each hospital's SuperNode
-   public key. Any other node is refused, so no stranger receives a model.
-3. Everything else starts: the startup's SuperLink and ServerApp; per
+   band.
+2. Everything else starts: the startup's SuperLink and ServerApp; per
    hospital a SuperNode, the startup's ClientApp (in a container that sees
    only the cohort and the final models and reaches only its SuperNode), the
    web app and the endpoint that receives lab orders; per practice its web
@@ -200,50 +198,35 @@ setup never looks half alive. Ctrl-C stops them all.
 
 Later starts reuse what `prepare` made and are quick.
 
-### 4. Trust the demo's certificate authority, once
+The demo has no TLS, SuperNode authentication or mutual TLS: every connection
+is plaintext and the SuperLink admits any node. The report describes these
+security controls; the demo leaves them out for simplicity.
 
-The web apps run with Django's production settings, so they speak only HTTPS.
-Their certificates come from the demo's own certificate authority in
-`demo/browser-ca/`, which is allowed to vouch only for `localhost` and
-`127.0.0.1` (an X.509 name constraint that browsers enforce). Trusting it
-therefore lends it no power over any real website, even if someone copies its
-key. [mkcert](https://github.com/FiloSottile/mkcert) puts it into the system
-store, Firefox and Chrome in one step; it is given the certificate but not the
-key, so mkcert itself can never issue anything with it.
-
-```shell
-brew install mkcert nss                # macOS
-sudo pacman -S mkcert nss              # Arch
-sudo apt install mkcert libnss3-tools  # Ubuntu
-CAROOT=$PWD/demo/browser-ca mkcert -install
-```
-
-### 5. Open the parties
+### 4. Open the parties
 
 | Party | Web app |
 |---|---|
-| UZ Leuven | https://uz-leuven.localhost |
-| Heilig Hart Leuven | https://heilig-hart-leuven.localhost |
-| AZ Diest | https://az-diest.localhost |
-| Huisartsenpraktijk De Akker → UZ Leuven | https://huisartsenpraktijk-de-akker.localhost |
-| Huisartsenpraktijk De Berk → Heilig Hart Leuven | https://huisartsenpraktijk-de-berk.localhost |
-| Huisartsenpraktijk De Ceder → AZ Diest | https://huisartsenpraktijk-de-ceder.localhost |
+| UZ Leuven | http://uz-leuven.localhost |
+| Heilig Hart Leuven | http://heilig-hart-leuven.localhost |
+| AZ Diest | http://az-diest.localhost |
+| Huisartsenpraktijk De Akker → UZ Leuven | http://huisartsenpraktijk-de-akker.localhost |
+| Huisartsenpraktijk De Berk → Heilig Hart Leuven | http://huisartsenpraktijk-de-berk.localhost |
+| Huisartsenpraktijk De Ceder → AZ Diest | http://huisartsenpraktijk-de-ceder.localhost |
 
 Hospitals have `lab-1` (laboratory staff) and `director-1` (laboratory
 director); each practice has one general practitioner, `doctor`; the password is
 `demo-pass-2026`. A practice's patients are the same NHANES participants whose
 tubes its hospital's analyser stand-in measures.
 
-One proxy on `127.0.0.1:443` routes each name to its party's web app by the
-name in the TLS handshake, without decrypting: like the internet between your
-browser and six organisations, it sees names, never content. `*.localhost`
+One proxy on `127.0.0.1:80` routes each name to its party's web app by its
+Host header, like the internet between your browser and six organisations. `*.localhost`
 always means your own machine (RFC 6761); Chrome, Firefox and Linux with
 systemd-resolved find these names by themselves. Safari needs one line per
 party in `/etc/hosts`, for example `127.0.0.1 uz-leuven.localhost`. If port
-443 is taken, put `DEMO_HTTPS_PORT=8443` in `.env` and add `:8443` to the
+80 is taken, put `DEMO_HTTP_PORT=8080` in `.env` and add `:8080` to the
 addresses.
 
-### 6. Train, deploy, order
+### 5. Train, deploy, order
 
 ```shell
 docker compose run --rm train   # in a second terminal
@@ -261,24 +244,22 @@ screening comes back to the practice.
 
 - Ctrl-C in the first terminal stops every container; `up` again carries on
   where it stopped.
-- Each party's data is a Docker volume of its own: certificates, keys,
+- Each party's data is a Docker volume of its own:
   cohorts, final models, the SuperLink's state and the databases.
   `docker compose down -v` deletes them all, so the next `up` starts over;
   `demo/` on your machine keeps only what that must not cost you: the
-  browser CA you trusted (`demo/browser-ca/`) and the Hugging Face downloads
-  (`demo/huggingface/`). `prepare` still asks Hugging Face, but downloads
+  Hugging Face downloads (`demo/huggingface/`). `prepare` still asks Hugging Face, but downloads
   nothing twice.
 - To look into a party's database while the demo runs:
   `docker compose exec uz-leuven-web python -m sqlite3 /demo/hospitals/uz-leuven/web.sqlite3`.
-- `CAROOT=$PWD/demo/browser-ca mkcert -uninstall` removes the trust again.
 
 A `demo/` from before the volumes (2026-11-03) still holds `startup/`,
 `hospitals/` and `practices/`; nothing reads them any more, so delete those
 three once. The first `up` downloads the cohorts again.
-A browser CA from before then is named *Demo browser certificate authority*;
-for the new name (*Iron deficiency demo localhost …*), run
-`CAROOT=$PWD/demo/browser-ca mkcert -uninstall`, delete `demo/browser-ca/`,
-`up`, and trust it again.
+A demo from before 2026-11-05 left a browser CA in `demo/browser-ca/`; if
+you trusted it, run `CAROOT=$PWD/demo/browser-ca mkcert -uninstall`, then
+delete the folder. Your browser may also remember HSTS for the `*.localhost`
+names and insist on HTTPS: clear it for those sites.
 
 ### Without Docker
 

@@ -111,9 +111,9 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 ├── R15 Avoid[Demo login outside development]                                        Settings + system check
 ├── R20 Avoid[A hospital learns another hospital's metrics]                          ClientApp
 ├── R21 Maintain[Each party's software and data stay inside its trust boundary]      Settings + audit + launcher
-├── R27 Avoid[A node other than a hospital's SuperNode joins the federation]        Compose + SuperLink
+├── R27 (not in the demo) SuperNode authentication: the report's control              —
 ├── R28 Maintain[The startup's code at a hospital sees only the cohort and final models]  Compose
-└── R29 Maintain[Every web app serves HTTPS with Django's deploy settings]          Compose + settings
+└── R29 Maintain[Every web app runs with DEBUG off; plain HTTP in the demo]          Compose + settings
 ```
 
 ### Requirements
@@ -145,9 +145,9 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R19 | Before each screening the deployed model's file is hashed; if it no longer matches the SHA-256 recorded at deployment, there is no usable deployed model (R8). | `deployment.feature`, `screening.feature` |
 | R20 | A final model's metadata holds only this hospital's local validation and the federated aggregate the ServerApp computed; never another hospital's metrics. | `tests/test_final_models.py` |
 | R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), a practice's only its own (`PRACTICE_DIR`), and each installs, migrates and serves only its own party's apps: a hospital's database has no table for patients, a practice's none for lab orders, analyser values or final models (test and audit check), and code under `web/` imports from the training package only `iron_deficiency.screening` and `iron_deficiency.dataset` (audit check). | `tests/test_settings.py`, `tools/audit.py` |
-| R27 | The SuperLink admits only SuperNodes registered with it (Flower's SuperNode authentication, which needs TLS). Each hospital makes its own key pair in its own folder and hands the startup only the public key; the startup registers each hospital's public key before any SuperNode starts. A node with another key, or none, is refused and gets no global model, no final model and no run configuration (DF7, DF8). | `tests/test_supernode_auth.py`, `tests/test_containers.py` |
+| R27 | Not in the demo. The report's control: the SuperLink admits only SuperNodes whose public key the startup registered (Flower's SuperNode authentication, over TLS). The demo runs every Flower connection with `--insecure` and admits any node, for simplicity. | `tests/test_compose.py` (every Flower connection runs without TLS) |
 | R28 | The ClientApp, the startup's code at each hospital (DF7, TB4), runs in a container of its own that mounts only the hospital's `cohort/` (read-only) and `final-models/`, on a network it shares only with its hospital's SuperNode: it sees no database, no key and no other party's folder, and reaches neither the hospital's web app nor anything outside the deployment, so what it sends leaves only through DF9 and DF10. | `tests/test_compose.py`, `tests/test_containers.py` |
-| R29 | Each of the six web apps runs gunicorn with `DEBUG` off, so Django's deploy settings apply (HTTPS redirect, secure cookies, HSTS), serving HTTPS with a certificate from the demo's one browser CA (*Iron deficiency demo localhost certificate authority*, so a person sees whose root they trust and how far it vouches), which names `<party>.localhost`, `localhost` and `127.0.0.1` and may name nothing outside `localhost` and `127.0.0.1` (X.509 name constraints), so trusting it lends its key no power over real sites; WhiteNoise serves the stylesheets. The browser CA's key stays in `demo/browser-ca/`, in no party's folder; the person running the demo trusts it once with `CAROOT=demo/browser-ca mkcert -install`, on macOS, Arch and Ubuntu alike; mkcert finds `rootCA.pem` but no key, so it installs and never issues. Only `prepare`, which seeds the demo accounts, runs with `DJANGO_DEBUG` (R15). | `tests/test_compose.py`, `tests/test_containers.py`, `tests/test_demo.py` |
+| R29 | Each of the six web apps runs gunicorn with `DEBUG` off; WhiteNoise serves the stylesheets. The demo serves plain HTTP: the report's TLS (HTTPS, secure cookies, HSTS) is left out for simplicity. Only `prepare`, which seeds the demo accounts, runs with `DJANGO_DEBUG` (R15). | `tests/test_compose.py`, `tests/test_containers.py` |
 
 ## 3. Agents
 
@@ -159,12 +159,11 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | ClientApp (deploy handler) | Software, startup's code at each hospital | R16, R20 |
 | Deploy app (`deployment`) | Software | R17, R18 |
 | General practitioner's app (`practice`, its own deployment) | Software, outside TB1 | R1, R9–R11, R13, R22, R23, R26 |
-| Messaging endpoint (gRPC with mutual TLS, per hospital) | Software | R22–R25 |
-| Hospital's certificate authority | Software, the hospital's | Issues the hospital's server and its general practitioner's client certificate (R24) |
+| Messaging endpoint (gRPC, plaintext in the demo, per hospital) | Software | R22–R25 |
 | Lab app (`lab`) | Software | R2–R8, R12, R14 |
 | Analyser | Software, stand-in | Returns the patient's NHANES 2021–2023 values (R3, R12) |
 | Final models | Environment | Written by the ClientApp (R16) into the hospital's `final-models/` folder (§9) |
-| Deployment (`compose.yaml`, `tools/demo.py`) | Software | Runs each process in its own container, one network per trust boundary and per crossing (§9, R21, R28); registers each hospital's SuperNode key before the SuperNodes start (R27) |
+| Deployment (`compose.yaml`, `tools/demo.py`) | Software | Runs each process in its own container, one network per trust boundary and per crossing (§9, R21, R28) |
 | Seed commands (`seed_hospital`, `seed_practice`) | Software | Each party's demo accounts from the same NHANES 2021–2023 participants: laboratory staff, a laboratory director and the analyser stand-in's values at the hospital; general practitioners and patients with obviously synthetic names at the practice |
 
 ## 4. Obstacles
@@ -187,10 +186,10 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | O14 | The deployed model's file is replaced on disk | G6 | R19 |
 | O15 | A hospital learns another hospital's metrics through the final model's metadata | P0 | R20 |
 | O16 | Hospital software reads another party's data, or carries startup code paths | P0 | R21 |
-| O17 | Someone other than the general practitioner's app sends orders or reads lab reports | P0 | R24; the hospital is its own CA, so the startup cannot issue a certificate |
+| O17 | Someone other than the general practitioner's app sends orders or reads lab reports | P0 | Report: mutual TLS, each hospital its own CA. Not in the demo, which trusts the practice name as sent (R24) |
 | O18 | A lab order is sent twice (retry after a lost reply) | R22 | Recorded once by sample ID and test; the repeat is acknowledged |
 | O19 | The laboratory links tests of the same patient | P0 | Accepted: only through the shared sample ID; real laboratories link through the national register number |
-| O20 | A node that is not a hospital connects to the SuperLink and receives every round's global model, the final model and the run configuration | P0 | R27 |
+| O20 | A node that is not a hospital connects to the SuperLink and receives every round's global model, the final model and the run configuration | P0 | Report: SuperNode authentication (R27). Not in the demo |
 | O21 | The startup's ClientApp reads what the hospital's process can read, such as the laboratory's records, and returns it in its model update | P0 | R28 |
 | O22 | The laboratory learns why a CBC was ordered (start of pregnancy, suspected IBS, …), which it needs only to decide whether to screen | P0 | R25: the lab order says only whether the indication is screened |
 
@@ -234,7 +233,7 @@ Index pages assert their query count. Conditional controls (*Order ferritin*,
 - More than one test per order
 - Free-text clinical notes
 - Several hospitals in one deployment
-- A national certificate authority such as the Belgian eHealth platform (each hospital is its own CA, a simplification)
+- The report's security controls: TLS for Flower and the web apps, SuperNode authentication, mutual TLS for lab orders (each hospital its own CA). The report keeps them; the demo leaves them out for simplicity
 - Encrypting lab reports at rest at the general practitioner's app; retention of stored samples (WHO 5-5)
 - Retention and deletion of samples and lab reports
 - Training and federation (Flower, report P3–P6); the hospital's side of model distribution is in scope (G6)
@@ -263,32 +262,22 @@ volume per party, holding its folder (`startup`, each `<hospital>`, each
 `<practice>`). Each container mounts only the parts of its own party's volume
 its process needs, at the path under `/demo` that `prepare` wrote them to.
 On the host, `demo/` (gitignored) keeps only what a reset must not delete:
-`browser-ca/` and `huggingface/` (`HF_HOME`), which only `prepare` mounts.
+`huggingface/` (`HF_HOME`), which only `prepare` mounts.
 
 ```
 /demo/
 ├── startup/                     TB2
-│   ├── certificates/            the startup's CA and the SuperLink's certificate
-│   ├── trust/                   the startup's CA certificate alone, for its clients
-│   ├── superlink/               DS3 run state, configuration, messages, registered SuperNodes
-│   ├── supernodes/              each hospital's SuperNode public key, as handed over (R27)
+│   ├── superlink/               DS3 run state, configuration, messages
 │   └── final-models/            DS4 the startup's copy of every final model, one per run (DF13)
 └── hospitals/
     ├── uz-leuven/               TB1
     │   ├── cohort/              DS2 training cohort (2005–2006)
-    │   ├── web-tls/             the web app's certificate from the browser CA (R29)
-    │   ├── supernode/           the SuperNode's key pair; the private key never leaves (R27)
     │   ├── final-models/        DS5 one file per training run (R16)
-    │   ├── ca/, messaging/      its CA (prepare alone reads its key); the lab-order endpoint's certificate and key, and client-ca.crt, its copy of the CA's certificate
     │   └── web.sqlite3          DS8 screening records, DS6 deployment history
     ├── heilig-hart-leuven/      TB1 (2015–2016, 50%)
     └── az-diest/                TB1 (2017–2018, 25%)
 └── practices/                   TB3: each general practitioner's own app
     ├── huisartsenpraktijk-de-akker/  Heverlee; sends samples to every hospital (R22)
-    │   ├── laboratories/
-    │   │   ├── uz-leuven/       client certificate from UZ Leuven's CA, and that CA's certificate
-    │   │   ├── heilig-hart-leuven/
-    │   │   └── az-diest/
     │   └── web.sqlite3          DS7 patients, orders, fetched lab reports, its laboratories
     ├── huisartsenpraktijk-de-berk/   Kessel-Lo
     └── huisartsenpraktijk-de-ceder/  Diest
@@ -306,63 +295,45 @@ containers; P1 and P5 are not built).
 
 | Container | Image | Network | Mounts |
 |---|---|---|---|
-| `flower-superlink` | `flwr/superlink` | `startup`, `model-updates` | `startup/superlink`; `startup/certificates/superlink` and `startup/trust` (read-only): its own certificate and key and the startup CA's certificate, never the CA's key |
-| `flower-server-app` | built: SuperExec with the app's dependencies | `startup` | `startup/trust`, `startup/final-models` |
-| `<hospital>-flower-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-flower-client-app` | its `certificates/` and `supernode/` (read-only) |
+| `flower-superlink` | `flwr/superlink` | `startup`, `model-updates` | `startup/superlink` |
+| `flower-server-app` | built: SuperExec with the app's dependencies | `startup` | `startup/final-models` |
+| `<hospital>-flower-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-flower-client-app` | none |
 | `<hospital>-flower-client-app` | built: SuperExec with the app's dependencies | `<hospital>-flower-client-app` | its `cohort/` (read-only), `final-models/` (R28) |
-| `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/`, `supernode/` and `ca/` (its CA's key) masked and `final-models/` read-only |
-| `<practice>-web` | built: the project | `<practice>`, and `lab-orders`, reaching every hospital's endpoint (R22) | its folder, with `laboratories/<hospital>/` holding each hospital's certificates |
-| `proxy` | `nginx` (`docker/sni-proxy.conf`) | every `<hospital>` and `<practice>` network | none |
+| `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/` masked and `final-models/` read-only |
+| `<practice>-web` | built: the project | `<practice>`, and `lab-orders`, reaching every hospital's endpoint (R22) | its folder |
+| `proxy` | `nginx` (`docker/proxy.conf`) | every `<hospital>` and `<practice>` network | none |
 
 `startup`, `model-updates` (DF7–DF10), each `<hospital>-flower-client-app` (TB4) and
 `lab-orders` (DF23, DF25), where every practice reaches every hospital's endpoint and so could reach the other practices too, are internal networks: nothing on
 them reaches outside the deployment. Only the `proxy` is published, on
-`127.0.0.1:443` (`DEMO_HTTPS_PORT`): it routes each `<party>.localhost`
-(RFC 6761) to that party's web app by the name in the TLS handshake, without
-decrypting, so it sees names, never content. The SuperLink admits
-only the registered SuperNodes (R27); a SuperNode runs no app itself
+`127.0.0.1:80` (`DEMO_HTTP_PORT`): it routes each `<party>.localhost`
+(RFC 6761) to that party's web app by its Host header, in plain HTTP. The
+SuperLink admits any node (R27 is not in the demo); a SuperNode runs no app itself
 (`--isolation process`): its hospital's ClientApp container fetches the run
 from it, and the ServerApp container likewise from the SuperLink.
 
-Three one-shot containers stand outside the DFDs. `prepare` is out-of-band
-setup, the one container that sees every party's folder: certificates, keys,
-cohorts, the NHANES data, migrated and seeded databases. `register` registers
-each hospital's public key once the SuperLink answers, before any SuperNode
-starts. `train` is the data scientist (E1), submitting a run from inside TB2:
+Two one-shot containers stand outside the DFDs. `prepare` is out-of-band
+setup, the one container that sees every party's folder: cohorts, the NHANES
+data, migrated and seeded databases. `train` is the data scientist (E1), submitting a run from inside TB2:
 `docker compose run --rm train`. Every container runs as `DEMO_USER` (default
 `1000:1000`), so the volumes and, on Linux, `demo/` belong to one user;
 `prepare` alone starts as root, hands the fresh volumes to that user and drops
-to it (`setpriv`). The web apps run gunicorn with `DEBUG` off
-and HTTPS (R29), each with a certificate under its folder's `web-tls/` from
-the browser CA in `demo/browser-ca/`, which belongs to no party.
+to it (`setpriv`). The web apps run gunicorn with `DEBUG` off, in plain HTTP
+(R29).
 
-`docker compose down -v` deletes every party's volume, so the next `docker compose up` prepares everything afresh; the browser CA and the Hugging Face downloads in `demo/` stay.
+`docker compose down -v` deletes every party's volume, so the next `docker compose up` prepares everything afresh; the Hugging Face downloads in `demo/` stay.
 
 Each web app takes a Pico colour theme from `PARTY_COLOUR` (vendored themes only; absent: Pico's default), so the parties' pages are told apart at a glance: UZ Leuven jade and De Akker green, Heilig Hart Leuven pumpkin and De Berk amber, AZ Diest violet and De Ceder purple.
-
-Who holds which private key: each key pair belongs to the party it identifies,
-which makes it and keeps the private key; only certificates and public keys
-travel, to whoever checks them. A practice makes its key pair for a
-hospital's laboratory and sends the request; the hospital signs it and
-returns the certificate, never seeing the practice's private key
-(`tools.certificates.request` and `sign`). A certificate authority's key is
-for issuing only: `prepare` alone reads it, and no running container mounts
-it (`tests/test_compose.py`).
 
 ## 10. Messages between the general practitioner and the hospital (DF23, DF25)
 
 A practice's laboratories are rows in its own database, added with
-`manage.py add_laboratory "<name>" <host:port>` (R22). The certificates each
-laboratory's hospital issued the practice live in
-`PRACTICE_DIR/laboratories/<slug>/` as `ca.crt`, `certificate.pem` and
-`key.pem`, where the slug is the name in lower case with dashes (`UZ Leuven`:
-`uz-leuven`); the command refuses a laboratory without them. In the demo every
-practice works with every hospital, so each hospital's authority certifies all
-three practices. A laboratory's suggestions come from its own deployed model, so
+`manage.py add_laboratory "<name>" <host:port>` (R22). In the demo every
+practice works with every hospital. A laboratory's suggestions come from its own deployed model, so
 the same CBC may get a different one at another laboratory.
 
 The general practitioner's app is always the client (R23): it sends lab orders
-and fetches lab reports over gRPC with mutual TLS (R24). `web/messaging/messages.proto`
+and fetches lab reports over gRPC, plaintext in the demo, naming its practice in every message (R24). `web/messaging/messages.proto`
 is the contract; its generated code and typed stubs are committed and a test
 fails if they drift from it. Its choices are proto enums with one value per
 vocabulary member (`web.messaging.choices`), and its times are
@@ -370,7 +341,7 @@ vocabulary member (`web.messaging.choices`), and its times are
 
 | Message | Fields | Never |
 |---|---|---|
-| Lab order (DF23) | sample ID, test, whether the indication is screened (CBC only), registered sex, age; the sending practice by its certificate name, from the channel | patient name, blood values, clinical indication, general practitioner's name |
+| Lab order (DF23) | sample ID, test, whether the indication is screened (CBC only), registered sex, age; the sending practice's name | patient name, blood values, clinical indication, general practitioner's name |
 | Lab report (DF25) | sample ID, test, results, *ferritin suggested* (one bit), released at | score, screening result beyond that bit, not-screened reason, free text |
 
 The tube itself is not a message: the hospital's analyser stand-in looks up

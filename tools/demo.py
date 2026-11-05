@@ -13,7 +13,6 @@ practitioner's practice its own web app.
 
 import argparse
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -25,12 +24,6 @@ from pathlib import Path
 from tqdm import tqdm
 
 from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
-from tools.certificates import (
-    Authority,
-    covers,
-    issue,
-    make_authority,
-)
 from web.seeding.accounts import (
     GENERAL_PRACTITIONER,
     LABORATORY_DIRECTOR,
@@ -42,9 +35,6 @@ ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API on this one address, the
 # SuperLink's service name in compose.yaml.
 SUPERLINK = "flower-superlink:9092"
-# Shown among the roots a person trusts: which project, and that it vouches
-# only for localhost (R29); make_authority appends "certificate authority".
-BROWSER_CA = "Iron deficiency demo localhost"
 # The demo's parties, declared in demo.toml; keyed here by cycle, like HOSPITALS.
 PARTIES = tomllib.loads((ROOT / "demo.toml").read_text())["hospitals"]
 _ENTRIES = {cycle: PARTIES[hospital_slug(name)] for cycle, name in HOSPITALS.items()}
@@ -87,17 +77,6 @@ def hospitals() -> list[tuple[int, str]]:
 def lab_orders_host(slug: str) -> str:
     """The hospital's lab-order endpoint in compose.yaml."""
     return f"{slug}-lab-orders"
-
-
-def browser_ca(demo_dir: Path) -> Path:
-    """The demo's one CA for the web apps' certificates, which the person running
-    the demo trusts in their browser once; no party holds its key (R29)."""
-    return demo_dir / "browser-ca"
-
-
-def web_tls(party: Path) -> Path:
-    """A party's web app certificate and key, from the browser CA (R29)."""
-    return party / "web-tls"
 
 
 def practices() -> list[tuple[int, str]]:
@@ -177,29 +156,8 @@ def prepare_flower(demo_dir: Path) -> None:
     )
 
 
-def prepare_browser(demo_dir: Path) -> None:
-    """Create the browser CA and each web app's certificate, if missing (R29)."""
-    folder = browser_ca(demo_dir)
-    # mkcert's name for the CA certificate; a CA without it predates the name
-    # constraint, so it is replaced and every web certificate reissued.
-    fresh = not (folder / "rootCA.pem").exists()
-    if fresh:
-        make_authority(folder, BROWSER_CA, loopback_only=True)
-        shutil.copy(folder / "ca.crt", folder / "rootCA.pem")
-    authority = Authority(BROWSER_CA, folder / "ca.crt", folder / "ca.key")
-    parties = [hospital_dir(demo_dir, slug) for _, slug in hospitals()]
-    parties += [practice_dir(demo_dir, slug) for _, slug in practices()]
-    for party in parties:
-        # The browser asks the proxy for <party>.localhost (RFC 6761); the
-        # name constraint allows localhost, its subdomains and 127.0.0.1 only.
-        host = f"{party.name}.localhost"
-        if fresh or not covers(web_tls(party) / "certificate.pem", host):
-            issue(authority, web_tls(party), host, server=True)
-
-
 def prepare(demo_dir: Path) -> None:
-    """Create what is missing: Flower's connection, the web apps' certificates,
-    cohorts."""
+    """Create what is missing: Flower's connection, cohorts, the NHANES data."""
     from iron_deficiency.dataset import (
         load_federated_dataset,
         load_ferritin,
@@ -207,7 +165,6 @@ def prepare(demo_dir: Path) -> None:
     )
 
     prepare_flower(demo_dir)
-    prepare_browser(demo_dir)
     federated_dataset = None
     nhanes = None
     for (partition, slug), (_, practice_slug), _cycle in zip(
@@ -286,23 +243,19 @@ def screening_status(demo_dir: Path, slug: str) -> str:
     return result.stdout.strip()
 
 
-def web_address(slug: str, https_port: int) -> str:
+def web_address(slug: str, http_port: int) -> str:
     """Where a browser finds a party's web app, through the proxy."""
-    port = "" if https_port == 443 else f":{https_port}"
-    return f"https://{slug}.localhost{port}/"
+    port = "" if http_port == 80 else f":{http_port}"
+    return f"http://{slug}.localhost{port}/"
 
 
-def summary(statuses: dict[str, str], https_port: int = 443) -> str:
+def summary(statuses: dict[str, str], http_port: int = 80) -> str:
     """What the person starting the demo needs: where each party is, which
     account to use, and what to do next."""
     hospital_names = [HOSPITALS[cycle] for cycle in CYCLES]
     practice_names = [PRACTICES[cycle] for cycle in CYCLES]
     lines = [
         f"Demo prepared. Password for every account: {PASSWORD}",
-        (
-            "Trust the demo's browser CA once (it vouches for localhost only):"
-            " CAROOT=$PWD/demo/browser-ca mkcert -install"
-        ),
         "",
         (
             f"Hospitals   laboratory staff: {LABORATORY_STAFF}"
@@ -310,7 +263,7 @@ def summary(statuses: dict[str, str], https_port: int = 443) -> str:
         ),
     ]
     for (_, slug), name in zip(hospitals(), hospital_names, strict=True):
-        url = web_address(slug, https_port)
+        url = web_address(slug, http_port)
         width = max(map(len, hospital_names))
         lines.append(f"  {name:<{width}}  {url}   {statuses[slug]}")
     lines += [
@@ -319,7 +272,7 @@ def summary(statuses: dict[str, str], https_port: int = 443) -> str:
     ]
     for (_, slug), name in zip(practices(), practice_names, strict=True):
         lines.append(
-            f"  {name:<{max(map(len, practice_names))}}  {web_address(slug, https_port)}"
+            f"  {name:<{max(map(len, practice_names))}}  {web_address(slug, http_port)}"
         )
     lines.append("")
     if any(status == "no screening model yet" for status in statuses.values()):
@@ -342,8 +295,8 @@ def main() -> None:
     args = parser.parse_args()
     demo_dir = args.demo_dir.resolve()
     prepare(demo_dir)
-    https_port = int(os.environ.get("DEMO_HTTPS_PORT", "443"))
-    print(summary(prepare_webs(demo_dir), https_port), flush=True)
+    http_port = int(os.environ.get("DEMO_HTTP_PORT", "80"))
+    print(summary(prepare_webs(demo_dir), http_port), flush=True)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""The running containers keep the trust boundaries (spec R28, R29).
+"""The running containers keep the trust boundaries (spec R28).
 
 One compose project in a temporary demo folder: the SuperLink, and UZ Leuven's
 SuperNode and ClientApp. Needs a running Docker engine.
@@ -64,12 +64,12 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
 def compose_folder(compose: Compose) -> Path:
     """The temporary folder the compose project runs in, holding its demo/."""
     services = json.loads(compose("config", "--format", "json").stdout)["services"]
-    (authority,) = [
+    (downloads,) = [
         Path(volume["source"])
         for volume in services["prepare"]["volumes"]
-        if volume["target"] == "/demo/browser-ca"
+        if volume["target"] == "/demo/huggingface"
     ]
-    return authority.parent.parent
+    return downloads.parent.parent
 
 
 def start(run: Compose, folder: Path) -> None:
@@ -166,20 +166,14 @@ def test_the_startups_code_sees_only_the_cohort_and_final_models_and_reaches_not
     assert report["reachable"] == []
 
 
-# Runs inside the web app's own container: starts the app as compose.yaml
-# declares it, then asks it for its login page, that page's stylesheet, and
-# the login page again over plain HTTP.
-# A web app's certificate names localhost (and <party>.localhost); the probe
-# reaches the app by its network name and verifies the certificate as localhost.
+# Runs inside the web app's own container: asks the app as compose.yaml starts
+# it for its login page and that page's stylesheet, over plain HTTP.
 FETCH = """
-import http.client, json, re, socket, ssl, sys
+import http.client, json, re, sys
 host = sys.argv[1]
-context = ssl.create_default_context(cafile="/browser-ca/ca.crt")
-def get(path, secure=True):
+def get(path):
     try:
-        raw = socket.create_connection((host, 8000), timeout=5)
         connection = http.client.HTTPConnection(host, 8000, timeout=5)
-        connection.sock = context.wrap_socket(raw, server_hostname="localhost") if secure else raw
         connection.request("GET", path, headers={"Host": "localhost"})
         response = connection.getresponse()
         return response.status, response.getheader("Content-Type"), response.read()
@@ -188,8 +182,7 @@ def get(path, secure=True):
 status, _, page = get("/login/")
 stylesheet = re.search(rb'href="(/static/[^"]+[.]css)"', page)
 css = get(stylesheet[1].decode()) if stylesheet else (None, None, b"")
-plain = get("/login/", secure=False)
-print(json.dumps({"login": status, "css": [css[0], css[1]], "plain": plain[0]}))
+print(json.dumps({"login": status, "css": [css[0], css[1]]}))
 """
 
 # Which of a server's ports answer, from wherever the probe runs.
@@ -212,20 +205,12 @@ APP_PRACTICE = "huisartsenpraktijk-de-ceder"
 
 
 def probe(compose: Compose, service_name: str, script: str, *args: str) -> Any:
-    """Run `script` in a new container of `service_name`, on its networks,
-    with the browser CA at /browser-ca; its last line of output, as JSON."""
-    services = json.loads(compose("config", "--format", "json").stdout)["services"]
-    (authority,) = [
-        volume["source"]
-        for volume in services["prepare"]["volumes"]
-        if volume["target"] == "/demo/browser-ca"
-    ]
+    """Run `script` in a new container of `service_name`, on its networks; its
+    last line of output, as JSON."""
     result = compose(
         "run",
         "--rm",
         "--no-deps",
-        "-v",
-        f"{authority}:/browser-ca:ro",
         "--entrypoint",
         "python",
         service_name,
@@ -247,8 +232,7 @@ def hospital_app(compose: Compose) -> str:
         "python",
         "-c",
         "from pathlib import Path;"
-        " from tools.demo import hospital_dir, prepare_browser;"
-        " prepare_browser(Path('/demo'));"
+        " from tools.demo import hospital_dir;"
         f" hospital = hospital_dir(Path('/demo'), {APP_HOSPITAL!r});"
         # A volume's subpath must exist before a container mounts it.
         " (hospital / 'final-models').mkdir(exist_ok=True)",
@@ -268,14 +252,13 @@ def hospital_app(compose: Compose) -> str:
     return name
 
 
-def test_the_web_app_serves_its_pages_and_stylesheets_over_https_only(
+def test_the_web_app_serves_its_pages_and_stylesheets(
     compose: Compose, hospital_app: str
 ) -> None:
     report = probe(compose, hospital_app, FETCH, f"{APP_HOSPITAL}-pages")
     assert report["login"] == 200, report
     assert report["css"][0] == 200
     assert report["css"][1].startswith("text/css")
-    assert report["plain"] is None
 
 
 def test_the_practice_reaches_its_hospitals_lab_orders_and_not_its_pages(
@@ -287,30 +270,28 @@ def test_the_practice_reaches_its_hospitals_lab_orders_and_not_its_pages(
     assert answers == {"8441": "open", "8000": "ConnectionRefusedError"}
 
 
-# Runs on a hospital's network: asks the proxy for a name by SNI, verifies the
-# certificate it gets against the browser CA, and reads the response's status.
+# Runs on a hospital's network: asks the proxy for a name by Host header and
+# reads the response's status.
 THROUGH_PROXY = """
-import json, socket, ssl, sys
+import http.client, json, sys
 proxy, name = sys.argv[1], sys.argv[2]
-context = ssl.create_default_context(cafile="/browser-ca/ca.crt")
 try:
-    with socket.create_connection((proxy, 8443), timeout=10) as raw:
-        with context.wrap_socket(raw, server_hostname=name) as tls:
-            tls.sendall(f"GET /login/ HTTP/1.1\\r\\nHost: {name}\\r\\nConnection: close\\r\\n\\r\\n".encode())
-            status = tls.recv(64).split()[1].decode()
-except OSError as error:
+    connection = http.client.HTTPConnection(proxy, 8080, timeout=10)
+    connection.request("GET", "/login/", headers={"Host": name})
+    status = str(connection.getresponse().status)
+except (OSError, http.client.HTTPException) as error:
     status = type(error).__name__
 print(json.dumps(status))
 """
 
 
-def test_the_proxy_routes_a_partys_name_to_its_web_app_without_decrypting(
+def test_the_proxy_routes_a_partys_name_to_its_web_app(
     compose: Compose, compose_folder: Path, hospital_app: str
 ) -> None:
     # compose.yaml mounts it relative to the project folder, here a temporary one.
     (compose_folder / "docker").mkdir(exist_ok=True)
-    shutil.copy(ROOT / "docker" / "sni-proxy.conf", compose_folder / "docker")
-    # Not `up`: run publishes no port, so a demo running on 443 is no matter.
+    shutil.copy(ROOT / "docker" / "proxy.conf", compose_folder / "docker")
+    # Not `up`: run publishes no port, so a demo running on 80 is no matter.
     proxy = f"proxy-{uuid.uuid4().hex[:8]}"
     compose("run", "--detach", "--no-deps", "--name", proxy, "proxy")
 

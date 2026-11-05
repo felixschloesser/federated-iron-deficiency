@@ -1,9 +1,7 @@
 # Every party's web app, the hospitals' lab-order endpoints, the practices'
-# report checkers, and the one-shot prepare, register and train steps.
+# report checkers, and the one-shot prepare and train steps.
 FROM python:3.13-slim
-RUN apt-get update && apt-get install -y --no-install-recommends openssl openssh-client \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir uv \
+RUN pip install --no-cache-dir uv \
     && useradd --create-home app
 WORKDIR /app
 RUN chown app /app
