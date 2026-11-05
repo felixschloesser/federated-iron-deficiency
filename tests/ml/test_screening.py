@@ -17,7 +17,6 @@ def test_screen_scores_only_eligible_women_and_returns_only_decisions(
         state_dict=Net().state_dict(),
         mean=standardization_tensor(zeros),
         std=standardization_tensor(zeros + 1),
-        threshold=0.5,
     )
     samples = pd.DataFrame(
         {
@@ -29,7 +28,7 @@ def test_screen_scores_only_eligible_women_and_returns_only_decisions(
         }
     )
 
-    results = screen(samples, model)
+    results = screen(samples, model, threshold=0.5)
 
     assert list(results.columns) == ["sample_id", "result"]
     assert results["result"].iat[0] in {"flagged", "not flagged"}

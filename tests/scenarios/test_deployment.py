@@ -67,14 +67,39 @@ def database_refuses_director(world: World) -> None:
     assert "integrity_error" in world
 
 
-@given(parsers.parse('screening model "{run_id}" with local validation:'))
-def screening_model(world: World, run_id: str, datatable: list[list[str]]) -> None:
+def confusion_matrix(datatable: list[list[str]]) -> dict[str, int]:
     rows = {row[0].strip(): row[1:] for row in datatable[1:]}
-    world.setdefault("validation", {})[run_id] = {
+    return {
         "true_positives": int(rows["deficient"][0]),
         "false_negatives": int(rows["deficient"][1]),
         "false_positives": int(rows["not deficient"][0]),
         "true_negatives": int(rows["not deficient"][1]),
+    }
+
+
+def write(world: World, run_id: str) -> None:
+    """(Re)write a screening model's file from what the scenario gave of it."""
+    path = world["screening_models_dir"] / f"{run_id}.pt"
+    path.unlink(missing_ok=True)
+    write_final_model(
+        path.parent,
+        run_id,
+        world["validation"][run_id],
+        world["stored_at"][run_id],
+        local_auroc=world["auroc"][run_id],
+    )
+
+
+@given(
+    parsers.parse(
+        'screening model "{run_id}" with local validation at threshold {threshold:g}:'
+    )
+)
+def screening_model(
+    world: World, run_id: str, threshold: float, datatable: list[list[str]]
+) -> None:
+    world.setdefault("validation", {})[run_id] = {
+        threshold: confusion_matrix(datatable)
     }
     world["last_run"] = run_id
 
@@ -82,43 +107,74 @@ def screening_model(world: World, run_id: str, datatable: list[list[str]]) -> No
 @given(parsers.parse("its local AUROC is {auroc:g}"))
 def local_auroc(world: World, auroc: float) -> None:
     run_id = world["last_run"]
-    validation = {**world["validation"][run_id], "auroc": auroc}
-    stored_at = NOW + timedelta(minutes=len(world.setdefault("stored", [])))
-    world["stored"].append(run_id)
-    write_final_model(world["screening_models_dir"], run_id, validation, stored_at)
+    stored = world.setdefault("stored_at", {})
+    stored[run_id] = NOW + timedelta(minutes=len(stored))
+    world.setdefault("auroc", {})[run_id] = auroc
+    write(world, run_id)
 
 
-def deploy(world: World, run_id: str) -> None:
+@given(
+    parsers.parse(
+        'screening model "{run_id}" also has local validation at threshold'
+        " {threshold:g}:"
+    )
+)
+def also_at(
+    world: World, run_id: str, threshold: float, datatable: list[list[str]]
+) -> None:
+    world["validation"][run_id][threshold] = confusion_matrix(datatable)
+    write(world, run_id)
+
+
+def deploy(world: World, run_id: str, threshold: float) -> None:
     from web.deployment.models import Deployment
 
     try:
         Deployment.objects.deploy(
-            run_id=run_id, directory=world["screening_models_dir"], now=NOW
+            run_id=run_id,
+            threshold=threshold,
+            directory=world["screening_models_dir"],
+            now=NOW,
         )
     except ValidationError as error:
         world["error"] = error
 
 
-@given(parsers.parse('the laboratory director deployed "{first}", then "{second}"'))
-def deployed_two(world: World, first: str, second: str) -> None:
-    deploy(world, first)
-    deploy(world, second)
+@given(
+    parsers.parse(
+        'the laboratory director deployed "{first}", then "{second}", at threshold'
+        " {threshold:g}"
+    )
+)
+def deployed_two(world: World, first: str, second: str, threshold: float) -> None:
+    deploy(world, first, threshold)
+    deploy(world, second, threshold)
 
 
-@given(parsers.re(r'the laboratory director deployed "(?P<run_id>[^"]+)"$'))
-def deployed_one(world: World, run_id: str) -> None:
-    deploy(world, run_id)
+@given(
+    parsers.re(
+        r'the laboratory director deployed "(?P<run_id>[^"]+)" at threshold'
+        r" (?P<threshold>[\d.]+)$"
+    )
+)
+def deployed_one(world: World, run_id: str, threshold: str) -> None:
+    deploy(world, run_id, float(threshold))
 
 
-@when(parsers.parse('the laboratory director deploys screening model "{run_id}"'))
-def deploys(world: World, run_id: str) -> None:
-    deploy(world, run_id)
+@when(
+    parsers.parse(
+        'the laboratory director deploys screening model "{run_id}" at threshold'
+        " {threshold:g}"
+    )
+)
+def deploys(world: World, run_id: str, threshold: float) -> None:
+    deploy(world, run_id, threshold)
 
 
 PROBLEMS = {
     "is not a readable model file": None,
     "was trained on other features": {"n_features": 5},
-    "has no threshold": {"leave_out": ("threshold",)},
+    "has no local validation": {"leave_out": ("confusion_matrices",)},
     "has no standardization": {"leave_out": ("mean", "std")},
 }
 
@@ -130,15 +186,18 @@ def broken_final_model(world: World, run_id: str, problem: str) -> None:
     if variant is None:
         path.write_bytes(b"not a model")
         return
-    validation = {**world["validation"]["run-1"], "auroc": 0.8}
     write_final_model(
-        path.parent, run_id, validation, NOW + timedelta(hours=1), **variant
+        path.parent,
+        run_id,
+        world["validation"]["run-1"],
+        NOW + timedelta(hours=1),
+        **variant,
     )
 
 
 @given(parsers.parse('the file of the deployed "{run_id}" has changed on disk'))
 def changed_on_disk(world: World, run_id: str) -> None:
-    deploy(world, run_id)
+    deploy(world, run_id, 0.5)
     with (world["screening_models_dir"] / f"{run_id}.pt").open("ab") as file:
         file.write(b"tampered")
 
@@ -148,21 +207,40 @@ def staff_member(world: World, name: str) -> None:
     world["staff_member"] = make_laboratory_staff_member(name)
 
 
-@when(parsers.parse('"{name}" tries to deploy screening model "{run_id}"'))
+@when(
+    parsers.parse(
+        '"{name}" tries to deploy screening model "{run_id}" at threshold {threshold}'
+    )
+)
 def staff_tries(
-    world: World, client: Client, settings: Settings, name: str, run_id: str
+    world: World,
+    client: Client,
+    settings: Settings,
+    name: str,
+    run_id: str,
+    threshold: str,
 ) -> None:
     settings.SCREENING_MODELS_DIR = world["screening_models_dir"]
     client.force_login(world["staff_member"].user)
-    client.post(reverse("deployment:deploy", kwargs={"run_id": run_id}))
+    client.post(
+        reverse("deployment:deploy", kwargs={"run_id": run_id}),
+        {"threshold": threshold},
+    )
+
+
+def deployed(world: World) -> tuple[str, float] | None:
+    """The run ID and threshold of the model that screens now, if one can."""
+    from web.deployment.models import Deployment, Screener
+
+    screener = Deployment.objects.screener(world["screening_models_dir"])
+    if not isinstance(screener, Screener):
+        return None
+    return screener.screening_model.run_id, screener.screening_model.threshold
 
 
 def deployed_run(world: World) -> str | None:
     """The run ID of the model that screens now, if one can."""
-    from web.deployment.models import Deployment, Screener
-
-    deployed = Deployment.objects.screener(world["screening_models_dir"])
-    return deployed.screening_model.run_id if isinstance(deployed, Screener) else None
+    return None if (now := deployed(world)) is None else now[0]
 
 
 def no_usable_model(world: World) -> object:
@@ -190,26 +268,49 @@ def can_be_deployed(world: World, first: str, second: str) -> None:
     assert listed[second].problem is None
 
 
-@then(parsers.parse('"{run_id}" is the deployed model'))
-def is_deployed(world: World, run_id: str) -> None:
-    assert deployed_run(world) == run_id
+@then(parsers.parse('"{run_id}" is the deployed model, at threshold {threshold:g}'))
+def is_deployed(world: World, run_id: str, threshold: float) -> None:
+    assert deployed(world) == (run_id, threshold)
 
 
-@then(parsers.parse('the deployment history lists "{first}", "{second}", "{third}"'))
-def history(world: World, first: str, second: str, third: str) -> None:
+@then(
+    parsers.parse(
+        "the deployment records local validation sensitivity {sensitivity} and"
+        " specificity {specificity}"
+    )
+)
+def records_validation(world: World, sensitivity: str, specificity: str) -> None:
     from web.deployment.models import Deployment
 
-    runs = [
-        deployment.screening_model.run_id
+    latest = Deployment.objects.latest("deployed_at", "pk")
+    counts = latest.screening_model.local_validation
+    found, missed = counts["true_positives"], counts["false_negatives"]
+    cleared, alarmed = counts["true_negatives"], counts["false_positives"]
+    assert f"{found} of {found + missed}" == sensitivity
+    assert f"{cleared} of {cleared + alarmed}" == specificity
+
+
+@then(parsers.re(r"the deployment history lists (?P<entries>.+)$"))
+def history(world: World, entries: str) -> None:
+    from web.deployment.models import Deployment
+
+    listed = [
+        f'"{deployment.screening_model.run_id}" at {deployment.screening_model.threshold:g}'
         for deployment in Deployment.objects.order_by("deployed_at", "pk")
     ]
-    assert runs == [first, second, third]
+    assert ", ".join(listed) == entries
+
+
+@then(parsers.parse('deploying is refused with code "{code}" on the threshold'))
+def refused_on_threshold(world: World, code: str) -> None:
+    errors = world["error"].error_dict
+    assert [error.code for error in errors["threshold"]] == [code]
 
 
 @then(
     parsers.re(
         r'(?:the screening models|they) show "(?P<run_id>[^"]+)", (?P<is_deployed>deployed, )?'
-        r"with sensitivity (?P<sensitivity>\d+ of \d+), specificity (?P<specificity>\d+ of \d+),"
+        r"at threshold (?P<threshold>[\d.]+) with sensitivity (?P<sensitivity>\d+ of \d+), specificity (?P<specificity>\d+ of \d+),"
         r" positive predictive value (?P<ppv>\d+ of \d+),"
         r" negative predictive value (?P<npv>\d+ of \d+), AUROC (?P<auroc>[\d.]+)"
     )
@@ -218,6 +319,7 @@ def shows_validation(
     world: World,
     run_id: str,
     is_deployed: str | None,
+    threshold: str,
     sensitivity: str,
     specificity: str,
     ppv: str,
@@ -229,10 +331,13 @@ def shows_validation(
     (model,) = [
         m for m in screening_models(world["screening_models_dir"]) if m.run_id == run_id
     ]
-    assert str(model.sensitivity) == sensitivity
-    assert str(model.specificity) == specificity
-    assert str(model.positive_predictive_value) == ppv
-    assert str(model.negative_predictive_value) == npv
+    (row,) = [
+        row for row in model.local_validation if row.threshold == float(threshold)
+    ]
+    assert str(row.sensitivity) == sensitivity
+    assert str(row.specificity) == specificity
+    assert str(row.positive_predictive_value) == ppv
+    assert str(row.negative_predictive_value) == npv
     assert model.local_auroc == pytest.approx(float(auroc))
     assert (deployed_run(world) == run_id) == bool(is_deployed)
 
@@ -252,11 +357,14 @@ def cannot_be_deployed(world: World, run_id: str, code: str) -> None:
 
 
 @then(
-    parsers.parse('deploying screening model "{run_id}" is refused with code "{code}"')
+    parsers.parse(
+        'deploying screening model "{run_id}" at threshold {threshold:g} is refused'
+        ' with code "{code}"'
+    )
 )
-def deploying_refused(world: World, run_id: str, code: str) -> None:
+def deploying_refused(world: World, run_id: str, threshold: float, code: str) -> None:
     world.pop("error", None)
-    deploy(world, run_id)
+    deploy(world, run_id, threshold)
     assert world["error"].code == code
 
 

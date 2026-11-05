@@ -15,9 +15,7 @@ pytestmark = pytest.mark.django_db
 scenarios("training.feature")
 
 
-def keep(
-    directory: Path, run_id: str, threshold: float, auroc: float, at: datetime
-) -> None:
+def keep(directory: Path, run_id: str, auroc: float, at: datetime) -> None:
     from iron_deficiency.final_models import keep_final_model
     from iron_deficiency.task import Net
 
@@ -25,7 +23,6 @@ def keep(
         directory,
         run_id=int(run_id),
         state_dict=Net().state_dict(),
-        threshold=threshold,
         federated={"eval_auroc": auroc},
         stored_at=at,
     )
@@ -41,12 +38,12 @@ def data_scientist(world: World, db: None, name: str, tmp_path: Path) -> None:
 
 @when(
     parsers.parse(
-        'the ServerApp keeps the final model of run "{run_id}" with threshold'
-        " {threshold:f} and AUROC across hospitals {auroc:f}"
+        'the ServerApp keeps the final model of run "{run_id}" with AUROC across'
+        " hospitals {auroc:f}"
     )
 )
-def server_app_keeps(world: World, run_id: str, threshold: float, auroc: float) -> None:
-    keep(world["final_models_dir"], run_id, threshold, auroc, NOW)
+def server_app_keeps(world: World, run_id: str, auroc: float) -> None:
+    keep(world["final_models_dir"], run_id, auroc, NOW)
 
 
 @given(
@@ -57,7 +54,7 @@ def server_app_keeps(world: World, run_id: str, threshold: float, auroc: float) 
 )
 def startup_kept(world: World, run_id: str, day: int, hour: int, minute: int) -> None:
     at = datetime(2026, 10, day, hour, minute, tzinfo=UTC)
-    keep(world["final_models_dir"], run_id, 0.5, 0.85, at)
+    keep(world["final_models_dir"], run_id, 0.85, at)
 
 
 def listed(world: World) -> list[str]:
@@ -74,15 +71,8 @@ def final_models_are(world: World, run_ids: str) -> None:
     assert listed(world) == expected
 
 
-@then(
-    parsers.parse(
-        'final model "{run_id}" shows threshold {threshold:f} and AUROC across'
-        " hospitals {auroc:f}"
-    )
-)
-def final_model_shows(
-    world: World, run_id: str, threshold: float, auroc: float
-) -> None:
+@then(parsers.parse('final model "{run_id}" shows AUROC across hospitals {auroc:f}'))
+def final_model_shows(world: World, run_id: str, auroc: float) -> None:
     from web.training.final_models import final_models
 
     model = next(
@@ -90,7 +80,7 @@ def final_model_shows(
         for model in final_models(world["final_models_dir"])
         if model.run_id == run_id
     )
-    assert (model.threshold, model.federated_auroc) == (threshold, auroc)
+    assert model.federated_auroc == auroc
 
 
 @pytest.fixture
@@ -135,32 +125,23 @@ def waited_at_most(superlink: World, seconds: int) -> None:
     assert superlink["timeout"] <= seconds
 
 
-@when(
-    parsers.re(
-        r"the data scientist submits a training run with threshold"
-        r" (?P<threshold>-?[\d.]+)$"
-    )
-)
-def submit(world: World, superlink: World, threshold: str) -> None:
+@when("the data scientist submits a training run")
+def submit(world: World, superlink: World) -> None:
     from django.core.exceptions import ValidationError
 
     from web.training.runs import submit_run
 
     try:
-        world["run_id"] = submit_run(threshold=float(threshold))
+        world["run_id"] = submit_run()
     except ValidationError as error:
         world["error"] = error
 
 
-@then(
-    parsers.parse(
-        "the SuperLink receives a run whose screening threshold is {threshold:f}"
-    )
-)
-def superlink_receives(superlink: World, threshold: float) -> None:
+@then("the SuperLink receives a run without a screening threshold")
+def superlink_receives(superlink: World) -> None:
     [command] = superlink["commands"]
-    run_config = command[command.index("--run-config") + 1]
-    assert f"screening-threshold={threshold}" in run_config.split()
+    assert "run" in command
+    assert not any("threshold" in part for part in command)
 
 
 @then("the submission gives the run's ID")
@@ -168,21 +149,10 @@ def gives_run_id(world: World) -> None:
     assert world["run_id"] == 7
 
 
-@then(
-    parsers.re(
-        r'the submission is refused with code "(?P<code>\w+)"(?P<field> on the threshold)?$'
-    )
-)
-def refused(world: World, code: str, field: str | None) -> None:
+@then(parsers.parse('the submission is refused with code "{code}"'))
+def refused(world: World, code: str) -> None:
     errors = world["error"].error_dict
-    assert [error.code for error in errors["threshold" if field else "__all__"]] == [
-        code
-    ]
-
-
-@then("no run reaches the SuperLink")
-def no_run(superlink: World) -> None:
-    assert superlink["commands"] == []
+    assert [error.code for error in errors["__all__"]] == [code]
 
 
 @when(parsers.parse('the startup downloads final model "{run_id}" for sale'))
@@ -192,31 +162,26 @@ def download_for_sale(world: World, run_id: str) -> None:
     world["download"] = for_sale(world["final_models_dir"], run_id)
 
 
-@then(
-    parsers.parse(
-        "the download holds the final model's weights and its threshold {threshold:f}"
-    )
-)
-def weights_and_threshold(world: World, threshold: float) -> None:
+@then("the download holds the final model's weights")
+def weights(world: World) -> None:
     from iron_deficiency.screening import from_bytes
     from iron_deficiency.task import Net
 
     model = from_bytes(world["download"])
     assert model.state_dict is not None
     assert set(model.state_dict) == set(Net().state_dict())
-    assert model.threshold == threshold
 
 
 @then(
-    "it holds no standardization and no metrics: the buyer standardizes on its own"
-    " cohort"
+    "it holds no threshold, no standardization and no metrics: the buyer chooses"
+    " and standardizes on its own cohort"
 )
 def nothing_else(world: World) -> None:
-    from iron_deficiency.screening import Problem, from_bytes
+    import io
 
-    model = from_bytes(world["download"])
-    assert model.problem() is Problem.STANDARDIZATION_MISSING
-    assert (model.federated, model.local_validation, model.stored_at) == ({}, {}, None)
+    import torch
+
+    assert set(torch.load(io.BytesIO(world["download"]))) == {"state_dict"}
 
 
 @then("there is nothing to download")

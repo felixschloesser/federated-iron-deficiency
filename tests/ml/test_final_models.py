@@ -38,7 +38,6 @@ def store(directory: Path, cohort: pd.DataFrame, run_id: int) -> Path:
         run_id=run_id,
         state_dict=Net().state_dict(),
         cohort=cohort,
-        threshold=0.5,
         federated=FEDERATED,
         stored_at=STORED_AT,
     )
@@ -95,7 +94,7 @@ def holds_two(hospital: World, first: str, second: str) -> None:
 
 
 @then(
-    "it holds the weights, standardization, threshold, run ID, when it was stored, "
+    "it holds the weights, standardization, run ID, when it was stored, "
     "the federated metrics and the local validation"
 )
 def holds_metadata(hospital: World) -> None:
@@ -104,15 +103,20 @@ def holds_metadata(hospital: World) -> None:
         "state_dict",
         "mean",
         "std",
-        "threshold",
         "run_id",
         "stored_at",
         "federated",
-        "local_validation",
+        "confusion_matrices",
+        "local_auroc",
     }
     assert final_model["run_id"] == 11
     assert final_model["stored_at"] == STORED_AT.isoformat()
-    assert final_model["threshold"] == 0.5
+
+
+@then("it holds no threshold")
+def holds_no_threshold(hospital: World) -> None:
+    final_model = torch.load(hospital["path"])
+    assert not any("threshold" in key for key in final_model)
 
 
 @then("storing it is refused")
@@ -136,20 +140,33 @@ def holds_none(hospital: World) -> None:
     assert list(hospital["folder"].iterdir()) == []
 
 
-@then("its local validation holds the four counts of its validation split and an AUROC")
+@then(
+    "its local validation holds the four counts of its validation split at each"
+    " threshold from 0.05 to 0.95 in steps of 0.05"
+)
 def local_validation(hospital: World) -> None:
-    validation = torch.load(hospital["path"])["local_validation"]
-    assert set(validation) == {
-        "true_positives",
-        "false_negatives",
-        "false_positives",
-        "true_negatives",
-        "auroc",
-    }
-    counts = [validation[key] for key in sorted(validation) if key != "auroc"]
-    # The validation split is 16% of the cohort (task.load_data).
-    assert sum(counts) == 32
-    assert 0.0 <= validation["auroc"] <= 1.0
+    matrices = torch.load(hospital["path"])["confusion_matrices"]
+    assert sorted(matrices) == pytest.approx([step / 20 for step in range(1, 20)])
+    for matrix in matrices.values():
+        assert set(matrix) == {
+            "true_positives",
+            "false_negatives",
+            "false_positives",
+            "true_negatives",
+        }
+        # The validation split is 16% of the cohort (task.load_data).
+        assert sum(matrix.values()) == 32
+    # A higher threshold suggests ferritin for no more women.
+    suggested = [
+        matrices[threshold]["true_positives"] + matrices[threshold]["false_positives"]
+        for threshold in sorted(matrices)
+    ]
+    assert suggested == sorted(suggested, reverse=True)
+
+
+@then("an AUROC")
+def an_auroc(hospital: World) -> None:
+    assert 0.0 <= torch.load(hospital["path"])["local_auroc"] <= 1.0
 
 
 @then("its federated metrics are exactly the aggregate the ServerApp sent")
@@ -169,8 +186,7 @@ def test_a_final_model_screens_like_a_deployment(
         .rename(columns={"RIDAGEYR": "age"})
         .assign(sex="Female", age=30)
     )
-    probabilities, threshold = score(samples, read(path))
-    assert threshold == 0.5
+    probabilities = score(samples, read(path))
     assert len(probabilities) == len(samples)
 
 
@@ -180,9 +196,9 @@ def test_a_stored_final_model_reads_back_whole(
     final_model = read(store(tmp_path, cohort, run_id=11))
     assert final_model.problem() is None
     assert final_model.stored_at == STORED_AT
-    assert final_model.threshold == 0.5
     assert final_model.federated == FEDERATED
-    assert set(final_model.local_validation) >= {"true_positives", "auroc"}
+    assert len(final_model.confusion_matrices) == 19
+    assert final_model.local_auroc is not None
 
 
 def test_a_file_that_is_no_model_reads_as_unreadable(tmp_path: Path) -> None:
