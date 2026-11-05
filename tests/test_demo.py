@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -205,3 +207,79 @@ def test_every_practice_holds_a_certificate_from_every_hospitals_authority(
     # Running again issues nothing new.
     prepare_lab_orders(tmp_path)
     assert {path: path.read_bytes() for path in issued} == issued
+
+
+# What each party's folder may hold: the report's DFD stores, and the keys and
+# certificates its own processes use (spec §9). Nothing from the NHANES cycle
+# that stands in for new samples: the seed commands get their participants
+# from prepare alone.
+PARTY_FOLDERS = {
+    "startup": {
+        "superlink",  # DS3
+        "final-models",  # DS4
+        "certificates",
+        "trust",
+        "supernodes",
+        "flwr-home",
+    },
+    "hospitals": {
+        "cohort",  # DS2
+        "final-models",  # DS5
+        "web.sqlite3",  # DS6, DS8
+        "certificates",
+        "supernode",
+        "ca",
+        "messaging",
+        "web-tls",
+        ".secret_key",
+    },
+    "practices": {
+        "web.sqlite3",  # DS7
+        "laboratories",
+        "web-tls",
+        ".secret_key",
+    },
+}
+
+
+def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import datasets
+    import pandas as pd
+
+    import iron_deficiency.dataset
+    from iron_deficiency.dataset import CBC_VARS, FEATURES
+    from tools.demo import hospitals, practices, prepare
+
+    cohort = datasets.Dataset.from_dict(
+        {column: [1.0] for column in FEATURES} | {"iron_deficient": [0], "cycle": ["x"]}
+    )
+
+    class Cohorts:
+        def load_partition(self, partition: int) -> datasets.Dataset:
+            return cohort
+
+    samples = pd.DataFrame(
+        {"sample_id": [1], "sex": ["Female"], "age": [30]}
+        | {var: [1.0] for var in CBC_VARS}
+    )
+    ferritin = pd.DataFrame({"sample_id": [1], "LBXFER": [20.0]})
+    monkeypatch.setattr(iron_deficiency.dataset, "load_federated_dataset", Cohorts)
+    monkeypatch.setattr(iron_deficiency.dataset, "load_new_samples", lambda: samples)
+    monkeypatch.setattr(iron_deficiency.dataset, "load_ferritin", lambda: ferritin)
+    # A folder prepared before the participants stayed with prepare.
+    stale = [tmp_path / "hospitals" / hospitals()[0][1]]
+    stale += [tmp_path / "practices" / practices()[0][1]]
+    for folder in stale:
+        folder.mkdir(parents=True)
+        (folder / "nhanes.csv").write_text("sample_id\n1\n")
+
+    prepare(tmp_path)
+
+    folders = [(tmp_path / "startup", "startup")]
+    folders += [(tmp_path / "hospitals" / slug, "hospitals") for _, slug in hospitals()]
+    folders += [(tmp_path / "practices" / slug, "practices") for _, slug in practices()]
+    for folder, kind in folders:
+        held = {entry.name for entry in folder.iterdir()}
+        assert held <= PARTY_FOLDERS[kind], (folder.name, held - PARTY_FOLDERS[kind])
