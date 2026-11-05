@@ -1,5 +1,6 @@
 """ServerApp for federated iron-deficiency classification."""
 
+from datetime import UTC, datetime
 from logging import WARNING
 from pathlib import Path
 
@@ -16,7 +17,11 @@ from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, Result
 from flwr.supercore import log
 
-from iron_deficiency.final_models import DEFAULT_DEMO_DIR, startup_final_models
+from iron_deficiency.final_models import (
+    DEFAULT_DEMO_DIR,
+    keep_final_model,
+    startup_final_models,
+)
 from iron_deficiency.task import Net
 
 # Create ServerApp
@@ -79,14 +84,6 @@ def main(grid: Grid, context: Context) -> None:
         num_rounds=num_rounds,
     )
 
-    # The startup keeps every final model on its own server, one per run (DS4)
-    demo_dir = str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR
-    startup_copy = startup_final_models(Path(demo_dir)) / f"{context.run_id}.pt"
-    startup_copy.parent.mkdir(parents=True, exist_ok=True)
-    if startup_copy.exists():
-        raise FileExistsError(startup_copy)
-    torch.save(result.arrays.to_torch_state_dict(), startup_copy)
-
     # Send the final model to every hospital, with only the federated aggregate
     last_round = max(result.evaluate_metrics_clientapp, default=None)
     federated = (
@@ -94,9 +91,25 @@ def main(grid: Grid, context: Context) -> None:
         if last_round is not None
         else MetricRecord()
     )
+    threshold = float(context.run_config["screening-threshold"])
+
+    # The startup keeps every final model on its own server, one per run (DS4),
+    # with what it sends: the threshold and the federated aggregate
+    demo_dir = str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR
+    keep_final_model(
+        startup_final_models(Path(demo_dir)),
+        run_id=context.run_id,
+        state_dict=result.arrays.to_torch_state_dict(),
+        threshold=threshold,
+        federated={
+            name: float(value)
+            for name, value in federated.items()
+            if isinstance(value, (int, float))
+        },
+        stored_at=datetime.now(UTC),
+    )
 
     # Deploy the final model to every hospital for local screening
-    threshold = float(context.run_config["screening-threshold"])
     replies = grid.send_and_receive(
         [
             Message(

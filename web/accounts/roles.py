@@ -11,6 +11,7 @@ class Role(enum.Enum):
     GENERAL_PRACTITIONER = "general practitioner"
     LABORATORY_STAFF = "laboratory staff"
     LABORATORY_DIRECTOR = "laboratory director"
+    DATA_SCIENTIST = "data scientist"
 
     def people(self) -> str:
         """The people of this role, as a sentence names them."""
@@ -21,6 +22,8 @@ class Role(enum.Enum):
                 return "laboratory staff"
             case Role.LABORATORY_DIRECTOR:
                 return "laboratory directors"
+            case Role.DATA_SCIENTIST:
+                return "data scientists"
             case _:
                 assert_never(self)
 
@@ -33,6 +36,8 @@ class Role(enum.Enum):
                 return reverse("lab:to_analyse")
             case Role.LABORATORY_DIRECTOR:
                 return reverse("deployment:models")
+            case Role.DATA_SCIENTIST:
+                return reverse("training:final_models")
             case _:
                 assert_never(self)
 
@@ -53,6 +58,10 @@ class Role(enum.Enum):
                 return [
                     {"url": reverse("deployment:models"), "label": "Screening models"}
                 ]
+            case Role.DATA_SCIENTIST:
+                return [
+                    {"url": reverse("training:final_models"), "label": "Final models"}
+                ]
             case _:
                 assert_never(self)
 
@@ -66,4 +75,6 @@ def role_of(user: AbstractBaseUser | AnonymousUser | None) -> Role | None:
         return Role.LABORATORY_STAFF
     if hasattr(user, "laboratory_director"):
         return Role.LABORATORY_DIRECTOR
+    if hasattr(user, "data_scientist"):
+        return Role.DATA_SCIENTIST
     return None

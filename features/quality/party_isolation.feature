@@ -1,7 +1,7 @@
 Feature: Each party's software and data stay inside its trust boundary
   Quality attribute: privacy, as isolation. Each party's web app has its own
   folder: a hospital's reads only HOSPITAL_DIR, a practice's only PRACTICE_DIR,
-  and each installs, migrates and serves only its own party's apps. Code under
+  the startup's only STARTUP_DIR, and each installs, migrates and serves only its own party's apps. Code under
   web/ imports from the training package only iron_deficiency.screening,
   iron_deficiency.cohort and iron_deficiency.dataset (the audit checks that).
   Each scenario's last step is its response measure, true or false.
@@ -13,9 +13,10 @@ Feature: Each party's software and data stay inside its trust boundary
     And its database has no table starting with <others>
 
     Examples:
-      | party    | own              | others                         |
-      | hospital | lab_laborder     | "practice_"                    |
-      | practice | practice_patient | "lab_", "nhanes_", "deployment_" |
+      | party    | own                    | others                                          |
+      | hospital | lab_laborder           | "practice_", "training_"                        |
+      | practice | practice_patient       | "lab_", "nhanes_", "deployment_", "training_"   |
+      | startup  | training_datascientist | "lab_", "nhanes_", "deployment_", "practice_"   |
 
   Scenario: A web app refuses a database outside its party's folder
     Given a hospital deployment in a folder of its own

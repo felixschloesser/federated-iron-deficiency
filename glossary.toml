@@ -295,3 +295,23 @@ rejected = [
     "`serverapp`",
     "`clientapp` (Flower's names run together); startup code (the report's TB4 label, which the report keeps)",
 ]
+
+["startup"]
+source = "Report, Stakeholders table: the startup \"Runs the SuperLink and ServerApp, writes the ClientApp and configures runs\""
+why = "The report's party that trains the model; its web app shows the final models it keeps (DS4)"
+rejected = ["company", "vendor", "server (one of its machines, not the party)"]
+
+["data scientist"]
+source = "Report, training DFD, E1 \"Data scientist\"; \"its data scientist submits the app, which is based on @ironapp, and follows the run's logs (DF4, DF5)\""
+why = "The startup's one person in the report's DFD; the role of its web app (`DataScientist`)"
+rejected = ["ML engineer", "researcher", "startup staff"]
+
+["training run"]
+source = "Report, DS4 \"Startup's final models\", one per run; DF13 \"Final model weights, per run\"; Flower documentation, `flwr run`"
+why = "One federated training of the model, from the startup's submission to the final model it sends every hospital"
+rejected = ["job", "experiment", "round (one of a run's rounds)"]
+
+["submit"]
+source = "Report, \"Federated version\": \"its data scientist submits the app\" (DF4)"
+why = "What the data scientist does to start a training run: the report's verb, and Flower's"
+rejected = ["start", "launch", "trigger"]

@@ -18,12 +18,19 @@ ROOT = Path(__file__).resolve().parents[2]
 PARTIES = {
     "hospital": ("HOSPITAL_DIR", "seed_hospital"),
     "practice": ("PRACTICE_DIR", "seed_practice"),
+    "startup": ("STARTUP_DIR", "seed_startup"),
 }
 BASE_ENV = {
     name: value
     for name, value in os.environ.items()
     if name
-    not in {"DATABASE_NAME", "HOSPITAL_DIR", "PRACTICE_DIR", "MESSAGING_ADDRESS"}
+    not in {
+        "DATABASE_NAME",
+        "HOSPITAL_DIR",
+        "PRACTICE_DIR",
+        "STARTUP_DIR",
+        "MESSAGING_ADDRESS",
+    }
 }
 
 
@@ -49,6 +56,20 @@ def test_the_database_lives_in_the_hospital_folder(tmp_path: Path) -> None:
 def test_a_practice_keeps_its_database_in_its_own_folder(tmp_path: Path) -> None:
     result = database_path({"PRACTICE_DIR": str(tmp_path)})
     assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
+
+
+def test_the_startup_keeps_its_database_and_final_models_in_its_folder(
+    tmp_path: Path,
+) -> None:
+    result = database_path({"STARTUP_DIR": str(tmp_path)})
+    assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
+    final_models = setting("FINAL_MODELS_DIR", {"STARTUP_DIR": str(tmp_path)})
+    assert final_models == str(tmp_path / "final-models")
+
+
+def seed_arguments(command: str, nhanes: Path) -> list[str]:
+    """The startup seeds no participants, so it takes no NHANES file."""
+    return [] if command == "seed_startup" else ["--nhanes", str(nhanes)]
 
 
 def run_manage(env: dict[str, str], *args: str) -> None:
@@ -82,7 +103,9 @@ def migrate_and_seed(deployment: dict[str, Any]) -> None:
     nhanes_rows().to_csv(nhanes, index=False)
     env = {deployment["setting"]: str(folder)}
     run_manage(env, "migrate", "-v0")
-    run_manage(env, deployment["command"], "--nhanes", str(nhanes))
+    run_manage(
+        env, deployment["command"], *seed_arguments(deployment["command"], nhanes)
+    )
     with closing(sqlite3.connect(folder / "web.sqlite3")) as database:
         deployment["tables"] = {
             name
@@ -153,6 +176,7 @@ for user in User.objects.order_by("username"):
     [
         ("HOSPITAL_DIR", "seed_hospital", {"director", "staff"}),
         ("PRACTICE_DIR", "seed_practice", {"doctor"}),
+        ("STARTUP_DIR", "seed_startup", {"data-scientist"}),
     ],
 )
 def test_every_page_of_a_party_loads_in_its_own_deployment(
@@ -166,7 +190,7 @@ def test_every_page_of_a_party_loads_in_its_own_deployment(
     nhanes_rows().to_csv(nhanes, index=False)
     env = {folder: str(tmp_path)}
     run_manage(env, "migrate", "-v0")
-    run_manage(env, command, "--nhanes", str(nhanes))
+    run_manage(env, command, *seed_arguments(command, nhanes))
     result = subprocess.run(
         [sys.executable, "manage.py", "shell", "-c", SMOKE],
         check=True,
@@ -200,7 +224,7 @@ def setting(name: str, env: dict[str, str]) -> str:
     ).stdout.strip()
 
 
-@pytest.mark.parametrize("party", ["HOSPITAL_DIR", "PRACTICE_DIR"])
+@pytest.mark.parametrize("party", ["HOSPITAL_DIR", "PRACTICE_DIR", "STARTUP_DIR"])
 def test_each_party_has_its_own_cookies(tmp_path: Path, party: str) -> None:
     # Browsers share cookies across ports, and the demo runs every party on
     # 127.0.0.1: one party's login must not replace another's session or token.

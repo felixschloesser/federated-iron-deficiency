@@ -9,7 +9,7 @@
 #   docker compose down -v          # start over; .demo/ on the host stays
 #
 # Browsers reach http://<party>.localhost through the proxy, the only
-# published port. Networks: startup (TB2), <hospital> (TB1), <hospital>-flower-client-app (TB4,
+# published port. Networks: startup (TB2), startup-web (the startup's web app and the proxy), <hospital> (TB1), <hospital>-flower-client-app (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
 # lab-orders crosses TB3-TB1 (DF23, DF25): every practice reaches every hospital's
 # endpoint there, by the alias <hospital>-lab-orders.
@@ -133,6 +133,26 @@ services:
     volumes:
       - {type: volume, source: startup, target: /demo/startup/flwr-home, volume: {subpath: flwr-home}}
     networks: [startup]
+
+  # The startup's web app: its data scientist sees the final models and submits
+  # training runs. On startup to reach the SuperLink, on startup-web for the
+  # proxy, which so never reaches the SuperLink.
+  startup-web:
+    <<: *web
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      interval: 2s
+      retries: 60
+    environment:
+      STARTUP_DIR: /demo/startup
+      FLWR_HOME: /demo/startup/flwr-home
+    volumes:
+      - {type: volume, source: startup, target: /demo/startup}
+      - {type: volume, source: startup, target: /demo/startup/final-models, read_only: true, volume: {subpath: final-models}}
+    # Masked: the SuperLink's state (DS3) is the SuperLink's alone.
+    tmpfs: [/demo/startup/superlink]
+    networks: [startup, startup-web]
 
   # TB1 and TB4, UZ Leuven.
   uz-leuven-flower-supernode:
@@ -370,12 +390,13 @@ services:
       interval: 2s
       retries: 60
     networks:
-      [uz-leuven, heilig-hart-leuven, az-diest,
+      [startup-web, uz-leuven, heilig-hart-leuven, az-diest,
        huisartsenpraktijk-de-akker, huisartsenpraktijk-de-berk, huisartsenpraktijk-de-ceder]
 
 networks:
   setup: {}
   startup: {internal: true}
+  startup-web: {}
   model-updates: {internal: true}
   lab-orders: {internal: true}
   uz-leuven: {}

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from web.deployment.models import LaboratoryDirector
     from web.lab.models import LaboratoryStaffMember, LabOrder
     from web.practice.models import GeneralPractitioner, Order, Patient, Sample
+    from web.training.models import DataScientist
     from web.vocabulary import ClinicalIndication, Test
 from iron_deficiency.cohort import CBC_VARS, FEATURES
 from web.vocabulary import RegisteredSex
@@ -100,6 +101,14 @@ def make_laboratory_director(name: str) -> "LaboratoryDirector":
 
     user = User.objects.create_user(username=name.lower().replace(" ", "-"))
     return LaboratoryDirector.objects.create(user=user, name=name)
+
+
+def make_data_scientist(name: str) -> "DataScientist":
+    from web.accounts.models import User
+    from web.training.models import DataScientist
+
+    user = User.objects.create_user(username=name.lower().replace(" ", "-"))
+    return DataScientist.objects.create(user=user, name=name)
 
 
 def deliver(order: "Order") -> "LabOrder":

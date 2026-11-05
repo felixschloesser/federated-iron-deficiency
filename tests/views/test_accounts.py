@@ -42,6 +42,12 @@ def test_role_of_a_laboratory_director() -> None:
     assert role_of(director.user) is Role.LABORATORY_DIRECTOR
 
 
+def test_role_of_a_data_scientist() -> None:
+    from tests.conftest import make_data_scientist
+
+    assert role_of(make_data_scientist("Data One").user) is Role.DATA_SCIENTIST
+
+
 def test_role_of_an_account_without_one() -> None:
     assert role_of(User.objects.create_user(username="no-role")) is None
 

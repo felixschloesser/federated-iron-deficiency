@@ -23,7 +23,9 @@ def test_a_practice_serves_no_hospital_pages() -> None:
     assert prefixes(Party.GENERAL_PRACTITIONER) == {"practice/"}
 
 
+def test_the_startup_serves_only_its_training_pages() -> None:
+    assert prefixes(Party.STARTUP) == {"training/"}
+
+
 def test_development_serves_every_party() -> None:
-    assert prefixes(None) == prefixes(Party.HOSPITAL) | prefixes(
-        Party.GENERAL_PRACTITIONER
-    )
+    assert prefixes(None) == {prefix for party in Party for prefix in prefixes(party)}

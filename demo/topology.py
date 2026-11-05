@@ -59,7 +59,7 @@ HEAD = """\
 #   docker compose down -v          # start over; .demo/ on the host stays
 #
 # Browsers reach http://<party>.localhost through the proxy, the only
-# published port. Networks: startup (TB2), <hospital> (TB1), <hospital>-flower-client-app (TB4,
+# published port. Networks: startup (TB2), startup-web (the startup's web app and the proxy), <hospital> (TB1), <hospital>-flower-client-app (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
 # lab-orders crosses TB3-TB1 (DF23, DF25): every practice reaches every hospital's
 # endpoint there, by the alias <hospital>-lab-orders.
@@ -180,6 +180,26 @@ MIDDLE = """\
     volumes:
       - {type: volume, source: startup, target: /demo/startup/flwr-home, volume: {subpath: flwr-home}}
     networks: [startup]
+
+  # The startup's web app: its data scientist sees the final models and submits
+  # training runs. On startup to reach the SuperLink, on startup-web for the
+  # proxy, which so never reaches the SuperLink.
+  startup-web:
+    <<: *web
+    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8000)).close()"]
+      interval: 2s
+      retries: 60
+    environment:
+      STARTUP_DIR: /demo/startup
+      FLWR_HOME: /demo/startup/flwr-home
+    volumes:
+      - {type: volume, source: startup, target: /demo/startup}
+      - {type: volume, source: startup, target: /demo/startup/final-models, read_only: true, volume: {subpath: final-models}}
+    # Masked: the SuperLink's state (DS3) is the SuperLink's alone.
+    tmpfs: [/demo/startup/superlink]
+    networks: [startup, startup-web]
 
 """
 
@@ -360,9 +380,11 @@ def compose() -> str:
         build = PRACTICE_BUILD if index == 0 else ""
         text += fill(PRACTICE, name=name, slug=slug, colour=colour, build=build)
     text += PROXY
-    text += "    networks:\n      [" + ", ".join(hospital_slugs) + ",\n       "
+    text += (
+        "    networks:\n      [startup-web, " + ", ".join(hospital_slugs) + ",\n       "
+    )
     text += ", ".join(practice_slugs) + "]\n\n"
-    text += "networks:\n  setup: {}\n  startup: {internal: true}\n"
+    text += "networks:\n  setup: {}\n  startup: {internal: true}\n  startup-web: {}\n"
     text += "  model-updates: {internal: true}\n  lab-orders: {internal: true}\n"
     for slug in hospital_slugs:
         text += f"  {slug}: {{}}\n  {slug}-flower-client-app: {{internal: true}}\n"
@@ -376,7 +398,7 @@ def compose() -> str:
 def proxy_conf() -> str:
     hosts = [
         (f"{slug}.localhost", f"{slug}-web:8000;")
-        for _, slug, _ in hospitals() + practices()
+        for slug in ["startup"] + [slug for _, slug, _ in hospitals() + practices()]
     ]
     width = max(len(host) for host, _ in hosts) + 2
     routes = "".join(f"        {host:<{width}}{web}\n" for host, web in hosts)

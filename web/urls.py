@@ -29,10 +29,7 @@ def party_urls(party: Party | None) -> list[URLResolver]:
     """The pages of one party's deployment; in development, every party's."""
     match party:
         case None:
-            return [
-                *party_urls(Party.HOSPITAL),
-                *party_urls(Party.GENERAL_PRACTITIONER),
-            ]
+            return [url for each in Party for url in party_urls(each)]
         case Party.HOSPITAL:
             return [
                 path("lab/", include("web.lab.urls")),
@@ -40,6 +37,8 @@ def party_urls(party: Party | None) -> list[URLResolver]:
             ]
         case Party.GENERAL_PRACTITIONER:
             return [path("practice/", include("web.practice.urls"))]
+        case Party.STARTUP:
+            return [path("training/", include("web.training.urls"))]
         case _:
             assert_never(party)
 
