@@ -315,3 +315,8 @@ rejected = ["job", "experiment", "round (one of a run's rounds)"]
 source = "Report, \"Federated version\": \"its data scientist submits the app\" (DF4)"
 why = "What the data scientist does to start a training run: the report's verb, and Flower's"
 rejected = ["start", "launch", "trigger"]
+
+["model sale"]
+source = "Report, P5 \"Model sale\"; Stakeholders table: other hospitals \"May buy the model from the startup\"; DF16 \"Final model weights, if sold\""
+why = "What the startup's *Download for sale* stands in for: the final model's weights and threshold, which a buyer needs to screen; never a hospital's standardization or any metrics"
+rejected = ["export", "share", "release"]

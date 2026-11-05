@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from iron_deficiency.screening import from_bytes
+from iron_deficiency.screening import FinalModel, final_model_path, from_bytes, to_bytes
 
 
 @dataclass(frozen=True)
@@ -37,3 +37,16 @@ def final_models(directory: Path | None) -> list[KeptFinalModel]:
         key=lambda model: (model.stored_at is not None, model.stored_at),
         reverse=True,
     )
+
+
+def for_sale(directory: Path | None, run_id: str) -> bytes | None:
+    """A final model as the startup sells it (DF16): its weights and threshold,
+    in the final model file format; a buyer standardizes on its own cohort, as
+    each hospital does. None for a run the startup kept no readable model of."""
+    path = None if directory is None else final_model_path(directory, run_id)
+    if path is None or not path.is_file():
+        return None
+    model = from_bytes(path.read_bytes())
+    if model.state_dict is None:
+        return None
+    return to_bytes(FinalModel(state_dict=model.state_dict, threshold=model.threshold))
