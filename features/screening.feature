@@ -80,7 +80,7 @@ Feature: Screening a CBC
 
     Examples:
       | state                                                | reason                  |
-      | no screening model has been deployed                     | no_deployed_model       |
+      | no screening model has been deployed                 | no_deployed_model       |
       | the file of the deployed "run-1" has changed on disk | deployed_model_changed  |
 
   Scenario: A ferritin sample is never screened
