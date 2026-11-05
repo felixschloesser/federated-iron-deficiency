@@ -22,6 +22,8 @@ ROOT = Path(__file__).resolve().parents[2]
 HOSPITAL = "uz-leuven"
 
 Compose = Callable[..., subprocess.CompletedProcess[str]]
+# Each compose fixture's project name, for the checks that look at Docker itself.
+PROJECT: dict[Compose, str] = {}
 
 
 def engine_running() -> bool:
@@ -61,6 +63,7 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
             env={**os.environ, "DEMO_HTTP_PORT": "0"},
         )
 
+    PROJECT[run] = name
     try:
         # Its own images, named after the project: no other build replaces them.
         # From demo/, where the compose file's build contexts point.
@@ -324,3 +327,25 @@ def test_the_proxy_routes_a_partys_name_to_its_web_app(
     assert ask(f"{APP_HOSPITAL}.localhost") == "200"
     # A name the proxy does not route gets no web app at all.
     assert ask("bank.example") != "200"
+    # Every service under test is up now: the project holds only the networks
+    # they need, so it shares Docker's address pool with a running demo.
+    listing = subprocess.run(
+        ["docker", "network", "ls", "--format", "{{.Name}}", "--filter"]
+        + [f"label=com.docker.compose.project={PROJECT[compose]}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    project = PROJECT[compose]
+    assert set(listing.stdout.split()) == {
+        f"{project}_{network}"
+        for network in (
+            "setup",
+            "startup",
+            "model-updates",
+            f"{HOSPITAL}-flower-client-app",
+            APP_HOSPITAL,
+            "lab-orders",
+            APP_PRACTICE,
+        )
+    }
