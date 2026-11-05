@@ -1,5 +1,6 @@
 """Centralized baseline: train on the hospitals' pooled training splits."""
 
+import argparse
 import tomllib
 from pathlib import Path
 
@@ -54,3 +55,15 @@ def train_centralized(seed: int, num_hospitals: int = 3) -> dict[str, torch.Tens
         device=device,
     )
     return {name: tensor.cpu() for name, tensor in model.state_dict().items()}
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--seed", type=int, default=SEED)
+    parser.add_argument("--output", type=Path, default=Path("centralized.pt"))
+    args = parser.parse_args()
+    torch.save(train_centralized(args.seed), args.output)
+
+
+if __name__ == "__main__":
+    main()

@@ -34,7 +34,7 @@ def evaluate(
     }
 
 
-if __name__ == "__main__":
+def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--input", type=Path, required=True)
@@ -53,3 +53,7 @@ if __name__ == "__main__":
     print(
         f"not flagged   {result['missed_deficient']:>9}  {result['not_flagged_above_cutoff']:>18}"
     )
+
+
+if __name__ == "__main__":
+    main()

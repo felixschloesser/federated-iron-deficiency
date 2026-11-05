@@ -34,6 +34,5 @@ def test_fab_holds_only_the_federated_app(tmp_path: Path) -> None:
     shipped = {"pyproject.toml", "LICENSE", "README.md"}
     assert names - shipped, "the FAB holds no app code"
     assert all(
-        name in shipped or name.startswith(("iron_deficiency/", "scripts/"))
-        for name in names
+        name in shipped or name.startswith("iron_deficiency/") for name in names
     ), sorted(names)

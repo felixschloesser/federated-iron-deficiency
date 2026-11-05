@@ -26,7 +26,7 @@ packages = ["iron_deficiency"]
 publisher = "javier"
 fab-format-version = 1
 # Allowlist: the web app and docs in this repo must not reach the SuperNodes.
-fab-include = ["/iron_deficiency/**", "/scripts/**", "/README.md", "/LICENSE"]
+fab-include = ["/iron_deficiency/**", "/README.md", "/LICENSE"]
 flwr-version-target = "1.40.0"
 
 [tool.flwr.app.components]
@@ -91,7 +91,7 @@ addopts = "-m 'not containers'"
 markers = ["containers: needs a running Docker engine and builds the images"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["demo", "iron_deficiency", "tests", "tools", "web"]
+known-first-party = ["analysis", "demo", "iron_deficiency", "tests", "tools", "web"]
 
 # Torch on Linux from PyTorch's CPU index: the containers screen and train on
 # CPU, and PyPI's x86-64 wheel would pull several GB of CUDA libraries.
