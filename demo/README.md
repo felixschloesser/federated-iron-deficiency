@@ -88,7 +88,7 @@ security controls; the demo leaves them out for simplicity.
 | Huisartsenpraktijk De Berk → Heilig Hart Leuven | http://huisartsenpraktijk-de-berk.localhost |
 | Huisartsenpraktijk De Ceder → AZ Diest | http://huisartsenpraktijk-de-ceder.localhost |
 
-Hospitals have `lab-1` (laboratory staff) and `director-1` (laboratory
+Hospitals have `staff` (laboratory staff) and `director` (their one laboratory
 director); each practice has one general practitioner, `doctor`; the password is
 `demo-pass-2026`. A practice's patients are the same NHANES participants whose
 tubes its hospital's analyser stand-in measures.
@@ -111,8 +111,8 @@ This is the startup's data scientist submitting a training run. It runs in a
 container inside the startup's network because that is where the data
 scientist sits in the report's DFD; the SuperLink's control API is never
 published to your machine. Each hospital receives the final model; log in as
-`director-1` to compare it on local validation and deploy it. Then order a
-CBC as `doctor`, analyse it as `lab-1`, and the lab report with its
+`director` to compare it on local validation and deploy it. Then order a
+CBC as `doctor`, analyse it as `staff`, and the lab report with its
 screening comes back to the practice.
 
 ## Stop, reset, clean up
@@ -126,6 +126,12 @@ screening comes back to the practice.
   Hugging Face downloads (`.demo/huggingface/`), with the NHANES 2021–2023
   cycle the seeded patients come from; no party's folder holds that cycle.
   `prepare` still asks Hugging Face, but downloads nothing twice.
+- When a change to `demo.toml` or the topology renames or drops a network,
+  `docker compose down --remove-orphans` leaves the old one behind, and Docker
+  has room for only about 30 networks. With the demo stopped,
+  `docker network prune --filter label=com.docker.compose.project=iron-deficiency`
+  removes this demo's networks that no container uses; the next `up` creates
+  the ones it needs again.
 - To look into a party's database while the demo runs:
   `docker compose exec uz-leuven-web python -m sqlite3 /demo/hospitals/uz-leuven/web.sqlite3`.
 

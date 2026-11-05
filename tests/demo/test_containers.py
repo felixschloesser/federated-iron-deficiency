@@ -24,6 +24,8 @@ ROOT = Path(__file__).resolve().parents[2]
 HOSPITAL = "uz-leuven"
 
 Compose = Callable[..., subprocess.CompletedProcess[str]]
+# Each compose fixture's project name, for the checks that look at Docker itself.
+PROJECT: dict[Compose, str] = {}
 
 
 def engine_running() -> bool:
@@ -40,6 +42,13 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
     folder = tmp_path_factory.mktemp("compose")
     (folder / "demo").mkdir()
+    # The proxy joins every party's network in the demo; here only the hospital
+    # under test, so the project takes the networks it tests and no more.
+    override = folder / "demo" / "test-override.yaml"
+    override.write_text(
+        "services:\n  proxy:\n"
+        f"    networks: !override [{APP_HOSPITAL}, {APP_PRACTICE}]\n"
+    )
     name = f"test-{uuid.uuid4().hex[:8]}"
 
     def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -54,7 +63,7 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
                 "--project-directory",
                 str(folder / "demo"),
             ]
-            + ["-f", str(ROOT / "demo" / "compose.yaml"), *args],
+            + ["-f", str(ROOT / "demo" / "compose.yaml"), "-f", str(override), *args],
             capture_output=True,
             text=True,
             check=check,
@@ -63,6 +72,7 @@ def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
             env={**os.environ, "DEMO_HTTP_PORT": "0"},
         )
 
+    PROJECT[run] = name
     try:
         # Its own images, named after the project: no other build replaces them.
         # From demo/, where the compose file's build contexts point.
@@ -113,7 +123,7 @@ def start(run: Compose, folder: Path) -> None:
         "from pathlib import Path; from demo.demo import prepare_flower;"
         " prepare_flower(Path('/demo'));"
         f" hospital = Path('/demo/hospitals/{HOSPITAL}');"
-        " (hospital / 'cohort').mkdir(); (hospital / 'final-models').mkdir();"
+        " (hospital / 'cohort').mkdir(); (hospital / 'screening-models').mkdir();"
         " (hospital / 'cohort' / 'rows.arrow').write_text('cohort');"
         " (hospital / 'web.sqlite3').write_text('lab orders')",
     )
@@ -294,7 +304,7 @@ def hospital_app(compose: Compose) -> str:
         " from demo.demo import hospital_dir;"
         f" hospital = hospital_dir(Path('/demo'), {APP_HOSPITAL!r});"
         # A volume's subpath must exist before a container mounts it.
-        " (hospital / 'final-models').mkdir(exist_ok=True)",
+        " (hospital / 'screening-models').mkdir(exist_ok=True)",
     )
     name = f"{APP_HOSPITAL}-web"
     compose("run", "--rm", "--no-deps", name, "python", "manage.py", "migrate", "-v0")
@@ -373,3 +383,127 @@ def test_the_proxy_routes_a_partys_name_to_its_web_app(
     assert ask(f"{APP_HOSPITAL}.localhost") == "200"
     # A name the proxy does not route gets no web app at all.
     assert ask("bank.example") != "200"
+    # Every service under test is up now: the project holds only the networks
+    # they need, so it shares Docker's address pool with a running demo.
+    listing = subprocess.run(
+        ["docker", "network", "ls", "--format", "{{.Name}}", "--filter"]
+        + [f"label=com.docker.compose.project={PROJECT[compose]}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    project = PROJECT[compose]
+    assert set(listing.stdout.split()) == {
+        f"{project}_{network}"
+        for network in (
+            "setup",
+            "startup",
+            "model-updates",
+            f"{HOSPITAL}-flower-client-app",
+            APP_HOSPITAL,
+            "lab-orders",
+            APP_PRACTICE,
+        )
+    }
+
+
+# Runs on the hospital's network and talks to both parties only through the
+# proxy, as a browser would: their login forms, CSRF tokens and POST forms,
+# one cookie jar per party. Prints what each step showed.
+END_TO_END = r"""
+import http.cookiejar, json, re, sys, urllib.parse, urllib.request
+proxy, hospital, practice, password, laboratory = sys.argv[1:6]
+
+class Party:
+    def __init__(self, host):
+        self.host = host
+        jar = urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
+        self.opener = urllib.request.build_opener(jar)
+
+    def open(self, path, data=None):
+        request = urllib.request.Request(
+            f"http://{proxy}:8080{path}", data=data, headers={"Host": self.host}
+        )
+        with self.opener.open(request, timeout=30) as response:
+            return urllib.parse.urlsplit(response.geturl()).path, response.read().decode()
+
+    def get(self, path):
+        return self.open(path)
+
+    def post(self, path, page, **fields):
+        token = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', page)[1]
+        data = urllib.parse.urlencode({"csrfmiddlewaretoken": token, **fields})
+        return self.open(path, data.encode())
+
+    def log_in(self, username):
+        _, page = self.get("/login/")
+        return self.post("/login/", page, username=username, password=password)
+
+seen = {}
+doctor, lab = Party(f"{practice}.localhost"), Party(f"{hospital}.localhost")
+doctor.log_in("doctor")
+_, patients = doctor.get("/practice/patients/")
+patient = re.search(r'href="(/practice/patients/\d+/)"', patients)[1]
+_, page = doctor.get(patient)
+# One laboratory: Collect sample is a button, and leads to the CBC order.
+order_page, page = doctor.post(f"{patient}samples/collect/", page)
+seen["order_page"] = order_page
+back, page = doctor.post(order_page, page, indication="other")
+seen["ordered"] = back == patient and "Awaiting lab report" in page
+seen["sent_to"] = laboratory in page
+
+lab.log_in("staff")
+_, to_analyse = lab.get("/lab/lab-orders/")
+analyse = re.search(r'action="(/lab/lab-orders/\d+/analyse/)"', to_analyse)[1]
+lab.post(analyse, to_analyse)
+_, analysed = lab.get("/lab/lab-orders/analysed/")
+seen["analysed"] = "not screened" in analysed.lower()
+
+_, page = doctor.get(patient)
+back, page = doctor.post(f"{patient}check-for-reports/", page)
+seen["fetched"] = back == patient and "1 new lab report." in page
+seen["released"] = "Lab report released" in page
+print(json.dumps(seen))
+"""
+
+
+def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
+    compose: Compose, hospital_app: str, tmp_path: Path
+) -> None:
+    from tests.conftest import nhanes_rows
+    from web.seeding.accounts import PASSWORD
+
+    # The same participants at both parties, from a small NHANES file, so no
+    # download: what prepare does for the demo, for one hospital and its practice.
+    csv = tmp_path / "nhanes.csv"
+    nhanes_rows().to_csv(csv, index=False)
+    practice = f"{APP_PRACTICE}-web"
+    seeding = ["run", "--rm", "--no-deps", "-e", "DJANGO_DEBUG=1"]
+    nhanes = ["-v", f"{csv}:/tmp/nhanes.csv:ro"]
+    seed = ["--seed", "0", "--nhanes", "/tmp/nhanes.csv"]
+    manage = ["python", "manage.py"]
+    compose(*seeding, *nhanes, hospital_app, *manage, "seed_hospital", *seed)
+    # As prepare does: the practice's own image serves it, without the seeding.
+    as_practice = [*seeding, "-e", f"PRACTICE_DIR=/demo/practices/{APP_PRACTICE}"]
+    compose(*as_practice, "prepare", *manage, "migrate", "-v0")
+    compose(*as_practice, *nhanes, "prepare", *manage, "seed_practice", *seed)
+    address = f"{APP_HOSPITAL}-lab-orders:8441"
+    compose(*as_practice, "prepare", *manage, "add_laboratory", "AZ Diest", address)
+    up(compose, practice)
+    up(compose, "proxy")
+    seen = probe(
+        compose,
+        hospital_app,
+        END_TO_END,
+        "proxy",
+        APP_HOSPITAL,
+        APP_PRACTICE,
+        PASSWORD,
+        "AZ Diest",
+    )
+    assert seen["order_page"].endswith("/orders/new/cbc/"), seen
+    assert seen["ordered"], seen
+    assert seen["sent_to"], seen
+    assert seen["analysed"], seen
+    assert seen["fetched"], seen
+    assert seen["released"], seen

@@ -143,7 +143,7 @@ services:
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
-      - --node-config=data-path='/demo/hospitals/uz-leuven/cohort' final-models-path='/demo/hospitals/uz-leuven/final-models'
+      - --node-config=data-path='/demo/hospitals/uz-leuven/cohort' final-models-path='/demo/hospitals/uz-leuven/screening-models'
     networks: [model-updates, uz-leuven-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
@@ -154,7 +154,7 @@ services:
     command: [--runtime-api-address=uz-leuven-flower-supernode:9094, --insecure]
     volumes:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/cohort, read_only: true, volume: {subpath: cohort}}
-      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/final-models, volume: {subpath: final-models}}
+      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/screening-models, volume: {subpath: screening-models}}
     networks: [uz-leuven-flower-client-app]
 
   uz-leuven-web:
@@ -183,7 +183,7 @@ services:
       PARTY_COLOUR: jade
     volumes:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
-      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/final-models, read_only: true, volume: {subpath: final-models}}
+      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/screening-models, read_only: true, volume: {subpath: screening-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (features/quality/web_apps.feature).
     # Masked: the startup's data.
@@ -201,7 +201,7 @@ services:
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
-      - --node-config=data-path='/demo/hospitals/heilig-hart-leuven/cohort' final-models-path='/demo/hospitals/heilig-hart-leuven/final-models'
+      - --node-config=data-path='/demo/hospitals/heilig-hart-leuven/cohort' final-models-path='/demo/hospitals/heilig-hart-leuven/screening-models'
     networks: [model-updates, heilig-hart-leuven-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
@@ -212,7 +212,7 @@ services:
     command: [--runtime-api-address=heilig-hart-leuven-flower-supernode:9094, --insecure]
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/cohort, read_only: true, volume: {subpath: cohort}}
-      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/final-models, volume: {subpath: final-models}}
+      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/screening-models, volume: {subpath: screening-models}}
     networks: [heilig-hart-leuven-flower-client-app]
 
   heilig-hart-leuven-web:
@@ -241,7 +241,7 @@ services:
       PARTY_COLOUR: pumpkin
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
-      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/final-models, read_only: true, volume: {subpath: final-models}}
+      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/screening-models, read_only: true, volume: {subpath: screening-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (features/quality/web_apps.feature).
     # Masked: the startup's data.
@@ -259,7 +259,7 @@ services:
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
-      - --node-config=data-path='/demo/hospitals/az-diest/cohort' final-models-path='/demo/hospitals/az-diest/final-models'
+      - --node-config=data-path='/demo/hospitals/az-diest/cohort' final-models-path='/demo/hospitals/az-diest/screening-models'
     networks: [model-updates, az-diest-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
@@ -270,7 +270,7 @@ services:
     command: [--runtime-api-address=az-diest-flower-supernode:9094, --insecure]
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/cohort, read_only: true, volume: {subpath: cohort}}
-      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/final-models, volume: {subpath: final-models}}
+      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/screening-models, volume: {subpath: screening-models}}
     networks: [az-diest-flower-client-app]
 
   az-diest-web:
@@ -299,7 +299,7 @@ services:
       PARTY_COLOUR: violet
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
-      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/final-models, read_only: true, volume: {subpath: final-models}}
+      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/screening-models, read_only: true, volume: {subpath: screening-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (features/quality/web_apps.feature).
     # Masked: the startup's data.

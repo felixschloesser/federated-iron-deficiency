@@ -282,3 +282,19 @@ a.button-link.secondary.outline:is(:hover, :active, :focus) {
 a.button-link.secondary.outline:focus {
   --pico-box-shadow: 0 0 0 var(--pico-outline-width) var(--pico-secondary-focus);
 }
+
+/* The site header: Pico's nav is one flex row that never wraps, so on a phone
+   the party's name, the links and Log out ran past the page's edge. */
+header nav,
+header nav ul {
+  flex-wrap: wrap;
+}
+
+/* A <mark> here is a status (Awaiting lab report, Ferritin suggested). It may
+   wrap between words on a phone, as a table cell must, but each line keeps the
+   chip's padding: inline padding is otherwise drawn once, so the second line
+   looked offset. */
+mark {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}

@@ -41,6 +41,18 @@ class LaboratoryDirector(models.Model):
     )
     name = models.CharField(max_length=100)
 
+    class Meta:
+        constraints = (
+            # A hospital has one laboratory director (features/deployment.feature): any second row
+            # repeats the constant.
+            models.UniqueConstraint(
+                models.Value(1),
+                name="one_laboratory_director",
+                violation_error_code="one_laboratory_director",
+                violation_error_message="A hospital has one laboratory director.",
+            ),
+        )
+
     def __str__(self) -> str:
         return self.name
 

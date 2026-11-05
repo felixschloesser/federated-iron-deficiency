@@ -193,7 +193,7 @@ HOSPITAL = """\
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
-      - --node-config=data-path='/demo/hospitals/{slug}/cohort' final-models-path='/demo/hospitals/{slug}/final-models'
+      - --node-config=data-path='/demo/hospitals/{slug}/cohort' final-models-path='/demo/hospitals/{slug}/screening-models'
     networks: [model-updates, {slug}-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
@@ -204,7 +204,7 @@ HOSPITAL = """\
     command: [--runtime-api-address={slug}-flower-supernode:9094, --insecure]
     volumes:
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/cohort, read_only: true, volume: {subpath: cohort}}
-      - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/final-models, volume: {subpath: final-models}}
+      - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/screening-models, volume: {subpath: screening-models}}
     networks: [{slug}-flower-client-app]
 
   {slug}-web:
@@ -233,7 +233,7 @@ HOSPITAL = """\
       PARTY_COLOUR: {colour}
     volumes:
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}}
-      - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/final-models, read_only: true, volume: {subpath: final-models}}
+      - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/screening-models, read_only: true, volume: {subpath: screening-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (features/quality/web_apps.feature).
     # Masked: the startup's data.

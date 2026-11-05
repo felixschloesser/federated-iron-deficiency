@@ -81,3 +81,14 @@ Feature: Collecting a sample and ordering tests on it
     Given the practice works with laboratories "UZ Leuven" and "AZ Diest"
     When "Dr. Demo A" collects a sample from "Test Patient 1"
     Then the collection is refused with code "laboratory_required" on field "laboratory"
+
+  Scenario: A practice has one primary laboratory
+    Given the practice works with laboratories "UZ Leuven" and "AZ Diest"
+    When "AZ Diest" is made the primary laboratory
+    And "UZ Leuven" is made the primary laboratory
+    Then "UZ Leuven" is the primary laboratory and "AZ Diest" is not
+
+  Scenario: The database holds one primary laboratory too
+    Given the practice works with laboratories "UZ Leuven" and "AZ Diest"
+    When both are written straight to the database as primary
+    Then the database refuses it

@@ -15,12 +15,45 @@ NOT_SUGGESTED = "Ferritin is ordered only beside a lab report suggesting it."
 TAKES_INDICATION = [test.value for test in Test if test.takes_indication()]
 
 
+class LaboratoryQuerySet(models.QuerySet["Laboratory"]):
+    def primary(self) -> "Laboratory | None":
+        """The laboratory samples go to unless the general practitioner picks
+        another; None while the practice has named none (features/ordering.feature)."""
+        return self.filter(primary=True).first()
+
+    @transaction.atomic
+    def add(self, *, name: str, address: str, primary: bool) -> "Laboratory":
+        """Add a laboratory or change its address; `primary` makes it the primary
+        laboratory, in place of any other (features/ordering.feature)."""
+        if primary:
+            self.exclude(name=name).filter(primary=True).update(primary=False)
+        defaults: dict[str, object] = {"address": address}
+        if primary:
+            defaults["primary"] = True
+        laboratory, _ = self.update_or_create(name=name, defaults=defaults)
+        return laboratory
+
+
 class Laboratory(models.Model):
     """A hospital's laboratory the practice sends samples to (features/messaging.feature)."""
 
     name = models.CharField(max_length=100, unique=True)
     # host:port of the hospital's messaging endpoint.
     address = models.CharField(max_length=200)
+    primary = models.BooleanField(default=False)
+
+    objects = LaboratoryQuerySet.as_manager()
+
+    class Meta:
+        constraints = (
+            models.UniqueConstraint(
+                fields=["primary"],
+                condition=models.Q(primary=True),
+                name="one_primary_laboratory",
+                violation_error_code="one_primary_laboratory",
+                violation_error_message="A practice has one primary laboratory.",
+            ),
+        )
 
     def __str__(self) -> str:
         return self.name

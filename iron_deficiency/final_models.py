@@ -21,9 +21,9 @@ DEFAULT_DEMO_DIR = Path.home() / ".cache" / "iron-deficiency"
 
 
 def hospital_final_models(demo_dir: Path, partition_id: int) -> Path:
-    """The final-models folder of the hospital that holds this partition."""
+    """The screening-models folder of the hospital that holds this partition."""
     cycle = list(CYCLES)[partition_id]  # Partition IDs follow CYCLES order
-    return demo_dir / "hospitals" / hospital_slug(HOSPITALS[cycle]) / "final-models"
+    return demo_dir / "hospitals" / hospital_slug(HOSPITALS[cycle]) / "screening-models"
 
 
 def startup_final_models(demo_dir: Path) -> Path:

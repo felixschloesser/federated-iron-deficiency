@@ -24,6 +24,16 @@ rejected = [
     "hospital (the organisation, not where the tube goes)",
 ]
 
+["primary laboratory"]
+source = "User decision, 2026-11-05 (\"primary lab\"); stands for the report's single laboratory, \"Federated version\": the practice \"sends its hospital's laboratory lab orders\""
+why = "The laboratory a practice sends its samples to unless the general practitioner picks another, preselected at *Collect sample*; in the demo the paired hospital's, so lab orders follow the hospitals' sizes"
+rejected = [
+    "default laboratory (developer word)",
+    "home laboratory",
+    "paired hospital (demo.toml's pairing, not a laboratory)",
+    "lab (kept only in \"lab order\" and \"lab report\")",
+]
+
 ["laboratory staff"]
 source = "WHO LQMS, the handbook's word for the people who work in the laboratory (44 uses; e.g. ch. 5, Sample management)"
 why = "Run the analyser; one record per person (`LaboratoryStaffMember`)"
@@ -182,7 +192,7 @@ rejected = ["release", "model version"]
 
 ["screening model"]
 source = "Built from the report's words: P10 *Screening* and \"the model\" (Use case)"
-why = "Named after its purpose at the hospital: a model that can screen this hospital's CBCs. What the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. A final model becomes a screening model when it reaches the hospital"
+why = "Named after its purpose at the hospital: a model that can screen this hospital's CBCs. What the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. A final model becomes a screening model when it reaches the hospital, into its `screening-models/` folder"
 rejected = [
     "model (too generic; Django's `Model`)",
     "final model (kept for training code and the report's DFD)",
@@ -207,7 +217,7 @@ rejected = ["active release", "fingerprint"]
 
 ["laboratory director"]
 source = "WHO LQMS ch. 2, p. 21: the director assesses \"all potential risks … including services to patients\" (20 uses)"
-why = "Decides which screening model screens patients"
+why = "Decides which screening model screens patients; one per hospital (features/deployment.feature), as WHO's singular has it"
 rejected = [
     "clinical biologist (not in either source)",
     "quality manager (WHO: runs the quality system, does not decide)",

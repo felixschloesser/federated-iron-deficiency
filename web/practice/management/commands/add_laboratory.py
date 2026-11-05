@@ -1,4 +1,5 @@
-"""Add a laboratory the practice sends samples to, or change its address (features/messaging.feature)."""
+"""Add a laboratory the practice sends samples to, or change its address; with
+--primary, the one samples go to unless the general practitioner picks another (features/ordering.feature)."""
 
 from typing import Any
 
@@ -17,9 +18,16 @@ class Command(BaseCommand):
         parser.add_argument(
             "address", help="its hospital's messaging endpoint, host:port"
         )
+        parser.add_argument(
+            "--primary",
+            action="store_true",
+            help="samples go there unless the general practitioner picks another",
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
-        laboratory, _ = Laboratory.objects.update_or_create(
-            name=options["name"], defaults={"address": options["address"]}
+        laboratory = Laboratory.objects.add(
+            name=options["name"],
+            address=options["address"],
+            primary=options["primary"],
         )
         self.stdout.write(f"{laboratory.name} at {laboratory.address}")

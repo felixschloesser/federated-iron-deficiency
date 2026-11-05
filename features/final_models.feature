@@ -1,6 +1,6 @@
 Feature: Final models at each hospital
   After each training run the ClientApp's deploy handler stores the final model
-  in the hospital's final-models folder: a new file named after the Flower run
+  in the hospital's screening-models folder: a new file named after the Flower run
   ID, never overwriting one, with the threshold, the federated metrics the
   ServerApp sends, and its local validation on this hospital's validation
   split. Its metadata holds only this hospital's local validation and the

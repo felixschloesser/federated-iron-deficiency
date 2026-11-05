@@ -34,7 +34,7 @@ def seeded(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_seeds_accounts_of_every_role(seeded: None) -> None:
     roles = {role_of(user) for user in User.objects.all()}
     assert roles == {*Role, None}  # no-role: for the refusal at login
-    assert User.objects.get(username="lab-1").check_password("demo-pass-2026")
+    assert User.objects.get(username="staff").check_password("demo-pass-2026")
 
 
 def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
@@ -67,7 +67,7 @@ def test_the_practices_one_general_practitioner_has_every_patient(
 
 def test_running_twice_changes_nothing(seeded: None) -> None:
     seed()
-    # lab-1, director-1, the practice's one general practitioner, no-role.
+    # staff, director, the practice's one general practitioner, no-role.
     assert User.objects.count() == 4
     assert Patient.objects.count() == 3 * len(PEOPLE)
 

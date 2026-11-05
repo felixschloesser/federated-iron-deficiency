@@ -94,8 +94,8 @@ def from_hub[T](load: Callable[[], T], attempts: int = 4) -> T:
 
 
 def seed_arguments(partition: int, nhanes: Path) -> list[str]:
-    """The same participants for a practice and its hospital: one seed and one
-    number of patients per partition."""
+    """One practice's participants: one seed and one number of patients per
+    partition, sized like its paired hospital."""
     patients = PATIENTS[list(CYCLES)[partition]]
     return [
         "--seed",
@@ -107,26 +107,45 @@ def seed_arguments(partition: int, nhanes: Path) -> list[str]:
     ]
 
 
+def tube_seeds(nhanes: Path) -> list[list[str]]:
+    """Every practice's participants, for a hospital's analyser stand-in: any
+    practice may send it a sample (features/messaging.feature)."""
+    return [seed_arguments(partition, nhanes) for partition, _ in hospitals()]
+
+
 def prepare_web(
-    folder: Path, party: str, seed_command: str, partition: int, nhanes: Path
+    folder: Path, party: str, seed_command: str, seeds: list[list[str]]
 ) -> None:
-    """Migrate the party's database and seed its demo accounts."""
+    """Migrate the party's database and seed its demo accounts, once per seed."""
     env = {**os.environ, party: str(folder), "DJANGO_DEBUG": "1"}
     subprocess.run(manage("migrate", "-v0"), env=env, check=True)
-    seed = seed_arguments(partition, nhanes)
-    # Quiet: the summary at startup names the accounts once.
-    subprocess.run(
-        manage(seed_command, *seed), env=env, check=True, stdout=subprocess.DEVNULL
-    )
+    for seed in seeds:
+        # Quiet: the summary at startup names the accounts once.
+        subprocess.run(
+            manage(seed_command, *seed), env=env, check=True, stdout=subprocess.DEVNULL
+        )
 
 
-def add_laboratories(practice: Path) -> None:
+def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
+    """add_laboratory's arguments for every hospital's laboratory; the practice's
+    paired hospital's is its primary laboratory, so by default lab orders follow
+    the hospitals' sizes (features/ordering.feature)."""
+    return [
+        [
+            HOSPITALS[cycle],
+            f"{lab_orders_host(slug)}:8441",
+            *(["--primary"] if cycle == practice_cycle else []),
+        ]
+        for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True)
+    ]
+
+
+def add_laboratories(practice: Path, practice_cycle: str) -> None:
     """Every hospital's laboratory, at its lab-order endpoint (features/messaging.feature)."""
     env = {**os.environ, "PRACTICE_DIR": str(practice), "DJANGO_DEBUG": "1"}
-    for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
-        address = f"{lab_orders_host(slug)}:8441"
+    for arguments in laboratory_arguments(practice_cycle):
         subprocess.run(
-            manage("add_laboratory", HOSPITALS[cycle], address),
+            manage("add_laboratory", *arguments),
             env=env,
             check=True,
             stdout=subprocess.DEVNULL,
@@ -162,7 +181,12 @@ def prepare(demo_dir: Path) -> None:
     ):
         hospital = hospital_dir(demo_dir, slug)
         practice = practice_dir(demo_dir, practice_slug)
-        (hospital / "final-models").mkdir(parents=True, exist_ok=True)
+        # Folders prepared before the rename keep their models.
+        if (hospital / "final-models").exists() and not (
+            hospital / "screening-models"
+        ).exists():
+            (hospital / "final-models").rename(hospital / "screening-models")
+        (hospital / "screening-models").mkdir(parents=True, exist_ok=True)
         practice.mkdir(parents=True, exist_ok=True)
         if not (hospital / "cohort").exists():
             federated_dataset = federated_dataset or load_federated_dataset()
@@ -186,23 +210,30 @@ def prepare(demo_dir: Path) -> None:
 def prepare_webs(demo_dir: Path) -> dict[str, str]:
     """Migrate and seed every party's web database, then ask each hospital for
     its screening model state, by folder name; a bar shows the slow steps."""
+    nhanes = nhanes_csv(demo_dir)
+    # A hospital's analyser stand-in holds every practice's tubes; a practice
+    # seeds only its own patients.
     webs = [
-        (folder, party, seed, partition, name)
+        web
         for (partition, hospital), (_, practice), cycle in zip(
             hospitals(), practices(), CYCLES, strict=True
         )
-        for folder, party, seed, name in (
+        for web in (
             (
                 hospital_dir(demo_dir, hospital),
                 "HOSPITAL_DIR",
                 "seed_hospital",
+                tube_seeds(nhanes),
                 HOSPITALS[cycle],
+                cycle,
             ),
             (
                 practice_dir(demo_dir, practice),
                 "PRACTICE_DIR",
                 "seed_practice",
+                [seed_arguments(partition, nhanes)],
                 PRACTICES[cycle],
+                cycle,
             ),
         )
     ]
@@ -210,11 +241,11 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
     # Every step's label as wide as the longest, so the bar does not jump.
     width = len("Preparing ") + max(len(web[4]) for web in webs)
     with tqdm(total=len(webs) + len(hospitals()), unit="step", leave=False) as bar:
-        for folder, party, seed, partition, name in webs:
+        for folder, party, seed_command, seeds, name, cycle in webs:
             bar.set_description_str(f"{'Preparing ' + name:<{width}}")
-            prepare_web(folder, party, seed, partition, nhanes_csv(demo_dir))
+            prepare_web(folder, party, seed_command, seeds)
             if party == "PRACTICE_DIR":
-                add_laboratories(folder)
+                add_laboratories(folder, cycle)
             bar.update()
         for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
             bar.set_description_str(f"{'Checking ' + HOSPITALS[cycle]:<{width}}")

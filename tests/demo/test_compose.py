@@ -132,8 +132,8 @@ def test_the_hospitals_own_apps_see_no_cohort_and_read_only_final_models(
 ) -> None:
     name = f"{slug}-web"
     assert set(service(name)["tmpfs"]) == {f"/demo/hospitals/{slug}/cohort"}
-    final_models = f"/demo/hospitals/{slug}/final-models"
-    assert mounts(name)[final_models] == (f"hospitals/{slug}/final-models", True)
+    final_models = f"/demo/hospitals/{slug}/screening-models"
+    assert mounts(name)[final_models] == (f"hospitals/{slug}/screening-models", True)
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
@@ -391,8 +391,8 @@ def every_flower_component_insecure(declared: dict[str, Any]) -> None:
 def mounts_only_cohort_and_final_models(slug: str) -> None:
     assert mounts(f"{slug}-flower-client-app") == {
         f"/demo/hospitals/{slug}/cohort": (f"hospitals/{slug}/cohort", True),
-        f"/demo/hospitals/{slug}/final-models": (
-            f"hospitals/{slug}/final-models",
+        f"/demo/hospitals/{slug}/screening-models": (
+            f"hospitals/{slug}/screening-models",
             False,
         ),
     }

@@ -282,6 +282,38 @@ def sample_goes_to(world: World, laboratory: str) -> None:
     assert world["sample"].laboratory.name == laboratory
 
 
+@when(parsers.parse('"{laboratory}" is made the primary laboratory'))
+def make_primary(laboratory: str) -> None:
+    from web.practice.models import Laboratory
+
+    Laboratory.objects.add(
+        name=laboratory,
+        address=Laboratory.objects.get(name=laboratory).address,
+        primary=True,
+    )
+
+
+@then(parsers.parse('"{primary}" is the primary laboratory and "{other}" is not'))
+def is_primary(primary: str, other: str) -> None:
+    from web.practice.models import Laboratory
+
+    laboratory = Laboratory.objects.primary()
+    assert laboratory is not None
+    assert laboratory.name == primary
+    assert not Laboratory.objects.get(name=other).primary
+
+
+@when("both are written straight to the database as primary")
+def both_primary(world: World) -> None:
+    from web.practice.models import Laboratory
+
+    try:
+        with transaction.atomic():
+            Laboratory.objects.update(primary=True)
+    except IntegrityError:
+        world["integrity_error"] = True
+
+
 @then(parsers.parse('the collection is refused with code "{code}" on field "{field}"'))
 def collection_refused(world: World, code: str, field: str) -> None:
     assert [error.code for error in world["error"].error_dict[field]] == [code]

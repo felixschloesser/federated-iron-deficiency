@@ -645,6 +645,24 @@ def test_with_several_laboratories_collecting_starts_with_the_choice(
     assertContains(client.get(patient_url(patient)), ", for AZ Diest</h2>")
 
 
+def test_the_choice_of_laboratory_starts_at_the_primary_one(
+    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+) -> None:
+    from web.practice.models import Laboratory
+
+    for name in ("UZ Leuven", "AZ Diest"):
+        Laboratory.objects.create(name=name, address="127.0.0.1:1")
+    logged_in(client, general_practitioner)
+    choice = client.get(collect_url(patient))
+    # No primary laboratory: nothing preselected, so the choice stays deliberate.
+    assert choice.context["form"]["laboratory"].value() is None
+    Laboratory.objects.add(name="UZ Leuven", address="127.0.0.1:1", primary=True)
+    choice = client.get(collect_url(patient))
+    uz_leuven = Laboratory.objects.get(name="UZ Leuven")
+    assert choice.context["form"]["laboratory"].value() == uz_leuven.pk
+    assertContains(choice, f'value="{uz_leuven.pk}" id="id_laboratory_1" checked')
+
+
 def test_with_one_laboratory_collecting_is_one_click(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:

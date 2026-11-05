@@ -1,7 +1,7 @@
 Feature: The startup's code at a hospital sees only the cohort and final models
   Quality attribute: privacy, as isolation. The ClientApp, the startup's code
   at each hospital (DF7, TB4), runs in a container of its own that mounts only
-  the hospital's cohort (read-only) and final-models, on a network it shares
+  the hospital's cohort (read-only) and screening-models, on a network it shares
   only with its hospital's SuperNode: it sees no database, no key and no other
   party's folder, and reaches neither the hospital's web app nor anything
   outside the deployment, so what it sends leaves only through DF9 and DF10.

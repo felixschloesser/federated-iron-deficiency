@@ -13,7 +13,7 @@ class Command(BaseCommand):
     help = __doc__
 
     def handle(self, *args: Any, **options: Any) -> None:
-        directory = settings.FINAL_MODELS_DIR
+        directory = settings.SCREENING_MODELS_DIR
         count = len(screening_models(directory))
         deployed = Deployment.objects.screener(directory)
         if count == 0:

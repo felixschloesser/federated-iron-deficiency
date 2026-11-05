@@ -19,7 +19,7 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
 
     text = summary(STATUSES)
     assert "Password for every account: demo-pass-2026" in text
-    assert "laboratory staff: lab-1 · laboratory director: director-1" in text
+    assert "laboratory staff: staff · laboratory director: director" in text
     assert "general practitioner: doctor" in text
     for line in (
         "UZ Leuven  ",
@@ -40,7 +40,7 @@ def test_the_next_step_follows_the_hospitals_state() -> None:
 
     assert "Next: train with `docker compose run --rm train`" in summary(STATUSES)
     trained = {**STATUSES, "heilig-hart-leuven": "1 screening model, none deployed"}
-    assert "Next: deploy a screening model as director-1" in summary(trained)
+    assert "Next: deploy a screening model as director" in summary(trained)
     deployed = dict.fromkeys(STATUSES, "Screening model of … deployed (1 in all)")
     assert "Next:" not in summary(deployed)
 
@@ -53,6 +53,35 @@ def test_each_practice_and_its_hospital_seed_the_same_number_of_patients() -> No
     for partition, cycle in enumerate(PATIENTS):
         arguments = seed_arguments(partition, Path("nhanes.csv"))
         assert arguments[arguments.index("--patients") + 1] == str(PATIENTS[cycle])
+
+
+def test_every_hospital_has_a_tube_for_every_practices_patients() -> None:
+    """Any practice may send a sample to any hospital (features/messaging.feature), so every hospital's
+    analyser stand-in seeds every practice's participants."""
+    from demo.demo import seed_arguments, tube_seeds
+    from demo.topology import PATIENTS
+
+    nhanes = Path("nhanes.csv")
+    assert tube_seeds(nhanes) == [
+        seed_arguments(partition, nhanes) for partition in range(len(PATIENTS))
+    ]
+
+
+def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise() -> None:
+    """Every hospital's laboratory, its paired hospital's the primary one, so
+    lab orders follow the hospitals' sizes by default."""
+    from demo.demo import lab_orders_host, laboratory_arguments
+    from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
+
+    for cycle in CYCLES:
+        arguments = laboratory_arguments(cycle)
+        assert [argument[0] for argument in arguments] == [
+            HOSPITALS[other] for other in CYCLES
+        ]
+        for argument, other in zip(arguments, CYCLES, strict=True):
+            host = lab_orders_host(hospital_slug(HOSPITALS[other]))
+            assert argument[1] == f"{host}:8441"
+            assert ("--primary" in argument) is (other == cycle)
 
 
 def test_the_summary_names_the_http_port_when_it_is_not_80() -> None:
@@ -74,7 +103,7 @@ PARTY_FOLDERS = {
     },
     "hospitals": {
         "cohort",  # DS2
-        "final-models",  # DS5
+        "screening-models",  # DS5
         "web.sqlite3",  # DS6, DS8
         ".secret_key",
     },
@@ -116,6 +145,9 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
     for folder in stale:
         folder.mkdir(parents=True)
         (folder / "nhanes.csv").write_text("sample_id\n1\n")
+    # A hospital prepared before its final models moved to screening-models.
+    (stale[0] / "final-models").mkdir()
+    (stale[0] / "final-models" / "7.pt").write_text("model")
 
     prepare(tmp_path)
 
@@ -127,3 +159,4 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
         assert held <= PARTY_FOLDERS[kind], (folder.name, held - PARTY_FOLDERS[kind])
     # The seed commands still get the cycle, from where only prepare looks.
     assert nhanes_csv(tmp_path).is_file()
+    assert (stale[0] / "screening-models" / "7.pt").read_text() == "model"
