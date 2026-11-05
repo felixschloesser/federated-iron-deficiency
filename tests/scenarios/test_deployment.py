@@ -20,19 +20,19 @@ scenarios("deployment.feature")
 
 
 @pytest.fixture
-def final_models_dir(tmp_path: Path) -> Path:
-    return tmp_path / "final-models"
+def screening_models_dir(tmp_path: Path) -> Path:
+    return tmp_path / "screening-models"
 
 
 @given(parsers.parse('laboratory director "{name}"'))
 def laboratory_director(
-    world: World, db: None, name: str, final_models_dir: Path
+    world: World, db: None, name: str, screening_models_dir: Path
 ) -> None:
     from tests.conftest import make_laboratory_director
 
     world["director"] = make_laboratory_director(name)
-    world["final_models_dir"] = final_models_dir
-    final_models_dir.mkdir(parents=True)
+    world["screening_models_dir"] = screening_models_dir
+    screening_models_dir.mkdir(parents=True)
 
 
 @when(parsers.parse('laboratory director "{name}" is added to the hospital'))
@@ -85,7 +85,7 @@ def local_auroc(world: World, auroc: float) -> None:
     validation = {**world["validation"][run_id], "auroc": auroc}
     stored_at = NOW + timedelta(minutes=len(world.setdefault("stored", [])))
     world["stored"].append(run_id)
-    write_final_model(world["final_models_dir"], run_id, validation, stored_at)
+    write_final_model(world["screening_models_dir"], run_id, validation, stored_at)
 
 
 def deploy(world: World, run_id: str) -> None:
@@ -93,7 +93,7 @@ def deploy(world: World, run_id: str) -> None:
 
     try:
         Deployment.objects.deploy(
-            run_id=run_id, directory=world["final_models_dir"], now=NOW
+            run_id=run_id, directory=world["screening_models_dir"], now=NOW
         )
     except ValidationError as error:
         world["error"] = error
@@ -125,7 +125,7 @@ PROBLEMS = {
 
 @given(parsers.parse('screening model "{run_id}" that {problem}'))
 def broken_final_model(world: World, run_id: str, problem: str) -> None:
-    path = world["final_models_dir"] / f"{run_id}.pt"
+    path = world["screening_models_dir"] / f"{run_id}.pt"
     variant = PROBLEMS[problem]
     if variant is None:
         path.write_bytes(b"not a model")
@@ -139,7 +139,7 @@ def broken_final_model(world: World, run_id: str, problem: str) -> None:
 @given(parsers.parse('the file of the deployed "{run_id}" has changed on disk'))
 def changed_on_disk(world: World, run_id: str) -> None:
     deploy(world, run_id)
-    with (world["final_models_dir"] / f"{run_id}.pt").open("ab") as file:
+    with (world["screening_models_dir"] / f"{run_id}.pt").open("ab") as file:
         file.write(b"tampered")
 
 
@@ -152,7 +152,7 @@ def staff_member(world: World, name: str) -> None:
 def staff_tries(
     world: World, client: Client, settings: Settings, name: str, run_id: str
 ) -> None:
-    settings.SCREENING_MODELS_DIR = world["final_models_dir"]
+    settings.SCREENING_MODELS_DIR = world["screening_models_dir"]
     client.force_login(world["staff_member"].user)
     client.post(reverse("deployment:deploy", kwargs={"run_id": run_id}))
 
@@ -161,14 +161,14 @@ def deployed_run(world: World) -> str | None:
     """The run ID of the model that screens now, if one can."""
     from web.deployment.models import Deployment, Screener
 
-    deployed = Deployment.objects.screener(world["final_models_dir"])
+    deployed = Deployment.objects.screener(world["screening_models_dir"])
     return deployed.screening_model.run_id if isinstance(deployed, Screener) else None
 
 
 def no_usable_model(world: World) -> object:
     from web.deployment.models import Deployment, Screener
 
-    deployed = Deployment.objects.screener(world["final_models_dir"])
+    deployed = Deployment.objects.screener(world["screening_models_dir"])
     return None if isinstance(deployed, Screener) else deployed
 
 
@@ -184,7 +184,7 @@ def can_be_deployed(world: World, first: str, second: str) -> None:
     from web.deployment.model_files import screening_models
 
     listed = {
-        model.run_id: model for model in screening_models(world["final_models_dir"])
+        model.run_id: model for model in screening_models(world["screening_models_dir"])
     }
     assert listed[first].problem is None
     assert listed[second].problem is None
@@ -227,7 +227,7 @@ def shows_validation(
     from web.deployment.model_files import screening_models
 
     (model,) = [
-        m for m in screening_models(world["final_models_dir"]) if m.run_id == run_id
+        m for m in screening_models(world["screening_models_dir"]) if m.run_id == run_id
     ]
     assert str(model.sensitivity) == sensitivity
     assert str(model.specificity) == specificity
@@ -246,7 +246,7 @@ def cannot_be_deployed(world: World, run_id: str, code: str) -> None:
     from web.deployment.model_files import screening_models
 
     (model,) = [
-        m for m in screening_models(world["final_models_dir"]) if m.run_id == run_id
+        m for m in screening_models(world["screening_models_dir"]) if m.run_id == run_id
     ]
     assert getattr(model.problem, "value", None) == code
 
