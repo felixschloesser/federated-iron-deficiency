@@ -338,3 +338,19 @@ def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -
     script = prepare["entrypoint"][-2]
     assert "chown" in script
     assert "exec setpriv" in script
+
+
+@pytest.mark.parametrize(
+    "name",
+    [f"{slug}-web" for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS] + ["proxy"],
+)
+def test_what_others_wait_for_says_when_it_is_ready(name: str) -> None:
+    # Compose, and the container tests (`up --wait`), wait on health, not a clock.
+    assert service(name)["healthcheck"]["test"][0] == "CMD", name
+
+
+@pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
+def test_a_hospital_is_ready_when_both_its_servers_answer(slug: str) -> None:
+    check = " ".join(service(f"{slug}-web")["healthcheck"]["test"])
+    assert f"('{slug}-pages', 8000)" in check
+    assert f"('{slug}-lab-orders', 8441)" in check
