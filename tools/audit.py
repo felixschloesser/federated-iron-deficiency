@@ -18,7 +18,7 @@ from web.party import Party
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = Path("tools") / "audit_baseline.json"
 ALLOWLIST = Path("tools") / "audit_allowlist.toml"
-SPEC = Path("docs") / "spec" / "requirements.md"
+GLOSSARY = Path("glossary.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
 BUILD_OUTPUT = {"staticfiles"}
 # The parts of the training package a hospital's web app may import (R21);
@@ -270,23 +270,15 @@ def party_imports(root: Path) -> list[str]:
 
 
 def glossary_sources(root: Path) -> list[str]:
-    path = root / SPEC
+    """Every term in glossary.toml names its source."""
+    path = root / GLOSSARY
     if not path.exists():
         return []
-    vocabulary = path.read_text().split("Vocabulary", 1)[-1].split("\n## ", 1)[0]
     findings = []
-    for row in vocabulary.splitlines():
-        cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
-        if (
-            not row.startswith("|")
-            or len(cells) < 2
-            or cells[0] == "Term"
-            or cells[0].startswith("---")
-        ):
-            continue
-        source = cells[1]
+    for term, entry in tomllib.loads(path.read_text()).items():
+        source = str(entry.get("source", "")).strip()
         if source in ("", "—", "-") or "unsourced" in source.lower():
-            findings.append(f"{SPEC.as_posix()}: term '{cells[0]}' has no source")
+            findings.append(f"{GLOSSARY.as_posix()}: term '{term}' has no source")
     return findings
 
 

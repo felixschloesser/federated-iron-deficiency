@@ -1,4 +1,4 @@
-"""General practitioners, their patients, and orders (terms: docs/spec/requirements.md §1)."""
+"""General practitioners, their patients, and orders (terms: glossary.toml)."""
 
 from dataclasses import dataclass
 from datetime import datetime

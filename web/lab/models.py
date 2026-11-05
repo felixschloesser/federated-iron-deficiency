@@ -1,4 +1,4 @@
-"""Laboratory staff and samples (terms: docs/spec/requirements.md §1)."""
+"""Laboratory staff and samples (terms: glossary.toml)."""
 
 from __future__ import annotations
 

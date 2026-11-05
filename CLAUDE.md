@@ -35,7 +35,7 @@ uv run --frozen python tools/audit.py
 ## Vocabulary first
 
 - Before any scenario that introduces or renames a domain concept: a term table (term | source | why chosen | rejected terms). A term without a source stops the draft; report it.
-- Glossary entries change in the same commit as the code, each with its source. Model, form, template and copy use the glossary's words; the domain experts' words win over developer words.
+- Glossary entries (`glossary.toml`, one table per term with `source`, `why` and `rejected`) change in the same commit as the code, each with its source; the audit fails on a term without one. Model, form, template and copy use the glossary's words; the domain experts' words win over developer words.
 
 ## Red first
 

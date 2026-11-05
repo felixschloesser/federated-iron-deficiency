@@ -1,5 +1,5 @@
 """Terms both kinds of deployment use: the general practitioner's app and the
-hospital (terms: docs/spec/requirements.md §1). No models, so either may import it."""
+hospital (terms: glossary.toml). No models, so either may import it."""
 
 from dataclasses import dataclass
 from typing import assert_never
@@ -55,7 +55,7 @@ class Test(models.TextChoices):
 
 class ClinicalIndication(models.TextChoices):
     """Why a general practitioner orders a CBC, in the guidelines' words
-    (docs/spec/requirements.md §1)."""
+    (glossary.toml)."""
 
     SUSPECTED_ANAEMIA = "suspected_anaemia", "Suspected anaemia"
     SUSPECTED_IBS = "suspected_ibs", "Suspected irritable bowel syndrome"

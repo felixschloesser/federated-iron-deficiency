@@ -14,7 +14,7 @@ from iron_deficiency.screening import Problem, from_bytes
 
 
 def model_name(stored_at: datetime | None, run_id: str) -> str:
-    """How the laboratory director knows a model: when it arrived (spec §1, model)."""
+    """How the laboratory director knows a model: when it arrived (glossary.toml, screening model)."""
     if stored_at is None:
         return f"Screening model of run {run_id}"
     return f"Screening model of {formats.date_format(timezone.localtime(stored_at), 'j M Y, H:i')}"
