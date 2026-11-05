@@ -192,7 +192,7 @@ rejected = ["release", "model version"]
 
 ["screening model"]
 source = "Built from the report's words: P10 *Screening* and \"the model\" (Use case)"
-why = "Named after its purpose at the hospital: a model that can screen this hospital's CBCs. What the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. A final model becomes a screening model when it reaches the hospital"
+why = "Named after its purpose at the hospital: a model that can screen this hospital's CBCs. What the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. A final model becomes a screening model when it reaches the hospital, into its `screening-models/` folder"
 rejected = [
     "model (too generic; Django's `Model`)",
     "final model (kept for training code and the report's DFD)",

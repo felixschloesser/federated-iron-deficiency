@@ -103,7 +103,7 @@ PARTY_FOLDERS = {
     },
     "hospitals": {
         "cohort",  # DS2
-        "final-models",  # DS5
+        "screening-models",  # DS5
         "web.sqlite3",  # DS6, DS8
         ".secret_key",
     },
@@ -145,6 +145,9 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
     for folder in stale:
         folder.mkdir(parents=True)
         (folder / "nhanes.csv").write_text("sample_id\n1\n")
+    # A hospital prepared before its final models moved to screening-models.
+    (stale[0] / "final-models").mkdir()
+    (stale[0] / "final-models" / "7.pt").write_text("model")
 
     prepare(tmp_path)
 
@@ -156,3 +159,4 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
         assert held <= PARTY_FOLDERS[kind], (folder.name, held - PARTY_FOLDERS[kind])
     # The seed commands still get the cycle, from where only prepare looks.
     assert nhanes_csv(tmp_path).is_file()
+    assert (stale[0] / "screening-models" / "7.pt").read_text() == "model"

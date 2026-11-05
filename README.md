@@ -112,7 +112,7 @@ flwr run . supergrid --federation @<username>/<federation-name>
 
 On SuperGrid, the final models stay with the virtual SuperNodes. To screen
 with them, run the simulation on your machine instead. Each virtual SuperNode
-then stores its final model in `<demo-dir>/hospitals/<hospital>/final-models/`,
+then stores its final model in `<demo-dir>/hospitals/<hospital>/screening-models/`,
 where the hospitals are `uz-leuven`, `heilig-hart-leuven` and `az-diest`
 (partitions 0, 1 and 2). `demo-dir` must be absolute; it defaults to
 `~/.cache/iron-deficiency`:
@@ -140,7 +140,7 @@ screened, as the model was trained on them alone:
 
 ```shell
 python -m iron_deficiency.screening \
-  --model ~/.cache/iron-deficiency/hospitals/az-diest/final-models/<run-id>.pt \
+  --model ~/.cache/iron-deficiency/hospitals/az-diest/screening-models/<run-id>.pt \
   --input demo_data/new_samples.csv \
   --output flags.csv
 ```
@@ -156,7 +156,7 @@ women's actual ferritin, print its AUROC and the confusion matrix of its flags:
 
 ```shell
 python -m analysis.evaluate_screening \
-  --model ~/.cache/iron-deficiency/hospitals/az-diest/final-models/<run-id>.pt \
+  --model ~/.cache/iron-deficiency/hospitals/az-diest/screening-models/<run-id>.pt \
   --input demo_data/new_samples.csv
 ```
 

@@ -121,7 +121,7 @@ def start(run: Compose, folder: Path) -> None:
         "from pathlib import Path; from demo.demo import prepare_flower;"
         " prepare_flower(Path('/demo'));"
         f" hospital = Path('/demo/hospitals/{HOSPITAL}');"
-        " (hospital / 'cohort').mkdir(); (hospital / 'final-models').mkdir();"
+        " (hospital / 'cohort').mkdir(); (hospital / 'screening-models').mkdir();"
         " (hospital / 'cohort' / 'rows.arrow').write_text('cohort');"
         " (hospital / 'web.sqlite3').write_text('lab orders')",
     )
@@ -202,7 +202,7 @@ def test_the_startups_code_sees_only_the_cohort_and_final_models_and_reaches_not
     assert report["hospital"] == HOSPITAL
     allowed = (
         f"/demo/hospitals/{HOSPITAL}/cohort/",
-        f"/demo/hospitals/{HOSPITAL}/final-models/",
+        f"/demo/hospitals/{HOSPITAL}/screening-models/",
     )
     assert report["files"] == [f"/demo/hospitals/{HOSPITAL}/cohort/rows.arrow"]
     assert all(path.startswith(allowed) for path in report["files"])
@@ -278,7 +278,7 @@ def hospital_app(compose: Compose) -> str:
         " from demo.demo import hospital_dir;"
         f" hospital = hospital_dir(Path('/demo'), {APP_HOSPITAL!r});"
         # A volume's subpath must exist before a container mounts it.
-        " (hospital / 'final-models').mkdir(exist_ok=True)",
+        " (hospital / 'screening-models').mkdir(exist_ok=True)",
     )
     name = f"{APP_HOSPITAL}-web"
     compose("run", "--rm", "--no-deps", name, "python", "manage.py", "migrate", "-v0")

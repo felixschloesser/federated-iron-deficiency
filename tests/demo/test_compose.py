@@ -132,8 +132,8 @@ def test_the_startups_code_at_a_hospital_sees_only_the_cohort_and_final_models(
     clientapp = f"{slug}-flower-client-app"
     assert mounts(clientapp) == {
         f"/demo/hospitals/{slug}/cohort": (f"hospitals/{slug}/cohort", True),
-        f"/demo/hospitals/{slug}/final-models": (
-            f"hospitals/{slug}/final-models",
+        f"/demo/hospitals/{slug}/screening-models": (
+            f"hospitals/{slug}/screening-models",
             False,
         ),
     }
@@ -154,8 +154,8 @@ def test_the_hospitals_own_apps_see_no_cohort_and_read_only_final_models(
 ) -> None:
     name = f"{slug}-web"
     assert set(service(name)["tmpfs"]) == {f"/demo/hospitals/{slug}/cohort"}
-    final_models = f"/demo/hospitals/{slug}/final-models"
-    assert mounts(name)[final_models] == (f"hospitals/{slug}/final-models", True)
+    final_models = f"/demo/hospitals/{slug}/screening-models"
+    assert mounts(name)[final_models] == (f"hospitals/{slug}/screening-models", True)
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)

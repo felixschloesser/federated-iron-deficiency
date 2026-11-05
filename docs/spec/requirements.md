@@ -96,7 +96,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | R20 | A final model's metadata holds only this hospital's local validation and the federated aggregate the ServerApp computed; never another hospital's metrics. | `tests/ml/test_final_models.py` |
 | R21 | Each party has its own folder (§9); a hospital's web app reads only its own (`HOSPITAL_DIR`), a practice's only its own (`PRACTICE_DIR`), and each installs, migrates and serves only its own party's apps: a hospital's database has no table for patients, a practice's none for lab orders, analyser values or final models (test and audit check), and code under `web/` imports from the training package only `iron_deficiency.screening`, `iron_deficiency.cohort` and `iron_deficiency.dataset` (audit check). | `tests/web/test_settings.py`, `tools/audit.py` |
 | R27 | Not in the demo. The report's control: the SuperLink admits only SuperNodes whose public key the startup registered (Flower's SuperNode authentication, over TLS). The demo runs every Flower connection with `--insecure` and admits any node, for simplicity. | `tests/demo/test_compose.py` (every Flower connection runs without TLS) |
-| R28 | The ClientApp, the startup's code at each hospital (DF7, TB4), runs in a container of its own that mounts only the hospital's `cohort/` (read-only) and `final-models/`, on a network it shares only with its hospital's SuperNode: it sees no database, no key and no other party's folder, and reaches neither the hospital's web app nor anything outside the deployment, so what it sends leaves only through DF9 and DF10. | `tests/demo/test_compose.py`, `tests/demo/test_containers.py` |
+| R28 | The ClientApp, the startup's code at each hospital (DF7, TB4), runs in a container of its own that mounts only the hospital's `cohort/` (read-only) and `screening-models/`, on a network it shares only with its hospital's SuperNode: it sees no database, no key and no other party's folder, and reaches neither the hospital's web app nor anything outside the deployment, so what it sends leaves only through DF9 and DF10. | `tests/demo/test_compose.py`, `tests/demo/test_containers.py` |
 | R29 | Each of the six web apps runs gunicorn with `DEBUG` off; WhiteNoise serves the stylesheets. The demo serves plain HTTP: the report's TLS (HTTPS, secure cookies, HSTS) is left out for simplicity. Only `prepare`, which seeds the demo accounts, runs with `DJANGO_DEBUG` (R15). | `tests/demo/test_compose.py`, `tests/demo/test_containers.py` |
 
 ## 3. Agents
@@ -112,7 +112,7 @@ P0 Maintain[Patient data seen only by those who need it]   (report, Part 2)
 | Messaging endpoint (gRPC, plaintext in the demo, per hospital) | Software | R22–R25 |
 | Lab app (`lab`) | Software | R2–R8, R12, R14 |
 | Analyser | Software, stand-in | Returns the patient's NHANES 2021–2023 values (R3, R12) |
-| Final models | Environment | Written by the ClientApp (R16) into the hospital's `final-models/` folder (§9) |
+| Final models | Environment | Written by the ClientApp (R16) into the hospital's `screening-models/` folder (§9) |
 | Deployment (`compose.yaml`, `tools/demo.py`) | Software | Runs each process in its own container, one network per trust boundary and per crossing (§9, R21, R28) |
 | Seed commands (`seed_hospital`, `seed_practice`) | Software | Each party's demo accounts from the same NHANES 2021–2023 participants: laboratory staff, a laboratory director and the analyser stand-in's values at the hospital; general practitioners and patients with obviously synthetic names at the practice |
 
@@ -222,7 +222,7 @@ On the host, `demo/` (gitignored) keeps only what a reset must not delete:
 └── hospitals/
     ├── uz-leuven/               TB1
     │   ├── cohort/              DS2 training cohort (2005–2006)
-    │   ├── final-models/        DS5 one file per training run (R16)
+    │   ├── screening-models/    DS5 one file per training run (R16)
     │   └── web.sqlite3          DS8 screening records, DS6 deployment history
     ├── heilig-hart-leuven/      TB1 (2015–2016, 50%)
     └── az-diest/                TB1 (2017–2018, 25%)
@@ -248,8 +248,8 @@ containers; P1 and P5 are not built).
 | `flower-superlink` | `flwr/superlink` | `startup`, `model-updates` | `startup/superlink` |
 | `flower-server-app` | built: SuperExec with the app's dependencies | `startup` | `startup/final-models` |
 | `<hospital>-flower-supernode` | `flwr/supernode` | `model-updates`, `<hospital>-flower-client-app` | none |
-| `<hospital>-flower-client-app` | built: SuperExec with the app's dependencies | `<hospital>-flower-client-app` | its `cohort/` (read-only), `final-models/` (R28) |
-| `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/` masked and `final-models/` read-only |
+| `<hospital>-flower-client-app` | built: SuperExec with the app's dependencies | `<hospital>-flower-client-app` | its `cohort/` (read-only), `screening-models/` (R28) |
+| `<hospital>-web` | built: the project | `<hospital>`, where its pages listen (`<hospital>-pages:8000`), and `lab-orders`, where only its messaging endpoint listens (`<hospital>-lab-orders:8441`) | its folder, with `cohort/` masked and `screening-models/` read-only |
 | `<practice>-web` | built: the project | `<practice>`, and `lab-orders`, reaching every hospital's endpoint (R22) | its folder |
 | `proxy` | `nginx` (`docker/proxy.conf`) | every `<hospital>` and `<practice>` network | none |
 

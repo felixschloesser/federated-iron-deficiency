@@ -181,7 +181,12 @@ def prepare(demo_dir: Path) -> None:
     ):
         hospital = hospital_dir(demo_dir, slug)
         practice = practice_dir(demo_dir, practice_slug)
-        (hospital / "final-models").mkdir(parents=True, exist_ok=True)
+        # Folders prepared before the rename keep their models.
+        if (hospital / "final-models").exists() and not (
+            hospital / "screening-models"
+        ).exists():
+            (hospital / "final-models").rename(hospital / "screening-models")
+        (hospital / "screening-models").mkdir(parents=True, exist_ok=True)
         practice.mkdir(parents=True, exist_ok=True)
         if not (hospital / "cohort").exists():
             federated_dataset = federated_dataset or load_federated_dataset()

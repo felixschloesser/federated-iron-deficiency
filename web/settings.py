@@ -35,7 +35,7 @@ FINAL_MODELS_DIR: Path | None = (
 )
 if HOSPITAL_DIR is not None:
     PARTY = Party.HOSPITAL
-    FINAL_MODELS_DIR = HOSPITAL_DIR / "final-models"
+    FINAL_MODELS_DIR = HOSPITAL_DIR / "screening-models"
 elif PRACTICE_DIR is not None:
     PARTY = Party.GENERAL_PRACTITIONER
 # Shown in the title bar and header; never the screening's name.
