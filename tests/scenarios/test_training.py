@@ -90,3 +90,77 @@ def final_model_shows(
         if model.run_id == run_id
     )
     assert (model.threshold, model.federated_auroc) == (threshold, auroc)
+
+
+@pytest.fixture
+def superlink(monkeypatch: pytest.MonkeyPatch) -> World:
+    """Stands in for `flwr run`: records each command, answers as Flower does."""
+    import json
+    import subprocess
+
+    state: World = {"commands": [], "answer": {"success": True, "run-id": "7"}}
+
+    def run(command: list[str], **kwargs: object) -> "subprocess.CompletedProcess[str]":
+        state["commands"].append(command)
+        return subprocess.CompletedProcess(command, 0, json.dumps(state["answer"]), "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    return state
+
+
+@given("the SuperLink refuses runs")
+def superlink_refuses(superlink: World) -> None:
+    superlink["answer"] = {
+        "success": False,
+        "error-message": "Run submission failed",
+    }
+
+
+@when(
+    parsers.re(
+        r"the data scientist submits a training run with threshold"
+        r" (?P<threshold>-?[\d.]+)$"
+    )
+)
+def submit(world: World, superlink: World, threshold: str) -> None:
+    from django.core.exceptions import ValidationError
+
+    from web.training.runs import submit_run
+
+    try:
+        world["run_id"] = submit_run(threshold=float(threshold))
+    except ValidationError as error:
+        world["error"] = error
+
+
+@then(
+    parsers.parse(
+        "the SuperLink receives a run whose screening threshold is {threshold:f}"
+    )
+)
+def superlink_receives(superlink: World, threshold: float) -> None:
+    [command] = superlink["commands"]
+    run_config = command[command.index("--run-config") + 1]
+    assert f"screening-threshold={threshold}" in run_config.split()
+
+
+@then("the submission gives the run's ID")
+def gives_run_id(world: World) -> None:
+    assert world["run_id"] == 7
+
+
+@then(
+    parsers.re(
+        r'the submission is refused with code "(?P<code>\w+)"(?P<field> on the threshold)?$'
+    )
+)
+def refused(world: World, code: str, field: str | None) -> None:
+    errors = world["error"].error_dict
+    assert [error.code for error in errors["threshold" if field else "__all__"]] == [
+        code
+    ]
+
+
+@then("no run reaches the SuperLink")
+def no_run(superlink: World) -> None:
+    assert superlink["commands"] == []

@@ -18,3 +18,25 @@ Feature: The startup's training runs
 
   Scenario: No final model yet
     Then the startup's final models are none
+
+  Scenario: Submitting a training run with a threshold
+    When the data scientist submits a training run with threshold 0.4
+    Then the SuperLink receives a run whose screening threshold is 0.4
+    And the submission gives the run's ID
+
+  Scenario Outline: A threshold outside 0 and 1 is refused
+    When the data scientist submits a training run with threshold <threshold>
+    Then the submission is refused with code "<code>" on the threshold
+    And no run reaches the SuperLink
+
+    Examples:
+      | threshold | code                     |
+      | 0         | threshold_not_above_zero |
+      | -0.1      | threshold_not_above_zero |
+      | 1         | threshold_not_below_one  |
+      | 1.5       | threshold_not_below_one  |
+
+  Scenario: A SuperLink that refuses the run
+    Given the SuperLink refuses runs
+    When the data scientist submits a training run with threshold 0.5
+    Then the submission is refused with code "superlink_refused"
