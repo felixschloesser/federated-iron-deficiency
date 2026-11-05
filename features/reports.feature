@@ -1,8 +1,7 @@
 Feature: Lab reports for the general practitioner
   The general practitioner reads a lab report on the patient's page: the
   values under NHANES's names and units, no interpretation, a comment only when
-  ferritin is suggested, and Order ferritin beside that comment. Covers R9, R11,
-  R12.
+  ferritin is suggested, and Order ferritin beside that comment.
 
   Background:
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1"

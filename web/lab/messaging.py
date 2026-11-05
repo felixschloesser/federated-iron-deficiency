@@ -1,4 +1,4 @@
-"""The hospital's messaging endpoint: gRPC, plaintext in the demo (spec §10, R22-R25)."""
+"""The hospital's messaging endpoint: gRPC, plaintext in the demo (web/messaging/messages.proto, features/messaging.feature)."""
 
 import functools
 from collections.abc import Callable
@@ -40,7 +40,7 @@ type FromPractice = (
 
 
 def practice_of(request: FromPractice, context: grpc.ServicerContext) -> str:
-    """The calling practice, by the name it sends (R24); a message without one is
+    """The calling practice, by the name it sends (features/messaging.feature); a message without one is
     refused before anything is read or recorded."""
     if not request.practice:
         context.abort(grpc.StatusCode.INVALID_ARGUMENT, "practice_required")

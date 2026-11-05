@@ -1,4 +1,4 @@
-"""The demo's preparation helpers (spec §9); compose.yaml is in tests/demo/test_compose.py."""
+"""The demo's preparation helpers (demo/README.md); compose.yaml is in tests/demo/test_compose.py."""
 
 from pathlib import Path
 
@@ -30,7 +30,7 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
         "Ctrl-C stops every party.",
     ):
         assert line in text, line
-    # A practice sends samples to every hospital's laboratory, not to one (R22).
+    # A practice sends samples to every hospital's laboratory, not to one (features/messaging.feature).
     assert "→" not in text
     assert "Accounts" not in text
 
@@ -63,7 +63,7 @@ def test_the_summary_names_the_http_port_when_it_is_not_80() -> None:
 
 
 # What each party's folder may hold: the report's DFD stores, and the Django
-# secret key its web app uses (spec §9). Nothing from the NHANES cycle
+# secret key its web app uses (demo/README.md). Nothing from the NHANES cycle
 # that stands in for new samples: the seed commands get their participants
 # from prepare alone.
 PARTY_FOLDERS = {

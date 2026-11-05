@@ -327,7 +327,7 @@ def both_answer(fetched: dict[str, Any]) -> None:
 def test_the_practice_reaches_its_hospitals_lab_orders_and_not_its_pages(
     compose: Compose, hospital_app: str
 ) -> None:
-    # One container serves both (R21, DF23, DF25): from the crossing, only 8441.
+    # One container serves both (features/quality/party_isolation.feature, DF23, DF25): from the crossing, only 8441.
     host = f"{APP_HOSPITAL}-lab-orders"
     answers = probe(compose, f"{APP_PRACTICE}-web", PORTS, host, "8441", "8000")
     assert answers == {"8441": "open", "8000": "ConnectionRefusedError"}

@@ -23,12 +23,12 @@ CBC_VARS = [
 ]
 FEATURES = CBC_VARS + ["RIDAGEYR"]
 FERRITIN_THRESHOLD = 15.0
-# Who is screened: women of reproductive age (R4).
+# Who is screened: women of reproductive age (features/screening.feature).
 ELIGIBLE_SEX = "Female"
 ELIGIBLE_AGES = (18, 49)
 
 
 def eligible(sex: "pd.Series", age: "pd.Series") -> "pd.Series[bool]":
-    """Who is screened, and whom the model is trained on: women aged 18–49 (R4).
+    """Who is screened, and whom the model is trained on: women aged 18–49 (features/screening.feature).
     `sex` holds NHANES's labels."""
     return (sex == ELIGIBLE_SEX) & age.between(*ELIGIBLE_AGES)

@@ -33,7 +33,7 @@ HOSPITALS = {
 
 
 def hospital_slug(name: str) -> str:
-    """The hospital's folder name under the demo directory (spec §9)."""
+    """The hospital's folder name under the demo directory (demo/README.md)."""
     return name.lower().replace(" ", "-")
 
 

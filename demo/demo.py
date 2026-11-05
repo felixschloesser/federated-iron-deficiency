@@ -1,4 +1,4 @@
-"""Prepare the demo deployment's folders; compose.yaml runs it (spec §9).
+"""Prepare the demo deployment's folders; compose.yaml runs it (demo/README.md).
 
     docker compose up --build --abort-on-container-failure
     docker compose run --rm train   # one training run, submitted inside TB2
@@ -121,7 +121,7 @@ def prepare_web(
 
 
 def add_laboratories(practice: Path) -> None:
-    """Every hospital's laboratory, at its lab-order endpoint (R22)."""
+    """Every hospital's laboratory, at its lab-order endpoint (features/messaging.feature)."""
     env = {**os.environ, "PRACTICE_DIR": str(practice), "DJANGO_DEBUG": "1"}
     for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
         address = f"{lab_orders_host(slug)}:8441"

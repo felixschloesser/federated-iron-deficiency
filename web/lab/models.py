@@ -26,9 +26,9 @@ class ScreeningResult(models.TextChoices):
 
 
 class NotScreened(models.TextChoices):
-    """Why a CBC was not screened (R5): the patient is not eligible, never which
+    """Why a CBC was not screened (features/screening.feature): the patient is not eligible, never which
     fact excluded them, or there is no usable deployed model
-    (web.deployment.models.NoUsableModel), which lab staff act on (O3)."""
+    (web.deployment.models.NoUsableModel), which lab staff act on (features/screening.feature)."""
 
     NOT_ELIGIBLE = "not_eligible", "not eligible"
     NO_DEPLOYED_MODEL = "no_deployed_model", "no screening model deployed"
@@ -72,10 +72,10 @@ class LaboratoryStaffMember(models.Model):
 
 class Sample(models.Model):
     """A sample, known by the sample ID on its label and the practice that sent it
-    (R2, R24): two practices may use the same sample ID. It arrives with its lab
+    (features/lab.feature, features/messaging.feature): two practices may use the same sample ID. It arrives with its lab
     order; a later test on it is measured on the stored sample."""
 
-    # The practice name, as the practice sent it (R24).
+    # The practice name, as the practice sent it (features/messaging.feature).
     practice = models.CharField(max_length=100)
     sample_id = models.CharField(max_length=20)
 
@@ -92,11 +92,11 @@ class Sample(models.Model):
 
 @dataclass(frozen=True)
 class LabOrderDetails:
-    """What a lab order (DF23) says: no patient name, no values (R25)."""
+    """What a lab order (DF23) says: no patient name, no values (features/messaging.feature)."""
 
     sample_id: str
     test: Test
-    # Whether the indication is a screened one (R4); never which indication.
+    # Whether the indication is a screened one (features/screening.feature); never which indication.
     screened_indication: bool
     registered_sex: RegisteredSex
     age: int
@@ -108,11 +108,11 @@ class StoredSample(TypedDict):
 
 
 class LabOrderManager(models.Manager["LabOrder"]):
-    """What laboratory staff see: lab orders, which hold no patient field (R14)."""
+    """What laboratory staff see: lab orders, which hold no patient field (features/access.feature)."""
 
     def to_analyse(self) -> models.QuerySet[WithAnnotations[LabOrder, StoredSample]]:
         """Tests the analyser has not run yet. A sample arrives with its lab order; it
-        is a stored sample once another test on it has been analysed (R2)."""
+        is a stored sample once another test on it has been analysed (features/lab.feature)."""
         analysed_on_same_sample = LabOrder.objects.filter(
             sample=OuterRef("sample"), analysed_at__isnull=False
         )
@@ -132,7 +132,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
         )
 
     def reports_to_send(self, practice: str) -> models.QuerySet[LabOrder]:
-        """`practice`'s analysed lab orders it has not acknowledged yet (R23, R24)."""
+        """`practice`'s analysed lab orders it has not acknowledged yet (features/messaging.feature)."""
         return (
             self.filter(
                 sample__practice=practice,
@@ -146,7 +146,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
     @transaction.atomic
     def record(self, *, practice: str, details: LabOrderDetails) -> LabOrder:
         """Record a lab order (DF23) from `practice` once, however often it arrives
-        (R22, O18)."""
+        (features/messaging.feature)."""
         sample, _ = Sample.objects.get_or_create(
             practice=practice, sample_id=details.sample_id
         )
@@ -175,31 +175,31 @@ class LabOrderManager(models.Manager["LabOrder"]):
 
 
 class LabOrder(models.Model):
-    """One test on a sample, as the lab order (DF23) said: no patient field (R14)."""
+    """One test on a sample, as the lab order (DF23) said: no patient field (features/access.feature)."""
 
     sample = models.ForeignKey(
         Sample, on_delete=models.PROTECT, related_name="lab_orders"
     )
     test = models.CharField(max_length=8, choices=Test.choices)
-    # Whether the general practitioner's indication is a screened one (R4, R25);
+    # Whether the general practitioner's indication is a screened one (features/screening.feature, features/messaging.feature);
     # the laboratory never learns which indication.
     screened_indication = models.BooleanField(default=False)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
-    # No general practitioner: the sample's practice says who ordered (R13, R14).
+    # No general practitioner: the sample's practice says who ordered (features/access.feature).
     ordered_at = models.DateTimeField()
     # Absent until the analyser has run.
     analysed_at = models.DateTimeField(null=True, blank=True)
     results = models.JSONField(null=True, blank=True)
-    # Absent for ferritin, which is never screened (R12), and until analysed.
+    # Absent for ferritin, which is never screened (features/lab.feature), and until analysed.
     screening_result = models.CharField(
         max_length=22, choices=ScreeningResult.choices, null=True, blank=True
     )
-    # Present only when not screened (R5); no score is ever stored (R7).
+    # Present only when not screened (features/screening.feature); no score is ever stored (features/screening.feature).
     not_screened_reason = models.CharField(
         max_length=22, choices=NotScreened.choices, null=True, blank=True
     )
-    # The screening model that screened this CBC (R6); absent when not screened.
+    # The screening model that screened this CBC (features/screening.feature); absent when not screened.
     screened_by = models.ForeignKey(
         ScreeningModel,
         on_delete=models.PROTECT,
@@ -223,9 +223,9 @@ class LabOrder(models.Model):
         return f"{self.sample.sample_id} {self.test}"
 
     def not_eligible(self) -> NotScreened | None:
-        """NOT_ELIGIBLE if R4 excludes the CBC: an indication not screened, a
+        """NOT_ELIGIBLE if the screening excludes the CBC: an indication not screened, a
         registered sex other than female, or an age outside the trained range.
-        Which of them is never recorded: nobody acts on it (R5)."""
+        Which of them is never recorded: nobody acts on it (features/screening.feature)."""
         eligible = (
             self.screened_indication
             and self.registered_sex == RegisteredSex.of_nhanes(ELIGIBLE_SEX)
@@ -235,14 +235,13 @@ class LabOrder(models.Model):
 
     @property
     def ferritin_suggested(self) -> bool:
-        """All the lab report says of screening (R9, R25)."""
+        """All the lab report says of screening (features/reports.feature, features/messaging.feature)."""
         return self.screening_result == ScreeningResult.FERRITIN_SUGGESTED
 
     @transaction.atomic
     def run_analyser(self, *, directory: Path | None, now: datetime) -> LabOrder:
-        """Record what the analyser measures on the stored sample for the test (R3,
-        R12), screen a CBC with the deployed model in `directory`, and so release its
-        lab report at once (R8): the report goes out with the analysis, never before."""
+        """Record what the analyser measures on the stored sample for the test (features/lab.feature), screen a CBC with the deployed model in `directory`, and so release its
+        lab report at once (features/screening.feature): the report goes out with the analysis, never before."""
         # Read again under the write lock: this copy may predate another analysis.
         self.refresh_from_db(fields=["analysed_at"])
         if self.analysed_at is not None:
@@ -250,7 +249,7 @@ class LabOrder(models.Model):
                 "This test has already been analysed.", code="already_analysed"
             )
         # The sample's contents: the NHANES participant whose number starts the
-        # sample ID, so every sample of one patient measures the same (spec §8).
+        # sample ID, so every sample of one patient measures the same.
         seqn = self.sample.sample_id.split("-")[0]
         tube = (
             Participant.objects.filter(seqn=int(seqn)).first()
@@ -278,7 +277,7 @@ class LabOrder(models.Model):
 
     def _screen(self, directory: Path | None) -> None:
         """Set an analysed CBC's screening result: the model's decision, or not
-        screened with the first reason (R4, R5, R19). Nothing else of it is kept (R7)."""
+        screened with the first reason (features/screening.feature). Nothing else of it is kept (features/screening.feature)."""
         reason = self.not_eligible()
         if reason is None:
             deployed = Deployment.objects.screener(directory)

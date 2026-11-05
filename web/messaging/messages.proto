@@ -1,6 +1,6 @@
-// Messages between the general practitioner's app and the hospital (spec §10).
-// The general practitioner's app is always the client (R23) and names its
-// practice in every message (R24); the demo leaves out the report's mutual TLS.
+// Messages between the general practitioner's app and the hospital.
+// The general practitioner's app is always the client (features/messaging.feature) and names its
+// practice in every message (features/messaging.feature); the demo leaves out the report's mutual TLS.
 syntax = "proto3";
 
 package iron_deficiency.messaging.v1;
@@ -21,17 +21,17 @@ enum RegisteredSex {
   REGISTERED_SEX_MALE = 2;
 }
 
-// DF23. No patient name, no blood values, no clinical indication (R25): the
+// DF23. No patient name, no blood values, no clinical indication (features/messaging.feature): the
 // tube's values are measured at the hospital, and of the indication the
-// laboratory needs only whether it is screened (R4). The hospital's form still
+// laboratory needs only whether it is screened (features/screening.feature). The hospital's form still
 // checks every field.
 message LabOrder {
   reserved 2, 3, 4, 7;              // were strings: test, indication, sex, ordered_at
   reserved 9;                       // was the clinical indication itself
   reserved "indication";
   reserved 6;                       // was the general practitioner's name: the
-  reserved "general_practitioner";  // practice says who ordered (R13)
-  string practice = 13;             // the sending practice's name (R24)
+  reserved "general_practitioner";  // practice says who ordered (features/access.feature)
+  string practice = 13;             // the sending practice's name (features/messaging.feature)
   string sample_id = 1;
   Test test = 8;
   bool screened_indication = 12;    // false when absent: never screened by mistake
@@ -40,7 +40,7 @@ message LabOrder {
   google.protobuf.Timestamp ordered_at = 11;
 }
 
-// DF25. Results and one bit of screening (R9, R25): no score, and nothing that
+// DF25. Results and one bit of screening (features/reports.feature, features/messaging.feature): no score, and nothing that
 // tells ferritin not suggested from not screened.
 message LabReport {
   reserved 3, 6;                    // were strings: test, released_at

@@ -21,7 +21,7 @@ ALLOWLIST = Path("tools") / "audit_allowlist.toml"
 GLOSSARY = Path("glossary.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
 BUILD_OUTPUT = {"staticfiles"}
-# The parts of the training package a hospital's web app may import (R21);
+# The parts of the training package a hospital's web app may import (features/quality/party_isolation.feature);
 # everything else under web/ only the cohort's terms and the dataset's loaders.
 HOSPITAL_SIDE = {
     "iron_deficiency.screening",
@@ -239,7 +239,7 @@ def _web_imports(root: Path) -> Iterator[tuple[Path, int, str]]:
 
 def training_imports(root: Path) -> list[str]:
     """Hospital software uses only the screening side of the training package,
-    the rest of web/ only the dataset (R21)."""
+    the rest of web/ only the dataset (features/quality/party_isolation.feature)."""
     hospital = set(Party.HOSPITAL.apps())
     findings = []
     for rel, line, module in _web_imports(root):
@@ -255,7 +255,7 @@ def training_imports(root: Path) -> list[str]:
 
 
 def party_imports(root: Path) -> list[str]:
-    """A party's apps never import the other party's; shared code imports neither (R21)."""
+    """A party's apps never import the other party's; shared code imports neither (features/quality/party_isolation.feature)."""
     owner = {app: party for party in Party for app in party.apps()}
     findings = []
     for rel, line, module in _web_imports(root):

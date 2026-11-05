@@ -42,7 +42,7 @@ weight-decay = 0.001
 batch-size = 64
 screening-threshold = 0.5
 model-seed = 42 # Initial weights and dropout; data splits stay fixed
-demo-dir = "" # Absolute folder for final models (spec §9); empty: ~/.cache/iron-deficiency
+demo-dir = "" # Absolute folder for final models (demo/README.md); empty: ~/.cache/iron-deficiency
 wandb-api-key = "" # Pass at submit time: -c "wandb-api-key='$WANDB_API_KEY'"
 
 [dependency-groups]

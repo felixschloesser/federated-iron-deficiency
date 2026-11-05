@@ -1,6 +1,6 @@
 Feature: Who sees what
   A practice has one general practitioner; the lab never learns a patient's name;
-  demo login exists only in development. Covers R13–R15.
+  demo login exists only in development.
 
   Background:
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1"

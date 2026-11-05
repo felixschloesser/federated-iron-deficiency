@@ -1,4 +1,4 @@
-"""The demo deployment as compose.yaml declares it (spec §9, R21, R28).
+"""The demo deployment as compose.yaml declares it (demo/README.md, features/quality/party_isolation.feature, features/quality/client_app_isolation.feature).
 
 Read through `docker compose config`, which also validates the file.
 """
@@ -20,7 +20,7 @@ from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
 ROOT = Path(__file__).resolve().parents[2]
 HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
 PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
-# Each practice sends to the hospital of the same cycle (spec §9).
+# Each practice sends to the hospital of the same cycle (demo/README.md).
 STARTUP_SERVICES = {
     "prepare",
     "flower-superlink",
@@ -191,7 +191,7 @@ def test_model_updates_connect_only_the_superlink_and_the_supernodes() -> None:
 def test_each_practice_reaches_every_hospitals_lab_order_endpoint_and_nothing_else(
     practice: str,
 ) -> None:
-    """A practice chooses the laboratory per sample (R22); its laboratories are
+    """A practice chooses the laboratory per sample (features/messaging.feature); its laboratories are
     rows add_laboratory made, not environment variables."""
     spec = service(f"{practice}-web")
     assert set(spec["networks"]) == {practice, "lab-orders"}
@@ -199,7 +199,7 @@ def test_each_practice_reaches_every_hospitals_lab_order_endpoint_and_nothing_el
 
 
 def test_one_lab_orders_network_holds_every_hospital_and_practice_only() -> None:
-    """Every practice may send to every hospital (R22): one crossing, TB3-TB1,
+    """Every practice may send to every hospital (features/messaging.feature): one crossing, TB3-TB1,
     like the internet between them; separate networks would isolate nothing."""
     members = {
         name
@@ -242,7 +242,7 @@ def test_each_web_app_knows_its_party_name_and_colour() -> None:
 
 
 def test_no_practice_service_runs_on_a_timer() -> None:
-    # Lab reports come only on Check for reports (R23).
+    # Lab reports come only on Check for reports (features/messaging.feature).
     for name, spec in config()["services"].items():
         assert "REPORT_CHECK_SECONDS" not in (spec.get("environment") or {}), name
 

@@ -52,7 +52,7 @@ def collect_url(patient: Patient) -> str:
 
 def order_url(client: Client, patient: Patient, test: OrderedTest) -> str:
     """Collect a sample from the patient; the order page for a test on it. For
-    ferritin, the sample first gets a CBC lab report suggesting it (R11)."""
+    ferritin, the sample first gets a CBC lab report suggesting it (features/ordering.feature)."""
     client.post(collect_url(patient))
     if test == OrderedTest.FERRITIN:
         suggest_ferritin(patient)
@@ -143,7 +143,7 @@ def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
     response = client.get(patient_url(patient))
     assertContains(response, "No tests ordered yet.")
     (item,) = response.context["samples"]
-    # Ferritin only beside a lab report suggesting it (R11).
+    # Ferritin only beside a lab report suggesting it (features/ordering.feature).
     assert [action["label"] for action in item["actions"]] == ["Order CBC"]
 
 
@@ -166,7 +166,7 @@ def test_a_sample_offers_only_tests_it_does_not_have(
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
     (item,) = client.get(patient_url(patient)).context["samples"]
-    # Not ferritin: only beside a lab report suggesting it (R11).
+    # Not ferritin: only beside a lab report suggesting it (features/ordering.feature).
     assert item["actions"] == []
 
 
@@ -407,7 +407,7 @@ def test_ordering_on_a_sample_says_so_and_adds_no_sample(
 def test_an_order_that_would_be_refused_returns_to_the_patient(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
-    # Ferritin without a suggestion (R11), then a test the sample has (R26):
+    # Ferritin without a suggestion (features/ordering.feature), then a test the sample has (features/ordering.feature):
     # opening its order page goes back to the patient, with the refusal there.
     from web.practice.models import NOT_SUGGESTED
 
@@ -584,7 +584,7 @@ def test_the_patients_list_marks_a_patient_awaiting_ferritin(
         fetched_at="2026-10-30T12:05:00+00:00",
     )
     # One table: the mark beside the name; Order ferritin is on the patient's
-    # page, beside the lab report (R11).
+    # page, beside the lab report (features/ordering.feature).
     response = client.get(reverse("practice:patients"))
     assertContains(response, "<mark>Ferritin suggested</mark>", count=1)
     assertNotContains(response, "Ferritin suggested (")
@@ -596,7 +596,7 @@ def test_the_patients_list_marks_a_patient_awaiting_ferritin(
 def test_an_order_says_whether_its_lab_order_is_sent(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
-    """Until the hospital has the lab order, there is no report to wait for (R22)."""
+    """Until the hospital has the lab order, there is no report to wait for (features/messaging.feature)."""
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
     response = client.get(patient_url(patient))

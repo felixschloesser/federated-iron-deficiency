@@ -1,4 +1,4 @@
-"""A user's role follows from the record linked to them (spec §3, Agents)."""
+"""A user's role follows from the record linked to them."""
 
 import enum
 from typing import assert_never

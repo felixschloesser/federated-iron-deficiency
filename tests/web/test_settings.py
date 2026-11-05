@@ -159,7 +159,7 @@ def test_every_page_of_a_party_loads_in_its_own_deployment(
     tmp_path: Path, folder: str, command: str, users: set[str]
 ) -> None:
     """Development serves every party from one database; this runs each party's
-    pages with only its own apps installed (R21)."""
+    pages with only its own apps installed."""
     from tests.conftest import nhanes_rows
 
     nhanes = tmp_path / "nhanes.csv"

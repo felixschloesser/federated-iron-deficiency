@@ -1,4 +1,4 @@
-"""The party a deployment belongs to (spec §9): the same code runs as each."""
+"""The party a deployment belongs to (demo/README.md): the same code runs as each."""
 
 import enum
 from typing import assert_never
@@ -9,7 +9,7 @@ class Party(enum.Enum):
     GENERAL_PRACTITIONER = "general practitioner"
 
     def apps(self) -> list[str]:
-        """This party's own Django apps; the other party never installs them (R21)."""
+        """This party's own Django apps; the other party never installs them (features/quality/party_isolation.feature)."""
         match self:
             case Party.HOSPITAL:
                 return ["web.nhanes", "web.lab", "web.deployment"]

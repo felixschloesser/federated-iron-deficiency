@@ -4,7 +4,7 @@ Feature: Screening a CBC
   lab order does not name) in a woman aged 18–49. Only the result, the
   not-screened reason and the screening model that produced it are stored,
   never a score; a CBC outside the screening is not eligible, never why.
-  Covers R4–R9, R19.
+
   Every analysed CBC gets a result and its lab report at once.
 
   Background:

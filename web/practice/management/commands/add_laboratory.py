@@ -1,4 +1,4 @@
-"""Add a laboratory the practice sends samples to, or change its address (R22)."""
+"""Add a laboratory the practice sends samples to, or change its address (features/messaging.feature)."""
 
 from typing import Any
 

@@ -1,6 +1,6 @@
 Feature: Analysing samples
   Each sample arrives with its lab order; laboratory staff run the analyser,
-  which returns the patient's NHANES 2021–2023 values. Covers R2, R3, R12.
+  which returns the patient's NHANES 2021–2023 values.
 
   Background:
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1", registered sex female, aged 32

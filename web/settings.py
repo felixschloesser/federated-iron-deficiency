@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
-# One deployment per party: what it stores lives in its own folder (spec §9, R21).
+# One deployment per party: what it stores lives in its own folder (demo/README.md, features/quality/party_isolation.feature).
 HOSPITAL_DIR = (
     Path(os.environ["HOSPITAL_DIR"]) if "HOSPITAL_DIR" in os.environ else None
 )
@@ -29,7 +29,7 @@ if HOSPITAL_DIR is not None and PRACTICE_DIR is not None:
 PARTY_DIR = HOSPITAL_DIR or PRACTICE_DIR
 # None: a development checkout, serving every party's pages from one database.
 PARTY: Party | None = None
-# The hospital's final models (R16); without HOSPITAL_DIR, an optional folder.
+# The hospital's final models (features/final_models.feature); without HOSPITAL_DIR, an optional folder.
 FINAL_MODELS_DIR: Path | None = (
     Path(os.environ["FINAL_MODELS_DIR"]) if "FINAL_MODELS_DIR" in os.environ else None
 )
