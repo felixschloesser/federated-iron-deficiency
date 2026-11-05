@@ -5,7 +5,6 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 
 import grpc
 from django.conf import settings
@@ -20,52 +19,19 @@ TIMEOUT_SECONDS = 10
 IN_REQUEST_TIMEOUT_SECONDS = 2
 
 
-@dataclass(frozen=True)
-class Connection:
-    """Where a laboratory's hospital is, and the app's certificate from it (R24)."""
-
-    address: str
-    root_certificate: bytes
-    certificate: bytes | None
-    private_key: bytes | None
-
-
-def connection_to(laboratory: Laboratory) -> Connection | None:
-    """The practice's connection to a laboratory: its address, and the certificates
-    its hospital's authority issued (R24); None without a PRACTICE_DIR to hold them."""
-    if settings.PARTY_DIR is None:
-        return None
-    folder = certificates_of(laboratory, settings.PARTY_DIR)
-    return Connection(
-        address=laboratory.address,
-        root_certificate=(folder / "ca.crt").read_bytes(),
-        certificate=(folder / "certificate.pem").read_bytes(),
-        private_key=(folder / "key.pem").read_bytes(),
-    )
-
-
-def certificates_of(laboratory: Laboratory, practice_dir: Path) -> Path:
-    """Where the practice keeps the certificates a laboratory's hospital issued it."""
-    return practice_dir / "laboratories" / laboratory.certificate_folder()
-
-
 @contextmanager
 def open_laboratory(
-    connection: Connection,
+    laboratory: Laboratory,
 ) -> Iterator[messages_pb2_grpc.LaboratoryStub]:
-    """The hospital's endpoint over a channel that is closed afterwards."""
-    credentials = grpc.ssl_channel_credentials(
-        root_certificates=connection.root_certificate,
-        private_key=connection.private_key,
-        certificate_chain=connection.certificate,
-    )
-    with grpc.secure_channel(connection.address, credentials) as channel:
+    """The hospital's endpoint over a channel that is closed afterwards; plaintext,
+    as the demo leaves out the report's mutual TLS."""
+    with grpc.insecure_channel(laboratory.address) as channel:
         yield messages_pb2_grpc.LaboratoryStub(channel)
 
 
-def send_lab_order(order: Order, connection: Connection) -> None:
+def send_lab_order(order: Order, laboratory: Laboratory) -> None:
     """Send an order's lab order (DF23): no name, no values (R25)."""
-    with open_laboratory(connection) as endpoint:
+    with open_laboratory(laboratory) as endpoint:
         _send(endpoint, order, timeout=TIMEOUT_SECONDS)
 
 
@@ -74,6 +40,7 @@ def _send(
 ) -> None:
     endpoint.SendLabOrder(
         messages_pb2.LabOrder(
+            practice=settings.PARTY_NAME,
             sample_id=order.sample.sample_id,
             test=to_proto(Test(order.test), messages_pb2.Test),
             screened_indication=order.screened_indication,
@@ -105,14 +72,13 @@ def _send_pending(
 
 def send_pending_lab_orders(
     laboratory: Laboratory,
-    connection: Connection,
     *,
     now: datetime,
     timeout: float = TIMEOUT_SECONDS,
 ) -> int:
     """Send the laboratory the lab orders of its samples it has not confirmed yet,
     over one channel; it records each once (R22)."""
-    with open_laboratory(connection) as endpoint:
+    with open_laboratory(laboratory) as endpoint:
         return _send_pending(endpoint, laboratory, now=now, timeout=timeout)
 
 
@@ -126,15 +92,14 @@ def unreachable(error: grpc.RpcError) -> bool:
             return False
 
 
-def check_for_lab_reports(
-    laboratory: Laboratory, connection: Connection, *, now: datetime
-) -> int:
+def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
     """Send the laboratory its pending lab orders, fetch its new lab reports (DF25),
     store and acknowledge them."""
-    with open_laboratory(connection) as endpoint:
+    with open_laboratory(laboratory) as endpoint:
         _send_pending(endpoint, laboratory, now=now)
         reports = endpoint.FetchNewLabReports(
-            messages_pb2.FetchLabReports(), timeout=TIMEOUT_SECONDS
+            messages_pb2.FetchLabReports(practice=settings.PARTY_NAME),
+            timeout=TIMEOUT_SECONDS,
         ).reports
         stored = [
             report.report_id
@@ -143,7 +108,9 @@ def check_for_lab_reports(
         ]
         if stored:
             endpoint.AcknowledgeLabReports(
-                messages_pb2.Acknowledgement(report_ids=stored),
+                messages_pb2.Acknowledgement(
+                    practice=settings.PARTY_NAME, report_ids=stored
+                ),
                 timeout=TIMEOUT_SECONDS,
             )
     return len(stored)
@@ -194,12 +161,9 @@ def check_every_laboratory(*, now: datetime) -> Check:
     """Check each laboratory in turn; one that fails holds back no other (R23)."""
     asked, fetched, failures = 0, 0, []
     for laboratory in Laboratory.objects.order_by("name"):
-        connection = connection_to(laboratory)
-        if connection is None:
-            continue
         asked += 1
         try:
-            fetched += check_for_lab_reports(laboratory, connection, now=now)
+            fetched += check_for_lab_reports(laboratory, now=now)
         except grpc.RpcError as error:
             failures.append((laboratory, error))
     return Check(asked=asked, fetched=fetched, failures=failures)

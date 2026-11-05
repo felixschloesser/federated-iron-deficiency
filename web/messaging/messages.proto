@@ -1,6 +1,6 @@
 // Messages between the general practitioner's app and the hospital (spec §10).
-// The general practitioner's app is always the client (R23); the hospital
-// accepts only a client certificate from its own authority (R24).
+// The general practitioner's app is always the client (R23) and names its
+// practice in every message (R24); the demo leaves out the report's mutual TLS.
 syntax = "proto3";
 
 package iron_deficiency.messaging.v1;
@@ -30,7 +30,8 @@ message LabOrder {
   reserved 9;                       // was the clinical indication itself
   reserved "indication";
   reserved 6;                       // was the general practitioner's name: the
-  reserved "general_practitioner";  // practice's certificate says who ordered (R13)
+  reserved "general_practitioner";  // practice says who ordered (R13)
+  string practice = 13;             // the sending practice's name (R24)
   string sample_id = 1;
   Test test = 8;
   bool screened_indication = 12;    // false when absent: never screened by mistake
@@ -55,13 +56,16 @@ message LabReport {
 
 message Received {}
 
-message FetchLabReports {}
+message FetchLabReports {
+  string practice = 1;
+}
 
 message LabReports {
   repeated LabReport reports = 1;
 }
 
 message Acknowledgement {
+  string practice = 2;
   repeated string report_ids = 1;
 }
 

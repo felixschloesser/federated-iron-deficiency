@@ -176,9 +176,8 @@ services:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/final-models, read_only: true, volume: {subpath: final-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
     # DEBUG off: Django's deploy settings, HTTPS with the browser CA's certificate (R29).
-    # Masked: the startup's data and the CA's key (only
-    # prepare issues certificates).
-    tmpfs: [/demo/hospitals/uz-leuven/cohort, /demo/hospitals/uz-leuven/ca]
+    # Masked: the startup's data.
+    tmpfs: [/demo/hospitals/uz-leuven/cohort]
     networks:
       uz-leuven: {aliases: [uz-leuven-pages]}
       lab-orders: {aliases: [uz-leuven-lab-orders]}
@@ -228,9 +227,8 @@ services:
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/final-models, read_only: true, volume: {subpath: final-models}}
-    # Masked: the startup's data and the CA's key (only
-    # prepare issues certificates).
-    tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort, /demo/hospitals/heilig-hart-leuven/ca]
+    # Masked: the startup's data.
+    tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort]
     networks:
       heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
       lab-orders: {aliases: [heilig-hart-leuven-lab-orders]}
@@ -280,9 +278,8 @@ services:
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/final-models, read_only: true, volume: {subpath: final-models}}
-    # Masked: the startup's data and the CA's key (only
-    # prepare issues certificates).
-    tmpfs: [/demo/hospitals/az-diest/cohort, /demo/hospitals/az-diest/ca]
+    # Masked: the startup's data.
+    tmpfs: [/demo/hospitals/az-diest/cohort]
     networks:
       az-diest: {aliases: [az-diest-pages]}
       lab-orders: {aliases: [az-diest-lab-orders]}

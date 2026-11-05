@@ -172,36 +172,3 @@ def test_each_hospitals_practice_colours_and_patients_come_from_demo_toml() -> N
         assert PRACTICES[cycle] == entry["practice"]
         assert COLOURS[cycle] == (entry["colour"], entry["practice_colour"])
         assert PATIENTS[cycle] == entry["patients"]
-
-
-def test_every_practice_holds_a_certificate_from_every_hospitals_authority(
-    tmp_path: Path,
-) -> None:
-    """What add_laboratory needs for each laboratory (R22, R24), once each."""
-    from tools.certificates import covers
-    from tools.demo import hospitals, lab_orders_host, practices, prepare_lab_orders
-
-    prepare_lab_orders(tmp_path)
-    issued = {
-        path: path.read_bytes()
-        for path in tmp_path.rglob("laboratories/*/certificate.pem")
-    }
-    for _, practice in practices():
-        for _, hospital in hospitals():
-            folder = tmp_path / "practices" / practice / "laboratories" / hospital
-            for name in ("ca.crt", "certificate.pem", "key.pem"):
-                assert (folder / name).is_file(), folder / name
-            ca = tmp_path / "hospitals" / hospital / "ca" / "ca.crt"
-            assert (folder / "ca.crt").read_bytes() == ca.read_bytes()
-    for _, hospital in hospitals():
-        endpoint = tmp_path / "hospitals" / hospital / "messaging" / "certificate.pem"
-        assert covers(endpoint, lab_orders_host(hospital))
-        # The endpoint's own copy of its CA certificate, to check the practices,
-        # so that its container need not see the CA's folder and key.
-        client_ca = endpoint.parent / "client-ca.crt"
-        ca = tmp_path / "hospitals" / hospital / "ca" / "ca.crt"
-        assert client_ca.read_bytes() == ca.read_bytes()
-    assert len(issued) == len(practices()) * len(hospitals())
-    # Running again issues nothing new.
-    prepare_lab_orders(tmp_path)
-    assert {path: path.read_bytes() for path in issued} == issued

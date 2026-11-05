@@ -307,12 +307,10 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
             f" {placed.sample.sample_id}.",
         )
         laboratory = self.sample.laboratory
-        connection = None if laboratory is None else messaging.connection_to(laboratory)
-        if laboratory is not None and connection is not None:
+        if laboratory is not None:
             try:
                 messaging.send_pending_lab_orders(
                     laboratory,
-                    connection,
                     now=timezone.now(),
                     timeout=messaging.IN_REQUEST_TIMEOUT_SECONDS,
                 )

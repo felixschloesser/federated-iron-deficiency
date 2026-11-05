@@ -1,20 +1,10 @@
-"""Add a laboratory the practice sends samples to, or change its address (R22, R24).
-
-Its hospital's authority issues the practice a certificate; put it, its key and
-the authority's certificate in PRACTICE_DIR/laboratories/<slug>/ first, as
-ca.crt, certificate.pem and key.pem, where <slug> is the name in lower case
-with dashes ("UZ Leuven": uz-leuven).
-"""
+"""Add a laboratory the practice sends samples to, or change its address (R22)."""
 
 from typing import Any
 
-from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError, CommandParser
+from django.core.management.base import BaseCommand, CommandParser
 
-from web.practice.messaging import certificates_of
 from web.practice.models import Laboratory
-
-CERTIFICATES = ("ca.crt", "certificate.pem", "key.pem")
 
 
 class Command(BaseCommand):
@@ -29,15 +19,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
-        if settings.PARTY_DIR is None:
-            raise CommandError("Set PRACTICE_DIR: the certificates live there.")
-        laboratory = Laboratory(name=options["name"], address=options["address"])
-        folder = certificates_of(laboratory, settings.PARTY_DIR)
-        # Missing certificates stop it here, not at the first lab order.
-        missing = [name for name in CERTIFICATES if not (folder / name).is_file()]
-        if missing:
-            raise CommandError(f"{folder} lacks {', '.join(missing)}.")
-        Laboratory.objects.update_or_create(
-            name=laboratory.name, defaults={"address": laboratory.address}
+        laboratory, _ = Laboratory.objects.update_or_create(
+            name=options["name"], defaults={"address": options["address"]}
         )
         self.stdout.write(f"{laboratory.name} at {laboratory.address}")

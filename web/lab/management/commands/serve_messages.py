@@ -2,8 +2,7 @@
 
 from typing import Any
 
-from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError, CommandParser
+from django.core.management.base import BaseCommand, CommandParser
 
 from web.lab.messaging import serve
 
@@ -15,16 +14,7 @@ class Command(BaseCommand):
         parser.add_argument("address", help="host:port, for example 127.0.0.1:8443")
 
     def handle(self, *args: Any, **options: Any) -> None:
-        folder = settings.HOSPITAL_DIR
-        if folder is None:
-            raise CommandError("Set HOSPITAL_DIR: the certificates live there.")
-        server, _ = serve(
-            options["address"],
-            certificate=(folder / "messaging" / "certificate.pem").read_bytes(),
-            private_key=(folder / "messaging" / "key.pem").read_bytes(),
-            # Only the practice this hospital's own CA certified gets in (R24).
-            client_authority=(folder / "messaging" / "client-ca.crt").read_bytes(),
-        )
+        server, _ = serve(options["address"])
         self.stdout.write(f"Messaging endpoint on {options['address']}")
         # The demo sends stdout to a file, which would hold the line until exit.
         self.stdout.flush()

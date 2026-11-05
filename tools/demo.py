@@ -30,8 +30,6 @@ from tools.certificates import (
     covers,
     issue,
     make_authority,
-    request,
-    sign,
 )
 from web.seeding.accounts import (
     GENERAL_PRACTITIONER,
@@ -87,7 +85,7 @@ def hospitals() -> list[tuple[int, str]]:
 
 
 def lab_orders_host(slug: str) -> str:
-    """The hospital's lab-order endpoint in compose.yaml, which its certificate names."""
+    """The hospital's lab-order endpoint in compose.yaml."""
     return f"{slug}-lab-orders"
 
 
@@ -199,37 +197,9 @@ def prepare_browser(demo_dir: Path) -> None:
             issue(authority, web_tls(party), host, server=True)
 
 
-def prepare_lab_orders(demo_dir: Path) -> None:
-    """Each hospital is its own CA (R24): its lab-order endpoint's certificate, and
-    every practice's, as each practice may send it samples (R22). A practice keeps
-    a hospital's in laboratories/<hospital>, where add_laboratory expects them."""
-    for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
-        hospital = hospital_dir(demo_dir, slug)
-        if not (hospital / "ca" / "ca.key").exists():
-            make_authority(hospital / "ca", HOSPITALS[cycle])
-        authority = Authority(
-            HOSPITALS[cycle], hospital / "ca" / "ca.crt", hospital / "ca" / "ca.key"
-        )
-        for (_, sender), sender_cycle in zip(practices(), CYCLES, strict=True):
-            # The practice trusts this CA for this laboratory only, never the
-            # startup's.
-            folder = practice_dir(demo_dir, sender) / "laboratories" / slug
-            if not (folder / "certificate.pem").exists():
-                # The practice makes its key pair and sends the request; the
-                # hospital signs it and returns the certificate (R24).
-                sign(authority, request(folder, PRACTICES[sender_cycle]), server=False)
-                shutil.copy(authority.certificate, folder / "ca.crt")
-        endpoint = hospital / "messaging" / "certificate.pem"
-        if not covers(endpoint, lab_orders_host(slug)):
-            issue(authority, endpoint.parent, lab_orders_host(slug), server=True)
-        # The endpoint's own copy of the CA certificate, to check the practices:
-        # its container never sees ca/, where the CA's key is.
-        shutil.copy(authority.certificate, endpoint.parent / "client-ca.crt")
-
-
 def prepare(demo_dir: Path) -> None:
-    """Create what is missing: Flower's keys and certificates, cohorts,
-    connection, web databases."""
+    """Create what is missing: Flower's connection, the web apps' certificates,
+    cohorts."""
     from iron_deficiency.dataset import (
         load_federated_dataset,
         load_ferritin,
@@ -238,7 +208,6 @@ def prepare(demo_dir: Path) -> None:
 
     prepare_flower(demo_dir)
     prepare_browser(demo_dir)
-    prepare_lab_orders(demo_dir)
     federated_dataset = None
     nhanes = None
     for (partition, slug), (_, practice_slug), _cycle in zip(

@@ -1,9 +1,8 @@
-"""The hospital's messaging endpoint: gRPC with mutual TLS (spec §10, R22-R25)."""
+"""The hospital's messaging endpoint: gRPC, plaintext in the demo (spec §10, R22-R25)."""
 
 import functools
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable
 from concurrent import futures
-from typing import cast
 
 import grpc
 from django.db import close_old_connections, models
@@ -35,14 +34,17 @@ def _value(choice: models.TextChoices | None) -> str:
     return "" if choice is None else choice.value
 
 
-def practice_of(context: grpc.ServicerContext) -> str:
-    """The calling practice: its certificate name, the common name of the client
-    certificate the hospital's own certificate authority issued it (R24)."""
-    # grpc-stubs types the values as bytes; gRPC gives an iterable of bytes,
-    # as its documentation and its own aio stubs say.
-    names = cast(Mapping[str, Iterable[bytes]], context.auth_context())
-    (name,) = names["x509_common_name"]
-    return name.decode()
+type FromPractice = (
+    messages_pb2.LabOrder | messages_pb2.FetchLabReports | messages_pb2.Acknowledgement
+)
+
+
+def practice_of(request: FromPractice, context: grpc.ServicerContext) -> str:
+    """The calling practice, by the name it sends (R24); a message without one is
+    refused before anything is read or recorded."""
+    if not request.practice:
+        context.abort(grpc.StatusCode.INVALID_ARGUMENT, "practice_required")
+    return request.practice
 
 
 class Laboratory(messages_pb2_grpc.LaboratoryServicer):
@@ -52,6 +54,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
     def SendLabOrder(
         self, request: messages_pb2.LabOrder, context: grpc.ServicerContext
     ) -> messages_pb2.Received:
+        practice = practice_of(request, context)
         form = LabOrderForm(
             {
                 "sample_id": request.sample_id,
@@ -73,7 +76,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
         if not form.is_valid():
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, form.errors.as_json())
         LabOrder.objects.record(
-            practice=practice_of(context),
+            practice=practice,
             details=LabOrderDetails(**form.cleaned_data),
         )
         return messages_pb2.Received()
@@ -82,6 +85,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
     def FetchNewLabReports(
         self, request: messages_pb2.FetchLabReports, context: grpc.ServicerContext
     ) -> messages_pb2.LabReports:
+        practice = practice_of(request, context)
         return messages_pb2.LabReports(
             reports=[
                 messages_pb2.LabReport(
@@ -92,7 +96,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
                     ferritin_suggested=lab_order.ferritin_suggested,
                     released_at=timestamp(lab_order.analysed_at),
                 )
-                for lab_order in LabOrder.objects.reports_to_send(practice_of(context))
+                for lab_order in LabOrder.objects.reports_to_send(practice)
                 if lab_order.analysed_at is not None
             ]
         )
@@ -102,24 +106,17 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
         self, request: messages_pb2.Acknowledgement, context: grpc.ServicerContext
     ) -> messages_pb2.Received:
         LabOrder.objects.acknowledge(
-            practice=practice_of(context),
+            practice=practice_of(request, context),
             report_ids=[int(report_id) for report_id in request.report_ids],
             now=timezone.now(),
         )
         return messages_pb2.Received()
 
 
-def serve(
-    address: str, *, certificate: bytes, private_key: bytes, client_authority: bytes
-) -> tuple[grpc.Server, int]:
-    """Start the endpoint; only clients certified by `client_authority` get in (R24)."""
+def serve(address: str) -> tuple[grpc.Server, int]:
+    """Start the endpoint, plaintext: the demo leaves out the report's mutual TLS."""
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
     messages_pb2_grpc.add_LaboratoryServicer_to_server(Laboratory(), server)
-    credentials = grpc.ssl_server_credentials(
-        [(private_key, certificate)],
-        root_certificates=client_authority,
-        require_client_auth=True,
-    )
-    port = server.add_secure_port(address, credentials)
+    port = server.add_insecure_port(address)
     server.start()
     return server, port

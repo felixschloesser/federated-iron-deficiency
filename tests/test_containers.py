@@ -247,9 +247,8 @@ def hospital_app(compose: Compose) -> str:
         "python",
         "-c",
         "from pathlib import Path;"
-        " from tools.demo import hospital_dir, prepare_browser, prepare_lab_orders;"
+        " from tools.demo import hospital_dir, prepare_browser;"
         " prepare_browser(Path('/demo'));"
-        " prepare_lab_orders(Path('/demo'));"
         f" hospital = hospital_dir(Path('/demo'), {APP_HOSPITAL!r});"
         # A volume's subpath must exist before a container mounts it.
         " (hospital / 'final-models').mkdir(exist_ok=True)",

@@ -1,13 +1,13 @@
 Feature: Lab orders and lab reports between the general practitioner and the hospital
   The general practitioner's own app sends lab orders (DF23) to its one
-  hospital and fetches lab reports (DF25) from it, over gRPC with mutual TLS.
-  The hospital accepts only the client certificate its own certificate
-  authority issued to that general practitioner's app, and gives each app
-  only the lab reports of its own lab orders. Covers R22–R25.
+  hospital and fetches lab reports (DF25) from it, over gRPC. Every message
+  names the sending practice, and the hospital gives each practice only the lab
+  reports of its own lab orders. The report's mutual TLS is left out of the
+  demo. Covers R22–R25.
 
   Background:
-    Given hospital "AZ Diest" with its certificate authority
-    And general practitioner "Dr. Demo A" of practice "De Ceder", with a client certificate from "AZ Diest"
+    Given hospital "AZ Diest"
+    And general practitioner "Dr. Demo A" of practice "De Ceder", working with "AZ Diest"
     And patient "Test Patient 1" of "Dr. Demo A", registered sex female, aged 32
 
   Scenario: A placed order reaches the hospital
@@ -34,17 +34,10 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
     When the same lab order is sent again
     Then "AZ Diest" has one lab order for the sample of "Test Patient 1"
 
-  Scenario Outline: A client the hospital did not certify is refused
-    Given a client with <certificate>
-    When it sends a lab order to "AZ Diest"
-    Then the connection is refused
-    And "AZ Diest" has no lab order from it
-
-    Examples:
-      | certificate                                    |
-      | no certificate                                 |
-      | a certificate from another hospital's authority |
-      | a certificate from the startup's authority      |
+  Scenario: A lab order that names no practice is refused
+    When a lab order that names no practice is sent to "AZ Diest"
+    Then it is refused as practice required
+    And "AZ Diest" has no lab order
 
   Scenario: The general practitioner's app fetches its lab reports
     Given "AZ Diest" released a lab report for the sample of "Test Patient 1"
@@ -62,22 +55,22 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
     When the general practitioner's app checks for lab reports
     Then "Dr. Demo A" has one lab report of "Test Patient 1"
 
-  Scenario: Another general practitioner's app of the same hospital gets none of these lab reports
+  Scenario: Another practice's app gets none of these lab reports
     Given "AZ Diest" released a lab report for the sample of "Test Patient 1"
-    And another general practitioner's app with a client certificate from "AZ Diest"
+    And the app of another practice "De Berk"
     When the other app checks for lab reports
     Then it receives no lab reports
     And the lab report of "Test Patient 1" is still new at "AZ Diest"
 
-  Scenario: Another general practitioner's app cannot acknowledge these lab reports
+  Scenario: Another practice's app cannot acknowledge these lab reports
     Given "AZ Diest" released a lab report for the sample of "Test Patient 1"
-    And another general practitioner's app with a client certificate from "AZ Diest"
+    And the app of another practice "De Berk"
     When the other app acknowledges the lab report of "Test Patient 1"
     Then the lab report of "Test Patient 1" is still new at "AZ Diest"
 
-  Scenario: The same sample ID from two apps is two samples
+  Scenario: The same sample ID from two practices is two samples
     Given "Dr. Demo A" ordered a CBC for "Test Patient 1" with indication other
-    And another general practitioner's app with a client certificate from "AZ Diest"
+    And the app of another practice "De Berk"
     When the other app sends a lab order with the sample ID of "Test Patient 1"
     Then "AZ Diest" has two samples with the sample ID of "Test Patient 1"
 
@@ -89,5 +82,5 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
     And the lab report of "Test Patient 1" is no longer new at "AZ Diest"
 
   Scenario: Neither message can carry a name or blood values
-    Then the lab order has no field for a patient's name or blood values
+    Then the lab order has no field for a patient's name or blood values, only the practice's name
     And the lab report says only whether ferritin is suggested, nothing else of screening
