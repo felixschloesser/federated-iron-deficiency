@@ -10,6 +10,7 @@ from django.db import models, transaction
 from web.vocabulary import RESULT_NAMES, ClinicalIndication, RegisteredSex, Test
 
 INDICATION_REQUIRED = "A CBC needs a clinical indication."
+NOT_SUGGESTED = "Ferritin is ordered only beside a lab report suggesting it."
 # The tests an order states a clinical indication for (Test.takes_indication).
 TAKES_INDICATION = [test.value for test in Test if test.takes_indication()]
 
@@ -87,18 +88,41 @@ class GeneralPractitioner(models.Model):
         """Order one test on a collected sample, copying the patient's registered
         sex and age, also a later one such as ferritin beside a suggestion (R1, R2,
         R11, R14, R26)."""
-        patient = sample.patient
-        order = Order(
-            sample=sample,
-            test=test,
-            indication=indication,
-            registered_sex=patient.registered_sex,
-            age=patient.age,
-            ordered_at=now,
-        )
+        order = self._order(sample=sample, test=test, indication=indication, now=now)
         order.full_clean()
         order.save()
         return order
+
+    def order_refusal(
+        self, *, sample: "Sample", test: Test, now: datetime
+    ) -> ValidationError | None:
+        """What would refuse this test on this sample whatever its indication: a
+        test the sample has (R26), ferritin without a suggestion (R11). The order
+        page asks before showing its form; place_order checks it again."""
+        order = self._order(sample=sample, test=test, indication=None, now=now)
+        try:
+            order.full_clean(exclude=["indication"])
+        except ValidationError as refusal:
+            return refusal
+        return None
+
+    def _order(
+        self,
+        *,
+        sample: "Sample",
+        test: Test,
+        indication: ClinicalIndication | None,
+        now: datetime,
+    ) -> "Order":
+        """The order as placed: the patient's registered sex and age copied (R1)."""
+        return Order(
+            sample=sample,
+            test=test,
+            indication=indication,
+            registered_sex=sample.patient.registered_sex,
+            age=sample.patient.age,
+            ordered_at=now,
+        )
 
 
 def _awaits_ferritin() -> models.Exists:
@@ -214,6 +238,15 @@ class Order(models.Model):
                 violation_error_message="Ferritin takes no clinical indication.",
             ),
         )
+
+    def clean(self) -> None:
+        """Ferritin only on suspicion: its sample has a lab report suggesting it
+        (R11). Across rows, so no constraint can hold it."""
+        suggested = self.sample.orders.filter(lab_report__ferritin_suggested=True)
+        if Test(self.test).on_suspicion() and not suggested.exists():
+            raise ValidationError(
+                {"test": ValidationError(NOT_SUGGESTED, code="ferritin_not_suggested")}
+            )
 
     @property
     def screened_indication(self) -> bool:

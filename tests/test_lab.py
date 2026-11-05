@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from iron_deficiency.dataset import CBC_VARS
-from tests.conftest import World, collect_and_order, deliver
+from tests.conftest import World, collect_and_order, deliver, suggest_ferritin_on
 from web.lab.models import LabOrder, Sample
 from web.nhanes.models import FERRITIN, Participant
 from web.practice.models import Patient
@@ -76,6 +76,7 @@ def an_order(world: World, test: str, patient: str) -> None:
 @given("a ferritin order on that sample")
 def ferritin_on_that_sample(world: World) -> None:
     sample = world["order"].sample
+    suggest_ferritin_on(sample, NOW)
     world["order"] = sample.patient.general_practitioner.place_order(
         sample=sample,
         test=OrderedTest.FERRITIN,
@@ -183,7 +184,7 @@ def ferritin_not_available(world: World) -> None:
 def lab_rows_hold(world: World) -> None:
     (lab_order,) = LabOrder.objects.to_analyse()
     assert lab_order.sample.sample_id == world["order"].sample.sample_id
-    # The practice, by its certificate name, stands for its one general practitioner.
+    # The practice, by its name, stands for its one general practitioner.
     assert "general_practitioner" not in {field.name for field in LabOrder._meta.fields}
     assert "Dr. Demo A" not in str(vars(lab_order))
     assert lab_order.get_registered_sex_display() == "Female"

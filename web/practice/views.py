@@ -131,14 +131,13 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
     def sample_actions(
         self, sample: Sample, entries: list[dict[str, Any]]
     ) -> list[dict[str, str]]:
-        """The tests a sample does not have yet; ferritin not while it is offered
-        beside a suggestion, where it matters (R11)."""
+        """The tests a sample does not have yet, but not one ordered on suspicion:
+        that one is offered only beside the lab report suggesting it (R11)."""
         ordered = {entry["order"].test for entry in entries}
-        beside = any(entry["order_ferritin_url"] for entry in entries)
         return [
             {"url": self.order_url(sample, test), "label": f"Order {test.label}"}
             for test in Test
-            if test not in ordered and not (test == Test.FERRITIN and beside)
+            if test not in ordered and not test.on_suspicion()
         ]
 
     def order_url(self, sample: Sample, test: Test) -> str:
@@ -283,6 +282,11 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
             "patient": self.patient,
             "sample": self.sample,
             "test": self.kwargs["test"],
+            # Refused whatever the indication: said on opening, in place of the
+            # form, so the page offers no button that cannot succeed.
+            "refusal": self.general_practitioner.order_refusal(
+                sample=self.sample, test=self.kwargs["test"], now=timezone.now()
+            ),
         }
 
     def get_success_url(self) -> str:

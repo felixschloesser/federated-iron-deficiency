@@ -31,6 +31,17 @@ class Test(models.TextChoices):
             case _:
                 assert_never(self)
 
+    def on_suspicion(self) -> bool:
+        """Whether this test is ordered only beside a lab report suggesting it,
+        on that lab report's sample (R11): ferritin is ordered on suspicion."""
+        match self:
+            case Test.CBC:
+                return False
+            case Test.FERRITIN:
+                return True
+            case _:
+                assert_never(self)
+
     def takes_indication(self) -> bool:
         """Whether an order for this test states a clinical indication."""
         match self:

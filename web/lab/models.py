@@ -75,7 +75,7 @@ class Sample(models.Model):
     (R2, R24): two practices may use the same sample ID. It arrives with its lab
     order; a later test on it is measured on the stored sample."""
 
-    # The practice's certificate name, as the endpoint saw it (R24).
+    # The practice name, as the practice sent it (R24).
     practice = models.CharField(max_length=100)
     sample_id = models.CharField(max_length=20)
 
