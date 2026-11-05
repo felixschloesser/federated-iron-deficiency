@@ -29,10 +29,7 @@ def party_urls(party: Party | None) -> list[URLResolver]:
     """The pages of one party's deployment; in development, every party's."""
     match party:
         case None:
-            # With the hospital's messaging endpoint, which a deployment serves
-            # apart from the pages (web.lab.messaging).
-            pages = [url for each in Party for url in party_urls(each)]
-            return [*pages, path("", include("web.lab.messaging"))]
+            return [url for each in Party for url in party_urls(each)]
         case Party.HOSPITAL:
             return [
                 path("lab/", include("web.lab.urls")),

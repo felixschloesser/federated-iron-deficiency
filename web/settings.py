@@ -119,11 +119,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# LAB_ORDER_ENDPOINT=1: a hospital's messaging endpoint, without its pages; its
-# own server, on a network name only the practices reach (web.lab.messaging).
-ROOT_URLCONF = (
-    "web.lab.messaging" if os.environ.get("LAB_ORDER_ENDPOINT") == "1" else "web.urls"
-)
+ROOT_URLCONF = "web.urls"
 
 TEMPLATES = [
     {
@@ -152,12 +148,11 @@ DATABASES = {
         "NAME": PARTY_DIR / "web.sqlite3"
         if PARTY_DIR
         else BASE_DIR / f"{DATABASE_NAME}.sqlite3",
-        # Two processes write a hospital's file (its pages, and its messaging
-        # endpoint): take the write lock at BEGIN, so the second waits instead of
-        # failing on its first write.
+        # Two processes write this file (the web app, and messaging): take the write
+        # lock at BEGIN, so the second waits instead of failing on its first write.
         "OPTIONS": {"transaction_mode": "IMMEDIATE"},
-        # A file, not memory: the tests' live server answers the messaging endpoint
-        # from its own threads, each with its own connection.
+        # A file, not memory: Django never closes an in-memory database, so the
+        # messaging endpoint's threads would leave their connections open in tests.
         "TEST": {"NAME": BASE_DIR / f"test-{DATABASE_NAME}.sqlite3"},
     }
 }

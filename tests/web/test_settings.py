@@ -30,7 +30,6 @@ BASE_ENV = {
         "PRACTICE_DIR",
         "STARTUP_DIR",
         "MESSAGING_ADDRESS",
-        "LAB_ORDER_ENDPOINT",
     }
 }
 
@@ -239,38 +238,3 @@ def test_each_party_has_its_own_cookies(tmp_path: Path, party: str) -> None:
 def test_a_development_checkout_keeps_djangos_cookie_names() -> None:
     assert setting("SESSION_COOKIE_NAME", {}) == "sessionid"
     assert setting("CSRF_COOKIE_NAME", {}) == "csrftoken"
-
-
-# Which of a hospital's paths each of its two servers routes.
-ROUTES = (
-    "from django.urls import Resolver404, resolve\n"
-    "for path in ('/login/', '/lab/lab-orders/', '/lab-orders/', '/lab-reports/'):\n"
-    "    try:\n"
-    "        resolve(path)\n"
-    "        print(path)\n"
-    "    except Resolver404:\n"
-    "        pass\n"
-)
-
-
-@pytest.mark.parametrize(
-    ("endpoint", "routed"),
-    [
-        ({}, ["/login/", "/lab/lab-orders/"]),
-        ({"LAB_ORDER_ENDPOINT": "1"}, ["/lab-orders/", "/lab-reports/"]),
-    ],
-)
-def test_a_hospitals_pages_and_messaging_endpoint_are_served_apart(
-    tmp_path: Path, endpoint: dict[str, str], routed: list[str]
-) -> None:
-    """The practices reach only the endpoint's server, the browser only the
-    pages' (demo/compose.yaml): neither server routes the other's paths."""
-    result = subprocess.run(
-        [sys.executable, "manage.py", "shell", "-v0", "-c", ROUTES],
-        check=True,
-        cwd=ROOT,
-        env={**BASE_ENV, "HOSPITAL_DIR": str(tmp_path), **endpoint},
-        capture_output=True,
-        text=True,
-    )
-    assert result.stdout.split() == routed

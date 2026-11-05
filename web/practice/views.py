@@ -1,6 +1,7 @@
 from functools import cached_property
 from typing import Any
 
+import grpc
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import F, Prefetch, QuerySet
@@ -334,7 +335,7 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
                     now=timezone.now(),
                     timeout=messaging.IN_REQUEST_TIMEOUT_SECONDS,
                 )
-            except OSError as error:
+            except grpc.RpcError as error:
                 messages.warning(
                     self.request,
                     f"{laboratory} could not be reached, so the lab order is not"

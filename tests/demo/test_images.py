@@ -40,7 +40,7 @@ def test_the_practice_image_installs_only_the_web_apps_dependencies() -> None:
         if line and not line.startswith(("#", " ", "-"))
     }
     assert names.isdisjoint({"torch", "flwr", "wandb", "datasets"}), names
-    assert {"django", "django-ninja", "pydantic", "gunicorn", "whitenoise"} <= names
+    assert {"django", "grpcio", "protobuf", "gunicorn", "whitenoise"} <= names
 
 
 def test_django_boots_without_the_training_data_libraries() -> None:
