@@ -39,7 +39,7 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
         lab_order = get_object_or_404(LabOrder.objects.select_related("sample"), pk=pk)
         try:
             lab_order.run_analyser(
-                directory=settings.FINAL_MODELS_DIR,
+                directory=settings.SCREENING_MODELS_DIR,
                 now=timezone.now(),
             )
         except ValidationError as error:

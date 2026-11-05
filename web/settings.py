@@ -29,13 +29,15 @@ if HOSPITAL_DIR is not None and PRACTICE_DIR is not None:
 PARTY_DIR = HOSPITAL_DIR or PRACTICE_DIR
 # None: a development checkout, serving every party's pages from one database.
 PARTY: Party | None = None
-# The hospital's final models (R16); without HOSPITAL_DIR, an optional folder.
-FINAL_MODELS_DIR: Path | None = (
-    Path(os.environ["FINAL_MODELS_DIR"]) if "FINAL_MODELS_DIR" in os.environ else None
+# The hospital's screening models (R16); without HOSPITAL_DIR, an optional folder.
+SCREENING_MODELS_DIR: Path | None = (
+    Path(os.environ["SCREENING_MODELS_DIR"])
+    if "SCREENING_MODELS_DIR" in os.environ
+    else None
 )
 if HOSPITAL_DIR is not None:
     PARTY = Party.HOSPITAL
-    FINAL_MODELS_DIR = HOSPITAL_DIR / "screening-models"
+    SCREENING_MODELS_DIR = HOSPITAL_DIR / "screening-models"
 elif PRACTICE_DIR is not None:
     PARTY = Party.GENERAL_PRACTITIONER
 # Shown in the title bar and header; never the screening's name.

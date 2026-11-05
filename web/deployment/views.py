@@ -23,13 +23,13 @@ class ModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
     template_name = "deployment/models.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        deployed = Deployment.objects.screener(settings.FINAL_MODELS_DIR)
+        deployed = Deployment.objects.screener(settings.SCREENING_MODELS_DIR)
         history = Deployment.objects.select_related("screening_model").order_by(
             "-deployed_at", "-pk"
         )
         return {
             **super().get_context_data(**kwargs),
-            "screening_models": screening_models(settings.FINAL_MODELS_DIR),
+            "screening_models": screening_models(settings.SCREENING_MODELS_DIR),
             "deployed": None
             if isinstance(deployed, NoUsableModel)
             else deployed.screening_model,
@@ -44,7 +44,9 @@ class DeployView(LaboratoryDirectorRequiredMixin, View):
     def post(self, request: HttpRequest, run_id: str) -> HttpResponse:
         try:
             deployment = Deployment.objects.deploy(
-                run_id=run_id, directory=settings.FINAL_MODELS_DIR, now=timezone.now()
+                run_id=run_id,
+                directory=settings.SCREENING_MODELS_DIR,
+                now=timezone.now(),
             )
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))

@@ -152,7 +152,7 @@ def staff_member(world: World, name: str) -> None:
 def staff_tries(
     world: World, client: Client, settings: Settings, name: str, run_id: str
 ) -> None:
-    settings.FINAL_MODELS_DIR = world["final_models_dir"]
+    settings.SCREENING_MODELS_DIR = world["final_models_dir"]
     client.force_login(world["staff_member"].user)
     client.post(reverse("deployment:deploy", kwargs={"run_id": run_id}))
 

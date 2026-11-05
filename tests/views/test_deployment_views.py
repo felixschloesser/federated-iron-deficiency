@@ -31,7 +31,7 @@ VALIDATION = {
 def final_models_dir(tmp_path: Path, settings: Settings) -> Path:
     directory = tmp_path / "final-models"
     directory.mkdir()
-    settings.FINAL_MODELS_DIR = directory
+    settings.SCREENING_MODELS_DIR = directory
     stored_at = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
     write_final_model(directory, "run-1", VALIDATION, stored_at)
     (directory / "run-2.pt").write_bytes(b"not a model")
@@ -113,7 +113,7 @@ def test_laboratory_staff_are_sent_to_their_start_page(
 def test_without_a_final_models_folder(
     client: Client, director: LaboratoryDirector, settings: Settings
 ) -> None:
-    settings.FINAL_MODELS_DIR = None
+    settings.SCREENING_MODELS_DIR = None
     assertContains(client.get(reverse("deployment:models")), "No models have arrived.")
 
 
@@ -128,7 +128,7 @@ def status(settings: Settings) -> str:
 
 
 def test_screening_status_without_models(settings: Settings, tmp_path: Path) -> None:
-    settings.FINAL_MODELS_DIR = tmp_path / "final-models"
+    settings.SCREENING_MODELS_DIR = tmp_path / "final-models"
     assert status(settings) == "no screening model yet"
 
 
