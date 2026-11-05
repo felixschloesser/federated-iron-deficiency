@@ -164,3 +164,42 @@ def refused(world: World, code: str, field: str | None) -> None:
 @then("no run reaches the SuperLink")
 def no_run(superlink: World) -> None:
     assert superlink["commands"] == []
+
+
+@when(parsers.parse('the startup downloads final model "{run_id}" for sale'))
+def download_for_sale(world: World, run_id: str) -> None:
+    from web.training.final_models import for_sale
+
+    world["download"] = for_sale(world["final_models_dir"], run_id)
+
+
+@then(
+    parsers.parse(
+        "the download holds the final model's weights and its threshold {threshold:f}"
+    )
+)
+def weights_and_threshold(world: World, threshold: float) -> None:
+    from iron_deficiency.screening import from_bytes
+    from iron_deficiency.task import Net
+
+    model = from_bytes(world["download"])
+    assert model.state_dict is not None
+    assert set(model.state_dict) == set(Net().state_dict())
+    assert model.threshold == threshold
+
+
+@then(
+    "it holds no standardization and no metrics: the buyer standardizes on its own"
+    " cohort"
+)
+def nothing_else(world: World) -> None:
+    from iron_deficiency.screening import Problem, from_bytes
+
+    model = from_bytes(world["download"])
+    assert model.problem() is Problem.STANDARDIZATION_MISSING
+    assert (model.federated, model.local_validation, model.stored_at) == ({}, {}, None)
+
+
+@then("there is nothing to download")
+def nothing_to_download(world: World) -> None:
+    assert world["download"] is None
