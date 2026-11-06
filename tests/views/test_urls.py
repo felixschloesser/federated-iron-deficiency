@@ -10,8 +10,9 @@ from django.urls import reverse
     [
         ("training:runs", {}, "/training/runs/"),
         ("training:stop", {"run_id": 7}, "/training/runs/7/stop/"),
-        ("training:transmit", {"run_id": "7"}, "/training/runs/7/transmit/"),
-        ("training:for_sale", {"run_id": "7"}, "/training/runs/7/for-sale/"),
+        ("training:models", {}, "/training/models/"),
+        ("training:transmit", {"run_id": "7"}, "/training/models/7/transmit/"),
+        ("training:for_sale", {"run_id": "7"}, "/training/models/7/for-sale/"),
         ("deployment:models", {}, "/deployment/models/"),
         ("deployment:deploy", {"run_id": "7"}, "/deployment/models/7/deploy/"),
         ("lab:orders", {}, "/lab/orders/"),

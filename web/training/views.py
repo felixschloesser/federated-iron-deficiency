@@ -8,7 +8,7 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views import View
-from django.views.generic import FormView
+from django.views.generic import FormView, TemplateView
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.models import User
@@ -23,26 +23,29 @@ class DataScientistRequiredMixin(RoleRequiredMixin):
     role = Role.DATA_SCIENTIST
 
 
+def listed_runs() -> tuple[list[TrainingRun] | None, str | None]:
+    """The SuperLink's runs, or None and why their statuses are unknown."""
+    try:
+        return training_runs(), None
+    except ValidationError as error:
+        return None, error.messages[0]
+
+
 class TrainingRunsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
-    """The startup's final models, and the form that submits the next run."""
+    """Every run the SuperLink knows, and the form that submits the next one."""
 
     template_name = "training/training_runs.html"
     form_class = SubmitRunForm
     success_url = reverse_lazy("training:runs")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        runs: list[TrainingRun] | None
-        try:
-            runs, runs_unknown = training_runs(), None
-        except ValidationError as error:
-            runs, runs_unknown = None, error.messages[0]
-        kept = final_models(settings.FINAL_MODELS_DIR)
-        transmissions = list(Transmission.objects.all())
-        delivered = deliveries(kept, runs, transmissions)
-        by_run = {transmission.run_id: transmission for transmission in transmissions}
+        runs, runs_unknown = listed_runs()
+        by_run = {
+            transmission.run_id: transmission
+            for transmission in Transmission.objects.all()
+        }
         return {
             **super().get_context_data(**kwargs),
-            "final_models": [(model, delivered[model.run_id]) for model in kept],
             # Each run with the final model it transmits, if it is a transmission.
             "training_runs": [(run, by_run.get(str(run.run_id))) for run in runs or []],
             "runs_unknown": runs_unknown,
@@ -62,10 +65,28 @@ class TrainingRunsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
             return self.form_invalid(form)
         messages.success(
             self.request,
-            f"Training run {run_id} submitted. Its final model appears here when"
-            " the run finishes.",
+            f"Training run {run_id} submitted. Its final model appears on Final"
+            " models when the run finishes.",
         )
         return super().form_valid(form)
+
+
+class FinalModelsView(DataScientistRequiredMixin, TemplateView):
+    """The startup's final models, each with whether it reached the hospitals."""
+
+    template_name = "training/final_models.html"
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        runs, runs_unknown = listed_runs()
+        kept = final_models(settings.FINAL_MODELS_DIR)
+        delivered = deliveries(kept, runs, list(Transmission.objects.all()))
+        return {
+            **super().get_context_data(**kwargs),
+            "final_models": [(model, delivered[model.run_id]) for model in kept],
+            "runs_unknown": runs_unknown,
+            # A SuperLink that does not list runs would not take a transmission.
+            "transmits": runs_unknown is None,
+        }
 
 
 class StopRunView(DataScientistRequiredMixin, View):
@@ -100,7 +121,7 @@ class TransmitView(DataScientistRequiredMixin, View):
                 f"Run {transmission.run_id} transmits final model of run {run_id}"
                 " to every hospital connected now.",
             )
-        return redirect("training:runs")
+        return redirect("training:models")
 
 
 class ForSaleView(DataScientistRequiredMixin, View):
