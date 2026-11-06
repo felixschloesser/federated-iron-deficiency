@@ -8,10 +8,10 @@ Feature: Screening a CBC
   Every analysed CBC gets a result and its lab report at once.
 
   Background:
-    Given screening model "run-1"
+    Given screening model "1"
 
   Scenario Outline: The model's decision becomes the result
-    Given the laboratory director deployed "run-1" at threshold 0.5
+    Given the laboratory director deployed "1" at threshold 0.5
     And a CBC sample of a woman aged 30 for a screened indication
     And the deployed model scores the sample <side> the threshold
     When laboratory staff run the analyser
@@ -23,7 +23,7 @@ Feature: Screening a CBC
       | below | ferritin not suggested  |
 
   Scenario Outline: The lab report says only whether ferritin is suggested
-    Given the laboratory director deployed "run-1" at threshold 0.5
+    Given the laboratory director deployed "1" at threshold 0.5
     And a CBC sample of a woman aged 30 for a screened indication
     And the deployed model scores the sample <side> the threshold
     When laboratory staff run the analyser
@@ -49,7 +49,7 @@ Feature: Screening a CBC
       | for an indication not screened   | male   | 70  |
 
   Scenario Outline: The age range includes its ends
-    Given the laboratory director deployed "run-1" at threshold 0.5
+    Given the laboratory director deployed "1" at threshold 0.5
     And a CBC sample for a screened indication, registered sex female, aged <age>
     When laboratory staff run the analyser
     Then the sample is screened by the model
@@ -60,13 +60,13 @@ Feature: Screening a CBC
       | 49  |
 
   Scenario: The result records the screening model that produced it
-    Given the laboratory director deployed "run-1" at threshold 0.4
+    Given the laboratory director deployed "1" at threshold 0.4
     And a CBC sample of a woman aged 30 for a screened indication
     When laboratory staff run the analyser
-    Then the screening result records screening model "run-1", its SHA-256 and threshold 0.4
+    Then the screening result records screening model "1", its SHA-256 and threshold 0.4
 
   Scenario: No score is stored
-    Given the laboratory director deployed "run-1" at threshold 0.5
+    Given the laboratory director deployed "1" at threshold 0.5
     And a CBC sample of a woman aged 30 for a screened indication
     When laboratory staff run the analyser
     Then no stored field of the sample or its screening result holds a score
@@ -81,7 +81,7 @@ Feature: Screening a CBC
     Examples:
       | state                                                | reason                  |
       | no screening model has been deployed                 | no_deployed_model       |
-      | the file of the deployed "run-1" has changed on disk | deployed_model_changed  |
+      | the file of the deployed "1" has changed on disk | deployed_model_changed  |
 
   Scenario: A ferritin sample is never screened
     Given a ferritin sample of a woman aged 30

@@ -190,7 +190,7 @@ def broken_final_model(world: World, run_id: str, problem: str) -> None:
     write_final_model(
         path.parent,
         run_id,
-        world["validation"]["run-1"],
+        world["validation"]["1"],
         NOW + timedelta(hours=1),
         **variant,
     )
@@ -397,9 +397,7 @@ def test_the_database_refuses_a_threshold_outside_zero_and_one(
 
     from web.deployment.models import ScreeningModel
 
-    screening_model = ScreeningModel(
-        run_id="run-1", sha256="0" * 64, threshold=threshold
-    )
+    screening_model = ScreeningModel(run_id="1", sha256="0" * 64, threshold=threshold)
     with pytest.raises(ValidationError) as refused:
         screening_model.full_clean()
     assert [error.code for error in refused.value.error_dict["__all__"]] == [

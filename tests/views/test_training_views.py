@@ -46,8 +46,10 @@ def test_final_models_page(
         response = client.get(reverse("training:runs"))
     assertContains(
         response,
-        "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.86</td><td>—</td>"
-        '<td><a href="/training/runs/7/for-sale/" download'
+        '<tr><td data-label="Stored">30 Oct 2026, 10:00</td><td data-label="Run">7</td>'
+        '<td data-label="AUROC across hospitals">0.86</td>'
+        '<td data-label="Run configuration">—</td>'
+        '<td data-label="Model sale"><a href="/training/runs/7/for-sale/" download'
         ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
         "</td></tr>",
         html=True,
@@ -101,11 +103,11 @@ def test_the_page_shows_each_training_runs_status(
     answering(monkeypatch, {}, {"success": True, "runs": [RUNNING]})
     response = client.get(reverse("training:runs"))
     for cell in (
-        "<td>7</td>",
-        '<td class="no-wrap"><strong>Running</strong></td>',
-        '<td class="no-wrap">30 Oct 2026, 15:02</td>',
-        '<td class="no-wrap">0:01:01</td>',
-        "<td>—</td>",
+        '<td data-label="Run">7</td>',
+        '<td data-label="Status" class="no-wrap"><strong>Running</strong></td>',
+        '<td data-label="Since" class="no-wrap">30 Oct 2026, 15:02</td>',
+        '<td data-label="Elapsed" class="no-wrap">0:01:01</td>',
+        '<td data-label="Details">—</td>',
     ):
         assertContains(response, cell, html=True)
     assertContains(response, "reload the page")

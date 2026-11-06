@@ -28,16 +28,16 @@
     {% csrf_token %}
     <fieldset>
       <legend>Choose a threshold</legend>
-      <div class="overflow-auto"><table>
+      <div class="overflow-auto"><table class="stack-narrow">
         <thead><tr><th scope="col">Threshold</th><th scope="col">Sensitivity</th><th scope="col">Specificity</th><th scope="col">Positive predictive value</th><th scope="col">Negative predictive value</th></tr></thead>
         <tbody>
           {% for row in model.local_validation %}
           <tr>
             <th scope="row"><label><input type="radio" name="threshold" value="{{ row.threshold }}" required{% if deployed and model.run_id == deployed.run_id and row.threshold == deployed.threshold %} checked{% endif %}> {{ row.threshold|floatformat:2 }}</label></th>
-            {% with ratio=row.sensitivity %}<td>{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
-            {% with ratio=row.specificity %}<td>{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
-            {% with ratio=row.positive_predictive_value %}<td>{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
-            {% with ratio=row.negative_predictive_value %}<td>{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
+            {% with ratio=row.sensitivity %}<td data-label="Sensitivity">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
+            {% with ratio=row.specificity %}<td data-label="Specificity">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
+            {% with ratio=row.positive_predictive_value %}<td data-label="Positive predictive value">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
+            {% with ratio=row.negative_predictive_value %}<td data-label="Negative predictive value">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
           </tr>
           {% endfor %}
         </tbody>

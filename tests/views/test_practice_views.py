@@ -465,7 +465,10 @@ def test_orders_index_names_each_orders_sample(
         )
     response = client.get(reverse("practice:orders"))
     for sample in patient.samples.all():
-        assertContains(response, f'<td class="sample-id">{sample.sample_id}</td>')
+        assertContains(
+            response,
+            f'<td data-label="Sample ID" class="sample-id">{sample.sample_id}</td>',
+        )
 
 
 def test_order_ferritin_names_its_sample_for_assistive_technology(

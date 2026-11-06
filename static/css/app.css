@@ -289,3 +289,38 @@ mark {
 fieldset {
   min-width: 0;
 }
+
+/* A table too wide for a phone (kit pages mark it .stack-narrow): each row becomes
+   a card, each cell a line led by its column's name (data-label), so no column
+   sits off-screen behind a sideways scroll. */
+@media (max-width: 575.98px) {
+  table.stack-narrow thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  table.stack-narrow,
+  table.stack-narrow tbody,
+  table.stack-narrow tr,
+  table.stack-narrow :is(td, th) {
+    display: block;
+  }
+
+  table.stack-narrow tr {
+    border-bottom: 1px solid var(--pico-muted-border-color);
+    padding-block: calc(var(--pico-spacing) / 2);
+  }
+
+  table.stack-narrow :is(td, th) {
+    border-bottom: 0;
+    padding-block: 0.125rem;
+  }
+
+  table.stack-narrow td[data-label]:not([data-label=""])::before {
+    content: attr(data-label) ": ";
+    font-weight: 600;
+  }
+}

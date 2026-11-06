@@ -4,17 +4,17 @@
 {% include "kit/index_header.html" with title="To analyse" %}
 <p>Tests ordered on a sample. A stored sample is one the laboratory already holds.</p>
 {% if lab_orders %}
-<div class="overflow-auto"><table>
+<div class="overflow-auto"><table class="stack-narrow">
   <thead>
     <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col"><span class="visually-hidden">Action</span></th><th scope="col">Ordered</th></tr>
   </thead>
   <tbody>
     {% for lab_order in lab_orders %}
     <tr>
-      <td><span class="sample-id">{{ lab_order.sample.sample_id }}</span>{% if lab_order.stored_sample %} · stored sample{% endif %}</td>
-      <td>{{ lab_order.get_test_display }}</td>
-      <td>{% url "lab:analyse" lab_order.pk as analyse_url %}{% include "kit/action_button.html" with url=analyse_url label="Run analyser" accessible_label="Run analyser for sample "|add:lab_order.sample.sample_id %}</td>
-      <td>{{ lab_order.ordered_at|date:"j M Y, H:i" }}</td>
+      <td data-label="Sample ID"><span class="sample-id">{{ lab_order.sample.sample_id }}</span>{% if lab_order.stored_sample %} · stored sample{% endif %}</td>
+      <td data-label="Test">{{ lab_order.get_test_display }}</td>
+      <td data-label="">{% url "lab:analyse" lab_order.pk as analyse_url %}{% include "kit/action_button.html" with url=analyse_url label="Run analyser" accessible_label="Run analyser for sample "|add:lab_order.sample.sample_id %}</td>
+      <td data-label="Ordered">{{ lab_order.ordered_at|date:"j M Y, H:i" }}</td>
     </tr>
     {% endfor %}
   </tbody>
