@@ -1,5 +1,5 @@
 """The startup's record of each final model its data scientist transmitted to
-the hospitals (features/training.feature)."""
+the hospitals (features/startup/training.feature)."""
 
 from datetime import datetime
 from typing import TYPE_CHECKING

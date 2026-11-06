@@ -47,7 +47,7 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            # Every analysis releases its lab report at once (features/screening.feature).
+            # Every analysis releases its lab report at once (features/hospital/screening.feature).
             released = (
                 f"Sample {test_request.sample.sample_id}:"
                 f" {test_request.get_test_display()} analysed, lab report released"

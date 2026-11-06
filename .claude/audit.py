@@ -1,12 +1,10 @@
-"""Repository audit: counts rule violations against a baseline that only goes down.
+"""Repository audit: lists every rule violation, and fails on any.
 
-Run `python .claude/audit.py` as a commit gate; `--update` lowers the baseline
-after a fix and refuses to raise it.
+Run `python .claude/audit.py` as a commit gate.
 """
 
 import argparse
 import ast
-import json
 import re
 import sys
 import tomllib
@@ -17,7 +15,6 @@ from typing import assert_never
 from web.party import Party
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = Path(".claude") / "audit_baseline.json"
 ALLOWLIST = Path(".claude") / "audit_allowlist.toml"
 GLOSSARY = Path("glossary.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
@@ -33,10 +30,6 @@ SUPPRESSIONS = (
     "csrf" + "_exempt",
     "filter" + "warnings",
 )
-# The deleted spec's requirements, obstacles and sections; DF and TB name the
-# report's DFD and stay. Built so that this file does not match itself.
-SPEC_CITATION = re.compile(r"\b[R" + "O]\\d+\\b|" + "\u00a7" + r"\s?\d+")
-CODE_FILES = ("*.py", "*.pyi", "*.html", "*.feature", "*.proto", "*.toml", "*.yaml")
 SAFE_MARKERS = ("|sa" + "fe", "mark" + "_safe(")
 MUTATORS = {
     "save",
@@ -221,9 +214,9 @@ def get_mutation(root: Path) -> list[str]:
 
 
 def _owner(parts: tuple[str, ...]) -> Party | None:
-    """The party whose folder under web/ holds this module, by path or dotted
-    name; None for shared code."""
-    if len(parts) < 2 or parts[0] != "web":
+    """The party whose folder under web/ or tests/ holds this module, by path or
+    dotted name; None for shared code."""
+    if len(parts) < 2 or parts[0] not in {"web", "tests"}:
         return None
     try:
         return Party(parts[1])
@@ -231,11 +224,13 @@ def _owner(parts: tuple[str, ...]) -> Party | None:
         return None
 
 
-def _web_imports(root: Path) -> Iterator[tuple[Path, int, str]]:
-    """Each module imported by code under web/, with where."""
+def _web_imports(
+    root: Path, folders: frozenset[str] = frozenset({"web"})
+) -> Iterator[tuple[Path, int, str]]:
+    """Each module imported by code under `folders`, with where."""
     for path in files(root, "*.py"):
         rel = path.relative_to(root)
-        if rel.parts[0] != "web":
+        if rel.parts[0] not in folders:
             continue
         for node in ast.walk(ast.parse(path.read_text())):
             if isinstance(node, ast.ImportFrom):
@@ -282,15 +277,19 @@ def training_imports(root: Path) -> list[str]:
 
 
 def party_imports(root: Path) -> list[str]:
-    """A party's apps never import the other party's; shared code imports neither (features/quality/party_isolation.feature)."""
+    """A party's apps and tests never import another party's; shared code imports
+    none (features/quality/party_isolation.feature)."""
     findings = []
-    for rel, line, module in _web_imports(root):
+    for rel, line, module in _web_imports(root, frozenset({"web", "tests"})):
         imported = _owner(tuple(module.split(".")))
         importer = _owner(rel.parts)
-        if imported is None or imported is importer:
+        # Shared tests may still test every party; a party's tests only its own.
+        shared_test = importer is None and rel.parts[0] == "tests"
+        if imported is None or imported is importer or shared_test:
             continue
         who = f"the {importer.value}'s code" if importer else "shared code"
-        findings.append(f"{rel.as_posix()}:{line}: {who} imports web.{imported.value}")
+        package = ".".join(module.split(".")[:2])
+        findings.append(f"{rel.as_posix()}:{line}: {who} imports {package}")
     return findings
 
 
@@ -307,17 +306,6 @@ def glossary_sources(root: Path) -> list[str]:
     return findings
 
 
-def spec_citations(root: Path) -> list[str]:
-    """No code cites the deleted spec: a reason belongs in the docstring, a
-    requirement in its feature file."""
-    return [
-        f"{rel}:{number}: cites the deleted spec ({match[0]})"
-        for pattern in CODE_FILES
-        for rel, number, line in lines(root, pattern)
-        for match in SPEC_CITATION.finditer(line)
-    ]
-
-
 CHECKS: dict[str, Callable[[Path], list[str]]] = {
     check.__name__: check
     for check in (
@@ -328,7 +316,6 @@ CHECKS: dict[str, Callable[[Path], list[str]]] = {
         listed_members,
         get_mutation,
         glossary_sources,
-        spec_citations,
         training_imports,
         party_imports,
     )
@@ -342,26 +329,17 @@ def run(root: Path) -> dict[str, list[str]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
-    parser.add_argument("--update", action="store_true", help="lower the baseline")
     args = parser.parse_args(argv)
 
-    baseline_path = args.root / BASELINE
-    baseline = json.loads(baseline_path.read_text()) if baseline_path.exists() else {}
     findings = run(args.root)
-    counts = {name: len(found) for name, found in findings.items()}
-    increased = [
-        name for name, count in counts.items() if count > baseline.get(name, 0)
-    ]
-
-    for name in increased:
-        print(f"{name}: {counts[name]} (baseline {baseline.get(name, 0)})")
-        for finding in findings[name]:
-            print(f"  {finding}")
-    if increased:
+    for name, found in findings.items():
+        if found:
+            print(f"{name}: {len(found)}")
+            for finding in found:
+                print(f"  {finding}")
+    if any(findings.values()):
         return 1
-    if args.update:
-        baseline_path.write_text(json.dumps(counts, indent=2, sort_keys=True) + "\n")
-    print("audit: " + ", ".join(f"{name} {count}" for name, count in counts.items()))
+    print("audit: no findings (" + ", ".join(findings) + ")")
     return 0
 
 

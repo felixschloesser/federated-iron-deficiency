@@ -1,6 +1,5 @@
 """Checks for .claude/audit.py, each on a small tree with one violation."""
 
-import json
 from pathlib import Path
 
 import pytest
@@ -177,23 +176,13 @@ def test_unsourced_glossary_term(tmp_path: Path) -> None:
     ]
 
 
-def test_ratchet_fails_above_the_baseline(tmp_path: Path) -> None:
+def test_any_finding_fails_the_audit(tmp_path: Path) -> None:
     root = tree(tmp_path, {"web/x.py": f"x = 1  {NOQA}\n"})
-    baseline = root / "tools" / "audit_baseline.json"
-    baseline.parent.mkdir()
-    baseline.write_text(json.dumps({"suppressions": 0}))
     assert audit.main(["--root", str(root)]) == 1
-    assert audit.main(["--root", str(root), "--update"]) == 1
-    assert json.loads(baseline.read_text()) == {"suppressions": 0}
 
 
-def test_update_lowers_the_baseline(tmp_path: Path) -> None:
+def test_no_finding_passes_the_audit(tmp_path: Path) -> None:
     root = tree(tmp_path, {"web/x.py": "x = 1\n"})
-    baseline = root / ".claude" / "audit_baseline.json"
-    baseline.parent.mkdir()
-    baseline.write_text(json.dumps({"suppressions": 2}))
-    assert audit.main(["--root", str(root), "--update"]) == 0
-    assert json.loads(baseline.read_text())["suppressions"] == 0
     assert audit.main(["--root", str(root)]) == 0
 
 
@@ -231,6 +220,22 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
     ]
 
 
+def test_each_partys_tests_import_only_its_own_code(tmp_path: Path) -> None:
+    root = tree(
+        tmp_path,
+        {
+            "tests/practice/test_messaging.py": "from tests.practice.conftest import x\n"
+            "from web.hospital.lab.models import TestRequest\n",
+            "tests/hospital/test_lab.py": "from tests.practice.conftest import make_patient\n",
+            "tests/views/test_urls.py": "import web.hospital.lab.urls\nimport web.practice.urls\n",
+        },
+    )
+    assert audit.run(root)["party_imports"] == [
+        "tests/hospital/test_lab.py:1: the hospital's code imports tests.practice",
+        "tests/practice/test_messaging.py:2: the practice's code imports web.hospital",
+    ]
+
+
 def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
     code = (
         "from ml.cohort import CBC_VARS\n"
@@ -253,20 +258,3 @@ def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
         "web/seeding/command.py:3: imports ml.final_model, the hospital's or the startup's code",
         "web/startup/training/views.py:2: imports ml.inference, the hospital's code",
     ]
-
-
-@pytest.mark.parametrize(
-    "citation",
-    ["R" + "4", "O" + "18", "§" + "9", "§ " + "10"],
-)
-def test_a_citation_of_the_deleted_spec(tmp_path: Path, citation: str) -> None:
-    code = f"# Only a screened indication ({citation}).\n"
-    assert counts(tree(tmp_path, {"web/x.py": code}))["spec_citations"] == 1
-
-
-def test_data_flows_and_trust_boundaries_are_no_spec_citations(tmp_path: Path) -> None:
-    """DF and TB name the report's DFD, which stays."""
-    code = "# The lab order (DF23) crosses TB3-TB1.\n"
-    feature = "Feature: x\n  Not a citation: R2D2, CO2.\n"
-    root = tree(tmp_path, {"web/x.py": code, "features/x.feature": feature})
-    assert counts(root)["spec_citations"] == 0

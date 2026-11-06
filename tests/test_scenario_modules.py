@@ -5,10 +5,12 @@ from pathlib import Path
 
 import pytest
 
+# Each party's modules that bind scenarios of features/.
 MODULES = sorted(
-    path.stem
-    for path in Path(__file__).parent.glob("test_*.py")
-    if path.stem != "test_modules"
+    ".".join(path.relative_to(Path(__file__).parent.parent).with_suffix("").parts)
+    for party in ("hospital", "practice", "startup")
+    for path in (Path(__file__).parent / party).glob("test_*.py")
+    if "scenarios(" in path.read_text()
 )
 
 
@@ -16,7 +18,7 @@ MODULES = sorted(
 def test_a_scenario_module_declares_its_database_access(name: str) -> None:
     # Without the mark a module passes only after another one has created the
     # test database, and fails when run alone.
-    module = importlib.import_module(f"tests.scenarios.{name}")
+    module = importlib.import_module(name)
     marks = getattr(module, "pytestmark", [])
     marks = marks if isinstance(marks, list) else [marks]
     assert any(mark.name == "django_db" for mark in marks), name

@@ -1,68 +1,82 @@
-"""Scenarios: analysing samples (features/lab.feature), and the
-lab never seeing a patient's name (features/access.feature)."""
+"""Scenarios: analysing samples, and the lab never seeing a patient's name
+(features/hospital/lab.feature). Only the hospital's side: lab orders arrive as its
+messaging endpoint records them."""
 
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
-from pytest_bdd import given, parsers, scenario, scenarios, then, when
+from pytest_bdd import given, parsers, scenarios, then, when
 
 from ml.cohort import CBC_VARS
-from tests.conftest import World, collect_and_order, deliver, suggest_ferritin_on
+from tests.conftest import World
+from tests.hospital.conftest import make_practice, make_tube, receive_lab_order
 from web.hospital.lab.models import Sample, TestRequest
 from web.hospital.nhanes.models import FERRITIN, Participant
-from web.practice.models import Patient
-from web.vocabulary import ClinicalIndication
+from web.vocabulary import RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 29, 10, 0, tzinfo=UTC)
 TESTS = {"CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
 pytestmark = pytest.mark.django_db
 
-scenarios("lab.feature")
+scenarios("hospital/lab.feature")
 
 
-@scenario("access.feature", "The lab never sees a patient's name")
-def test_the_lab_never_sees_a_patients_name() -> None:
-    pass
-
-
-def tube(patient: Patient) -> Participant:
-    """What the patient's tube would measure, at the hospital's analyser stand-in."""
-    return Participant.objects.get(seqn=int(patient.nhanes_number))
+def tube(world: World, patient: str) -> Participant:
+    """What the patient's samples measure, at the hospital's analyser stand-in."""
+    return Participant.objects.get(seqn=world["patients"][patient]["seqn"])
 
 
 def place(world: World, test: str, patient: str) -> None:
-    ordered = TESTS[test]
-    indication = (
-        ClinicalIndication.UNEXPLAINED_FATIGUE if ordered.takes_indication() else None
-    )
+    """A new sample of the patient arriving with its lab order."""
     record = world["patients"][patient]
-    world["order"] = collect_and_order(
-        patient=record,
-        test=ordered,
-        indication=indication,
-        now=NOW,
+    record["samples"] += 1
+    world["test_request"] = receive_lab_order(
+        f"{record['seqn']}-{record['samples']}",
+        TESTS[test],
+        NOW,
+        sex=record["sex"],
+        age=record["age"],
     )
-    world["test_request"] = deliver(world["order"])
+
+
+@given(
+    parsers.parse(
+        'practice "{practice}" sends samples of patient "{patient}",'
+        " registered sex {sex}, aged {age:d}"
+    )
+)
+def practice_sends_samples(
+    world: World, practice: str, patient: str, sex: str, age: int
+) -> None:
+    make_practice()
+    world["patients"][patient] = {
+        "seqn": make_tube().seqn,
+        "sex": RegisteredSex(sex),
+        "age": age,
+        "samples": 0,
+    }
 
 
 @given(
     parsers.parse('"{patient}" has NHANES CBC values and ferritin {ferritin:g} ng/mL')
 )
 def nhanes_values(world: World, patient: str, ferritin: float) -> None:
-    participant = tube(world["patients"][patient])
+    participant = tube(world, patient)
     participant.cbc = {var: float(index) for index, var in enumerate(CBC_VARS, 1)}
     participant.ferritin = ferritin
     participant.save()
 
 
-@given(parsers.parse('patient "{patient}" of "{owner}" without NHANES ferritin'))
-def patient_without_ferritin(world: World, patient: str, owner: str) -> None:
-    from tests.conftest import make_patient
-    from web.vocabulary import RegisteredSex
-
-    world["patients"][patient] = make_patient(patient, RegisteredSex.FEMALE, 30)
+@given(parsers.parse('patient "{patient}" without NHANES ferritin'))
+def patient_without_ferritin(world: World, patient: str) -> None:
+    world["patients"][patient] = {
+        "seqn": make_tube().seqn,
+        "sex": RegisteredSex.FEMALE,
+        "age": 30,
+        "samples": 0,
+    }
 
 
 @given(parsers.re(r'a (?P<test>CBC|ferritin) order for "(?P<patient>[^"]+)"$'))
@@ -72,14 +86,14 @@ def an_order(world: World, test: str, patient: str) -> None:
 
 @given("a ferritin order on that sample")
 def ferritin_on_that_sample(world: World) -> None:
-    sample = world["order"].sample
-    suggest_ferritin_on(sample, NOW)
-    world["order"] = sample.place_order(
-        test=OrderedTest.FERRITIN,
-        indication=None,
-        now=NOW,
+    analysed = world["test_request"]
+    world["test_request"] = receive_lab_order(
+        analysed.sample.sample_id,
+        OrderedTest.FERRITIN,
+        NOW,
+        sex=RegisteredSex(analysed.registered_sex),
+        age=analysed.age,
     )
-    world["test_request"] = deliver(world["order"])
 
 
 @given(
@@ -94,10 +108,7 @@ def an_analysed_sample(world: World, test: str, patient: str) -> None:
     parsers.parse('the analyser stand-in has no values for the sample of "{patient}"')
 )
 def no_tube(world: World, patient: str) -> None:
-    from web.hospital.nhanes.models import Participant
-
-    seqn = int(world["patients"][patient].nhanes_number)
-    Participant.objects.filter(seqn=seqn).delete()
+    tube(world, patient).delete()
 
 
 @when("laboratory staff run the analyser")
@@ -145,7 +156,7 @@ def refused(world: World, action: str, code: str) -> None:
 @then(parsers.parse('the sample has the 13 NHANES CBC values of "{patient}"'))
 def sample_has_cbc(world: World, patient: str) -> None:
     test_request = world["test_request"]
-    assert test_request.results == tube(world["patients"][patient]).cbc
+    assert test_request.results == tube(world, patient).cbc
     assert len(test_request.results) == 13
     assert test_request.analysed_at == NOW
 
@@ -183,23 +194,24 @@ def ferritin_not_available(world: World) -> None:
 )
 def lab_rows_hold(world: World) -> None:
     (test_request,) = TestRequest.objects.to_analyse()
-    assert test_request.sample.sample_id == world["order"].sample.sample_id
+    assert test_request.sample.sample_id == world["test_request"].sample.sample_id
     # The practice, by its name, stands for its one general practitioner.
-    assert "general_practitioner" not in {
-        field.name for field in TestRequest._meta.fields
-    }
-    assert "Dr. Demo A" not in str(vars(test_request))
+    fields = {field.name for field in TestRequest._meta.fields}
+    assert not {"general_practitioner", "name", "patient"} & fields
     assert test_request.get_registered_sex_display() == "Female"
     assert test_request.get_test_display() == "CBC"
-    # Ordered for unexplained fatigue: screened, which is all the lab learns of it.
+    # Ordered for a screened indication, which is all the lab learns of it.
     assert test_request.screened_indication is True
 
 
-@then("no lab query returns the patient's name")
-def no_patient_name(world: World) -> None:
-    # The lab's models have no relation to the general practitioner's records.
+@then("the lab's records relate to nothing outside the hospital")
+def lab_relates_to_the_hospital_only(world: World) -> None:
+    # So no lab query can reach a general practitioner's records, and with them
+    # a patient's name.
     for model in (Sample, TestRequest):
-        related = {field.related_model for field in model._meta.get_fields()}
-        assert not related & {Patient}, model
-    for test_request in TestRequest.objects.to_analyse():
-        assert "Test Patient" not in str(vars(test_request))
+        related = {
+            field.related_model._meta.app_label
+            for field in model._meta.get_fields()
+            if field.related_model is not None
+        }
+        assert related <= {"lab", "deployment", "nhanes"}, (model, related)

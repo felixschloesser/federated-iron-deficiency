@@ -10,7 +10,7 @@ from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains
 from pytest_django.fixtures import Settings
 
-from tests.conftest import (
+from tests.hospital.conftest import (
     make_laboratory_director,
     make_laboratory_staff_member,
     write_final_model,
@@ -150,6 +150,16 @@ def test_laboratory_staff_are_sent_to_their_start_page(
     response = client.get(reverse("deployment:screening_models"), follow=True)
     assert response.redirect_chain == [(reverse("lab:test_requests"), 302)]
     assertContains(response, "That page is for laboratory directors.")
+
+
+def test_a_file_not_named_after_a_run_is_no_screening_model(
+    screening_models_dir: Path,
+) -> None:
+    from web.hospital.deployment.model_files import screening_models
+
+    (screening_models_dir / "1.pt").rename(screening_models_dir / "run123.pt")
+    (screening_models_dir / "2.pt").unlink()
+    assert screening_models(screening_models_dir) == []
 
 
 def test_without_a_screening_models_folder(

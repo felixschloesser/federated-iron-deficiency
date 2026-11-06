@@ -32,7 +32,7 @@ def test_the_summary_names_each_party_with_its_address_and_state() -> None:
         "Ctrl-C stops every party.",
     ):
         assert line in text, line
-    # A practice sends samples to every hospital's laboratory, not to one (features/messaging.feature).
+    # A practice sends samples to every hospital's laboratory, not to one (features/practice/messaging.feature).
     assert "→" not in text
     assert "Accounts" not in text
 
@@ -59,7 +59,7 @@ def test_each_practice_and_its_hospital_seed_the_same_number_of_patients() -> No
 
 
 def test_every_hospital_has_a_tube_for_every_practices_patients() -> None:
-    """Any practice may send a sample to any hospital (features/messaging.feature), so every hospital's
+    """Any practice may send a sample to any hospital (features/practice/messaging.feature), so every hospital's
     analyser stand-in seeds every practice's participants."""
     from demo.demo import seed_arguments, tube_seeds
     from demo.topology import PATIENTS
@@ -71,7 +71,7 @@ def test_every_hospital_has_a_tube_for_every_practices_patients() -> None:
 
 
 def test_every_hospital_knows_every_practice_by_its_folder_name() -> None:
-    """Any practice may send a sample to any hospital (features/messaging.feature),
+    """Any practice may send a sample to any hospital (features/practice/messaging.feature),
     so each hospital registers every practice, by the certificate name its app
     sends: its folder name, as compose.yaml sets it."""
     from demo.demo import practice_arguments

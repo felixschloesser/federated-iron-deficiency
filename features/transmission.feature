@@ -2,7 +2,7 @@ Feature: A final model reaches a hospital only when transmitted
   The real ServerApp and ClientApp, in their containers, on a small synthetic
   cohort: a training run keeps its final model at the startup; transmitting it
   stores it at the hospital under the training run's ID; transmitting it again
-  changes nothing there (features/training.feature, features/final_models.feature).
+  changes nothing there (features/startup/training.feature, features/final_models.feature).
   Each scenario's last step is its response measure, true or false.
 
   @containers

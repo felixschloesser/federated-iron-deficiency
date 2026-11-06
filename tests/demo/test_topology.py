@@ -10,6 +10,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
+@pytest.mark.subprocess
 def test_the_committed_topology_is_what_demo_toml_generates(tmp_path: Path) -> None:
     subprocess.run(
         [sys.executable, "-m", "demo.topology", "--out", str(tmp_path)],

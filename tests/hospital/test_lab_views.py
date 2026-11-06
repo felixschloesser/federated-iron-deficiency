@@ -8,17 +8,18 @@ from django.urls import reverse
 from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains, assertNotContains
 
-from tests.conftest import (
-    collect_and_order,
-    deliver,
-    make_general_practitioner,
+from tests.hospital.conftest import (
+    make_laboratory_director,
     make_laboratory_staff_member,
-    make_patient,
+    make_tube,
+    receive_lab_order,
 )
 from web.accounts.models import User
 from web.hospital.lab.models import TestRequest
-from web.vocabulary import ClinicalIndication, RegisteredSex
+from web.vocabulary import RegisteredSex
 from web.vocabulary import Test as OrderedTest
+
+ORDERED = datetime(2026, 10, 29, 9, 0, tzinfo=UTC)
 
 pytestmark = pytest.mark.django_db
 
@@ -31,14 +32,7 @@ def staff_member() -> User:
 @pytest.fixture
 def test_request() -> TestRequest:
     """A ferritin ordered by a general practitioner, as the lab received it (DF23)."""
-    patient = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
-    order = collect_and_order(
-        patient=patient,
-        test=OrderedTest.FERRITIN,
-        indication=None,
-        now=datetime(2026, 10, 29, 9, 0, tzinfo=UTC),
-    )
-    deliver(order)
+    receive_lab_order(f"{make_tube().seqn}-1", OrderedTest.FERRITIN, ORDERED)
     return TestRequest.objects.select_related("sample").get()
 
 
@@ -100,43 +94,25 @@ def test_actions_are_post_only(
     assert client.get(analyse_url(test_request)).status_code == 405
 
 
-def test_general_practitioner_is_sent_to_their_start_page(client: Client) -> None:
-    client.force_login(make_general_practitioner("Dr. Demo A"))
+def test_laboratory_director_is_sent_to_their_start_page(client: Client) -> None:
+    client.force_login(make_laboratory_director("Director"))
     response = client.get(reverse("lab:test_requests"), follow=True)
-    assert response.redirect_chain == [(reverse("practice:patients"), 302)]
+    assert response.redirect_chain == [(reverse("deployment:screening_models"), 302)]
     assertContains(response, "That page is for laboratory staff.")
 
 
-def test_laboratory_staff_are_sent_to_their_start_page(
-    client: Client, staff_member: User
-) -> None:
-    response = logged_in(client, staff_member).get(
-        reverse("practice:patients"), follow=True
-    )
-    assert response.redirect_chain == [(reverse("lab:test_requests"), 302)]
-    assertContains(response, "That page is for general practitioners.")
-
-
-def test_general_practitioner_cannot_run_the_analyser(
+def test_laboratory_director_cannot_run_the_analyser(
     client: Client, test_request: TestRequest
 ) -> None:
-    client.force_login(make_general_practitioner("Dr. Demo A"))
+    client.force_login(make_laboratory_director("Director"))
     client.post(analyse_url(test_request))
     test_request.refresh_from_db()
     assert test_request.analysed_at is None
 
 
 def cbc_lab_order(sex: RegisteredSex) -> TestRequest:
-    """A CBC for a unexplained fatigue, aged 32, as the lab received it (DF23)."""
-
-    patient = make_patient("Test Patient 1", sex, 32)
-    order = collect_and_order(
-        patient=patient,
-        test=OrderedTest.CBC,
-        indication=ClinicalIndication.UNEXPLAINED_FATIGUE,
-        now=datetime(2026, 10, 29, 9, 0, tzinfo=UTC),
-    )
-    deliver(order)
+    """A CBC for a screened indication, aged 32, as the lab received it (DF23)."""
+    receive_lab_order(f"{make_tube().seqn}-1", OrderedTest.CBC, ORDERED, sex=sex)
     return TestRequest.objects.select_related("sample").get()
 
 
@@ -198,13 +174,10 @@ def test_to_analyse_shows_only_what_running_the_analyser_needs(
 def test_to_analyse_marks_a_stored_sample(
     client: Client, staff_member: User, test_request: TestRequest
 ) -> None:
-    from web.practice.models import Order
-
     logged_in(client, staff_member).post(analyse_url(test_request))
     # The sample's other test reaching the lab after its ferritin was analysed:
     # here the CBC whose lab report suggested ferritin at the practice.
-    order = Order.objects.get(test=OrderedTest.FERRITIN)
-    deliver(order.sample.orders.get(test=OrderedTest.CBC))
+    receive_lab_order(test_request.sample.sample_id, OrderedTest.CBC, ORDERED)
     response = client.get(reverse("lab:test_requests"))
     sample_id = test_request.sample.sample_id
     assertContains(response, f"{sample_id}</span> · stored sample")
@@ -216,7 +189,6 @@ def test_analysed_names_no_general_practitioner(
     test_request.run_analyser(directory=None, now=test_request.ordered_at)
     response = logged_in(client, staff_member).get(reverse("lab:analysed"))
     assertNotContains(response, '<th scope="col">General practitioner</th>')
-    assertNotContains(response, "Dr. Demo A")
 
 
 def test_an_action_button_is_plain_so_pico_adds_no_form_margin(
