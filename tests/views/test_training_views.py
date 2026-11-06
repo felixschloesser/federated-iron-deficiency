@@ -62,8 +62,8 @@ def test_final_models_page(
 def test_a_final_models_run_configuration_is_listed(
     client: Client, final_models_dir: Path
 ) -> None:
-    from iron_deficiency.final_models import keep_final_model
-    from iron_deficiency.task import Net
+    from ml.final_models import keep_final_model
+    from ml.task import Net
 
     keep_final_model(
         final_models_dir,
