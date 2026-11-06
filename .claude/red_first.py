@@ -38,8 +38,11 @@ def collected_tests(output: str) -> set[str]:
 
 def changed_modules(touched: list[str], modules: dict[str, str]) -> set[str]:
     """The test modules a commit changed: those it touched, and those that load a
-    feature file it touched (scenarios("lab.feature")), given each module's text."""
-    features = [Path(name).name for name in touched if name.endswith(".feature")]
+    feature file it touched, by its path under features/ as scenarios() names it
+    (scenarios("hospital/lab.feature")), given each module's text."""
+    features = [
+        name.removeprefix("features/") for name in touched if name.endswith(".feature")
+    ]
     return {
         module
         for module, text in modules.items()
