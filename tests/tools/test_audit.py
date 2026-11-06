@@ -206,8 +206,8 @@ def test_web_imports_only_the_screening_side(tmp_path: Path) -> None:
     )
     root = tree(tmp_path, {"web/hospital/lab/models.py": code, "tools/x.py": code})
     assert audit.run(root)["training_imports"] == [
-        "web/hospital/lab/models.py:3: imports ml.client_app, startup code",
-        "web/hospital/lab/models.py:4: imports ml.server_app, startup code",
+        "web/hospital/lab/models.py:3: imports ml.client_app, the Flower app's code",
+        "web/hospital/lab/models.py:4: imports ml.server_app, the Flower app's code",
     ]
 
 
