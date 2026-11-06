@@ -182,7 +182,8 @@ def test_the_startups_web_app_reads_the_final_models_and_not_the_superlinks_stat
         "startup/final-models",
         True,
     )
-    assert spec["environment"]["STARTUP_DIR"] == "/demo/startup"
+    assert spec["environment"]["PARTY"] == "startup"
+    assert spec["environment"]["DATA_DIR"] == "/demo/startup"
 
 
 @pytest.mark.parametrize("slug", ["startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS])
@@ -259,10 +260,10 @@ def test_each_web_app_knows_its_party_name_and_colour() -> None:
     vendor = ROOT / "static/css/vendor/pico-2.1.1"
     for cycle, (hospital_colour, practice_colour) in COLOURS.items():
         hospital = service(f"{hospital_slug(HOSPITALS[cycle])}-web")["environment"]
-        assert hospital["HOSPITAL_NAME"] == HOSPITALS[cycle]
+        assert hospital["PARTY_NAME"] == HOSPITALS[cycle]
         assert hospital["PARTY_COLOUR"] == hospital_colour
         practice = service(f"{hospital_slug(PRACTICES[cycle])}-web")["environment"]
-        assert practice["PRACTICE_NAME"] == PRACTICES[cycle]
+        assert practice["PARTY_NAME"] == PRACTICES[cycle]
         # What every hospital registers it by (demo.demo.practice_arguments).
         slug = hospital_slug(PRACTICES[cycle])
         assert practice["PRACTICE_CERTIFICATE_NAME"] == slug

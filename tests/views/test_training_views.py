@@ -179,7 +179,7 @@ def test_a_deployment_tells_the_server_app_its_demo_folder(
 ) -> None:
     from web.training.runs import run_configuration
 
-    settings.STARTUP_DIR = tmp_path / "startup"
+    settings.DATA_DIR = tmp_path / "startup"
     assert (
         run_configuration({"batch-size": 64}) == f"batch-size=64 demo-dir='{tmp_path}'"
     )

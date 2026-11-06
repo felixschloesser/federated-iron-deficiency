@@ -70,7 +70,7 @@ rejected = [
 
 ["practice name"]
 source = "Report, \"Design choices and assumptions\", DF24: \"Lab orders, with the sending practice\"; the names in demo.toml (`practice = \"Huisartsenpraktijk De Akker\"`)"
-why = "The practice's own name (`PRACTICE_NAME`), shown on its pages; the hospital registers it beside the certificate name, which is the lab's key, and it is never sent"
+why = "The practice's own name (`PARTY_NAME`), shown on its pages; the hospital registers it beside the certificate name, which is the lab's key, and it is never sent"
 rejected = [
     "client name",
 ]

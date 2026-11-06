@@ -163,6 +163,6 @@ names and insist on HTTPS: clear it for those sites.
 
 Each party installs only its own apps: a hospital's database has no table
 for patients, a practice's none for lab orders, analyser values or final
-models. A development checkout (neither `HOSPITAL_DIR` nor `PRACTICE_DIR`)
-serves both parties from one database; seed it with
+models. A development checkout (no `PARTY`) serves
+every party from one database; seed it with
 `DJANGO_DEBUG=1 uv run python manage.py seed_hospital` and `seed_practice`.
