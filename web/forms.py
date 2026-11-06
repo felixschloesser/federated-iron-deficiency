@@ -1,4 +1,4 @@
-"""What every form rendered by the kit (templates/kit/form.html) shares."""
+"""What every form rendered by the kit (web/templates/kit/form.html) shares."""
 
 from typing import Any
 

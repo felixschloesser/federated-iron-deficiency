@@ -257,7 +257,7 @@ def test_the_hospital_serves_its_pages_and_its_lab_orders_each_on_one_network_on
 
 
 def test_each_web_app_knows_its_party_name_and_colour() -> None:
-    vendor = ROOT / "static/css/vendor/pico-2.1.1"
+    vendor = ROOT / "web/static/css/vendor/pico-2.1.1"
     for cycle, (hospital_colour, practice_colour) in COLOURS.items():
         hospital = service(f"{hospital_slug(HOSPITALS[cycle])}-web")["environment"]
         assert hospital["PARTY_NAME"] == HOSPITALS[cycle]
