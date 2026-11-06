@@ -167,7 +167,8 @@ def test_without_a_screening_models_folder(
 ) -> None:
     settings.SCREENING_MODELS_DIR = None
     assertContains(
-        client.get(reverse("deployment:screening_models")), "No models have arrived."
+        client.get(reverse("deployment:screening_models")),
+        "No final model fetched yet.",
     )
 
 
