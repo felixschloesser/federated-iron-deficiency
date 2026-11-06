@@ -24,11 +24,11 @@ BUILD_OUTPUT = {"staticfiles"}
 # The parts of the training package a hospital's web app may import (features/quality/party_isolation.feature);
 # everything else under web/ only the cohort's terms and the dataset's loaders.
 HOSPITAL_SIDE = {
-    "iron_deficiency.screening",
-    "iron_deficiency.cohort",
-    "iron_deficiency.dataset",
+    "ml.screening",
+    "ml.cohort",
+    "ml.dataset",
 }
-SHARED_SIDE = {"iron_deficiency.cohort", "iron_deficiency.dataset"}
+SHARED_SIDE = {"ml.cohort", "ml.dataset"}
 
 # Split so that this file does not match its own patterns.
 SUPPRESSIONS = (
@@ -243,12 +243,12 @@ def _web_imports(root: Path) -> Iterator[tuple[Path, int, str]]:
 
 def training_imports(root: Path) -> list[str]:
     """Hospital software uses only the screening side of the training package,
-    and the startup's only to read its own final models (iron_deficiency.screening);
+    and the startup's only to read its own final models (ml.screening);
     the rest of web/ only the dataset (features/quality/party_isolation.feature)."""
     readers = set(Party.HOSPITAL.apps()) | set(Party.STARTUP.apps())
     findings = []
     for rel, line, module in _web_imports(root):
-        if module.split(".")[0] != "iron_deficiency":
+        if module.split(".")[0] != "ml":
             continue
         if module not in HOSPITAL_SIDE:
             findings.append(f"{rel.as_posix()}:{line}: imports {module}, startup code")

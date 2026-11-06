@@ -19,8 +19,8 @@ import numpy.typing as npt
 import pandas as pd
 import torch
 
-from iron_deficiency.cohort import CBC_VARS, FEATURES, eligible
-from iron_deficiency.task import Net
+from ml.cohort import CBC_VARS, FEATURES, eligible
+from ml.task import Net
 
 # One lab export row: sample ID, registered sex, age, and the 13 CBC values.
 COLUMNS = ["sample_id", "sex", "age", *CBC_VARS]
@@ -211,11 +211,12 @@ def suggests_ferritin(
 
 
 def screen(samples: pd.DataFrame, model: FinalModel, threshold: float) -> pd.DataFrame:
-    """Return each sample's ID and result: flagged, not flagged, or not screened."""
+    """Return each sample's screening result: ferritin suggested, ferritin not
+    suggested, or not screened."""
     probabilities = score(samples, model)
     result = pd.Series("not screened", index=samples.index)
     result[probabilities.index] = np.where(
-        probabilities >= threshold, "flagged", "not flagged"
+        probabilities >= threshold, "ferritin suggested", "ferritin not suggested"
     )
 
     # Only the sample ID and the decision leave: no score, no other input column.

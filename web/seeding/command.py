@@ -14,8 +14,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
-from iron_deficiency.cohort import ELIGIBLE_SEX, FERRITIN_THRESHOLD, eligible
-from iron_deficiency.dataset import load_ferritin, load_new_samples
+from ml.cohort import ELIGIBLE_SEX, FERRITIN_CUTOFF, eligible
+from ml.dataset import load_ferritin, load_new_samples
 from web.accounts.models import User
 from web.accounts.roles import Role
 from web.seeding.accounts import PASSWORD
@@ -38,9 +38,9 @@ class Group(enum.Enum):
         screened = eligible(rows["sex"], rows["age"])
         match self:
             case Group.LOW_FERRITIN:
-                return screened & (rows["LBXFER"] < FERRITIN_THRESHOLD)
+                return screened & (rows["LBXFER"] < FERRITIN_CUTOFF)
             case Group.NORMAL_FERRITIN:
-                return screened & (rows["LBXFER"] >= FERRITIN_THRESHOLD)
+                return screened & (rows["LBXFER"] >= FERRITIN_CUTOFF)
             case Group.MEN:
                 return ~women
             case Group.OUTSIDE_AGES:
@@ -74,8 +74,7 @@ def with_made_up_ferritin(chosen: pd.DataFrame, nhanes: pd.DataFrame) -> pd.Data
     (it measured women aged 12–49 only): the measured ferritin of an eligible woman
     at or above the cutoff, picked by sample ID so it is the same on every seed."""
     measured = nhanes[
-        eligible(nhanes["sex"], nhanes["age"])
-        & (nhanes["LBXFER"] >= FERRITIN_THRESHOLD)
+        eligible(nhanes["sex"], nhanes["age"]) & (nhanes["LBXFER"] >= FERRITIN_CUTOFF)
     ]
     pool = measured.sort_values("sample_id")["LBXFER"].to_list()
     made_up = chosen["sample_id"].map(lambda seqn: pool[int(seqn) % len(pool)])

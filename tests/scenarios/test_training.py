@@ -16,8 +16,8 @@ scenarios("training.feature")
 
 
 def keep(directory: Path, run_id: str, auroc: float, at: datetime) -> None:
-    from iron_deficiency.final_models import keep_final_model
-    from iron_deficiency.task import Net
+    from ml.final_models import keep_final_model
+    from ml.task import Net
 
     keep_final_model(
         directory,
@@ -249,8 +249,8 @@ def server_app_keeps_configured(
 ) -> None:
     import tomllib
 
-    from iron_deficiency.final_models import keep_final_model, training_parameters
-    from iron_deficiency.task import Net
+    from ml.final_models import keep_final_model, training_parameters
+    from ml.task import Net
 
     run_config = {
         key: value
@@ -286,7 +286,7 @@ def shows_configuration(world: World, run_id: str, shown: str) -> None:
     )
 )
 def holds_no_secret(world: World, run_id: str) -> None:
-    from iron_deficiency.screening import final_model_path, read
+    from ml.screening import final_model_path, read
 
     kept = read(final_model_path(world["final_models_dir"], run_id))
     assert "wandb-api-key" not in kept.run_configuration
@@ -313,8 +313,8 @@ def download_for_sale(world: World, run_id: str) -> None:
 
 @then("the download holds the final model's weights")
 def weights(world: World) -> None:
-    from iron_deficiency.screening import from_bytes
-    from iron_deficiency.task import Net
+    from ml.screening import from_bytes
+    from ml.task import Net
 
     model = from_bytes(world["download"])
     assert model.state_dict is not None
@@ -555,7 +555,7 @@ def records_transmission(
 
 @when(parsers.parse('the ServerApp reads final model "{run_id}" to transmit'))
 def server_app_reads(world: World, run_id: str) -> None:
-    from iron_deficiency.final_models import final_model_to_transmit
+    from ml.final_models import final_model_to_transmit
 
     try:
         world["to_send"] = final_model_to_transmit(
@@ -642,7 +642,7 @@ def offers_send(world: World, superlink: World, run_id: str, offers: str) -> Non
     )
 )
 def hospitals_reply(world: World, replied: int, connected: int, errors: int) -> None:
-    from iron_deficiency.final_models import transmission_failure
+    from ml.final_models import transmission_failure
 
     world["failure"] = transmission_failure(
         connected=connected, replied=replied, errors=errors

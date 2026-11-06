@@ -12,7 +12,7 @@ from django.db import models, transaction
 from django.db.models import Exists, OuterRef
 from django_stubs_ext import WithAnnotations
 
-from iron_deficiency.cohort import ELIGIBLE_AGES, ELIGIBLE_SEX
+from ml.cohort import ELIGIBLE_AGES, ELIGIBLE_SEX
 from web.deployment.models import Deployment, NoUsableModel, ScreeningModel
 from web.nhanes.models import Participant
 from web.vocabulary import RegisteredSex, Test
@@ -159,7 +159,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
         )
 
     @transaction.atomic
-    def record(self, *, practice: Practice, details: LabOrderDetails) -> LabOrder:
+    def receive(self, *, practice: Practice, details: LabOrderDetails) -> LabOrder:
         """Record a lab order (DF23) from `practice` once, however often it arrives
         (features/messaging.feature)."""
         sample, _ = Sample.objects.get_or_create(

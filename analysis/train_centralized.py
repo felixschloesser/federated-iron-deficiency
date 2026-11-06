@@ -7,8 +7,8 @@ from pathlib import Path
 import torch
 from torch.utils.data import ConcatDataset, DataLoader
 
-from iron_deficiency.dataset import load_federated_dataset
-from iron_deficiency.task import SEED, Loader, Net, load_data, train
+from ml.dataset import load_federated_dataset
+from ml.task import SEED, Loader, Net, load_data, train
 
 # Same hyperparameters as the federated run
 CONFIG = tomllib.loads(Path("pyproject.toml").read_text())["tool"]["flwr"]["app"][

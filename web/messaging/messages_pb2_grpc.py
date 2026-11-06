@@ -38,19 +38,19 @@ class LaboratoryStub:
             channel: A grpc.Channel.
         """
         self.SendLabOrder = channel.unary_unary(
-            "/iron_deficiency.messaging.v1.Laboratory/SendLabOrder",
+            "/messaging.v1.Laboratory/SendLabOrder",
             request_serializer=messages__pb2.LabOrder.SerializeToString,
             response_deserializer=messages__pb2.Received.FromString,
             _registered_method=True,
         )
         self.FetchNewLabReports = channel.unary_unary(
-            "/iron_deficiency.messaging.v1.Laboratory/FetchNewLabReports",
-            request_serializer=messages__pb2.FetchLabReports.SerializeToString,
+            "/messaging.v1.Laboratory/FetchNewLabReports",
+            request_serializer=messages__pb2.NewLabReportsRequest.SerializeToString,
             response_deserializer=messages__pb2.LabReports.FromString,
             _registered_method=True,
         )
         self.AcknowledgeLabReports = channel.unary_unary(
-            "/iron_deficiency.messaging.v1.Laboratory/AcknowledgeLabReports",
+            "/messaging.v1.Laboratory/AcknowledgeLabReports",
             request_serializer=messages__pb2.Acknowledgement.SerializeToString,
             response_deserializer=messages__pb2.Received.FromString,
             _registered_method=True,
@@ -88,7 +88,7 @@ def add_LaboratoryServicer_to_server(servicer, server):
         ),
         "FetchNewLabReports": grpc.unary_unary_rpc_method_handler(
             servicer.FetchNewLabReports,
-            request_deserializer=messages__pb2.FetchLabReports.FromString,
+            request_deserializer=messages__pb2.NewLabReportsRequest.FromString,
             response_serializer=messages__pb2.LabReports.SerializeToString,
         ),
         "AcknowledgeLabReports": grpc.unary_unary_rpc_method_handler(
@@ -98,11 +98,11 @@ def add_LaboratoryServicer_to_server(servicer, server):
         ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-        "iron_deficiency.messaging.v1.Laboratory", rpc_method_handlers
+        "messaging.v1.Laboratory", rpc_method_handlers
     )
     server.add_generic_rpc_handlers((generic_handler,))
     server.add_registered_method_handlers(
-        "iron_deficiency.messaging.v1.Laboratory", rpc_method_handlers
+        "messaging.v1.Laboratory", rpc_method_handlers
     )
 
 
@@ -126,7 +126,7 @@ class Laboratory:
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/iron_deficiency.messaging.v1.Laboratory/SendLabOrder",
+            "/messaging.v1.Laboratory/SendLabOrder",
             messages__pb2.LabOrder.SerializeToString,
             messages__pb2.Received.FromString,
             options,
@@ -156,8 +156,8 @@ class Laboratory:
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/iron_deficiency.messaging.v1.Laboratory/FetchNewLabReports",
-            messages__pb2.FetchLabReports.SerializeToString,
+            "/messaging.v1.Laboratory/FetchNewLabReports",
+            messages__pb2.NewLabReportsRequest.SerializeToString,
             messages__pb2.LabReports.FromString,
             options,
             channel_credentials,
@@ -186,7 +186,7 @@ class Laboratory:
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/iron_deficiency.messaging.v1.Laboratory/AcknowledgeLabReports",
+            "/messaging.v1.Laboratory/AcknowledgeLabReports",
             messages__pb2.Acknowledgement.SerializeToString,
             messages__pb2.Received.FromString,
             options,

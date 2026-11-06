@@ -3,7 +3,7 @@
 // practice in every message (features/messaging.feature); the demo leaves out the report's mutual TLS.
 syntax = "proto3";
 
-package iron_deficiency.messaging.v1;
+package messaging.v1;
 
 import "google/protobuf/timestamp.proto";
 
@@ -30,8 +30,8 @@ message LabOrder {
   reserved 9;                       // was the clinical indication itself
   reserved "indication";
   reserved 6;                       // was the general practitioner's name: the
-  reserved "general_practitioner";  // practice says who ordered (features/access.feature)
-  string practice = 13;             // the sending practice's certificate name (features/messaging.feature)
+  reserved "general_practitioner";  // certificate_name says who ordered (features/access.feature)
+  string certificate_name = 13;     // the sending practice's (features/messaging.feature)
   string sample_id = 1;
   Test test = 8;
   bool screened_indication = 12;    // false when absent: never screened by mistake
@@ -56,8 +56,8 @@ message LabReport {
 
 message Received {}
 
-message FetchLabReports {
-  string practice = 1;              // the sending practice's certificate name
+message NewLabReportsRequest {
+  string certificate_name = 1;      // the sending practice's
 }
 
 message LabReports {
@@ -65,12 +65,12 @@ message LabReports {
 }
 
 message Acknowledgement {
-  string practice = 2;              // the sending practice's certificate name
+  string certificate_name = 2;      // the sending practice's
   repeated string report_ids = 1;
 }
 
 service Laboratory {
   rpc SendLabOrder(LabOrder) returns (Received);
-  rpc FetchNewLabReports(FetchLabReports) returns (LabReports);
+  rpc FetchNewLabReports(NewLabReportsRequest) returns (LabReports);
   rpc AcknowledgeLabReports(Acknowledgement) returns (Received);
 }

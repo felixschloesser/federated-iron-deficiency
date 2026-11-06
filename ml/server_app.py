@@ -1,4 +1,4 @@
-"""ServerApp for federated iron-deficiency classification."""
+"""ServerApp: aggregates the hospitals' training and sends the final model."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,7 +15,7 @@ from flwr.app import (
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, Result
 
-from iron_deficiency.final_models import (
+from ml.final_models import (
     DEFAULT_DEMO_DIR,
     final_model_to_transmit,
     keep_final_model,
@@ -23,7 +23,7 @@ from iron_deficiency.final_models import (
     training_parameters,
     transmission_failure,
 )
-from iron_deficiency.task import Net
+from ml.task import Net
 
 # Create ServerApp
 app = ServerApp()

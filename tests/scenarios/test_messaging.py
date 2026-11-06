@@ -183,7 +183,7 @@ CALLS = list(messages_pb2.DESCRIPTOR.services_by_name["Laboratory"].methods)
 def test_every_message_from_a_practice_the_hospital_does_not_know_is_refused(
     hospital: str, call: Any
 ) -> None:
-    request = getattr(messages_pb2, call.input_type.name)(practice="de-linde")
+    request = getattr(messages_pb2, call.input_type.name)(certificate_name="de-linde")
     with grpc.insecure_channel(hospital) as channel:
         endpoint = messages_pb2_grpc.LaboratoryStub(channel)
         with pytest.raises(grpc.RpcError) as refusal:
@@ -310,7 +310,8 @@ def other_app(world: World, certificate_name: str) -> None:
 def other_checks(world: World) -> None:
     with messaging.open_laboratory(world["laboratory"]) as laboratory:
         world["received"] = laboratory.FetchNewLabReports(
-            messages_pb2.FetchLabReports(practice=world["other"]), timeout=10
+            messages_pb2.NewLabReportsRequest(certificate_name=world["other"]),
+            timeout=10,
         )
 
 
@@ -342,7 +343,7 @@ def other_acknowledges(world: World, patient: str) -> None:
         report_id = str(lab_order_of(world, patient).pk)
         laboratory.AcknowledgeLabReports(
             messages_pb2.Acknowledgement(
-                practice=world["other"], report_ids=[report_id]
+                certificate_name=world["other"], report_ids=[report_id]
             ),
             timeout=10,
         )
@@ -389,12 +390,12 @@ def released_unknown(world: World, name: str, owner: str) -> None:
 
 @then(
     "the lab order has no field for a patient's name or blood values,"
-    " only the practice's name"
+    " only the practice's certificate name"
 )
 def lab_order_fields() -> None:
     fields = {field.name for field in messages_pb2.LabOrder.DESCRIPTOR.fields}
     assert fields == {
-        "practice",
+        "certificate_name",
         "sample_id",
         "test",
         "screened_indication",

@@ -36,7 +36,7 @@ class LaboratoryStub:
         _messages_pb2.LabOrder, _messages_pb2.Received
     ]
     FetchNewLabReports: _grpc.UnaryUnaryMultiCallable[
-        _messages_pb2.FetchLabReports, _messages_pb2.LabReports
+        _messages_pb2.NewLabReportsRequest, _messages_pb2.LabReports
     ]
     AcknowledgeLabReports: _grpc.UnaryUnaryMultiCallable[
         _messages_pb2.Acknowledgement, _messages_pb2.Received
@@ -49,7 +49,7 @@ class LaboratoryAsyncStub(LaboratoryStub):
         _messages_pb2.LabOrder, _messages_pb2.Received
     ]  # type: ignore[assignment]
     FetchNewLabReports: _aio.UnaryUnaryMultiCallable[
-        _messages_pb2.FetchLabReports, _messages_pb2.LabReports
+        _messages_pb2.NewLabReportsRequest, _messages_pb2.LabReports
     ]  # type: ignore[assignment]
     AcknowledgeLabReports: _aio.UnaryUnaryMultiCallable[
         _messages_pb2.Acknowledgement, _messages_pb2.Received
@@ -65,7 +65,7 @@ class LaboratoryServicer(metaclass=_abc_1.ABCMeta):
     @_abc_1.abstractmethod
     def FetchNewLabReports(
         self,
-        request: _messages_pb2.FetchLabReports,
+        request: _messages_pb2.NewLabReportsRequest,
         context: _ServicerContext,
     ) -> _messages_pb2.LabReports | _abc.Awaitable[_messages_pb2.LabReports]: ...
     @_abc_1.abstractmethod

@@ -8,8 +8,8 @@ from pathlib import Path
 import pandas as pd
 import torch
 
-from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
-from iron_deficiency.screening import (
+from ml.dataset import CYCLES, HOSPITALS, hospital_slug
+from ml.screening import (
     THRESHOLDS,
     FinalModel,
     final_model_path,
@@ -18,7 +18,7 @@ from iron_deficiency.screening import (
     standardization_tensor,
     write,
 )
-from iron_deficiency.task import Net, load_data, standardization, test
+from ml.task import Net, load_data, standardization, test
 
 # The run configuration that says how a model was trained; never the folder it
 # was kept in nor the W&B key, which the run configuration also carries.
@@ -36,7 +36,7 @@ TRAINING_PARAMETERS = (
 DEFAULT_DEMO_DIR = Path.home() / ".cache" / "iron-deficiency"
 
 
-def hospital_final_models(demo_dir: Path, partition_id: int) -> Path:
+def hospital_screening_models(demo_dir: Path, partition_id: int) -> Path:
     """The screening-models folder of the hospital that holds this partition."""
     cycle = list(CYCLES)[partition_id]  # Partition IDs follow CYCLES order
     return demo_dir / "hospitals" / hospital_slug(HOSPITALS[cycle]) / "screening-models"
