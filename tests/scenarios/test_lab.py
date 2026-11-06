@@ -11,7 +11,7 @@ from iron_deficiency.cohort import CBC_VARS
 from tests.conftest import World, collect_and_order, deliver, suggest_ferritin_on
 from web.lab.models import LabOrder, Sample
 from web.nhanes.models import FERRITIN, Participant
-from web.practice.models import Patient
+from web.practice.models import GeneralPractitioner, Patient
 from web.vocabulary import ClinicalIndication
 from web.vocabulary import Test as OrderedTest
 
@@ -39,7 +39,7 @@ def place(world: World, test: str, patient: str) -> None:
     )
     record = world["patients"][patient]
     world["order"] = collect_and_order(
-        general_practitioner=record.general_practitioner,
+        general_practitioner=GeneralPractitioner.objects.get(),
         patient=record,
         test=ordered,
         indication=indication,
@@ -63,9 +63,7 @@ def patient_without_ferritin(world: World, patient: str, owner: str) -> None:
     from tests.conftest import make_patient
     from web.vocabulary import RegisteredSex
 
-    world["patients"][patient] = make_patient(
-        world["general_practitioners"][owner], patient, RegisteredSex.FEMALE, 30
-    )
+    world["patients"][patient] = make_patient(patient, RegisteredSex.FEMALE, 30)
 
 
 @given(parsers.re(r'a (?P<test>CBC|ferritin) order for "(?P<patient>[^"]+)"$'))
@@ -77,7 +75,7 @@ def an_order(world: World, test: str, patient: str) -> None:
 def ferritin_on_that_sample(world: World) -> None:
     sample = world["order"].sample
     suggest_ferritin_on(sample, NOW)
-    world["order"] = sample.patient.general_practitioner.place_order(
+    world["order"] = GeneralPractitioner.objects.get().place_order(
         sample=sample,
         test=OrderedTest.FERRITIN,
         indication=None,

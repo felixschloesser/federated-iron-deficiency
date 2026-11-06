@@ -9,7 +9,7 @@ from django.db import IntegrityError, transaction
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from tests.conftest import World
-from web.practice.models import Order
+from web.practice.models import GeneralPractitioner, Order
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
@@ -29,7 +29,6 @@ def test_a_practice_has_one_general_practitioner() -> None:
 @when(parsers.parse('general practitioner "{name}" is added to the practice'))
 def add_general_practitioner(world: World, name: str) -> None:
     from web.accounts.models import User
-    from web.practice.models import GeneralPractitioner
 
     added = GeneralPractitioner(user=User.objects.create_user(username="b"), name=name)
     try:
@@ -141,7 +140,7 @@ def sample_has_lab_report(world: World, suggestion: str) -> None:
     from web.practice.models import LabReport
 
     sample = world["sample"]
-    cbc = sample.patient.general_practitioner.place_order(
+    cbc = GeneralPractitioner.objects.get().place_order(
         sample=sample,
         test=OrderedTest.CBC,
         indication=ClinicalIndication.OTHER,

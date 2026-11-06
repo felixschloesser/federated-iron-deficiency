@@ -163,7 +163,9 @@ for user in User.objects.order_by("username"):
     client.force_login(user)
     urls = [link["url"] for link in role.nav_links()]
     if role is Role.GENERAL_PRACTITIONER:
-        patient = user.general_practitioner.patients.first()
+        from web.practice.models import Patient
+
+        patient = Patient.objects.first()
         urls.append(reverse("practice:patient", kwargs={"pk": patient.pk}))
     for url in urls:
         status = client.get(url, secure=True).status_code

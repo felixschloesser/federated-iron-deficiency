@@ -100,9 +100,7 @@ def knows_practice(
     )
 )
 def patient(world: World, patient: str, owner: str, sex: str, age: int) -> None:
-    world["patients"][patient] = make_patient(
-        world["general_practitioners"][owner], patient, RegisteredSex(sex), age
-    )
+    world["patients"][patient] = make_patient(patient, RegisteredSex(sex), age)
 
 
 def order(
@@ -115,7 +113,7 @@ def order(
         else None
     )
     placed: Order = collect_and_order(
-        general_practitioner=record.general_practitioner,
+        general_practitioner=GeneralPractitioner.objects.get(),
         patient=record,
         test=test,
         indication=choice,
@@ -457,7 +455,7 @@ def new_order_url(client: Client, record: Patient) -> str:
 def test_placing_an_order_sends_its_lab_order(
     client: Client, practice: Laboratory, owner: GeneralPractitioner
 ) -> None:
-    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
     client.post(new_order_url(client, record))
     assert LabOrder.objects.filter(sample__sample_id=latest_sample_id(record)).exists()
@@ -468,7 +466,7 @@ def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
     client: Client, settings: Settings, practice: Laboratory, owner: GeneralPractitioner
 ) -> None:
     Laboratory.objects.update(address="127.0.0.1:1")
-    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
     response = client.post(new_order_url(client, record), follow=True)
     assertContains(response, "Ferritin ordered on sample")
@@ -484,7 +482,7 @@ def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
 ) -> None:
     """A message the hospital's form rejects (INVALID_ARGUMENT) is a fault to
     report, not a network problem to wait out."""
-    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     sample = record.samples.create(
         sample_id="x" * 25, collected_at=NOW, laboratory=Laboratory.objects.get()
     )
@@ -501,7 +499,7 @@ def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
 
 def released_ferritin(owner: GeneralPractitioner) -> Patient:
     """A patient whose ferritin the hospital has analysed and released."""
-    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     collect_and_order(
         general_practitioner=owner,
         patient=record,
@@ -546,7 +544,7 @@ def test_check_for_reports_on_a_patients_page_returns_to_it(
 def test_check_for_reports_is_offered_only_with_a_laboratory_to_ask(
     client: Client, practice: Laboratory, owner: GeneralPractitioner
 ) -> None:
-    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     page = reverse("practice:patient", kwargs={"pk": record.pk})
     check = reverse("practice:patient_check_for_reports", kwargs={"patient": record.pk})
     client.force_login(owner.user)
@@ -563,7 +561,7 @@ def test_an_awaited_lab_report_says_how_to_fetch_it(
     client: Client, settings: Settings, practice: Laboratory, owner: GeneralPractitioner
 ) -> None:
     # No timer fetches lab reports: only Check for reports does.
-    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner.user)
     client.post(new_order_url(client, record))
     page = reverse("practice:patient", kwargs={"pk": record.pk})
@@ -602,8 +600,8 @@ def test_lab_orders_go_only_to_their_samples_laboratory(
 ) -> None:
     az_diest = Laboratory.objects.get(name="AZ Diest")
     uz_leuven = second_laboratory()
-    first = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
-    second = make_patient(owner, "Test Patient 2", RegisteredSex.FEMALE, 40)
+    first = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
+    second = make_patient("Test Patient 2", RegisteredSex.FEMALE, 40)
     for record, laboratory in ((first, az_diest), (second, uz_leuven)):
         sample = owner.collect_sample(patient=record, laboratory=laboratory, now=NOW)
         suggest_ferritin_on(sample, NOW)
@@ -625,7 +623,7 @@ def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
     stored, and stays unacknowledged there."""
     az_diest = Laboratory.objects.get(name="AZ Diest")
     uz_leuven = second_laboratory()
-    record = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     sample = owner.collect_sample(patient=record, laboratory=uz_leuven, now=NOW)
     suggest_ferritin_on(sample, NOW)
     placed = owner.place_order(
