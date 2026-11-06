@@ -111,7 +111,7 @@ def seed_arguments(partition: int, nhanes: Path) -> list[str]:
 
 def tube_seeds(nhanes: Path) -> list[list[str]]:
     """Every practice's participants, for a hospital's analyser stand-in: any
-    practice may send it a sample (features/messaging.feature)."""
+    practice may send it a sample (features/practice/messaging.feature)."""
     return [seed_arguments(partition, nhanes) for partition, _ in hospitals()]
 
 
@@ -131,7 +131,7 @@ def prepare_web(
 def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
     """add_laboratory's arguments for every hospital's laboratory; the practice's
     paired hospital's is its primary laboratory, so by default lab orders follow
-    the hospitals' sizes (features/ordering.feature)."""
+    the hospitals' sizes (features/practice/ordering.feature)."""
     return [
         [
             HOSPITALS[cycle],
@@ -145,7 +145,7 @@ def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
 def practice_arguments() -> list[list[str]]:
     """add_practice's arguments for every practice, its certificate name its
     folder name: every hospital knows them all, as every practice may send it a
-    sample (features/messaging.feature)."""
+    sample (features/practice/messaging.feature)."""
     return [
         [slug, PRACTICES[cycle]]
         for (_, slug), cycle in zip(practices(), CYCLES, strict=True)
@@ -170,7 +170,7 @@ def add_practices(hospital: Path) -> None:
 
 
 def add_laboratories(practice: Path, practice_cycle: str) -> None:
-    """Every hospital's laboratory, at its lab-order endpoint (features/messaging.feature)."""
+    """Every hospital's laboratory, at its lab-order endpoint (features/practice/messaging.feature)."""
     env = {
         **os.environ,
         "PARTY": "practice",

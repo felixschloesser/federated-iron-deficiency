@@ -1,6 +1,6 @@
 # The demo's parties (demo/README.md): each hospital, keyed as ml.dataset
 # names it, with the general practitioner's practice whose primary laboratory
-# it is; every practice may send samples to every hospital (features/messaging.feature).
+# it is; every practice may send samples to every hospital (features/practice/messaging.feature).
 # How each hospital trains (its NHANES cycle and sample) is the startup's
 # choice and stays in its app; this file never reaches the FAB.
 

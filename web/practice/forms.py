@@ -37,7 +37,7 @@ class OrderForm(NamedLabels, forms.Form):
 
 
 class CollectSampleForm(NamedLabels, forms.Form):
-    """Which laboratory the sample goes to (features/messaging.feature); left out by a practice with one,
+    """Which laboratory the sample goes to (features/practice/messaging.feature); left out by a practice with one,
     whose single Collect sample button posts no choice."""
 
     laboratory = forms.ModelChoiceField(

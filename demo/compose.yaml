@@ -338,7 +338,7 @@ services:
       messaging: {aliases: [az-diest-messaging]}
 
   # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory (features/messaging.feature): on the messaging network.
+  # laboratory (features/practice/messaging.feature): on the messaging network.
   huisartsenpraktijk-de-akker-web:
     <<: *practice-web
     build: {context: .., dockerfile: demo/practice-web.Dockerfile}

@@ -15,7 +15,7 @@ from pytest_django.fixtures import Settings
 
 from ml.final_model import Net
 from ml.training import keep_final_model
-from tests.conftest import make_data_scientist, make_laboratory_director
+from tests.startup.conftest import make_data_scientist
 from web.startup.training.forms import SubmitRunForm
 
 pytestmark = pytest.mark.django_db
@@ -86,12 +86,6 @@ def test_the_training_runs_page_lists_no_final_model(
     response = client.get(reverse("training:runs"))
     assertNotContains(response, "for-sale")
     assertContains(response, f'href="{reverse("training:models")}"')
-
-
-def test_a_laboratory_director_is_sent_to_their_own_page(client: Client) -> None:
-    client.force_login(make_laboratory_director("Director One"))
-    response = client.get(reverse("training:runs"))
-    assertRedirects(response, reverse("deployment:screening_models"))
 
 
 def answering(
@@ -263,9 +257,9 @@ def test_a_run_without_a_final_model_is_not_found(
 def test_only_the_data_scientist_downloads_for_sale(
     client: Client, final_models_dir: Path
 ) -> None:
-    client.force_login(make_laboratory_director("Director One"))
-    response = client.get(reverse("training:for_sale", kwargs={"run_id": "7"}))
-    assertRedirects(response, reverse("deployment:screening_models"))
+    url = reverse("training:for_sale", kwargs={"run_id": "7"})
+    response = client.get(url)
+    assertRedirects(response, f"{reverse('login')}?next={url}")
 
 
 @pytest.mark.usefixtures("data_scientist")
@@ -362,12 +356,10 @@ def test_each_cell_names_its_column_for_narrow_screens(
 def test_a_file_not_named_after_a_run_is_no_final_model(
     final_models_dir: Path,
 ) -> None:
-    from web.hospital.deployment.model_files import screening_models
     from web.startup.training.final_models import final_models
 
     (final_models_dir / "7.pt").rename(final_models_dir / "run123.pt")
     assert final_models(final_models_dir) == []
-    assert screening_models(final_models_dir) == []
 
 
 @pytest.mark.usefixtures("data_scientist")

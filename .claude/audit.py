@@ -221,9 +221,9 @@ def get_mutation(root: Path) -> list[str]:
 
 
 def _owner(parts: tuple[str, ...]) -> Party | None:
-    """The party whose folder under web/ holds this module, by path or dotted
-    name; None for shared code."""
-    if len(parts) < 2 or parts[0] != "web":
+    """The party whose folder under web/ or tests/ holds this module, by path or
+    dotted name; None for shared code."""
+    if len(parts) < 2 or parts[0] not in {"web", "tests"}:
         return None
     try:
         return Party(parts[1])
@@ -231,11 +231,13 @@ def _owner(parts: tuple[str, ...]) -> Party | None:
         return None
 
 
-def _web_imports(root: Path) -> Iterator[tuple[Path, int, str]]:
-    """Each module imported by code under web/, with where."""
+def _web_imports(
+    root: Path, folders: frozenset[str] = frozenset({"web"})
+) -> Iterator[tuple[Path, int, str]]:
+    """Each module imported by code under `folders`, with where."""
     for path in files(root, "*.py"):
         rel = path.relative_to(root)
-        if rel.parts[0] != "web":
+        if rel.parts[0] not in folders:
             continue
         for node in ast.walk(ast.parse(path.read_text())):
             if isinstance(node, ast.ImportFrom):
@@ -282,15 +284,19 @@ def training_imports(root: Path) -> list[str]:
 
 
 def party_imports(root: Path) -> list[str]:
-    """A party's apps never import the other party's; shared code imports neither (features/quality/party_isolation.feature)."""
+    """A party's apps and tests never import another party's; shared code imports
+    none (features/quality/party_isolation.feature)."""
     findings = []
-    for rel, line, module in _web_imports(root):
+    for rel, line, module in _web_imports(root, frozenset({"web", "tests"})):
         imported = _owner(tuple(module.split(".")))
         importer = _owner(rel.parts)
-        if imported is None or imported is importer:
+        # Shared tests may still test every party; a party's tests only its own.
+        shared_test = importer is None and rel.parts[0] == "tests"
+        if imported is None or imported is importer or shared_test:
             continue
         who = f"the {importer.value}'s code" if importer else "shared code"
-        findings.append(f"{rel.as_posix()}:{line}: {who} imports web.{imported.value}")
+        package = ".".join(module.split(".")[:2])
+        findings.append(f"{rel.as_posix()}:{line}: {who} imports {package}")
     return findings
 
 

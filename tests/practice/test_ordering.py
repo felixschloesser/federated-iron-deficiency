@@ -1,5 +1,5 @@
-"""Scenarios: ordering a test (features/ordering.feature), and the practice's one
-general practitioner (features/access.feature)."""
+"""Scenarios: ordering a test (features/practice/ordering.feature), and the practice's one
+general practitioner (features/practice/access.feature)."""
 
 from datetime import UTC, datetime
 
@@ -18,10 +18,10 @@ TESTS = {"a CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
 
 pytestmark = pytest.mark.django_db
 
-scenarios("ordering.feature")
+scenarios("practice/ordering.feature")
 
 
-@scenario("access.feature", "A practice has one general practitioner")
+@scenario("practice/access.feature", "A practice has one general practitioner")
 def test_a_practice_has_one_general_practitioner() -> None:
     pass
 

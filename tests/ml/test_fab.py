@@ -6,6 +6,10 @@ import sys
 import zipfile
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.subprocess
+
 ROOT = Path(__file__).resolve().parents[2]
 
 

@@ -1,4 +1,4 @@
-"""Scenarios: the startup's training runs (features/training.feature)."""
+"""Scenarios: the startup's training runs (features/startup/training.feature)."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,7 +12,7 @@ from tests.conftest import World
 NOW = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
 pytestmark = pytest.mark.django_db
 
-scenarios("training.feature")
+scenarios("startup/training.feature")
 
 
 def keep(directory: Path, run_id: str, auroc: float, at: datetime) -> None:
@@ -31,7 +31,7 @@ def keep(directory: Path, run_id: str, auroc: float, at: datetime) -> None:
 
 @given(parsers.parse('data scientist "{name}"'))
 def data_scientist(world: World, db: None, name: str, tmp_path: Path) -> None:
-    from tests.conftest import make_data_scientist
+    from tests.startup.conftest import make_data_scientist
 
     world["data_scientist"] = make_data_scientist(name)
     world["final_models_dir"] = tmp_path / "final-models"

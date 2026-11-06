@@ -34,7 +34,7 @@ SCREENING_MODELS_DIR: Path | None = (
     if "SCREENING_MODELS_DIR" in os.environ
     else None
 )
-# The startup's copy of every final model (features/training.feature); in
+# The startup's copy of every final model (features/startup/training.feature); in
 # development, an optional folder.
 FINAL_MODELS_DIR: Path | None = (
     Path(os.environ["FINAL_MODELS_DIR"]) if "FINAL_MODELS_DIR" in os.environ else None
