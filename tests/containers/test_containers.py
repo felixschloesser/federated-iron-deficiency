@@ -438,6 +438,8 @@ def test_the_proxy_routes_a_partys_name_to_its_web_app(
             f"{HOSPITAL}-flower-client-app",
             APP_HOSPITAL,
             "messaging",
+            # The hospital's web app joins it to fetch final models.
+            "final-models",
             APP_PRACTICE,
         )
     }
