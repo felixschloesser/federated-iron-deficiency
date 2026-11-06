@@ -14,11 +14,11 @@ import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
 ROOT = Path(__file__).resolve().parents[2]
-# Each party's folder setting and seed command.
-PARTIES = {
-    "hospital": ("HOSPITAL_DIR", "seed_hospital"),
-    "practice": ("PRACTICE_DIR", "seed_practice"),
-    "startup": ("STARTUP_DIR", "seed_startup"),
+# Each party's seed command.
+SEED_COMMANDS = {
+    "hospital": "seed_hospital",
+    "practice": "seed_practice",
+    "startup": "seed_startup",
 }
 BASE_ENV = {
     name: value
@@ -26,9 +26,8 @@ BASE_ENV = {
     if name
     not in {
         "DATABASE_NAME",
-        "HOSPITAL_DIR",
-        "PRACTICE_DIR",
-        "STARTUP_DIR",
+        "PARTY",
+        "DATA_DIR",
         "MESSAGING_ADDRESS",
     }
 }
@@ -90,8 +89,11 @@ scenarios("quality/party_isolation.feature")
     target_fixture="deployment",
 )
 def deployment(tmp_path: Path, party: str) -> dict[str, Any]:
-    setting, command = PARTIES[party]
-    return {"setting": setting, "command": command, "folder": tmp_path}
+    return {
+        "env": {"PARTY": party, "DATA_DIR": str(tmp_path)},
+        "command": SEED_COMMANDS[party],
+        "folder": tmp_path,
+    }
 
 
 @when("it migrates and seeds its database")
@@ -101,7 +103,7 @@ def migrate_and_seed(deployment: dict[str, Any]) -> None:
     folder = deployment["folder"]
     nhanes = folder / "nhanes.csv"
     nhanes_rows().to_csv(nhanes, index=False)
-    env = {deployment["setting"]: str(folder)}
+    env = deployment["env"]
     run_manage(env, "migrate", "-v0")
     run_manage(
         env, deployment["command"], *seed_arguments(deployment["command"], nhanes)
@@ -118,16 +120,18 @@ def migrate_and_seed(deployment: dict[str, Any]) -> None:
 @when("its settings name a database elsewhere")
 def database_elsewhere(deployment: dict[str, Any]) -> None:
     deployment["result"] = database_path(
-        {deployment["setting"]: str(deployment["folder"]), "DATABASE_NAME": "other"}
+        {**deployment["env"], "DATABASE_NAME": "other"}
     )
 
 
-@when("its settings also name a practice's folder")
-def two_parties(deployment: dict[str, Any]) -> None:
-    folder = deployment["folder"]
-    deployment["result"] = database_path(
-        {"HOSPITAL_DIR": str(folder / "h"), "PRACTICE_DIR": str(folder / "p")}
-    )
+@when(parsers.parse('its settings name the party "{party}"'))
+def unknown_party(deployment: dict[str, Any], party: str) -> None:
+    deployment["result"] = database_path({**deployment["env"], "PARTY": party})
+
+
+@when("its settings name no folder")
+def no_folder(deployment: dict[str, Any]) -> None:
+    deployment["result"] = database_path({"PARTY": deployment["env"]["PARTY"]})
 
 
 @then(parsers.parse('its database has the table "{own}"'))

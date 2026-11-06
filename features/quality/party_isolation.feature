@@ -1,7 +1,7 @@
 Feature: Each party's software and data stay inside its trust boundary
-  Quality attribute: privacy, as isolation. Each party's web app has its own
-  folder: a hospital's reads only HOSPITAL_DIR, a practice's only PRACTICE_DIR,
-  the startup's only STARTUP_DIR, and each installs, migrates and serves only its own party's apps. Code under
+  Quality attribute: privacy, as isolation. A deployment is the one party PARTY
+  names (hospital, practice or startup) and reads only its folder, DATA_DIR; it
+  installs, migrates and serves only its own party's apps. Code under
   web/ imports from the training package only iron_deficiency.screening,
   iron_deficiency.cohort and iron_deficiency.dataset (the audit checks that).
   Each scenario's last step is its response measure, true or false.
@@ -21,9 +21,14 @@ Feature: Each party's software and data stay inside its trust boundary
   Scenario: A web app refuses a database outside its party's folder
     Given a hospital deployment in a folder of its own
     When its settings name a database elsewhere
-    Then the web app does not start, naming "HOSPITAL_DIR"
+    Then the web app does not start, naming "DATA_DIR"
 
-  Scenario: A deployment is one party
+  Scenario: A deployment is a party the code knows
     Given a hospital deployment in a folder of its own
-    When its settings also name a practice's folder
-    Then the web app does not start, naming "PRACTICE_DIR"
+    When its settings name the party "clinic"
+    Then the web app does not start, naming "PARTY"
+
+  Scenario: A deployment keeps its data in a folder of its own
+    Given a hospital deployment in a folder of its own
+    When its settings name no folder
+    Then the web app does not start, naming "DATA_DIR"
