@@ -29,7 +29,7 @@ def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
     commit = threading.Timer(OTHER_COMMITS_AFTER_SECONDS, other.execute, ["COMMIT"])
     commit.start()
     try:
-        LabOrder.objects.record(
+        LabOrder.objects.receive(
             practice=practice,
             details=LabOrderDetails(
                 sample_id="135318-1",

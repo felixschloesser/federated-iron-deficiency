@@ -1,4 +1,4 @@
-"""ClientApp for federated iron-deficiency classification."""
+"""ClientApp: each hospital trains and evaluates on its own cohort."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,7 +13,7 @@ from flwr_datasets import FederatedDataset
 from ml.dataset import load_federated_dataset
 from ml.final_models import (
     DEFAULT_DEMO_DIR,
-    hospital_final_models,
+    hospital_screening_models,
     receive_final_model,
 )
 from ml.task import Net, dataset_size, load_data
@@ -137,7 +137,7 @@ def final_models_path(context: Context) -> Path:
     # Simulation Runtime: the hospital's folder under the demo directory
     demo_dir = str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR
     partition_id = int(context.node_config["partition-id"])
-    return hospital_final_models(Path(demo_dir), partition_id)
+    return hospital_screening_models(Path(demo_dir), partition_id)
 
 
 @app.query("receive")

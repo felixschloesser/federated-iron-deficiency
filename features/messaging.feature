@@ -90,5 +90,5 @@ Feature: Lab orders and lab reports between the general practitioner and the hos
     And the lab report of "Test Patient 1" is no longer new at "AZ Diest"
 
   Scenario: Neither message can carry a name or blood values
-    Then the lab order has no field for a patient's name or blood values, only the practice's name
+    Then the lab order has no field for a patient's name or blood values, only the practice's certificate name
     And the lab report says only whether ferritin is suggested, nothing else of screening

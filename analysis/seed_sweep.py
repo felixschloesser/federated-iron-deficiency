@@ -13,7 +13,7 @@ from analysis.train_centralized import train_centralized
 from ml.dataset import load_ferritin
 from ml.final_models import (
     DEFAULT_DEMO_DIR,
-    hospital_final_models,
+    hospital_screening_models,
     latest_final_model,
 )
 from ml.screening import COLUMNS, read
@@ -56,7 +56,7 @@ def main() -> None:
         for partition_id, hospital in HOSPITALS.items():
             federated = read(
                 latest_final_model(
-                    hospital_final_models(DEFAULT_DEMO_DIR, partition_id)
+                    hospital_screening_models(DEFAULT_DEMO_DIR, partition_id)
                 )
             )
             rows.append(
@@ -82,14 +82,16 @@ def main() -> None:
     results = pd.DataFrame(rows)
     results.to_csv(args.output, index=False)
     summary = results.groupby(["arm", "hospital"])[
-        ["flagged", "flagged_above_cutoff", "flagged_deficient", "auroc"]
+        ["suggested", "suggested_above_cutoff", "suggested_deficient", "auroc"]
     ].agg(["mean", "std", "min", "max"])
     print(summary.round(3).to_string())
 
     # Same weights in every hospital, so the per-seed difference isolates the deployment.
     federated_rows = results[results["arm"] == "federated"]
-    flagged = federated_rows.pivot(index="seed", columns="hospital", values="flagged")
-    difference = flagged["UZ Leuven"] - flagged["AZ Diest"]
+    suggested = federated_rows.pivot(
+        index="seed", columns="hospital", values="suggested"
+    )
+    difference = suggested["UZ Leuven"] - suggested["AZ Diest"]
     print(
         f"\nUZ Leuven minus AZ Diest flags (federated): mean {difference.mean():.1f}, "
         f"SD {difference.std():.1f}, positive in {(difference > 0).sum()} of {len(difference)} seeds"

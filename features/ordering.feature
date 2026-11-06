@@ -1,6 +1,6 @@
 Feature: Collecting a sample and ordering tests on it
   A general practitioner collects a sample from one of their patients, then
-  orders tests on it: blood is drawn into the standard tubes first and the tests
+  orders tests on it: blood is collected into the standard tubes first and the tests
   are chosen afterwards (a simplification of WHO LQMS 5-3, where the request
   comes first). The order carries only what the lab needs: the sample ID, the
   test, the clinical indication, registered sex and age. Ferritin is ordered

@@ -20,3 +20,8 @@ sources/
 
 # Each worktree's own notes (CLAUDE.md); never committed.
 PROGRESS.md
+
+# Tool caches: never committed, even before a tool writes its own .gitignore.
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/

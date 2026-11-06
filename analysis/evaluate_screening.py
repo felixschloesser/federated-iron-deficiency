@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-from ml.cohort import FERRITIN_THRESHOLD
+from ml.cohort import FERRITIN_CUTOFF
 from ml.dataset import load_ferritin
 from ml.screening import COLUMNS, FinalModel, read, score
 
@@ -21,17 +21,17 @@ def evaluate(
     eligible = eligible.merge(ferritin, on="sample_id", how="left")
     # NHANES measures ferritin only in a subsample; women without it can't be scored.
     tested = eligible.dropna(subset=["LBXFER"])
-    deficient = tested["LBXFER"] < FERRITIN_THRESHOLD
-    flagged = tested["probability"] >= threshold
+    deficient = tested["LBXFER"] < FERRITIN_CUTOFF
+    suggested = tested["probability"] >= threshold
     return {
         "eligible": len(eligible),
-        "flagged": int((eligible["probability"] >= threshold).sum()),
+        "suggested": int((eligible["probability"] >= threshold).sum()),
         "with_ferritin": len(tested),
         "auroc": roc_auc_score(deficient, tested["probability"]),
-        "flagged_deficient": int((flagged & deficient).sum()),
-        "flagged_above_cutoff": int((flagged & ~deficient).sum()),
-        "missed_deficient": int((~flagged & deficient).sum()),
-        "not_flagged_above_cutoff": int((~flagged & ~deficient).sum()),
+        "suggested_deficient": int((suggested & deficient).sum()),
+        "suggested_above_cutoff": int((suggested & ~deficient).sum()),
+        "missed_deficient": int((~suggested & deficient).sum()),
+        "not_suggested_above_cutoff": int((~suggested & ~deficient).sum()),
     }
 
 
@@ -51,14 +51,14 @@ def main() -> None:
         args.threshold,
     )
     print(f"Eligible: {result['eligible']}, with ferritin: {result['with_ferritin']}")
-    print(f"Flagged: {result['flagged']}")
+    print(f"Ferritin suggested: {result['suggested']}")
     print(f"AUROC: {result['auroc']:.3f}\n")
     print("              deficient  ferritin >= cutoff")
     print(
-        f"flagged       {result['flagged_deficient']:>9}  {result['flagged_above_cutoff']:>18}"
+        f"suggested     {result['suggested_deficient']:>9}  {result['suggested_above_cutoff']:>18}"
     )
     print(
-        f"not flagged   {result['missed_deficient']:>9}  {result['not_flagged_above_cutoff']:>18}"
+        f"not suggested {result['missed_deficient']:>9}  {result['not_suggested_above_cutoff']:>18}"
     )
 
 
