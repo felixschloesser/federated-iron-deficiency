@@ -93,6 +93,9 @@ def superlink(monkeypatch: pytest.MonkeyPatch) -> World:
         "commands": [],
         "answer": {"success": True, "run-id": "7"},
         "hangs": False,
+        # What `flwr ls` answers: the runs, as its JSON lists them.
+        "runs": [],
+        "listing": None,
     }
 
     def run(command: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
@@ -100,7 +103,10 @@ def superlink(monkeypatch: pytest.MonkeyPatch) -> World:
         state["timeout"] = kwargs.get("timeout")
         if state["hangs"]:
             raise subprocess.TimeoutExpired(command, kwargs.get("timeout") or 0)
-        return subprocess.CompletedProcess(command, 0, json.dumps(state["answer"]), "")
+        answer = state["answer"]
+        if command[1] == "ls":
+            answer = state["listing"] or {"success": True, "runs": state["runs"]}
+        return subprocess.CompletedProcess(command, 0, json.dumps(answer), "")
 
     monkeypatch.setattr(subprocess, "run", run)
     return state
@@ -188,3 +194,136 @@ def nothing_else(world: World) -> None:
 @then("there is nothing to download")
 def nothing_to_download(world: World) -> None:
     assert world["download"] is None
+
+
+def flower_run(run_id: str, status: str, **times: str) -> dict[str, Any]:
+    """One run as `flwr ls --format json` lists it."""
+    return {
+        "run-id": run_id,
+        "status": status,
+        "status-details": times.pop("details", "N/A"),
+        "elapsed": 60.0,
+        **{
+            f"{state}-at": times.get(state, "N/A")
+            for state in ("pending", "starting", "running", "finished")
+        },
+    }
+
+
+@given("the SuperLink knows the runs:")
+def superlink_knows(superlink: World, datatable: list[list[str]]) -> None:
+    header, *rows = datatable
+    for row in rows:
+        cells = dict(zip(header, (cell.strip() for cell in row), strict=True))
+        superlink["runs"].append(
+            flower_run(
+                cells["run"],
+                cells["status"],
+                pending=cells["pending at"],
+                running=cells["running at"],
+                finished=cells["finished at"],
+            )
+        )
+
+
+@given(
+    parsers.parse('the SuperLink knows run "{run_id}" failed with details "{details}"')
+)
+def superlink_knows_failed(superlink: World, run_id: str, details: str) -> None:
+    superlink["runs"].append(
+        flower_run(
+            run_id,
+            "finished:failed",
+            pending="2026-10-30 14:01:00Z",
+            running="2026-10-30 14:02:00Z",
+            finished="2026-10-30 14:03:00Z",
+            details=details,
+        )
+    )
+
+
+@given("the SuperLink answers that it is unavailable")
+def superlink_unavailable(superlink: World) -> None:
+    superlink["listing"] = {
+        "success": False,
+        "error-message": "Connection to the SuperLink is unavailable.",
+    }
+
+
+@then("the training runs are:")
+def training_runs_are(superlink: World, datatable: list[list[str]]) -> None:
+    from web.training.runs import training_runs
+
+    header, *rows = datatable
+    expected = [
+        dict(zip(header, (cell.strip() for cell in row), strict=True)) for row in rows
+    ]
+    listed = [
+        {
+            "run": str(run.run_id),
+            "status": run.status_label,
+            "since": run.since.strftime("%Y-%m-%d %H:%M") if run.since else "",
+        }
+        for run in training_runs()
+    ]
+    assert listed == expected
+
+
+@then(parsers.parse('training run "{run_id}" is "{status}", with details "{details}"'))
+def training_run_is(superlink: World, run_id: str, status: str, details: str) -> None:
+    from web.training.runs import training_runs
+
+    (run,) = [run for run in training_runs() if str(run.run_id) == run_id]
+    assert (run.status_label, run.details) == (status, details)
+
+
+@when("the data scientist looks at the training runs")
+def look_at_runs(world: World, superlink: World) -> None:
+    from django.core.exceptions import ValidationError
+
+    from web.training.runs import training_runs
+
+    try:
+        world["runs"] = training_runs()
+    except ValidationError as error:
+        world["error"] = error
+
+
+@then(parsers.parse('looking is refused with code "{code}"'))
+def looking_refused(world: World, code: str) -> None:
+    assert world["error"].code == code
+
+
+# What `flwr ls` reports (Flower 1.40, flwr.common.constant Status and SubStatus).
+# Importing Flower here would raise Click's DeprecationWarning under -W error.
+FLOWER_STATUSES = [
+    "pending",
+    "starting",
+    "running",
+    "finished:completed",
+    "finished:failed",
+    "finished:stopped",
+]
+
+
+@pytest.mark.parametrize("status_text", FLOWER_STATUSES)
+def test_every_status_flower_reports_has_a_label(status_text: str) -> None:
+    from web.training.runs import TrainingRun
+
+    run = TrainingRun.from_flower(flower_run("3", status_text))
+    assert run.status is not None
+    assert run.status_label == run.status.label
+
+
+def test_a_status_flower_adds_later_shows_as_flower_names_it() -> None:
+    from web.training.runs import TrainingRun
+
+    run = TrainingRun.from_flower(flower_run("3", "finished:archived"))
+    assert (run.status, run.status_label) == (None, "finished:archived")
+
+
+@pytest.mark.parametrize("status", FLOWER_STATUSES)
+def test_only_an_unfinished_run_is_in_progress(status: str) -> None:
+    from web.training.runs import RunStatus
+
+    assert RunStatus(status).in_progress == (not status.startswith("finished:"))
