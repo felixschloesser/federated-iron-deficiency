@@ -20,7 +20,7 @@ GLOSSARY = Path("glossary.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
 BUILD_OUTPUT = {"staticfiles"}
 # The parts of the training package any code under web/ may import: the
-# cohort's terms and the dataset's loaders (features/quality/party_isolation.feature).
+# cohort's terms and the dataset's loaders (tests/quality/security/test_party_isolation.py).
 SHARED_SIDE = {"ml.cohort", "ml.dataset"}
 
 # Split so that this file does not match its own patterns.
@@ -245,7 +245,7 @@ def _web_imports(
 
 def _training_side(party: Party | None) -> set[str]:
     """The parts of the training package a party's code may import; shared code
-    only the shared side (features/quality/party_isolation.feature)."""
+    only the shared side (tests/quality/security/test_party_isolation.py)."""
     if party is None:
         return SHARED_SIDE
     match party:
@@ -262,7 +262,7 @@ def _training_side(party: Party | None) -> set[str]:
 
 def training_imports(root: Path) -> list[str]:
     """Code under web/ imports only the parts of the training package its party
-    may (features/quality/party_isolation.feature)."""
+    may (tests/quality/security/test_party_isolation.py)."""
     findings = []
     for rel, line, module in _web_imports(root):
         if module.split(".")[0] != "ml" or module in _training_side(_owner(rel.parts)):
@@ -278,7 +278,7 @@ def training_imports(root: Path) -> list[str]:
 
 def party_imports(root: Path) -> list[str]:
     """A party's apps and tests never import another party's; shared code imports
-    none (features/quality/party_isolation.feature)."""
+    none (tests/quality/security/test_party_isolation.py)."""
     findings = []
     for rel, line, module in _web_imports(root, frozenset({"web", "tests"})):
         imported = _owner(tuple(module.split(".")))

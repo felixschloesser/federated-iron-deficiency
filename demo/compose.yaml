@@ -173,7 +173,7 @@ services:
     networks: [model-updates, uz-leuven-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
-  # models, and a network that reaches nothing but its SuperNode (features/quality/client_app_isolation.feature).
+  # models, and a network that reaches nothing but its SuperNode (tests/quality/security/test_running_containers.py).
   uz-leuven-flower-client-app:
     <<: *superexec
     depends_on: [uz-leuven-flower-supernode]
@@ -186,7 +186,7 @@ services:
   uz-leuven-web:
     <<: *web
     # One container, two servers, each on a name only one network knows: the
-    # proxy reaches the pages, the practice only the lab-order endpoint (features/quality/party_isolation.feature).
+    # proxy reaches the pages, the practice only the lab-order endpoint (tests/quality/security/test_running_containers.py).
     # Either one stopping stops the container, and compose restarts it.
     command:
       - bash
@@ -212,7 +212,7 @@ services:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/screening-models, read_only: true, volume: {subpath: screening-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
-    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (features/quality/web_apps.feature).
+    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     # Masked: the startup's data.
     tmpfs: [/demo/hospitals/uz-leuven/cohort]
     networks:
@@ -232,7 +232,7 @@ services:
     networks: [model-updates, heilig-hart-leuven-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
-  # models, and a network that reaches nothing but its SuperNode (features/quality/client_app_isolation.feature).
+  # models, and a network that reaches nothing but its SuperNode (tests/quality/security/test_running_containers.py).
   heilig-hart-leuven-flower-client-app:
     <<: *superexec
     depends_on: [heilig-hart-leuven-flower-supernode]
@@ -245,7 +245,7 @@ services:
   heilig-hart-leuven-web:
     <<: *web
     # One container, two servers, each on a name only one network knows: the
-    # proxy reaches the pages, the practice only the lab-order endpoint (features/quality/party_isolation.feature).
+    # proxy reaches the pages, the practice only the lab-order endpoint (tests/quality/security/test_running_containers.py).
     # Either one stopping stops the container, and compose restarts it.
     command:
       - bash
@@ -271,7 +271,7 @@ services:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/screening-models, read_only: true, volume: {subpath: screening-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
-    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (features/quality/web_apps.feature).
+    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     # Masked: the startup's data.
     tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort]
     networks:
@@ -291,7 +291,7 @@ services:
     networks: [model-updates, az-diest-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
-  # models, and a network that reaches nothing but its SuperNode (features/quality/client_app_isolation.feature).
+  # models, and a network that reaches nothing but its SuperNode (tests/quality/security/test_running_containers.py).
   az-diest-flower-client-app:
     <<: *superexec
     depends_on: [az-diest-flower-supernode]
@@ -304,7 +304,7 @@ services:
   az-diest-web:
     <<: *web
     # One container, two servers, each on a name only one network knows: the
-    # proxy reaches the pages, the practice only the lab-order endpoint (features/quality/party_isolation.feature).
+    # proxy reaches the pages, the practice only the lab-order endpoint (tests/quality/security/test_running_containers.py).
     # Either one stopping stops the container, and compose restarts it.
     command:
       - bash
@@ -330,7 +330,7 @@ services:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/screening-models, read_only: true, volume: {subpath: screening-models}}
     # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
-    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (features/quality/web_apps.feature).
+    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     # Masked: the startup's data.
     tmpfs: [/demo/hospitals/az-diest/cohort]
     networks:

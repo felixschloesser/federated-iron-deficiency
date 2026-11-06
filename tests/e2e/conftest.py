@@ -1,5 +1,5 @@
-"""Every test in this folder needs a running Docker engine: the folder is the
-marker, so no test here can miss it."""
+"""Every test in this folder runs the demo's containers: the folder marks them
+`containers`, so none can miss the marker."""
 
 from pathlib import Path
 
