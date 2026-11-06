@@ -56,14 +56,11 @@ def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
             assert patient.age == age
 
 
-def test_the_practices_one_general_practitioner_has_every_patient(
+def test_the_practice_has_one_general_practitioner_and_every_patient(
     seeded: None,
 ) -> None:
-    counts = {
-        practitioner.user.username: practitioner.patients.count()
-        for practitioner in GeneralPractitioner.objects.all()
-    }
-    assert counts == {"doctor": 12}
+    assert GeneralPractitioner.objects.get().user.username == "doctor"
+    assert Patient.objects.count() == 12
 
 
 def test_running_twice_changes_nothing(seeded: None) -> None:

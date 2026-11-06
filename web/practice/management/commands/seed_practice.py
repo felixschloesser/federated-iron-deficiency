@@ -20,9 +20,7 @@ class Command(SeedCommand):
     help = __doc__
 
     def seed(self, rows: list[dict[Hashable, Any]]) -> list[str]:
-        practitioner = general_practitioner(
-            GENERAL_PRACTITIONER, GENERAL_PRACTITIONER_NAME
-        )
+        general_practitioner(GENERAL_PRACTITIONER, GENERAL_PRACTITIONER_NAME)
         for row in rows:
             # Each patient is one NHANES participant; samples start with its number.
             seqn = int(row["sample_id"])
@@ -30,7 +28,6 @@ class Command(SeedCommand):
             Patient.objects.get_or_create(
                 nhanes_number=str(seqn),
                 defaults={
-                    "general_practitioner": practitioner,
                     "name": patient_name(seqn, sex),
                     "registered_sex": sex,
                     "age": int(row["age"]),

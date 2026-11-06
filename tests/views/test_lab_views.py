@@ -31,7 +31,7 @@ def staff_member() -> LaboratoryStaffMember:
 def lab_order() -> LabOrder:
     """A ferritin ordered by a general practitioner, as the lab received it (DF23)."""
     owner = make_general_practitioner("Dr. Demo A")
-    patient = make_patient(owner, "Test Patient 1", RegisteredSex.FEMALE, 32)
+    patient = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     order = collect_and_order(
         general_practitioner=owner,
         patient=patient,
@@ -135,7 +135,7 @@ def cbc_lab_order(sex: RegisteredSex) -> LabOrder:
     """A CBC for a unexplained fatigue, aged 32, as the lab received it (DF23)."""
 
     owner = make_general_practitioner("Dr. Demo A")
-    patient = make_patient(owner, "Test Patient 1", sex, 32)
+    patient = make_patient("Test Patient 1", sex, 32)
     order = collect_and_order(
         general_practitioner=owner,
         patient=patient,

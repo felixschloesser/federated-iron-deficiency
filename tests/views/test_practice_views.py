@@ -32,9 +32,7 @@ def general_practitioner() -> GeneralPractitioner:
 
 @pytest.fixture
 def patient(general_practitioner: GeneralPractitioner) -> Patient:
-    return make_patient(
-        general_practitioner, "Test Patient 1", RegisteredSex.FEMALE, 32
-    )
+    return make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
 
 
 def logged_in(client: Client, general_practitioner: GeneralPractitioner) -> Client:
@@ -99,7 +97,7 @@ def test_patients_lists_the_practices_patients(
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    make_patient(general_practitioner, "Test Patient 3", RegisteredSex.MALE, 60)
+    make_patient("Test Patient 3", RegisteredSex.MALE, 60)
     logged_in(client, general_practitioner)
     # Session, user with general practitioner, patients with their mark.
     with django_assert_num_queries(3):
@@ -327,7 +325,7 @@ def test_orders_queries(
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     logged_in(client, general_practitioner)
-    other = make_patient(general_practitioner, "Test Patient 3", RegisteredSex.MALE, 60)
+    other = make_patient("Test Patient 3", RegisteredSex.MALE, 60)
     for each in (patient, other):
         client.post(order_url(client, each, OrderedTest.CBC), {"indication": "other"})
         client.post(order_url(client, each, OrderedTest.FERRITIN))
@@ -445,9 +443,7 @@ def test_a_stale_form_for_a_test_the_sample_has_returns_to_the_patient(
 def test_another_patients_sample_is_not_found(
     client: Client, general_practitioner: GeneralPractitioner, patient: Patient
 ) -> None:
-    other_patient = make_patient(
-        general_practitioner, "Test Patient 3", RegisteredSex.MALE, 60
-    )
+    other_patient = make_patient("Test Patient 3", RegisteredSex.MALE, 60)
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
     url = reverse(
@@ -561,7 +557,7 @@ def test_patients_can_be_searched_by_name(
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    make_patient(general_practitioner, "Maria Peeters", RegisteredSex.FEMALE, 30)
+    make_patient("Maria Peeters", RegisteredSex.FEMALE, 30)
     logged_in(client, general_practitioner)
     with django_assert_num_queries(3):
         response = client.get(reverse("practice:patients"), {"q": "peet"})

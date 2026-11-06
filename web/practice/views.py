@@ -20,7 +20,6 @@ from web.practice.models import (
     GeneralPractitioner,
     Laboratory,
     Order,
-    OrderQuerySet,
     Patient,
     Sample,
 )
@@ -47,7 +46,7 @@ class PatientIndexView(GeneralPractitionerRequiredMixin, ListView[Patient]):
     context_object_name = "patients"
 
     def get_queryset(self) -> QuerySet[Patient]:
-        patients = self.general_practitioner.patients.with_ferritin_suggested()
+        patients = Patient.objects.with_ferritin_suggested()
         patients = patients.order_by("name", "pk")
         if query := self.request.GET.get("q", "").strip():
             patients = patients.filter(name__icontains=query)
@@ -61,13 +60,13 @@ class PatientIndexView(GeneralPractitionerRequiredMixin, ListView[Patient]):
 
 
 class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
-    """One of the general practitioner's patients; anyone else's is 404 (features/access.feature)."""
+    """One of the practice's patients."""
 
     template_name = "practice/patient.html"
     context_object_name = "patient"
 
     def get_queryset(self) -> QuerySet[Patient]:
-        return self.general_practitioner.patients.all()
+        return Patient.objects.all()
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         patient = self.object
@@ -166,11 +165,9 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
     template_name = "practice/orders.html"
     context_object_name = "orders"
 
-    def get_queryset(self) -> OrderQuerySet:
-        orders = (
-            Order.objects.of_general_practitioner(self.general_practitioner)
-            .select_related("sample__patient")
-            .annotate(lab_report_released_at=F("lab_report__released_at"))
+    def get_queryset(self) -> QuerySet[Order]:
+        orders = Order.objects.select_related("sample__patient").annotate(
+            lab_report_released_at=F("lab_report__released_at")
         )
         return orders.order_by("-ordered_at", "-pk")
 
@@ -197,7 +194,7 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
         # From a patient's page, back to it; from Orders, back there.
         back = reverse("practice:orders")
         if patient is not None:
-            record = get_object_or_404(self.general_practitioner.patients, pk=patient)
+            record = get_object_or_404(Patient, pk=patient)
             back = reverse("practice:patient", kwargs={"pk": record.pk})
         if not Laboratory.objects.exists():
             raise Http404
@@ -227,9 +224,7 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSample
 
     @cached_property
     def patient(self) -> Patient:
-        return get_object_or_404(
-            self.general_practitioner.patients, pk=self.kwargs["patient"]
-        )
+        return get_object_or_404(Patient, pk=self.kwargs["patient"])
 
     def get_initial(self) -> dict[str, Any]:
         # The primary laboratory preselected; the general practitioner may pick another.
@@ -268,9 +263,7 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
 
     @cached_property
     def patient(self) -> Patient:
-        return get_object_or_404(
-            self.general_practitioner.patients, pk=self.kwargs["patient"]
-        )
+        return get_object_or_404(Patient, pk=self.kwargs["patient"])
 
     @cached_property
     def sample(self) -> Sample:

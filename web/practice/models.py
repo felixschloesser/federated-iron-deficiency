@@ -178,9 +178,6 @@ class PatientQuerySet(models.QuerySet["Patient"]):
 
 
 class Patient(models.Model):
-    general_practitioner = models.ForeignKey(
-        GeneralPractitioner, on_delete=models.PROTECT, related_name="patients"
-    )
     name = models.CharField(max_length=100)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
@@ -221,14 +218,6 @@ class Sample(models.Model):
         return self.sample_id
 
 
-class OrderQuerySet(models.QuerySet["Order"]):
-    def of_general_practitioner(
-        self, general_practitioner: GeneralPractitioner
-    ) -> "OrderQuerySet":
-        """Only this general practitioner's orders (features/access.feature)."""
-        return self.filter(sample__patient__general_practitioner=general_practitioner)
-
-
 class Order(models.Model):
     sample = models.ForeignKey(Sample, on_delete=models.PROTECT, related_name="orders")
     test = models.CharField(max_length=8, choices=Test.choices)
@@ -242,8 +231,6 @@ class Order(models.Model):
     ordered_at = models.DateTimeField()
     # Absent until the hospital confirmed the lab order (DF23); then never sent again.
     sent_at = models.DateTimeField(null=True, blank=True)
-
-    objects = OrderQuerySet.as_manager()
 
     class Meta:
         constraints = (
