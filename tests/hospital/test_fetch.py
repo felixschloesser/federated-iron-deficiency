@@ -129,3 +129,23 @@ def unchanged(world: World, name: str) -> None:
 @then("the page says the startup could not be reached")
 def says_unreachable(world: World) -> None:
     assertContains(world["page"], "The startup could not be reached")
+
+
+@given("the laboratory director has not provided a training cohort")
+def no_training_cohort(settings: Settings) -> None:
+    from ml.training_cohort import remove_training_cohort
+
+    remove_training_cohort(settings.TRAINING_COHORT_DIR)
+
+
+@then("the page says to provide the training cohort first")
+def says_provide_first(world: World) -> None:
+    assertContains(
+        world["page"],
+        "Provide the training cohort first: final models are validated on it.",
+    )
+
+
+@then("the startup is not asked")
+def startup_not_asked(world: World) -> None:
+    assert world["startup"].certificate_names == []

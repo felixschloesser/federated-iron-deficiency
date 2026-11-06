@@ -30,3 +30,10 @@ Feature: A hospital fetches final models when its laboratory director asks
     When the laboratory director fetches new final models
     Then the page says the startup could not be reached
     And the hospital holds no final model
+
+  Scenario: A hospital without a training cohort fetches nothing
+    Given the laboratory director has not provided a training cohort
+    When the laboratory director fetches new final models
+    Then the page says to provide the training cohort first
+    And the hospital holds no final model
+    And the startup is not asked
