@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
 
+    import pandas as pd
+
     from web.accounts.models import User
     from web.hospital.lab.models import Practice, TestRequest
     from web.hospital.nhanes.models import Participant
@@ -107,3 +109,45 @@ def write_final_model(
     path = directory / f"{run_id}.pt"
     torch.save(contents, path)
     return path
+
+
+def make_lab_records(
+    count: int,
+    iron_deficient: int = 0,
+    sex: "RegisteredSex" = RegisteredSex.FEMALE,
+    age: int = 30,
+    with_ferritin: bool = True,
+) -> None:
+    """`count` past patients' lab records, the first `iron_deficient` with ferritin
+    below the cutoff; each CBC differs, so each record does."""
+    from ml.cohort import CBC_VARS
+    from web.hospital.cohort.models import LabRecord
+
+    start = LabRecord.objects.count()
+    LabRecord.objects.bulk_create(
+        LabRecord(
+            registered_sex=sex,
+            age=age,
+            cbc=dict.fromkeys(CBC_VARS, float(start + number)),
+            ferritin=(8.0 if number < iron_deficient else 40.0)
+            if with_ferritin
+            else None,
+        )
+        for number in range(count)
+    )
+
+
+def found_cohort(directory: "Path") -> "pd.DataFrame | None":
+    """The training cohort as the startup's code at the hospital finds it in its
+    folder, or None when it finds none."""
+    from datasets import load_from_disk
+
+    snapshots = (
+        [path for path in directory.iterdir() if path.is_dir()]
+        if directory.is_dir()
+        else []
+    )
+    if not snapshots:
+        return None
+    (snapshot,) = snapshots
+    return load_from_disk(str(snapshot)).to_pandas()

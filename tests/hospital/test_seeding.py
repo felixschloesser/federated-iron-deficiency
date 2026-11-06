@@ -1,6 +1,7 @@
 """The hospital's demo data (seed_hospital): its staff, and what its analyser
 stand-in measures for each NHANES participant it was given."""
 
+from io import StringIO
 from pathlib import Path
 
 import pytest
@@ -89,3 +90,52 @@ def test_a_made_up_ferritin_is_reported_under_its_own_name() -> None:
     assert participant.measure(OrderedTest.FERRITIN) == {MADE_UP_FERRITIN: 60.0}
     assert RESULT_NAMES[MADE_UP_FERRITIN].name == "Ferritin (made up for the demo)"
     assert RESULT_NAMES[MADE_UP_FERRITIN].unit == "ng/mL"
+
+
+def lab_records_file(tmp_path: Path, deficient: int, sound: int) -> Path:
+    """A lab-records CSV as prepare writes it: eligible women, and one man."""
+    import pandas as pd
+
+    rows = [("Female", 30, 8.0)] * deficient + [("Female", 30, 40.0)] * sound
+    rows += [("Male", 30, 40.0)]
+    frame = pd.DataFrame(rows, columns=["sex", "age", "LBXFER"])
+    for number, var in enumerate(CBC_VARS):
+        frame[var] = [float(row + number) for row in range(len(frame))]
+    path = tmp_path / "lab-records.csv"
+    frame.to_csv(path, index=False)
+    return path
+
+
+def test_a_hospital_seeds_its_lab_records(settings: Settings, tmp_path: Path) -> None:
+    from web.hospital.cohort.models import LabRecord, TrainingCohort
+
+    settings.DEBUG = True
+    settings.TRAINING_COHORT_DIR = tmp_path / "cohort"
+    path = lab_records_file(tmp_path, deficient=20, sound=100)
+    call_command("seed_lab_records", "--csv", str(path), stdout=StringIO())
+    call_command("seed_lab_records", "--csv", str(path), stdout=StringIO())
+    # Once, however often prepare runs; nothing provided without --provide.
+    assert LabRecord.objects.count() == 121
+    assert TrainingCohort.objects.provided() is None
+
+
+def test_a_hospital_seeding_with_provide_provides_its_training_cohort(
+    settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Through the laboratory director's own provide
+    (features/hospital/training_cohort.feature); once, however often prepare runs."""
+    from web.hospital.cohort.models import TrainingCohort
+
+    settings.DEBUG = True
+    settings.TRAINING_COHORT_DIR = tmp_path / "cohort"
+    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
+    path = lab_records_file(tmp_path, deficient=20, sound=100)
+    call_command("seed_hospital", stdout=StringIO())
+    for _ in range(2):
+        call_command(
+            "seed_lab_records", "--csv", str(path), "--provide", stdout=StringIO()
+        )
+    provided = TrainingCohort.objects.provided()
+    assert provided is not None
+    assert (provided.past_patients, provided.iron_deficient) == (120, 20)
+    assert provided.provided_by.username == "director"

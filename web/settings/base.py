@@ -30,6 +30,9 @@ DATA_DIR: Path | None = None
 SCREENING_MODELS_DIR: Path | None = None
 # The startup's copy of every final model (features/startup/training.feature).
 FINAL_MODELS_DIR: Path | None = None
+# The training cohort the laboratory director provides, which the startup's
+# code at the hospital reads (features/hospital/training_cohort.feature).
+TRAINING_COHORT_DIR: Path | None = None
 # The name the hospitals issued this practice and know it by, which its app
 # sends in every message (glossary.toml, certificate name).
 PRACTICE_CERTIFICATE_NAME = ""

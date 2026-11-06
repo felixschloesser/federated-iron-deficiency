@@ -22,7 +22,8 @@ SHARED_SIDE = {"ml.cohort", "ml.dataset"}
 # What a party's code may import beyond: the hospital screens; the startup only
 # reads its own final models, never screens.
 TRAINING_SIDES = {
-    "hospital": SHARED_SIDE | {"ml.final_model", "ml.inference"},
+    # Also to write the training cohort its laboratory director provides.
+    "hospital": SHARED_SIDE | {"ml.final_model", "ml.inference", "ml.training_cohort"},
     "startup": SHARED_SIDE | {"ml.final_model"},
 }
 SETTINGS = Path("web") / "settings"

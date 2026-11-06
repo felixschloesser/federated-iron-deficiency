@@ -36,7 +36,7 @@ def test_each_url_follows_the_scheme(
     assert reverse(name, kwargs=kwargs) == path
 
 
-@pytest.mark.parametrize("prefix", ["deployment/", "lab/", "training/"])
+@pytest.mark.parametrize("prefix", ["cohort/", "deployment/", "lab/", "training/"])
 def test_another_partys_pages_are_not_served_here(prefix: str) -> None:
     with pytest.raises(Resolver404):
         resolve(f"/{prefix}")

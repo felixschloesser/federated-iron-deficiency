@@ -90,8 +90,8 @@ def load_federated_dataset() -> FederatedDataset:
     )
 
 
-def _load_new_cycle() -> pd.DataFrame:
-    """Return every participant of the 2021–2023 cycle, which no hospital trains on."""
+def _load_cycle(year: int) -> pd.DataFrame:
+    """Return every participant of the cycle starting in `year`."""
     merged = (
         datasets.load_dataset(
             HF_DATASET,
@@ -103,7 +103,39 @@ def _load_new_cycle() -> pd.DataFrame:
         .to_pandas()
         .rename(columns=HF_COLUMNS)
     )
-    return merged[merged["YEAR"] == NEW_SAMPLES_YEAR]
+    return merged[merged["YEAR"] == year]
+
+
+def _load_new_cycle() -> pd.DataFrame:
+    """Return every participant of the 2021–2023 cycle, which no hospital trains on."""
+    return _load_cycle(NEW_SAMPLES_YEAR)
+
+
+def load_lab_records(cycle: str) -> pd.DataFrame:
+    """Return the past lab records (DS1) of `cycle`'s hospital: each participant
+    with a complete CBC and an age, with ferritin where NHANES measured it, in
+    NHANES order. The hospital's sample of its cycle, drawn as build_cohort
+    draws it, so the training cohort its laboratory director provides holds
+    the rows a simulation trains on."""
+    records = _load_cycle(CYCLES[cycle]).dropna(subset=FEATURES).sort_values("SEQN")
+    in_cohort = (
+        eligible(records["RIAGENDR"], records["RIDAGEYR"]) & records["LBXFER"].notna()
+    )
+    fraction = CYCLE_FRACTIONS.get(cycle, 1.0)
+    sampled = pd.concat(
+        [
+            records[in_cohort].sample(frac=fraction, random_state=0),
+            records[~in_cohort].sample(frac=fraction, random_state=0),
+        ]
+    ).sort_values("SEQN")
+    return pd.DataFrame(
+        {
+            "sex": sampled["RIAGENDR"],
+            "age": sampled["RIDAGEYR"].astype(int),
+            **{var: sampled[var] for var in CBC_VARS},
+            "LBXFER": sampled["LBXFER"],
+        }
+    )
 
 
 def load_new_samples() -> pd.DataFrame:

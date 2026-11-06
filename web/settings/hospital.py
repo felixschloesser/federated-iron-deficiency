@@ -17,8 +17,10 @@ INSTALLED_APPS = [
     "web.hospital.nhanes",
     "web.hospital.lab",
     "web.hospital.deployment",
+    "web.hospital.cohort",
 ]
 ROLES = [Role.LABORATORY_STAFF, Role.LABORATORY_DIRECTOR]
 ROOT_URLCONF = "web.urls.hospital"
 PARTY_NAME = os.environ.get("PARTY_NAME") or "Demo hospital"
 SCREENING_MODELS_DIR = DATA_DIR / "screening-models"
+TRAINING_COHORT_DIR = DATA_DIR / "cohort"

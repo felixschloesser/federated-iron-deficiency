@@ -5,7 +5,8 @@ settings module names (web.settings.hospital, .practice or .startup) and reads
 only its folder, DATA_DIR; it installs, migrates and serves only its own
 party's apps. Code under web/
 imports from the training package only ml.cohort and ml.dataset; the
-hospital's also ml.final_model and ml.inference, the startup's also
+hospital's also ml.final_model, ml.inference and ml.training_cohort, to write
+the training cohort its laboratory director provides, the startup's also
 ml.final_model, to read its final models, never to screen (the audit checks
 that). Each test's docstring states its pass/fail measure."""
 
@@ -120,9 +121,13 @@ def tables_after_migrating(party: str, folder: Path) -> set[str]:
         (
             "practice",
             "practice_patient",
-            ("lab_", "nhanes_", "deployment_", "training_"),
+            ("lab_", "nhanes_", "deployment_", "cohort_", "training_"),
         ),
-        ("startup", "accounts_user", ("lab_", "nhanes_", "deployment_", "practice_")),
+        (
+            "startup",
+            "accounts_user",
+            ("lab_", "nhanes_", "deployment_", "cohort_", "practice_"),
+        ),
     ],
 )
 def test_a_partys_database_holds_only_its_own_partys_tables(
