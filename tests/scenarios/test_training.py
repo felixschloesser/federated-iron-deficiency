@@ -286,7 +286,7 @@ def shows_configuration(world: World, run_id: str, shown: str) -> None:
     )
 )
 def holds_no_secret(world: World, run_id: str) -> None:
-    from ml.screening import final_model_path, read
+    from ml.final_model_file import final_model_path, read
 
     kept = read(final_model_path(world["final_models_dir"], run_id))
     assert "wandb-api-key" not in kept.run_configuration
@@ -313,7 +313,7 @@ def download_for_sale(world: World, run_id: str) -> None:
 
 @then("the download holds the final model's weights")
 def weights(world: World) -> None:
-    from ml.screening import from_bytes
+    from ml.final_model_file import from_bytes
     from ml.training import Net
 
     model = from_bytes(world["download"])

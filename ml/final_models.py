@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 
 from ml.dataset import CYCLES, HOSPITALS, hospital_slug
-from ml.screening import (
+from ml.final_model_file import (
     THRESHOLDS,
     FinalModel,
     final_model_path,

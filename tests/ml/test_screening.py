@@ -5,7 +5,8 @@ from pathlib import Path
 import pandas as pd
 
 from ml.cohort import CBC_VARS, FEATURES
-from ml.screening import FinalModel, screen, standardization_tensor
+from ml.final_model_file import FinalModel, standardization_tensor
+from ml.screening import screen
 from ml.training import Net
 
 

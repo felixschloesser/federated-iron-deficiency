@@ -24,6 +24,7 @@ BUILD_OUTPUT = {"staticfiles"}
 # The parts of the training package a hospital's web app may import (features/quality/party_isolation.feature);
 # everything else under web/ only the cohort's terms and the dataset's loaders.
 HOSPITAL_SIDE = {
+    "ml.final_model_file",
     "ml.screening",
     "ml.cohort",
     "ml.dataset",
@@ -254,7 +255,7 @@ def _web_imports(root: Path) -> Iterator[tuple[Path, int, str]]:
 
 def training_imports(root: Path) -> list[str]:
     """Hospital software uses only the screening side of the training package,
-    and the startup's only to read its own final models (ml.screening);
+    and the startup's only to read its own final models (ml.final_model_file);
     the rest of web/ only the dataset (features/quality/party_isolation.feature)."""
     findings = []
     for rel, line, module in _web_imports(root):
