@@ -1,9 +1,12 @@
-"""Shared givens for the scenarios, and builders for the view tests."""
+"""Test-wide settings, shared givens for the scenarios, and builders for the
+view tests."""
 
+import copy
 from typing import TYPE_CHECKING, Any
 
 import pytest
 from pytest_bdd import given, parsers
+from pytest_django.fixtures import Settings
 
 # The models are imported inside the builders too, so a missing app fails only
 # the tests that use it.
@@ -22,6 +25,22 @@ from iron_deficiency.cohort import CBC_VARS, FEATURES
 from web.vocabulary import RegisteredSex
 
 World = dict[str, Any]
+
+
+class MissingVariable(str):
+    """Fails the render that would have shown a missing variable as blank."""
+
+    def __mod__(self, name: object) -> str:
+        raise AssertionError(f"Template variable missing: {name}")
+
+
+@pytest.fixture(autouse=True)
+def _test_settings(settings: Settings) -> None:
+    settings.SECURE_SSL_REDIRECT = False
+    # Assign a copy, so Django rebuilds its template engines and restores them after.
+    templates = copy.deepcopy(settings.TEMPLATES)
+    templates[0]["OPTIONS"]["string_if_invalid"] = MissingVariable("%s")
+    settings.TEMPLATES = templates
 
 
 @pytest.fixture

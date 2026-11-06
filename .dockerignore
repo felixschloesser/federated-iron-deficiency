@@ -8,6 +8,4 @@
 !iron_deficiency/
 !web/
 !demo/
-!templates/
-!static/
 **/__pycache__
