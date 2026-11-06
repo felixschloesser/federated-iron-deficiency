@@ -34,7 +34,7 @@ class LaboratoryQuerySet(models.QuerySet["Laboratory"]):
 
 
 class Laboratory(models.Model):
-    """A hospital's laboratory the practice sends samples to (features/messaging.feature)."""
+    """A hospital's laboratory the practice sends samples to (features/practice/messaging.feature)."""
 
     name = models.CharField(max_length=100, unique=True)
     # host:port of the hospital's messaging endpoint.
@@ -100,7 +100,7 @@ class Patient(models.Model):
         self, *, now: datetime, laboratory: Laboratory | None = None
     ) -> "Sample":
         """Record blood collected from this patient, with their next sample ID,
-        for the laboratory chosen for it; tests are ordered on it afterwards and follow it there (features/lab.feature, features/messaging.feature, features/ordering.feature)."""
+        for the laboratory chosen for it; tests are ordered on it afterwards and follow it there (features/lab.feature, features/practice/messaging.feature, features/ordering.feature)."""
         if laboratory is None and Laboratory.objects.exists():
             raise ValidationError(
                 {
@@ -127,7 +127,7 @@ class Sample(models.Model):
     )
     sample_id = models.CharField(max_length=20, unique=True)
     collected_at = models.DateTimeField()
-    # Where the sample went, so every test on it goes there too (features/lab.feature, features/messaging.feature); absent
+    # Where the sample went, so every test on it goes there too (features/lab.feature, features/practice/messaging.feature); absent
     # only at a practice with no laboratory, as in development.
     laboratory = models.ForeignKey(
         Laboratory,
@@ -264,7 +264,7 @@ class Order(models.Model):
 
     @property
     def screened_indication(self) -> bool:
-        """All the lab order says of the indication (features/screening.feature, features/messaging.feature): whether it is a
+        """All the lab order says of the indication (features/screening.feature, features/practice/messaging.feature): whether it is a
         screened one. Which indication it is stays at the practice."""
         return (
             self.indication is not None
@@ -287,7 +287,7 @@ class ResultValue:
 
 class LabReport(models.Model):
     """A lab report fetched from the hospital (DF25): results, and whether
-    ferritin is suggested; nothing else of screening (features/reports.feature, features/messaging.feature)."""
+    ferritin is suggested; nothing else of screening (features/reports.feature, features/practice/messaging.feature)."""
 
     order = models.OneToOneField(
         Order, on_delete=models.PROTECT, related_name="lab_report"

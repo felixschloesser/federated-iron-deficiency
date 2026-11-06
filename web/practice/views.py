@@ -73,7 +73,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
         # Blood is collected first; tests are ordered on a sample afterwards (features/ordering.feature).
         collect = reverse("practice:collect_sample", kwargs={"patient": patient.pk})
         laboratories = Laboratory.objects.count()
-        # Several laboratories: the choice comes first, on its own page (features/messaging.feature).
+        # Several laboratories: the choice comes first, on its own page (features/practice/messaging.feature).
         collect_action = {"url": collect, "label": "Collect sample"}
         # Where a doctor waits for a lab report, so they need not go to Orders.
         check_action = {
@@ -92,7 +92,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             "actions": [collect_action] if laboratories > 1 else [],
             "post_actions": ([] if laboratories > 1 else [collect_action])
             + ([check_action] if laboratories > 0 else []),
-            # Only an app with a laboratory to ask fetches lab reports (features/messaging.feature).
+            # Only an app with a laboratory to ask fetches lab reports (features/practice/messaging.feature).
             "fetches_reports": laboratories > 0,
             "samples": samples,
         }
@@ -109,7 +109,7 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
         return orders.order_by("-ordered_at", "-pk")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        # Only an app with a laboratory to ask can check for reports (features/messaging.feature).
+        # Only an app with a laboratory to ask can check for reports (features/practice/messaging.feature).
         post_actions = (
             [
                 {
@@ -125,7 +125,7 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
 
 class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
     """Sends pending lab orders and fetches new lab reports from every laboratory
-    now (features/messaging.feature)."""
+    now (features/practice/messaging.feature)."""
 
     def post(self, request: HttpRequest, patient: int | None = None) -> HttpResponse:
         # From a patient's page, back to it; from Orders, back there.
@@ -154,7 +154,7 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
 
 class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSampleForm]):
     """Records a sample collected from one of the practice's patients, for the
-    laboratory chosen; a practice with one laboratory skips the choice (features/messaging.feature, features/ordering.feature)."""
+    laboratory chosen; a practice with one laboratory skips the choice (features/practice/messaging.feature, features/ordering.feature)."""
 
     template_name = "practice/collect_sample.html"
     form_class = CollectSampleForm

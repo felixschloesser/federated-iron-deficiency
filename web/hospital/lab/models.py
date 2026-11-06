@@ -61,7 +61,7 @@ class PracticeManager(models.Manager["Practice"]):
     @transaction.atomic
     def add(self, *, certificate_name: str, name: str) -> Practice:
         """Register a practice the hospital works with, or change its name
-        (features/messaging.feature)."""
+        (features/hospital/messaging.feature)."""
         practice, _ = self.update_or_create(
             certificate_name=certificate_name, defaults={"name": name}
         )
@@ -86,7 +86,7 @@ class Practice(models.Model):
 
 class Sample(models.Model):
     """A sample, known by the sample ID on its label and the practice that sent it
-    (features/lab.feature, features/messaging.feature): two practices may use the same sample ID. It arrives with its lab
+    (features/lab.feature, features/hospital/messaging.feature): two practices may use the same sample ID. It arrives with its lab
     order; a later test on it is measured on the stored sample."""
 
     practice = models.ForeignKey(
@@ -107,7 +107,7 @@ class Sample(models.Model):
 
 @dataclass(frozen=True)
 class LabOrderDetails:
-    """What a lab order (DF23) says: no patient name, no values (features/messaging.feature)."""
+    """What a lab order (DF23) says: no patient name, no values (features/hospital/messaging.feature)."""
 
     sample_id: str
     test: Test
@@ -147,7 +147,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
         )
 
     def reports_to_send(self, practice: Practice) -> models.QuerySet[LabOrder]:
-        """`practice`'s analysed lab orders it has not acknowledged yet (features/messaging.feature)."""
+        """`practice`'s analysed lab orders it has not acknowledged yet (features/hospital/messaging.feature)."""
         return (
             self.filter(
                 sample__practice=practice,
@@ -161,7 +161,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
     @transaction.atomic
     def receive(self, *, practice: Practice, details: LabOrderDetails) -> LabOrder:
         """Record a lab order (DF23) from `practice` once, however often it arrives
-        (features/messaging.feature)."""
+        (features/hospital/messaging.feature)."""
         sample, _ = Sample.objects.get_or_create(
             practice=practice, sample_id=details.sample_id
         )
@@ -196,7 +196,7 @@ class LabOrder(models.Model):
         Sample, on_delete=models.PROTECT, related_name="lab_orders"
     )
     test = models.CharField(max_length=8, choices=Test.choices)
-    # Whether the general practitioner's indication is a screened one (features/screening.feature, features/messaging.feature);
+    # Whether the general practitioner's indication is a screened one (features/screening.feature, features/hospital/messaging.feature);
     # the laboratory never learns which indication.
     screened_indication = models.BooleanField(default=False)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
@@ -250,7 +250,7 @@ class LabOrder(models.Model):
 
     @property
     def ferritin_suggested(self) -> bool:
-        """All the lab report says of screening (features/reports.feature, features/messaging.feature)."""
+        """All the lab report says of screening (features/reports.feature, features/hospital/messaging.feature)."""
         return self.screening_result == ScreeningResult.FERRITIN_SUGGESTED
 
     @transaction.atomic

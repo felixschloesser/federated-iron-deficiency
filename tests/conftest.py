@@ -2,8 +2,12 @@
 view tests."""
 
 import copy
+from collections.abc import Iterator
+from concurrent import futures
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+import grpc
 import pytest
 from pytest_bdd import given, parsers
 from pytest_django.fixtures import Settings
@@ -19,9 +23,12 @@ if TYPE_CHECKING:
     from web.accounts.models import User
     from web.accounts.roles import Role
     from web.hospital.lab.models import LabOrder, Practice
+    from web.hospital.nhanes.models import Participant
     from web.practice.models import Order, Patient, Sample
     from web.vocabulary import ClinicalIndication, Test
 from ml.cohort import CBC_VARS, FEATURES
+from tests.fake_laboratory import FakeLaboratory
+from web.messaging import messages_pb2_grpc
 from web.vocabulary import RegisteredSex
 
 World = dict[str, Any]
@@ -62,20 +69,49 @@ def make_general_practitioner(name: str) -> "User":
 
 
 def make_patient(name: str, sex: "RegisteredSex", age: int) -> "Patient":
-    """A patient whose sample ID is a new NHANES number; the hospital's analyser
-    stand-in holds placeholder values for it and no ferritin."""
-    from ml.cohort import CBC_VARS
-    from web.hospital.nhanes.models import Participant
+    """A patient of the practice, whose sample IDs start with a new NHANES number."""
     from web.practice.models import Patient
 
-    participant = Participant.objects.create(
-        seqn=Participant.objects.count() + 1, cbc=dict.fromkeys(CBC_VARS, 1.0)
-    )
     return Patient.objects.create(
         name=name,
         registered_sex=sex,
         age=age,
-        nhanes_number=str(participant.seqn),
+        nhanes_number=str(Patient.objects.count() + 1),
+    )
+
+
+def make_tube() -> "Participant":
+    """What a new patient's samples would measure at the hospital's analyser
+    stand-in: placeholder CBC values, no ferritin. Its number starts their sample IDs."""
+    from ml.cohort import CBC_VARS
+    from web.hospital.nhanes.models import Participant
+
+    return Participant.objects.create(
+        seqn=Participant.objects.count() + 1, cbc=dict.fromkeys(CBC_VARS, 1.0)
+    )
+
+
+def receive_lab_order(
+    sample_id: str,
+    test: "Test",
+    now: "datetime",
+    sex: "RegisteredSex" = RegisteredSex.FEMALE,
+    age: int = 32,
+) -> "LabOrder":
+    """A lab order (DF23) as the hospital's messaging endpoint records it, from the
+    practice make_practice() adds; a CBC for a screened indication."""
+    from web.hospital.lab.models import LabOrder, LabOrderDetails
+
+    return LabOrder.objects.receive(
+        practice=make_practice(),
+        details=LabOrderDetails(
+            sample_id=sample_id,
+            test=test,
+            screened_indication=test.takes_indication(),
+            registered_sex=sex,
+            age=age,
+            ordered_at=now,
+        ),
     )
 
 
@@ -131,24 +167,6 @@ def make_practice(certificate_name: str = "practice") -> "Practice":
     )
 
 
-def deliver(order: "Order") -> "LabOrder":
-    """The lab order (DF23) arriving at the hospital, as its messaging endpoint records it."""
-    from web.hospital.lab.models import LabOrder, LabOrderDetails
-    from web.vocabulary import RegisteredSex, Test
-
-    return LabOrder.objects.receive(
-        practice=make_practice(),
-        details=LabOrderDetails(
-            sample_id=order.sample.sample_id,
-            test=Test(order.test),
-            screened_indication=order.screened_indication,
-            registered_sex=RegisteredSex(order.registered_sex),
-            age=order.age,
-            ordered_at=order.ordered_at,
-        ),
-    )
-
-
 def suggest_ferritin_on(sample: "Sample", now: "datetime") -> None:
     """The sample's CBC, placed if missing, with a fetched lab report suggesting
     ferritin: what any ferritin order needs (features/ordering.feature). The CBC counts as sent, so no
@@ -183,7 +201,7 @@ def collect_and_order(
     """Collect a sample from the patient and order one test on it."""
     from web.practice.models import Laboratory
 
-    # The practice's first laboratory, if it works with any (features/messaging.feature).
+    # The practice's first laboratory, if it works with any (features/practice/messaging.feature).
     laboratory = Laboratory.objects.order_by("pk").first()
     sample = patient.collect_sample(laboratory=laboratory, now=now)
     if test.on_suspicion():
@@ -254,3 +272,22 @@ def nhanes_rows() -> "pd.DataFrame":
         for copy in range(4)
     ]
     return pd.DataFrame(rows)
+
+
+@dataclass(frozen=True)
+class Running:
+    laboratory: FakeLaboratory
+    address: str
+
+
+@pytest.fixture
+def fake_laboratory() -> Iterator[Running]:
+    """A hospital's lab-order endpoint stand-in (tests/fake_laboratory.py),
+    running; it and its address."""
+    laboratory = FakeLaboratory()
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
+    messages_pb2_grpc.add_LaboratoryServicer_to_server(laboratory, server)
+    port = server.add_insecure_port("127.0.0.1:0")
+    server.start()
+    yield Running(laboratory, f"127.0.0.1:{port}")
+    server.stop(grace=None)

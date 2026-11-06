@@ -1,6 +1,6 @@
 // Messages between the general practitioner's app and the hospital.
-// The general practitioner's app is always the client (features/messaging.feature) and names its
-// practice in every message (features/messaging.feature); the demo leaves out the report's mutual TLS.
+// The general practitioner's app is always the client (features/hospital/messaging.feature) and names its
+// practice in every message (features/hospital/messaging.feature); the demo leaves out the report's mutual TLS.
 syntax = "proto3";
 
 package messaging.v1;
@@ -21,7 +21,7 @@ enum RegisteredSex {
   REGISTERED_SEX_MALE = 2;
 }
 
-// DF23. No patient name, no blood values, no clinical indication (features/messaging.feature): the
+// DF23. No patient name, no blood values, no clinical indication (features/hospital/messaging.feature): the
 // tube's values are measured at the hospital, and of the indication the
 // laboratory needs only whether it is screened (features/screening.feature). The hospital's form still
 // checks every field.
@@ -31,7 +31,7 @@ message LabOrder {
   reserved "indication";
   reserved 6;                       // was the general practitioner's name: the
   reserved "general_practitioner";  // certificate_name says who ordered (features/access.feature)
-  string certificate_name = 13;     // the sending practice's (features/messaging.feature)
+  string certificate_name = 13;     // the sending practice's (features/hospital/messaging.feature)
   string sample_id = 1;
   Test test = 8;
   bool screened_indication = 12;    // false when absent: never screened by mistake
@@ -40,7 +40,7 @@ message LabOrder {
   google.protobuf.Timestamp ordered_at = 11;
 }
 
-// DF25. Results and one bit of screening (features/reports.feature, features/messaging.feature): no score, and nothing that
+// DF25. Results and one bit of screening (features/reports.feature, features/hospital/messaging.feature): no score, and nothing that
 // tells ferritin not suggested from not screened.
 message LabReport {
   reserved 3, 6;                    // were strings: test, released_at

@@ -593,7 +593,7 @@ def test_the_patients_list_marks_a_patient_awaiting_ferritin(
 def test_an_order_says_whether_its_lab_order_is_sent(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
-    """Until the hospital has the lab order, there is no report to wait for (features/messaging.feature)."""
+    """Until the hospital has the lab order, there is no report to wait for (features/practice/messaging.feature)."""
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
     response = client.get(patient_url(patient))

@@ -1,5 +1,5 @@
 """Register a practice the hospital works with, by the certificate name the
-hospital issued it, or change its name (features/messaging.feature)."""
+hospital issued it, or change its name (features/hospital/messaging.feature)."""
 
 from typing import Any
 

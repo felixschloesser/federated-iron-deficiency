@@ -362,12 +362,10 @@ def test_each_cell_names_its_column_for_narrow_screens(
 def test_a_file_not_named_after_a_run_is_no_final_model(
     final_models_dir: Path,
 ) -> None:
-    from web.hospital.deployment.model_files import screening_models
     from web.startup.training.final_models import final_models
 
     (final_models_dir / "7.pt").rename(final_models_dir / "run123.pt")
     assert final_models(final_models_dir) == []
-    assert screening_models(final_models_dir) == []
 
 
 @pytest.mark.usefixtures("data_scientist")

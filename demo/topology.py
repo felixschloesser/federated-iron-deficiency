@@ -273,7 +273,7 @@ HOSPITAL = """\
 
 PRACTICE_INTRO = """\
   # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory (features/messaging.feature): on the lab-orders network.
+  # laboratory (features/practice/messaging.feature): on the lab-orders network.
 """
 
 PRACTICE = """\
