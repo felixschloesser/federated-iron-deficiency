@@ -144,11 +144,11 @@ python -m ml.screening \
   --model ~/.cache/iron-deficiency/hospitals/az-diest/screening-models/<run-id>.pt \
   --input demo_data/new_samples.csv \
   --threshold 0.5 \
-  --output flags.csv
+  --output screening-results.csv
 ```
 
-The output holds only each `sample_id` and its result: `flagged`, `not flagged`,
-or `not screened`. The flag threshold is the one the hospital deploys the model
+The output holds only each `sample_id` and its screening result: `ferritin
+suggested`, `ferritin not suggested`, or `not screened`. The threshold is the one the hospital deploys the model
 at; a training run sets none.
 
 ## Tests

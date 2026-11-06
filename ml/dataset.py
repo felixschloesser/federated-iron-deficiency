@@ -7,7 +7,7 @@ import pandas as pd
 from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import NaturalIdPartitioner
 
-from ml.cohort import CBC_VARS, FEATURES, FERRITIN_THRESHOLD, eligible
+from ml.cohort import CBC_VARS, FEATURES, FERRITIN_CUTOFF, eligible
 
 # NHANES merged into one row per participant and cycle, pinned to a fixed revision.
 HF_DATASET = "gracemyu/nhanes-merged"
@@ -23,7 +23,7 @@ CYCLES = {
 }
 # The cycles are similar in size, so the medium and small hospitals keep a
 # fixed sample, giving roughly a 5:2:1 size ratio.
-SAMPLE_FRACTIONS = {"2015-2016": 0.5, "2017-2018": 0.25}
+CYCLE_FRACTIONS = {"2015-2016": 0.5, "2017-2018": 0.25}
 # Each cycle's hospital, named as in the report.
 HOSPITALS = {
     "2005-2006": "UZ Leuven",
@@ -62,12 +62,12 @@ def build_cohort(dataset_dict: datasets.DatasetDict) -> datasets.DatasetDict:
     # SEQN order matches the CDC files and increases across cycles.
     cohort = cohort.dropna(subset=FEATURES + ["LBXFER"]).sort_values("SEQN")
     cohort = cohort.assign(
-        iron_deficient=(cohort["LBXFER"] < FERRITIN_THRESHOLD).astype(int),
+        iron_deficient=(cohort["LBXFER"] < FERRITIN_CUTOFF).astype(int),
         cycle=cohort["YEAR"].map({year: name for name, year in CYCLES.items()}),
     )
     cohort = pd.concat(
         [
-            group.sample(frac=SAMPLE_FRACTIONS.get(str(cycle), 1.0), random_state=0)
+            group.sample(frac=CYCLE_FRACTIONS.get(str(cycle), 1.0), random_state=0)
             for cycle, group in cohort.groupby("cycle")
         ]
     ).sort_values("SEQN")

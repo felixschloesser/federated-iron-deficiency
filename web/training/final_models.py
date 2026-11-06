@@ -29,13 +29,18 @@ class KeptFinalModel:
     run_configuration: dict[str, int | float]
 
     @property
-    def run_configuration_shown(self) -> str | None:
+    def run_configuration_items(self) -> list[tuple[str, int | float]]:
         """The parameters the data scientist chose, in the form's words and order."""
-        shown = [
-            f"{field.label} {self.run_configuration[key]}"
+        return [
+            (str(field.label), self.run_configuration[key])
             for name, field in SubmitRunForm.base_fields.items()
             if (key := name.replace("_", "-")) in self.run_configuration
         ]
+
+    @property
+    def run_configuration_shown(self) -> str | None:
+        """The same on one line."""
+        shown = [f"{label} {value}" for label, value in self.run_configuration_items]
         return ", ".join(shown) or None
 
 

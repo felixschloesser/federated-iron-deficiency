@@ -136,7 +136,7 @@ def deliver(order: "Order") -> "LabOrder":
     from web.lab.models import LabOrder, LabOrderDetails
     from web.vocabulary import RegisteredSex, Test
 
-    return LabOrder.objects.record(
+    return LabOrder.objects.receive(
         practice=make_practice(),
         details=LabOrderDetails(
             sample_id=order.sample.sample_id,

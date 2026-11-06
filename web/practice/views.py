@@ -94,58 +94,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             + ([check_action] if laboratories > 0 else []),
             # Only an app with a laboratory to ask fetches lab reports (features/messaging.feature).
             "fetches_reports": laboratories > 0,
-            "samples": [
-                {
-                    "sample": sample,
-                    "entries": (
-                        entries := [self.entry(o) for o in sample.orders.all()]
-                    ),
-                    "actions": self.sample_actions(sample, entries),
-                    "open": number == 0,
-                    "tests": ", ".join(
-                        order.get_test_display() for order in sample.orders.all()
-                    ),
-                    "suggested": any(
-                        getattr(order, "lab_report", None) is not None
-                        and order.lab_report.ferritin_suggested
-                        for order in sample.orders.all()
-                    ),
-                }
-                for number, sample in enumerate(samples)
-            ],
-        }
-
-    def sample_actions(
-        self, sample: Sample, entries: list[dict[str, Any]]
-    ) -> list[dict[str, str]]:
-        """The tests a sample does not have yet, but not one ordered on suspicion:
-        that one is offered only beside the lab report suggesting it (features/ordering.feature)."""
-        ordered = {entry["order"].test for entry in entries}
-        return [
-            {"url": self.order_url(sample, test), "label": f"Order {test.label}"}
-            for test in Test
-            if test not in ordered and not test.on_suspicion()
-        ]
-
-    def order_url(self, sample: Sample, test: Test) -> str:
-        return reverse(
-            "practice:order",
-            kwargs={"patient": self.object.pk, "sample": sample.pk, "test": test},
-        )
-
-    def entry(self, order: Order) -> dict[str, Any]:
-        """An order with its lab report, if fetched, and Order ferritin beside a
-        suggestion."""
-        lab_report = getattr(order, "lab_report", None)
-        offered = lab_report is not None and lab_report.ferritin_order_offered()
-        return {
-            "order": order,
-            # Until the hospital has the lab order, no report is on its way (features/messaging.feature).
-            "sent": order.sent_at is not None,
-            "lab_report": lab_report,
-            "order_ferritin_url": self.order_url(order.sample, Test.FERRITIN)
-            if offered
-            else None,
+            "samples": samples,
         }
 
 
