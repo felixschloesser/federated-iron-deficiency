@@ -232,18 +232,26 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
 
 
 def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
-    code = "from ml.cohort import CBC_VARS\nfrom ml.screening import score\n"
+    code = (
+        "from ml.cohort import CBC_VARS\n"
+        "from ml.screening import score\n"
+        "from ml.final_model_file import read\n"
+    )
     root = tree(
         tmp_path,
         {
             "web/hospital/lab/models.py": code,
             "web/practice/views.py": code,
             "web/seeding/command.py": code,
+            "web/startup/training/views.py": code,
         },
     )
     assert audit.run(root)["training_imports"] == [
         "web/practice/views.py:2: imports ml.screening, the hospital's code",
+        "web/practice/views.py:3: imports ml.final_model_file, the hospital's or the startup's code",
         "web/seeding/command.py:2: imports ml.screening, the hospital's code",
+        "web/seeding/command.py:3: imports ml.final_model_file, the hospital's or the startup's code",
+        "web/startup/training/views.py:2: imports ml.screening, the hospital's code",
     ]
 
 

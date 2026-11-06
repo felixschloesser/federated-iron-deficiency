@@ -11,7 +11,7 @@ from django.db.models import DecimalField, FloatField
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from ml.cohort import CBC_VARS, FEATURES, eligible
-from ml.screening import (
+from ml.final_model_file import (
     FinalModel,
     final_model_path,
     standardization_tensor,

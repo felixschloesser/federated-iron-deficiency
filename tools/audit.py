@@ -12,6 +12,7 @@ import sys
 import tomllib
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import assert_never
 
 from web.party import Party
 
@@ -21,13 +22,8 @@ ALLOWLIST = Path("tools") / "audit_allowlist.toml"
 GLOSSARY = Path("glossary.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
 BUILD_OUTPUT = {"staticfiles"}
-# The parts of the training package a hospital's web app may import (features/quality/party_isolation.feature);
-# everything else under web/ only the cohort's terms and the dataset's loaders.
-HOSPITAL_SIDE = {
-    "ml.screening",
-    "ml.cohort",
-    "ml.dataset",
-}
+# The parts of the training package any code under web/ may import: the
+# cohort's terms and the dataset's loaders (features/quality/party_isolation.feature).
 SHARED_SIDE = {"ml.cohort", "ml.dataset"}
 
 # Split so that this file does not match its own patterns.
@@ -252,20 +248,36 @@ def _web_imports(root: Path) -> Iterator[tuple[Path, int, str]]:
                 yield rel, node.lineno, module
 
 
+def _training_side(party: Party | None) -> set[str]:
+    """The parts of the training package a party's code may import; shared code
+    only the shared side (features/quality/party_isolation.feature)."""
+    if party is None:
+        return SHARED_SIDE
+    match party:
+        case Party.HOSPITAL:
+            return SHARED_SIDE | {"ml.final_model_file", "ml.screening"}
+        case Party.PRACTICE:
+            return SHARED_SIDE
+        case Party.STARTUP:
+            # Only to read its own final models, never to screen.
+            return SHARED_SIDE | {"ml.final_model_file"}
+        case _:
+            assert_never(party)
+
+
 def training_imports(root: Path) -> list[str]:
-    """Hospital software uses only the screening side of the training package,
-    and the startup's only to read its own final models (ml.screening);
-    the rest of web/ only the dataset (features/quality/party_isolation.feature)."""
+    """Code under web/ imports only the parts of the training package its party
+    may (features/quality/party_isolation.feature)."""
     findings = []
     for rel, line, module in _web_imports(root):
-        if module.split(".")[0] != "ml":
+        if module.split(".")[0] != "ml" or module in _training_side(_owner(rel.parts)):
             continue
-        if module not in HOSPITAL_SIDE:
-            findings.append(f"{rel.as_posix()}:{line}: imports {module}, startup code")
-        elif module not in SHARED_SIDE and _owner(rel.parts) in (None, Party.PRACTICE):
-            findings.append(
-                f"{rel.as_posix()}:{line}: imports {module}, the hospital's code"
-            )
+        readers = [party for party in Party if module in _training_side(party)]
+        who = " or ".join(f"the {party.value}'s" for party in readers)
+        findings.append(
+            f"{rel.as_posix()}:{line}: imports {module}, "
+            + (f"{who} code" if readers else "startup code")
+        )
     return findings
 
 
