@@ -115,7 +115,7 @@ def order_copies_patient(world: World, sex: str, age: int) -> None:
 
 @then(parsers.parse('the order is refused with code "{code}"'))
 def order_refused(world: World, code: str) -> None:
-    """A condition across the order's fields: not one field's error (CLAUDE.md)."""
+    """A condition across the order's fields: not one field's error (.claude/CLAUDE.md)."""
     assert "order" not in world
     errors = world["error"].error_dict
     assert [error.code for error in errors[NON_FIELD_ERRORS]] == [code]
