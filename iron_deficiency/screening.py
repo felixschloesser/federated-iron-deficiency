@@ -103,6 +103,12 @@ def final_model_path(directory: Path, run_id: int | str) -> Path:
     return directory / f"{run_id}.pt"
 
 
+def final_model_paths(directory: Path) -> list[Path]:
+    """The final models in a folder: only files named after a run, as
+    final_model_path names them; any other file there is not one."""
+    return [path for path in directory.glob("*.pt") if path.stem.isdigit()]
+
+
 def file_contents(model: FinalModel) -> dict[str, Any]:
     """What the file holds of a final model; parts it lacks, or holds empty, are
     left out."""

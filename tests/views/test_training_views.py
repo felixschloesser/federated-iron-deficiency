@@ -46,8 +46,10 @@ def test_final_models_page(
         response = client.get(reverse("training:runs"))
     assertContains(
         response,
-        "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.86</td><td>—</td>"
-        '<td><a href="/training/runs/7/for-sale/" download'
+        '<tr><td data-label="Stored">30 Oct 2026, 10:00</td><td data-label="Run">7</td>'
+        '<td data-label="AUROC across hospitals">0.86</td>'
+        '<td data-label="Run configuration">—</td>'
+        '<td data-label="Model sale"><a href="/training/runs/7/for-sale/" download'
         ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
         "</td></tr>",
         html=True,
@@ -101,11 +103,11 @@ def test_the_page_shows_each_training_runs_status(
     answering(monkeypatch, {}, {"success": True, "runs": [RUNNING]})
     response = client.get(reverse("training:runs"))
     for cell in (
-        "<td>7</td>",
-        '<td class="no-wrap"><strong>Running</strong></td>',
-        '<td class="no-wrap">30 Oct 2026, 15:02</td>',
-        '<td class="no-wrap">0:01:01</td>',
-        "<td>—</td>",
+        '<td data-label="Run">7</td>',
+        '<td data-label="Status" class="no-wrap"><strong>Running</strong></td>',
+        '<td data-label="Since" class="no-wrap">30 Oct 2026, 15:02</td>',
+        '<td data-label="Elapsed" class="no-wrap">0:01:01</td>',
+        '<td data-label="Details">—</td>',
     ):
         assertContains(response, cell, html=True)
     assertContains(response, "reload the page")
@@ -301,3 +303,32 @@ def test_without_the_superlink_the_page_offers_no_submission(
     assertContains(
         response, "Submitting and stopping runs come back when the SuperLink answers."
     )
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_an_error_summary_takes_focus(client: Client) -> None:
+    response = client.post(
+        reverse("training:runs"), {**SubmitRunForm.defaults(), "batch_size": 16}
+    )
+    assertContains(response, 'tabindex="-1" autofocus')
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_each_cell_names_its_column_for_narrow_screens(
+    client: Client, monkeypatch: pytest.MonkeyPatch, final_models_dir: Path
+) -> None:
+    answering(monkeypatch, {}, {"success": True, "runs": [RUNNING]})
+    response = client.get(reverse("training:runs"))
+    assertContains(response, '<td data-label="Run">7</td>', html=True)
+    assertContains(response, '<td data-label="Run configuration">—</td>', html=True)
+
+
+def test_a_file_not_named_after_a_run_is_no_final_model(
+    final_models_dir: Path,
+) -> None:
+    from web.deployment.model_files import screening_models
+    from web.training.final_models import final_models
+
+    (final_models_dir / "7.pt").rename(final_models_dir / "run123.pt")
+    assert final_models(final_models_dir) == []
+    assert screening_models(final_models_dir) == []

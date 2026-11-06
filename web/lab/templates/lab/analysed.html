@@ -3,17 +3,17 @@
 {% block content %}
 {% include "kit/index_header.html" with title="Analysed" %}
 {% if lab_orders %}
-<div class="overflow-auto"><table>
+<div class="overflow-auto"><table class="stack-narrow">
   <thead>
     <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col">Analysed</th><th scope="col">Screening result</th></tr>
   </thead>
   <tbody>
     {% for lab_order in lab_orders %}
     <tr>
-      <td class="sample-id">{{ lab_order.sample.sample_id }}</td>
-      <td>{{ lab_order.get_test_display }}</td>
-      <td>{{ lab_order.analysed_at|date:"j M Y, H:i" }}</td>
-      <td>{{ lab_order.get_screening_result_display|default:"—" }}{% if lab_order.not_screened_reason %}: {{ lab_order.get_not_screened_reason_display }}{% endif %}</td>
+      <td data-label="Sample ID" class="sample-id">{{ lab_order.sample.sample_id }}</td>
+      <td data-label="Test">{{ lab_order.get_test_display }}</td>
+      <td data-label="Analysed">{{ lab_order.analysed_at|date:"j M Y, H:i" }}</td>
+      <td data-label="Screening result">{{ lab_order.get_screening_result_display|default:"—" }}{% if lab_order.not_screened_reason %}: {{ lab_order.get_not_screened_reason_display }}{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>

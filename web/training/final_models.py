@@ -4,7 +4,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from iron_deficiency.screening import FinalModel, final_model_path, from_bytes, to_bytes
+from iron_deficiency.screening import (
+    FinalModel,
+    final_model_path,
+    final_model_paths,
+    from_bytes,
+    to_bytes,
+)
 from web.training.forms import SubmitRunForm
 
 
@@ -33,7 +39,7 @@ def final_models(directory: Path | None) -> list[KeptFinalModel]:
     if directory is None or not directory.is_dir():
         return []
     kept = []
-    for path in directory.glob("*.pt"):
+    for path in final_model_paths(directory):
         model = from_bytes(path.read_bytes())
         kept.append(
             KeptFinalModel(

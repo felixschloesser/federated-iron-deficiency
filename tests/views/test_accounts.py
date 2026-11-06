@@ -95,3 +95,12 @@ def test_login_labels_have_no_trailing_colon(client: Client) -> None:
     response = client.get(reverse("login"))
     assertContains(response, '<label for="id_username">Username</label>')
     assertContains(response, '<label for="id_password">Password</label>')
+
+
+def test_a_refused_login_focuses_only_its_error(client: Client) -> None:
+    """HTML allows one autofocus: the error, not the username field."""
+    User.objects.create_user(username="someone", password=PASSWORD)
+    response = client.post(
+        reverse("login"), {"username": "someone", "password": "wrong"}
+    )
+    assertContains(response, "autofocus", count=1)
