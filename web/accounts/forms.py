@@ -11,6 +11,13 @@ from web.forms import NamedLabels
 class RoleAuthenticationForm(NamedLabels, AuthenticationForm):
     """Lets in only accounts that have a role in this app."""
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # A submitted form re-renders only with errors, and the error summary
+        # takes focus (kit/form.html): HTML allows one autofocus.
+        if self.is_bound:
+            self.fields["username"].widget.attrs.pop("autofocus", None)
+
     def get_invalid_login_error(self) -> ValidationError:
         # Plain, and as before not telling which of the two was wrong.
         return ValidationError("Wrong username or password.", code="invalid_login")
