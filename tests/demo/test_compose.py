@@ -1,4 +1,4 @@
-"""The demo deployment as compose.yaml declares it (demo/README.md, features/quality/party_isolation.feature, features/quality/client_app_isolation.feature).
+"""The demo as compose.yaml declares it (demo/README.md, features/quality/party_isolation.feature, features/quality/client_app_isolation.feature).
 
 Read through `docker compose config`, which also validates the file.
 """
@@ -400,13 +400,13 @@ def test_no_running_service_has_debug_on() -> None:
     pass
 
 
-@given("the demo deployment as compose.yaml declares it", target_fixture="declared")
+@given("the demo as compose.yaml declares it", target_fixture="declared")
 def declared() -> dict[str, Any]:
     return config()
 
 
 @when("a SuperNode connects to the SuperLink")
-@when("the deployment starts")
+@when("the demo starts")
 def starts() -> None:
     """compose.yaml declares how every service starts; nothing to run."""
 

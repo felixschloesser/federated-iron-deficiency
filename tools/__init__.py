@@ -1,1 +1,1 @@
-"""Repository checks run as commit gates."""
+"""Code generation for the gRPC contract (generate_messages.py)."""

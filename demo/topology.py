@@ -49,7 +49,7 @@ def fill(template: str, **values: str) -> str:
 
 
 HEAD = """\
-# The demo deployment (demo/README.md): one container per service, one network per
+# The demo (demo/README.md): one container per service, one network per
 # trust boundary of the report's DFDs, and one per crossing, and one volume
 # per party: every container mounts only its own party's parts of it, at the
 # path prepare wrote them to. Only prepare also mounts .demo/ on the host.

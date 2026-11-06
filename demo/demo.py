@@ -1,4 +1,4 @@
-"""Prepare the demo deployment's folders; compose.yaml runs it (demo/README.md).
+"""Prepare the demo's folders; compose.yaml runs it (demo/README.md).
 
     docker compose up --build --abort-on-container-failure
     docker compose run --rm train   # one training run, submitted inside TB2;

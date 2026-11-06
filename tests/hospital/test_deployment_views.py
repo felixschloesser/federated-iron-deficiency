@@ -61,7 +61,7 @@ def test_models_page(
 ) -> None:
     # Session, user with role, deployed model, deployment history.
     with django_assert_num_queries(4):
-        response = client.get(reverse("deployment:models"))
+        response = client.get(reverse("deployment:screening_models"))
     assertContains(
         response,
         '<h2>Screening model of <span class="no-wrap">30 Oct 2026, 10:00</span></h2>',
@@ -102,7 +102,7 @@ def test_deploying_redirects_with_a_message(
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "1"})
     response = client.post(url, {"threshold": "0.4"}, follow=True)
-    assert response.redirect_chain == [(reverse("deployment:models"), 302)]
+    assert response.redirect_chain == [(reverse("deployment:screening_models"), 302)]
     assertContains(
         response, "Screening model of 30 Oct 2026, 10:00 deployed at threshold 0.40."
     )
@@ -122,7 +122,7 @@ def test_deploying_without_a_threshold_says_so(
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "1"})
     response = client.post(url, posted, follow=True)
-    assert response.redirect_chain == [(reverse("deployment:models"), 302)]
+    assert response.redirect_chain == [(reverse("deployment:screening_models"), 302)]
     assertContains(response, "Choose a threshold to deploy at.")
     assert not Deployment.objects.exists()
 
@@ -147,7 +147,7 @@ def test_laboratory_staff_are_sent_to_their_start_page(
     client: Client, screening_models_dir: Path
 ) -> None:
     client.force_login(make_laboratory_staff_member("Lab One"))
-    response = client.get(reverse("deployment:models"), follow=True)
+    response = client.get(reverse("deployment:screening_models"), follow=True)
     assert response.redirect_chain == [(reverse("lab:orders"), 302)]
     assertContains(response, "That page is for laboratory directors.")
 
@@ -166,7 +166,9 @@ def test_without_a_screening_models_folder(
     client: Client, director: User, settings: Settings
 ) -> None:
     settings.SCREENING_MODELS_DIR = None
-    assertContains(client.get(reverse("deployment:models")), "No models have arrived.")
+    assertContains(
+        client.get(reverse("deployment:screening_models")), "No models have arrived."
+    )
 
 
 def status(settings: Settings) -> str:

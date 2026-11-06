@@ -1,4 +1,4 @@
-"""The party a deployment belongs to (demo/README.md): the same code runs as each."""
+"""The party a web app belongs to (demo/README.md): the same code runs as each."""
 
 import enum
 from typing import assert_never

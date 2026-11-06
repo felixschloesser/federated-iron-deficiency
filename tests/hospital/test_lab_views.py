@@ -97,7 +97,7 @@ def test_actions_are_post_only(
 def test_laboratory_director_is_sent_to_their_start_page(client: Client) -> None:
     client.force_login(make_laboratory_director("Director"))
     response = client.get(reverse("lab:orders"), follow=True)
-    assert response.redirect_chain == [(reverse("deployment:models"), 302)]
+    assert response.redirect_chain == [(reverse("deployment:screening_models"), 302)]
     assertContains(response, "That page is for laboratory staff.")
 
 

@@ -88,10 +88,10 @@ scenarios("quality/party_isolation.feature")
 
 
 @given(
-    parsers.parse("a {party} deployment in a folder of its own"),
-    target_fixture="deployment",
+    parsers.parse("a {party} web app in a folder of its own"),
+    target_fixture="web_app",
 )
-def deployment(tmp_path: Path, party: str) -> dict[str, Any]:
+def web_app(tmp_path: Path, party: str) -> dict[str, Any]:
     return {
         "env": {"PARTY": party, "DATA_DIR": str(tmp_path)},
         "command": SEED_COMMANDS[party],
@@ -100,19 +100,17 @@ def deployment(tmp_path: Path, party: str) -> dict[str, Any]:
 
 
 @when("it migrates and seeds its database")
-def migrate_and_seed(deployment: dict[str, Any]) -> None:
+def migrate_and_seed(web_app: dict[str, Any]) -> None:
     from tests.conftest import nhanes_rows
 
-    folder = deployment["folder"]
+    folder = web_app["folder"]
     nhanes = folder / "nhanes.csv"
     nhanes_rows().to_csv(nhanes, index=False)
-    env = deployment["env"]
+    env = web_app["env"]
     run_manage(env, "migrate", "-v0")
-    run_manage(
-        env, deployment["command"], *seed_arguments(deployment["command"], nhanes)
-    )
+    run_manage(env, web_app["command"], *seed_arguments(web_app["command"], nhanes))
     with closing(sqlite3.connect(folder / "web.sqlite3")) as database:
-        deployment["tables"] = {
+        web_app["tables"] = {
             name
             for (name,) in database.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -121,38 +119,36 @@ def migrate_and_seed(deployment: dict[str, Any]) -> None:
 
 
 @when("its settings name a database elsewhere")
-def database_elsewhere(deployment: dict[str, Any]) -> None:
-    deployment["result"] = database_path(
-        {**deployment["env"], "DATABASE_NAME": "other"}
-    )
+def database_elsewhere(web_app: dict[str, Any]) -> None:
+    web_app["result"] = database_path({**web_app["env"], "DATABASE_NAME": "other"})
 
 
 @when(parsers.parse('its settings name the party "{party}"'))
-def unknown_party(deployment: dict[str, Any], party: str) -> None:
-    deployment["result"] = database_path({**deployment["env"], "PARTY": party})
+def unknown_party(web_app: dict[str, Any], party: str) -> None:
+    web_app["result"] = database_path({**web_app["env"], "PARTY": party})
 
 
 @when("its settings name no folder")
-def no_folder(deployment: dict[str, Any]) -> None:
-    deployment["result"] = database_path({"PARTY": deployment["env"]["PARTY"]})
+def no_folder(web_app: dict[str, Any]) -> None:
+    web_app["result"] = database_path({"PARTY": web_app["env"]["PARTY"]})
 
 
 @then(parsers.parse('its database has the table "{own}"'))
-def has_table(deployment: dict[str, Any], own: str) -> None:
-    assert own in deployment["tables"]
+def has_table(web_app: dict[str, Any], own: str) -> None:
+    assert own in web_app["tables"]
 
 
 @then(parsers.parse("its database has no table starting with {others}"))
-def no_other_tables(deployment: dict[str, Any], others: str) -> None:
+def no_other_tables(web_app: dict[str, Any], others: str) -> None:
     prefixes = tuple(re.findall(r'"([^"]+)"', others))
     assert prefixes
-    assert not [table for table in deployment["tables"] if table.startswith(prefixes)]
+    assert not [table for table in web_app["tables"] if table.startswith(prefixes)]
 
 
 @then(parsers.parse('the web app does not start, naming "{setting}"'))
-def does_not_start(deployment: dict[str, Any], setting: str) -> None:
-    assert deployment["result"].returncode != 0
-    assert setting in deployment["result"].stderr
+def does_not_start(web_app: dict[str, Any], setting: str) -> None:
+    assert web_app["result"].returncode != 0
+    assert setting in web_app["result"].stderr
 
 
 # Each seeded account opens its role's pages in the party's own deployment.
@@ -188,7 +184,7 @@ for user in User.objects.order_by("username"):
         ("startup", "seed_startup", {"data-scientist"}),
     ],
 )
-def test_every_page_of_a_party_loads_in_its_own_deployment(
+def test_every_page_of_a_party_loads_in_its_own_web_app(
     tmp_path: Path, party: str, command: str, users: set[str]
 ) -> None:
     """Development serves every party from one database; this runs each party's
