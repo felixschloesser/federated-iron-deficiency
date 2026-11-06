@@ -20,7 +20,7 @@ class LaboratoryDirectorRequiredMixin(RoleRequiredMixin):
     role = Role.LABORATORY_DIRECTOR
 
 
-class ModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
+class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
     template_name = "deployment/models.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
@@ -49,7 +49,7 @@ class DeployView(LaboratoryDirectorRequiredMixin, View):
             messages.error(
                 request, " ".join(str(error) for error in form.errors["threshold"])
             )
-            return redirect("deployment:models")
+            return redirect("deployment:screening_models")
         try:
             deployment = Deployment.objects.deploy(
                 run_id=run_id,
@@ -65,4 +65,4 @@ class DeployView(LaboratoryDirectorRequiredMixin, View):
                 request,
                 f"{deployed.name} deployed at threshold {deployed.threshold:.2f}.",
             )
-        return redirect("deployment:models")
+        return redirect("deployment:screening_models")

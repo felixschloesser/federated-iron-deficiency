@@ -127,7 +127,7 @@ runs, from any checkout: its simulation imports `ml` from the
 environment it was started in. Stop it (`pkill -f flower-superlink`) before
 running the simulation from another checkout.
 
-## Run the demo deployment
+## Run the demo
 
 The whole scenario in containers, one network per trust boundary: see
 `demo/README.md` in the repository.

@@ -28,7 +28,7 @@ CONNECTION = "demo"
 
 def run_configuration(chosen: Mapping[str, int | float | str]) -> str:
     """The run configuration as `flwr run --run-config` takes it: what the data
-    scientist chose and, in a deployment, the demo folder above the startup's. No
+    scientist chose and, in the demo, the folder above the startup's. No
     threshold: each hospital's laboratory director chooses one
     (features/deployment.feature)."""
     pairs = [f"{key}={value!r}" for key, value in chosen.items()]

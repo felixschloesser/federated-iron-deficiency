@@ -1,3 +1,3 @@
-# The demo deployment lives in demo/ (demo/README.md).
+# The demo lives in demo/ (demo/README.md).
 name: iron-deficiency
 include: [demo/compose.yaml]

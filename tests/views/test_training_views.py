@@ -91,7 +91,7 @@ def test_the_training_runs_page_lists_no_final_model(
 def test_a_laboratory_director_is_sent_to_their_own_page(client: Client) -> None:
     client.force_login(make_laboratory_director("Director One"))
     response = client.get(reverse("training:runs"))
-    assertRedirects(response, reverse("deployment:models"))
+    assertRedirects(response, reverse("deployment:screening_models"))
 
 
 def answering(
@@ -265,7 +265,7 @@ def test_only_the_data_scientist_downloads_for_sale(
 ) -> None:
     client.force_login(make_laboratory_director("Director One"))
     response = client.get(reverse("training:for_sale", kwargs={"run_id": "7"}))
-    assertRedirects(response, reverse("deployment:models"))
+    assertRedirects(response, reverse("deployment:screening_models"))
 
 
 @pytest.mark.usefixtures("data_scientist")
