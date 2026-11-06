@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from web.accounts.models import User
     from web.accounts.roles import Role
-    from web.hospital.lab.models import LabOrder, Practice
+    from web.hospital.lab.models import Practice, TestRequest
     from web.practice.models import Order, Patient, Sample
     from web.vocabulary import ClinicalIndication, Test
 from ml.cohort import CBC_VARS, FEATURES
@@ -131,12 +131,12 @@ def make_practice(certificate_name: str = "practice") -> "Practice":
     )
 
 
-def deliver(order: "Order") -> "LabOrder":
+def deliver(order: "Order") -> "TestRequest":
     """The lab order (DF23) arriving at the hospital, as its messaging endpoint records it."""
-    from web.hospital.lab.models import LabOrder, LabOrderDetails
+    from web.hospital.lab.models import LabOrderDetails, TestRequest
     from web.vocabulary import RegisteredSex, Test
 
-    return LabOrder.objects.receive(
+    return TestRequest.objects.receive(
         practice=make_practice(),
         details=LabOrderDetails(
             sample_id=order.sample.sample_id,

@@ -16,7 +16,7 @@ from tests.conftest import (
     make_patient,
 )
 from web.accounts.models import User
-from web.hospital.lab.models import LabOrder
+from web.hospital.lab.models import TestRequest
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
@@ -29,7 +29,7 @@ def staff_member() -> User:
 
 
 @pytest.fixture
-def lab_order() -> LabOrder:
+def test_request() -> TestRequest:
     """A ferritin ordered by a general practitioner, as the lab received it (DF23)."""
     patient = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     order = collect_and_order(
@@ -39,7 +39,7 @@ def lab_order() -> LabOrder:
         now=datetime(2026, 10, 29, 9, 0, tzinfo=UTC),
     )
     deliver(order)
-    return LabOrder.objects.select_related("sample").get()
+    return TestRequest.objects.select_related("sample").get()
 
 
 def logged_in(client: Client, staff_member: User) -> Client:
@@ -47,15 +47,15 @@ def logged_in(client: Client, staff_member: User) -> Client:
     return client
 
 
-def analyse_url(lab_order: LabOrder) -> str:
-    return reverse("lab:analyse", kwargs={"pk": lab_order.pk})
+def analyse_url(test_request: TestRequest) -> str:
+    return reverse("lab:analyse", kwargs={"pk": test_request.pk})
 
 
-@pytest.mark.parametrize("page", ["lab:orders", "lab:analysed"])
+@pytest.mark.parametrize("page", ["lab:test_requests", "lab:analysed"])
 def test_lab_index_queries(
     client: Client,
     staff_member: User,
-    lab_order: LabOrder,
+    test_request: TestRequest,
     django_assert_num_queries: DjangoAssertNumQueries,
     page: str,
 ) -> None:
@@ -66,43 +66,43 @@ def test_lab_index_queries(
 
 
 def test_lab_pages_never_show_a_patient_name(
-    client: Client, staff_member: User, lab_order: LabOrder
+    client: Client, staff_member: User, test_request: TestRequest
 ) -> None:
     logged_in(client, staff_member)
-    assertNotContains(client.get(reverse("lab:orders")), "Test Patient 1")
-    client.post(analyse_url(lab_order))
+    assertNotContains(client.get(reverse("lab:test_requests")), "Test Patient 1")
+    client.post(analyse_url(test_request))
     assertNotContains(client.get(reverse("lab:analysed")), "Test Patient 1")
 
 
 def test_navigation_links_to_both_lab_pages(client: Client, staff_member: User) -> None:
-    response = logged_in(client, staff_member).get(reverse("lab:orders"))
-    assertContains(response, f'href="{reverse("lab:orders")}"')
+    response = logged_in(client, staff_member).get(reverse("lab:test_requests"))
+    assertContains(response, f'href="{reverse("lab:test_requests")}"')
     assertContains(response, f'href="{reverse("lab:analysed")}"')
 
 
 def test_running_the_analyser(
-    client: Client, staff_member: User, lab_order: LabOrder
+    client: Client, staff_member: User, test_request: TestRequest
 ) -> None:
-    response = logged_in(client, staff_member).post(analyse_url(lab_order))
-    assert response["Location"] == reverse("lab:orders")
+    response = logged_in(client, staff_member).post(analyse_url(test_request))
+    assert response["Location"] == reverse("lab:test_requests")
     assertContains(
         client.get(response["Location"]),
-        f"Sample {lab_order.sample.sample_id}: ferritin analysed, lab report released.",
+        f"Sample {test_request.sample.sample_id}: ferritin analysed, lab report released.",
     )
-    lab_order.refresh_from_db()
-    assert lab_order.analysed_at is not None
+    test_request.refresh_from_db()
+    assert test_request.analysed_at is not None
 
 
 def test_actions_are_post_only(
-    client: Client, staff_member: User, lab_order: LabOrder
+    client: Client, staff_member: User, test_request: TestRequest
 ) -> None:
     logged_in(client, staff_member)
-    assert client.get(analyse_url(lab_order)).status_code == 405
+    assert client.get(analyse_url(test_request)).status_code == 405
 
 
 def test_general_practitioner_is_sent_to_their_start_page(client: Client) -> None:
     client.force_login(make_general_practitioner("Dr. Demo A"))
-    response = client.get(reverse("lab:orders"), follow=True)
+    response = client.get(reverse("lab:test_requests"), follow=True)
     assert response.redirect_chain == [(reverse("practice:patients"), 302)]
     assertContains(response, "That page is for laboratory staff.")
 
@@ -113,20 +113,20 @@ def test_laboratory_staff_are_sent_to_their_start_page(
     response = logged_in(client, staff_member).get(
         reverse("practice:patients"), follow=True
     )
-    assert response.redirect_chain == [(reverse("lab:orders"), 302)]
+    assert response.redirect_chain == [(reverse("lab:test_requests"), 302)]
     assertContains(response, "That page is for general practitioners.")
 
 
 def test_general_practitioner_cannot_run_the_analyser(
-    client: Client, lab_order: LabOrder
+    client: Client, test_request: TestRequest
 ) -> None:
     client.force_login(make_general_practitioner("Dr. Demo A"))
-    client.post(analyse_url(lab_order))
-    lab_order.refresh_from_db()
-    assert lab_order.analysed_at is None
+    client.post(analyse_url(test_request))
+    test_request.refresh_from_db()
+    assert test_request.analysed_at is None
 
 
-def cbc_lab_order(sex: RegisteredSex) -> LabOrder:
+def cbc_lab_order(sex: RegisteredSex) -> TestRequest:
     """A CBC for a unexplained fatigue, aged 32, as the lab received it (DF23)."""
 
     patient = make_patient("Test Patient 1", sex, 32)
@@ -137,18 +137,20 @@ def cbc_lab_order(sex: RegisteredSex) -> LabOrder:
         now=datetime(2026, 10, 29, 9, 0, tzinfo=UTC),
     )
     deliver(order)
-    return LabOrder.objects.select_related("sample").get()
+    return TestRequest.objects.select_related("sample").get()
 
 
 def test_a_cbc_not_screened_for_a_model_problem_warns(
     client: Client, staff_member: User
 ) -> None:
-    lab_order = cbc_lab_order(RegisteredSex.FEMALE)
-    response = logged_in(client, staff_member).post(analyse_url(lab_order), follow=True)
+    test_request = cbc_lab_order(RegisteredSex.FEMALE)
+    response = logged_in(client, staff_member).post(
+        analyse_url(test_request), follow=True
+    )
     assertContains(response, 'data-level="warning"')
     assertContains(
         response,
-        f"Sample {lab_order.sample.sample_id}: CBC analysed, lab report released"
+        f"Sample {test_request.sample.sample_id}: CBC analysed, lab report released"
         " without screening: no screening model deployed. Tell the laboratory"
         " director.",
     )
@@ -157,28 +159,30 @@ def test_a_cbc_not_screened_for_a_model_problem_warns(
 def test_a_cbc_not_screened_for_eligibility_does_not_warn(
     client: Client, staff_member: User
 ) -> None:
-    lab_order = cbc_lab_order(RegisteredSex.MALE)
-    response = logged_in(client, staff_member).post(analyse_url(lab_order), follow=True)
+    test_request = cbc_lab_order(RegisteredSex.MALE)
+    response = logged_in(client, staff_member).post(
+        analyse_url(test_request), follow=True
+    )
     assertNotContains(response, 'data-level="warning"')
     assertContains(
         response,
-        f"Sample {lab_order.sample.sample_id}: CBC analysed, lab report released.",
+        f"Sample {test_request.sample.sample_id}: CBC analysed, lab report released.",
     )
 
 
 def test_run_analyser_names_its_sample_for_assistive_technology(
-    client: Client, staff_member: User, lab_order: LabOrder
+    client: Client, staff_member: User, test_request: TestRequest
 ) -> None:
-    response = logged_in(client, staff_member).get(reverse("lab:orders"))
-    sample_id = lab_order.sample.sample_id
+    response = logged_in(client, staff_member).get(reverse("lab:test_requests"))
+    sample_id = test_request.sample.sample_id
     assertContains(response, f'aria-label="Run analyser for sample {sample_id}"')
     assertContains(response, f'<span class="sample-id">{sample_id}</span>')
 
 
 def test_to_analyse_shows_only_what_running_the_analyser_needs(
-    client: Client, staff_member: User, lab_order: LabOrder
+    client: Client, staff_member: User, test_request: TestRequest
 ) -> None:
-    response = logged_in(client, staff_member).get(reverse("lab:orders"))
+    response = logged_in(client, staff_member).get(reverse("lab:test_requests"))
     for heading in ("Sample ID", "Test", "Ordered"):
         assertContains(response, f'<th scope="col">{heading}</th>')
     for heading in (
@@ -192,36 +196,36 @@ def test_to_analyse_shows_only_what_running_the_analyser_needs(
 
 
 def test_to_analyse_marks_a_stored_sample(
-    client: Client, staff_member: User, lab_order: LabOrder
+    client: Client, staff_member: User, test_request: TestRequest
 ) -> None:
     from web.practice.models import Order
 
-    logged_in(client, staff_member).post(analyse_url(lab_order))
+    logged_in(client, staff_member).post(analyse_url(test_request))
     # The sample's other test reaching the lab after its ferritin was analysed:
     # here the CBC whose lab report suggested ferritin at the practice.
     order = Order.objects.get(test=OrderedTest.FERRITIN)
     deliver(order.sample.orders.get(test=OrderedTest.CBC))
-    response = client.get(reverse("lab:orders"))
-    sample_id = lab_order.sample.sample_id
+    response = client.get(reverse("lab:test_requests"))
+    sample_id = test_request.sample.sample_id
     assertContains(response, f"{sample_id}</span> · stored sample")
 
 
 def test_analysed_names_no_general_practitioner(
-    client: Client, staff_member: User, lab_order: LabOrder
+    client: Client, staff_member: User, test_request: TestRequest
 ) -> None:
-    lab_order.run_analyser(directory=None, now=lab_order.ordered_at)
+    test_request.run_analyser(directory=None, now=test_request.ordered_at)
     response = logged_in(client, staff_member).get(reverse("lab:analysed"))
     assertNotContains(response, '<th scope="col">General practitioner</th>')
     assertNotContains(response, "Dr. Demo A")
 
 
 def test_an_action_button_is_plain_so_pico_adds_no_form_margin(
-    client: Client, staff_member: User, lab_order: LabOrder
+    client: Client, staff_member: User, test_request: TestRequest
 ) -> None:
     # Pico's [type=submit] adds a bottom margin meant for a form's last button;
     # an action button submits by default and sits in a table cell or a row.
-    response = logged_in(client, staff_member).get(reverse("lab:orders"))
-    sample_id = lab_order.sample.sample_id
+    response = logged_in(client, staff_member).get(reverse("lab:test_requests"))
+    sample_id = test_request.sample.sample_id
     assertContains(
         response,
         f'<button aria-label="Run analyser for sample {sample_id}">Run analyser</button>',
@@ -236,5 +240,5 @@ def test_the_header_marks_the_current_page(client: Client, staff_member: User) -
         html=True,
     )
     assertContains(
-        response, f'<a href="{reverse("lab:orders")}">To analyse</a>', html=True
+        response, f'<a href="{reverse("lab:test_requests")}">To analyse</a>', html=True
     )

@@ -24,7 +24,7 @@ from tests.conftest import (
 )
 from web.accounts.models import User
 from web.hospital.lab.messaging import serve
-from web.hospital.lab.models import LabOrder, Practice, Sample
+from web.hospital.lab.models import Practice, Sample, TestRequest
 from web.hospital.nhanes.models import Participant
 from web.messaging import messages_pb2, messages_pb2_grpc
 from web.practice import messaging
@@ -195,10 +195,10 @@ def test_every_message_from_a_practice_the_hospital_does_not_know_is_refused(
 def released(world: World, name: str, patient: str) -> None:
     order(world, patient, OrderedTest.FERRITIN, None)
     messaging.send_pending_lab_orders(world["laboratory"], now=NOW)
-    lab_order = LabOrder.objects.select_related("sample").get(
+    test_request = TestRequest.objects.select_related("sample").get(
         sample__sample_id=latest_sample_id(world["patients"][patient])
     )
-    lab_order.run_analyser(directory=None, now=NOW)
+    test_request.run_analyser(directory=None, now=NOW)
 
 
 @given(
@@ -212,12 +212,12 @@ def released_suggested(world: World, name: str, patient: str) -> None:
 
     order(world, patient, OrderedTest.CBC, "unexplained fatigue")
     messaging.send_pending_lab_orders(world["laboratory"], now=NOW)
-    lab_order = LabOrder.objects.select_related("sample").get(
+    test_request = TestRequest.objects.select_related("sample").get(
         sample__sample_id=latest_sample_id(world["patients"][patient])
     )
-    lab_order.run_analyser(directory=None, now=NOW)
+    test_request.run_analyser(directory=None, now=NOW)
     # As the deployed model would have decided (features/screening.feature).
-    LabOrder.objects.filter(pk=lab_order.pk).update(
+    TestRequest.objects.filter(pk=test_request.pk).update(
         screening_result=ScreeningResult.FERRITIN_SUGGESTED, not_screened_reason=None
     )
 
@@ -239,13 +239,13 @@ def checks(world: World) -> None:
 @then(parsers.parse('"{name}" has a lab order for the sample of "{patient}"'))
 def has_lab_order(world: World, name: str, patient: str) -> None:
     sample_id = latest_sample_id(world["patients"][patient])
-    assert LabOrder.objects.filter(sample__sample_id=sample_id).exists()
+    assert TestRequest.objects.filter(sample__sample_id=sample_id).exists()
 
 
 @then(parsers.parse('"{name}" has one lab order for the sample of "{patient}"'))
 def has_one_lab_order(world: World, name: str, patient: str) -> None:
     sample_id = latest_sample_id(world["patients"][patient])
-    assert LabOrder.objects.filter(sample__sample_id=sample_id).count() == 1
+    assert TestRequest.objects.filter(sample__sample_id=sample_id).count() == 1
 
 
 @then(
@@ -255,17 +255,20 @@ def has_one_lab_order(world: World, name: str, patient: str) -> None:
     )
 )
 def lab_order_holds(world: World, certificate_name: str) -> None:
-    lab_order = LabOrder.objects.select_related("sample").get()
+    test_request = TestRequest.objects.select_related("sample").get()
     placed = world["order"]
-    assert lab_order.sample.sample_id == placed.sample.sample_id
+    assert test_request.sample.sample_id == placed.sample.sample_id
     screened = ClinicalIndication(placed.indication).is_screened()
-    assert (lab_order.test, lab_order.screened_indication) == (placed.test, screened)
-    assert (lab_order.registered_sex, lab_order.age) == (
+    assert (test_request.test, test_request.screened_indication) == (
+        placed.test,
+        screened,
+    )
+    assert (test_request.registered_sex, test_request.age) == (
         placed.registered_sex,
         placed.age,
     )
     # The practice by the certificate name it sent; no general practitioner.
-    assert lab_order.sample.practice.certificate_name == certificate_name
+    assert test_request.sample.practice.certificate_name == certificate_name
 
 
 @then("it is refused as practice required")
@@ -276,7 +279,7 @@ def refused_practice_required(world: World) -> None:
 
 @then(parsers.parse('"{name}" has no lab order'))
 def no_lab_order(world: World, name: str) -> None:
-    assert not LabOrder.objects.exists()
+    assert not TestRequest.objects.exists()
 
 
 @then(parsers.parse('"{owner}" has the lab report of "{patient}"'))
@@ -320,8 +323,8 @@ def receives_none(world: World) -> None:
     assert list(world["received"].reports) == []
 
 
-def lab_order_of(world: World, patient: str) -> LabOrder:
-    return LabOrder.objects.get(
+def received_test_request(world: World, patient: str) -> TestRequest:
+    return TestRequest.objects.get(
         sample__sample_id=latest_sample_id(world["patients"][patient]),
         test=world["order"].test,
     )
@@ -329,18 +332,18 @@ def lab_order_of(world: World, patient: str) -> LabOrder:
 
 @then(parsers.parse('the lab report of "{patient}" is still new at "{name}"'))
 def still_new(world: World, patient: str, name: str) -> None:
-    assert lab_order_of(world, patient).report_acknowledged_at is None
+    assert received_test_request(world, patient).report_acknowledged_at is None
 
 
 @then(parsers.parse('the lab report of "{patient}" is no longer new at "{name}"'))
 def no_longer_new(world: World, patient: str, name: str) -> None:
-    assert lab_order_of(world, patient).report_acknowledged_at is not None
+    assert received_test_request(world, patient).report_acknowledged_at is not None
 
 
 @when(parsers.parse('the other app acknowledges the lab report of "{patient}"'))
 def other_acknowledges(world: World, patient: str) -> None:
     with messaging.open_laboratory(world["laboratory"]) as laboratory:
-        report_id = str(lab_order_of(world, patient).pk)
+        report_id = str(received_test_request(world, patient).pk)
         laboratory.AcknowledgeLabReports(
             messages_pb2.Acknowledgement(
                 certificate_name=world["other"], report_ids=[report_id]
@@ -382,10 +385,10 @@ def released_unknown(world: World, name: str, owner: str) -> None:
         ordered_at=NOW,
     )
     messaging.send_lab_order(stranger, world["laboratory"])
-    lab_order = LabOrder.objects.select_related("sample").get(
+    test_request = TestRequest.objects.select_related("sample").get(
         sample__sample_id="999999"
     )
-    lab_order.run_analyser(directory=None, now=NOW)
+    test_request.run_analyser(directory=None, now=NOW)
 
 
 @then(
@@ -458,7 +461,9 @@ def test_placing_an_order_sends_its_lab_order(
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     client.force_login(owner)
     client.post(new_order_url(client, record))
-    assert LabOrder.objects.filter(sample__sample_id=latest_sample_id(record)).exists()
+    assert TestRequest.objects.filter(
+        sample__sample_id=latest_sample_id(record)
+    ).exists()
     assert Order.objects.get(test=OrderedTest.FERRITIN).sent_at is not None
 
 
@@ -506,8 +511,8 @@ def released_ferritin(owner: User) -> Patient:
     )
     laboratory = Laboratory.objects.get(name="AZ Diest")
     messaging.send_pending_lab_orders(laboratory, now=NOW)
-    lab_order = LabOrder.objects.select_related("sample").get()
-    lab_order.run_analyser(directory=None, now=NOW)
+    test_request = TestRequest.objects.select_related("sample").get()
+    test_request.run_analyser(directory=None, now=NOW)
     return record
 
 
@@ -572,8 +577,8 @@ def test_an_awaited_lab_report_says_how_to_fetch_it(
 
 @then(parsers.parse("the lab order says its indication is {screened}"))
 def says_screened(world: World, screened: str) -> None:
-    lab_order = LabOrder.objects.get()
-    assert lab_order.screened_indication is (screened == "screened")
+    test_request = TestRequest.objects.get()
+    assert test_request.screened_indication is (screened == "screened")
 
 
 @then("no lab order names a clinical indication")
@@ -583,7 +588,7 @@ def names_no_indication() -> None:
     from web.messaging import messages_pb2
 
     assert "indication" not in messages_pb2.LabOrder.DESCRIPTOR.fields_by_name
-    stored = {field.name for field in LabOrder._meta.get_fields()}
+    stored = {field.name for field in TestRequest._meta.get_fields()}
     assert "indication" not in stored
 
 
@@ -604,9 +609,9 @@ def test_lab_orders_go_only_to_their_samples_laboratory(
         suggest_ferritin_on(sample, NOW)
         sample.place_order(test=OrderedTest.FERRITIN, indication=None, now=NOW)
     assert messaging.send_pending_lab_orders(az_diest, now=NOW) == 1
-    assert [lab_order.sample.sample_id for lab_order in LabOrder.objects.all()] == [
-        latest_sample_id(first)
-    ]
+    assert [
+        test_request.sample.sample_id for test_request in TestRequest.objects.all()
+    ] == [latest_sample_id(first)]
     unsent = Order.objects.get(sample__patient=second, test=OrderedTest.FERRITIN)
     assert unsent.sent_at is None
 
@@ -624,7 +629,7 @@ def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
     placed = sample.place_order(test=OrderedTest.FERRITIN, indication=None, now=NOW)
     # AZ Diest holds the lab order anyway, and releases a report on it.
     messaging.send_lab_order(placed, az_diest)
-    LabOrder.objects.select_related("sample").get().run_analyser(
+    TestRequest.objects.select_related("sample").get().run_analyser(
         directory=None, now=NOW
     )
     assert messaging.check_for_lab_reports(az_diest, now=NOW) == 0

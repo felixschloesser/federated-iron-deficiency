@@ -76,9 +76,19 @@ rejected = [
 ]
 
 ["order"]
-source = "Report, DF23 \"lab order\"; WHO glossary *path of workflow*, \"physician's order\" (p. 228)"
-why = "Report and WHO agree"
-rejected = ["request", "requisition (WHO)", "examination request (ISO 15189)"]
+source = "WHO glossary *path of workflow*, \"physician's order\" (p. 228)"
+why = "The practice's word: what the general practitioner places, with its clinical indication, which never leaves the practice. Each party speaks its own language: the practice orders, the wire carries a lab order, the laboratory works on a test request"
+rejected = ["request (the laboratory's word)", "requisition (WHO)", "examination request (ISO 15189)"]
+
+["lab order"]
+source = "Report, DF23 \"lab order\""
+why = "What travels from the practice to the hospital (the proto's LabOrder): only whether the indication is screened, never which; send_lab_order makes one of an order"
+rejected = ["order (the practice's)", "test request (the laboratory's)"]
+
+["test request"]
+source = "WHO LQMS: \"test requests\" are a laboratory input; \"the test request must be complete\" (12 uses); UZ Leuven's laboratory forms are aanvraagformulieren, request forms"
+why = "The laboratory's word for what it analyses and screens: one test on a sample, received from a lab order"
+rejected = ["lab order (the message it arrives as)", "order (US and HL7 usage)", "requisition (WHO: the paper form)", "examination request (ISO 15189)"]
 
 ["test"]
 source = "Report, Use case \"ferritin test\""
