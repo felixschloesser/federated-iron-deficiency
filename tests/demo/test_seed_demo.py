@@ -12,7 +12,7 @@ from tests.conftest import PEOPLE, nhanes_rows
 from web.accounts.models import User
 from web.accounts.roles import Role, role_of
 from web.nhanes.models import Participant
-from web.practice.models import GeneralPractitioner, Patient
+from web.practice.models import Patient
 from web.seeding import command as seeding
 from web.vocabulary import RegisteredSex
 
@@ -59,7 +59,7 @@ def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
 def test_the_practice_has_one_general_practitioner_and_every_patient(
     seeded: None,
 ) -> None:
-    assert GeneralPractitioner.objects.get().user.username == "doctor"
+    assert User.objects.get(role=Role.GENERAL_PRACTITIONER).username == "doctor"
     assert Patient.objects.count() == 12
 
 

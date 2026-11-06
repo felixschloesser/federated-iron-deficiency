@@ -16,7 +16,7 @@ Feature: Each party's software and data stay inside its trust boundary
       | party    | own                    | others                                          |
       | hospital | lab_laborder           | "practice_", "training_"                        |
       | practice | practice_patient       | "lab_", "nhanes_", "deployment_", "training_"   |
-      | startup  | training_datascientist | "lab_", "nhanes_", "deployment_", "practice_"   |
+      | startup  | accounts_user          | "lab_", "nhanes_", "deployment_", "practice_"   |
 
   Scenario: A web app refuses a database outside its party's folder
     Given a hospital deployment in a folder of its own

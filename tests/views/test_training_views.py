@@ -40,7 +40,7 @@ def test_final_models_page(
     final_models_dir: Path,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    client.force_login(make_data_scientist("Data One").user)
+    client.force_login(make_data_scientist("Data One"))
     # Session, user with role.
     with django_assert_num_queries(2):
         response = client.get(reverse("training:runs"))
@@ -55,7 +55,7 @@ def test_final_models_page(
 
 
 def test_a_laboratory_director_is_sent_to_their_own_page(client: Client) -> None:
-    client.force_login(make_laboratory_director("Director One").user)
+    client.force_login(make_laboratory_director("Director One"))
     response = client.get(reverse("training:runs"))
     assertRedirects(response, reverse("deployment:models"))
 
@@ -145,7 +145,7 @@ def test_a_submission_without_an_answer_points_to_the_training_runs(
 
 @pytest.fixture
 def data_scientist(client: Client) -> None:
-    client.force_login(make_data_scientist("Data One").user)
+    client.force_login(make_data_scientist("Data One"))
 
 
 @pytest.mark.usefixtures("data_scientist")
@@ -225,7 +225,7 @@ def test_a_run_without_a_final_model_is_not_found(
 def test_only_the_data_scientist_downloads_for_sale(
     client: Client, final_models_dir: Path
 ) -> None:
-    client.force_login(make_laboratory_director("Director One").user)
+    client.force_login(make_laboratory_director("Director One"))
     response = client.get(reverse("training:for_sale", kwargs={"run_id": "7"}))
     assertRedirects(response, reverse("deployment:models"))
 

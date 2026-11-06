@@ -17,6 +17,7 @@ from django.db import transaction
 from iron_deficiency.cohort import ELIGIBLE_SEX, FERRITIN_THRESHOLD, eligible
 from iron_deficiency.dataset import load_ferritin, load_new_samples
 from web.accounts.models import User
+from web.accounts.roles import Role
 from web.seeding.accounts import PASSWORD
 from web.vocabulary import RegisteredSex
 
@@ -127,8 +128,10 @@ def patient_name(nhanes_number: int, sex: RegisteredSex) -> str:
     )
 
 
-def user(username: str) -> User:
-    account, created = User.objects.get_or_create(username=username)
+def user(username: str, role: Role | None) -> User:
+    account, created = User.objects.get_or_create(
+        username=username, defaults={"role": role}
+    )
     if created:
         account.set_password(PASSWORD)
         account.save()
@@ -168,7 +171,7 @@ class SeedCommand(BaseCommand):
         rows = with_made_up_ferritin(chosen, nhanes).to_dict("records")
         with transaction.atomic():
             accounts = self.seed(rows)
-            user("no-role")  # Has no role: for the refusal at login.
+            user("no-role", None)  # Has no role: for the refusal at login.
         self.stdout.write(
             f"Accounts {', '.join(accounts)} and no-role, password {PASSWORD};"
             f" {len(rows)} NHANES participants"

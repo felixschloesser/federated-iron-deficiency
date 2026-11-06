@@ -3,7 +3,7 @@ from typing import Any
 
 import grpc
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
 from django.db.models import F, Prefetch, QuerySet
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -17,7 +17,6 @@ from web.accounts.roles import Role
 from web.practice import messaging
 from web.practice.forms import CollectSampleForm, OrderForm
 from web.practice.models import (
-    GeneralPractitioner,
     Laboratory,
     Order,
     Patient,
@@ -27,18 +26,7 @@ from web.vocabulary import Test
 
 
 class GeneralPractitionerRequiredMixin(RoleRequiredMixin):
-    """Lets in only general practitioners, as `self.general_practitioner`."""
-
     role = Role.GENERAL_PRACTITIONER
-    request: HttpRequest
-
-    @cached_property
-    def general_practitioner(self) -> GeneralPractitioner:
-        user = self.request.user
-        if not user.is_authenticated:
-            raise PermissionDenied
-        practitioner: GeneralPractitioner = user.general_practitioner
-        return practitioner
 
 
 class PatientIndexView(GeneralPractitionerRequiredMixin, ListView[Patient]):
@@ -238,8 +226,8 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSample
         if laboratory is None and Laboratory.objects.count() == 1:
             laboratory = Laboratory.objects.get()
         try:
-            sample = self.general_practitioner.collect_sample(
-                patient=self.patient, laboratory=laboratory, now=timezone.now()
+            sample = self.patient.collect_sample(
+                laboratory=laboratory, now=timezone.now()
             )
         except ValidationError as error:
             for field, errors in error.error_dict.items():
@@ -290,8 +278,8 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
     def refused(self) -> HttpResponse | None:
         """An order refused whatever its indication (a typed or stale URL): back to
         the patient, with why. place_order checks again, for two tabs at once."""
-        refusal = self.general_practitioner.order_refusal(
-            sample=self.sample, test=self.kwargs["test"], now=timezone.now()
+        refusal = self.sample.order_refusal(
+            test=self.kwargs["test"], now=timezone.now()
         )
         if refusal is None:
             return None
@@ -304,8 +292,7 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
 
     def form_valid(self, form: OrderForm) -> HttpResponse:
         try:
-            placed = self.general_practitioner.place_order(
-                sample=self.sample,
+            placed = self.sample.place_order(
                 test=self.kwargs["test"],
                 indication=form.cleaned_data.get("indication"),
                 now=timezone.now(),

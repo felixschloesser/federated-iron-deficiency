@@ -1,4 +1,4 @@
-"""Laboratory directors, and the screening models they deployed (features/deployment.feature)."""
+"""The screening models the laboratory director deployed (features/deployment.feature)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
@@ -30,30 +29,6 @@ class NoUsableModel(models.TextChoices):
         "deployed_model_changed",
         "The deployed model changed on disk since it was deployed",
     )
-
-
-class LaboratoryDirector(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="laboratory_director",
-    )
-    name = models.CharField(max_length=100)
-
-    class Meta:
-        constraints = (
-            # A hospital has one laboratory director (features/deployment.feature): any second row
-            # repeats the constant.
-            models.UniqueConstraint(
-                models.Value(1),
-                name="one_laboratory_director",
-                violation_error_code="one_laboratory_director",
-                violation_error_message="A hospital has one laboratory director.",
-            ),
-        )
-
-    def __str__(self) -> str:
-        return self.name
 
 
 class ScreeningModel(models.Model):

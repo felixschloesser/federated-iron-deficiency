@@ -6,8 +6,7 @@ from typing import Any
 import pandas as pd
 
 from iron_deficiency.cohort import CBC_VARS
-from web.deployment.models import LaboratoryDirector
-from web.lab.models import LaboratoryStaffMember
+from web.accounts.roles import Role
 from web.nhanes.models import Participant
 from web.seeding.accounts import LABORATORY_DIRECTOR, LABORATORY_STAFF
 from web.seeding.command import SeedCommand, user
@@ -17,12 +16,8 @@ class Command(SeedCommand):
     help = __doc__
 
     def seed(self, rows: list[dict[Hashable, Any]]) -> list[str]:
-        LaboratoryStaffMember.objects.get_or_create(
-            user=user(LABORATORY_STAFF), defaults={"name": "Laboratory Staff 1"}
-        )
-        LaboratoryDirector.objects.get_or_create(
-            user=user(LABORATORY_DIRECTOR), defaults={"name": "Laboratory Director 1"}
-        )
+        user(LABORATORY_STAFF, Role.LABORATORY_STAFF)
+        user(LABORATORY_DIRECTOR, Role.LABORATORY_DIRECTOR)
         for row in rows:
             # What this patient's tube would measure.
             ferritin, made_up = row["LBXFER"], row["made_up_ferritin"]

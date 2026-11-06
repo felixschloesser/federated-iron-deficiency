@@ -1,4 +1,4 @@
-"""Laboratory staff and samples (terms: glossary.toml)."""
+"""The hospital's samples and the practices it works with (terms: glossary.toml)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import TypedDict, assert_never
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Exists, OuterRef
@@ -56,18 +55,6 @@ class NotScreened(models.TextChoices):
                 return True
             case _:
                 assert_never(self)
-
-
-class LaboratoryStaffMember(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="laboratory_staff_member",
-    )
-    name = models.CharField(max_length=100)
-
-    def __str__(self) -> str:
-        return self.name
 
 
 class PracticeManager(models.Manager["Practice"]):

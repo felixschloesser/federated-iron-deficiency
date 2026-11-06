@@ -36,7 +36,7 @@ rejected = [
 
 ["laboratory staff"]
 source = "WHO LQMS, the handbook's word for the people who work in the laboratory (44 uses; e.g. ch. 5, Sample management)"
-why = "Run the analyser; one record per person (`LaboratoryStaffMember`)"
+why = "Run the analyser; one record per person (`Role.LABORATORY_STAFF`)"
 rejected = [
     "lab technician (\"technician\" in WHO LQMS means equipment service only)",
     "technologist (a qualified grade)",
@@ -310,7 +310,7 @@ rejected = ["company", "vendor", "server (one of its machines, not the party)"]
 
 ["data scientist"]
 source = "Report, training DFD, E1 \"Data scientist\"; \"its data scientist submits the app, which is based on @ironapp, and follows the run's logs (DF4, DF5)\""
-why = "The startup's one person in the report's DFD; the role of its web app (`DataScientist`)"
+why = "The startup's one person in the report's DFD; the role of its web app (`Role.DATA_SCIENTIST`)"
 rejected = ["ML engineer", "researcher", "startup staff"]
 
 ["training run"]

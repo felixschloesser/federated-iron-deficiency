@@ -1,1 +1,1 @@
-"""Users of the app; their role follows from the records linked to them."""
+"""Users of the app, each with at most one role."""

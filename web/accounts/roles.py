@@ -1,17 +1,17 @@
-"""A user's role follows from the record linked to them."""
+"""The roles a user may have; a user without one cannot log in."""
 
-import enum
 from typing import assert_never
 
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
+from django.db import models
 from django.urls import reverse
 
 
-class Role(enum.Enum):
-    GENERAL_PRACTITIONER = "general practitioner"
-    LABORATORY_STAFF = "laboratory staff"
-    LABORATORY_DIRECTOR = "laboratory director"
-    DATA_SCIENTIST = "data scientist"
+class Role(models.TextChoices):
+    GENERAL_PRACTITIONER = "general_practitioner", "general practitioner"
+    LABORATORY_STAFF = "laboratory_staff", "laboratory staff"
+    LABORATORY_DIRECTOR = "laboratory_director", "laboratory director"
+    DATA_SCIENTIST = "data_scientist", "data scientist"
 
     def people(self) -> str:
         """The people of this role, as a sentence names them."""
@@ -66,13 +66,5 @@ class Role(enum.Enum):
 
 def role_of(user: AbstractBaseUser | AnonymousUser | None) -> Role | None:
     """Return the user's role, or None for an account without one."""
-    # RoleBackend loads the record with the user, so this costs no query.
-    if hasattr(user, "general_practitioner"):
-        return Role.GENERAL_PRACTITIONER
-    if hasattr(user, "laboratory_staff_member"):
-        return Role.LABORATORY_STAFF
-    if hasattr(user, "laboratory_director"):
-        return Role.LABORATORY_DIRECTOR
-    if hasattr(user, "data_scientist"):
-        return Role.DATA_SCIENTIST
-    return None
+    role = getattr(user, "role", None)
+    return None if role is None else Role(role)

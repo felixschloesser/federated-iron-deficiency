@@ -40,9 +40,10 @@ def add_laboratory_director(world: World, name: str) -> None:
     from django.db import IntegrityError, transaction
 
     from web.accounts.models import User
-    from web.deployment.models import LaboratoryDirector
+    from web.accounts.roles import Role
 
-    added = LaboratoryDirector(user=User.objects.create_user(username="two"), name=name)
+    added = User(username="two", role=Role.LABORATORY_DIRECTOR)
+    added.set_unusable_password()
     try:
         added.full_clean()
     except ValidationError as error:
@@ -221,7 +222,7 @@ def staff_tries(
     threshold: str,
 ) -> None:
     settings.SCREENING_MODELS_DIR = world["screening_models_dir"]
-    client.force_login(world["staff_member"].user)
+    client.force_login(world["staff_member"])
     client.post(
         reverse("deployment:deploy", kwargs={"run_id": run_id}),
         {"threshold": threshold},
