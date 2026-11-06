@@ -53,7 +53,7 @@ def test_django_boots_without_the_training_data_libraries() -> None:
     environment = {
         key: value
         for key, value in os.environ.items()
-        if key not in {"HOSPITAL_DIR", "PRACTICE_DIR"}
+        if key not in {"PARTY", "DATA_DIR"}
     }
     environment["DJANGO_SETTINGS_MODULE"] = "web.settings"
     result = subprocess.run(

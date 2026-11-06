@@ -222,7 +222,7 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
     assert audit.run(root)["party_imports"] == [
         "web/accounts/backends.py:1: shared code imports web.deployment",
         "web/lab/models.py:1: the hospital's code imports web.practice",
-        "web/practice/views.py:3: the general practitioner's code imports web.lab",
+        "web/practice/views.py:3: the practice's code imports web.lab",
     ]
 
 

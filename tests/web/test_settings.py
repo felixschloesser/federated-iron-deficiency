@@ -48,21 +48,22 @@ def database_path(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
 
 
 def test_the_database_lives_in_the_hospital_folder(tmp_path: Path) -> None:
-    result = database_path({"HOSPITAL_DIR": str(tmp_path)})
+    result = database_path({"PARTY": "hospital", "DATA_DIR": str(tmp_path)})
     assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
 
 
 def test_a_practice_keeps_its_database_in_its_own_folder(tmp_path: Path) -> None:
-    result = database_path({"PRACTICE_DIR": str(tmp_path)})
+    result = database_path({"PARTY": "practice", "DATA_DIR": str(tmp_path)})
     assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
 
 
 def test_the_startup_keeps_its_database_and_final_models_in_its_folder(
     tmp_path: Path,
 ) -> None:
-    result = database_path({"STARTUP_DIR": str(tmp_path)})
+    env = {"PARTY": "startup", "DATA_DIR": str(tmp_path)}
+    result = database_path(env)
     assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
-    final_models = setting("FINAL_MODELS_DIR", {"STARTUP_DIR": str(tmp_path)})
+    final_models = setting("FINAL_MODELS_DIR", env)
     assert final_models == str(tmp_path / "final-models")
 
 
@@ -178,15 +179,15 @@ for user in User.objects.order_by("username"):
 
 
 @pytest.mark.parametrize(
-    ("folder", "command", "users"),
+    ("party", "command", "users"),
     [
-        ("HOSPITAL_DIR", "seed_hospital", {"director", "staff"}),
-        ("PRACTICE_DIR", "seed_practice", {"doctor"}),
-        ("STARTUP_DIR", "seed_startup", {"data-scientist"}),
+        ("hospital", "seed_hospital", {"director", "staff"}),
+        ("practice", "seed_practice", {"doctor"}),
+        ("startup", "seed_startup", {"data-scientist"}),
     ],
 )
 def test_every_page_of_a_party_loads_in_its_own_deployment(
-    tmp_path: Path, folder: str, command: str, users: set[str]
+    tmp_path: Path, party: str, command: str, users: set[str]
 ) -> None:
     """Development serves every party from one database; this runs each party's
     pages with only its own apps installed."""
@@ -194,7 +195,7 @@ def test_every_page_of_a_party_loads_in_its_own_deployment(
 
     nhanes = tmp_path / "nhanes.csv"
     nhanes_rows().to_csv(nhanes, index=False)
-    env = {folder: str(tmp_path)}
+    env = {"PARTY": party, "DATA_DIR": str(tmp_path)}
     run_manage(env, "migrate", "-v0")
     run_manage(env, command, *seed_arguments(command, nhanes))
     result = subprocess.run(
@@ -230,13 +231,13 @@ def setting(name: str, env: dict[str, str]) -> str:
     ).stdout.strip()
 
 
-@pytest.mark.parametrize("party", ["HOSPITAL_DIR", "PRACTICE_DIR", "STARTUP_DIR"])
+@pytest.mark.parametrize("party", ["hospital", "practice", "startup"])
 def test_each_party_has_its_own_cookies(tmp_path: Path, party: str) -> None:
     # Browsers share cookies across ports, and the demo runs every party on
     # 127.0.0.1: one party's login must not replace another's session or token.
     folder = tmp_path / "uz-leuven"
     folder.mkdir()
-    env = {party: str(folder)}
+    env = {"PARTY": party, "DATA_DIR": str(folder)}
     assert setting("SESSION_COOKIE_NAME", env) == "sessionid-uz-leuven"
     assert setting("CSRF_COOKIE_NAME", env) == "csrftoken-uz-leuven"
 
