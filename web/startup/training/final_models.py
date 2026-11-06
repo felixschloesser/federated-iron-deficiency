@@ -14,9 +14,9 @@ from ml.screening import (
     from_bytes,
     to_bytes,
 )
-from web.training.forms import SubmitRunForm
-from web.training.models import Transmission
-from web.training.runs import RunStatus, TrainingRun
+from web.startup.training.forms import SubmitRunForm
+from web.startup.training.models import Transmission
+from web.startup.training.runs import RunStatus, TrainingRun
 
 
 @dataclass(frozen=True)

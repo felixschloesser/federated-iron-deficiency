@@ -16,7 +16,7 @@ from ml.screening import (
     from_bytes,
     suggests_ferritin,
 )
-from web.deployment.model_files import (
+from web.hospital.deployment.model_files import (
     model_name,
     screening_model_file,
     sha256,

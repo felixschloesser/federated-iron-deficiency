@@ -13,8 +13,8 @@ from django.db.models import Exists, OuterRef
 from django_stubs_ext import WithAnnotations
 
 from ml.cohort import ELIGIBLE_AGES, ELIGIBLE_SEX
-from web.deployment.models import Deployment, NoUsableModel, ScreeningModel
-from web.nhanes.models import Participant
+from web.hospital.deployment.models import Deployment, NoUsableModel, ScreeningModel
+from web.hospital.nhanes.models import Participant
 from web.vocabulary import RegisteredSex, Test
 
 
@@ -27,7 +27,7 @@ class ScreeningResult(models.TextChoices):
 class NotScreened(models.TextChoices):
     """Why a CBC was not screened (features/screening.feature): the patient is not eligible, never which
     fact excluded them, or there is no usable deployed model
-    (web.deployment.models.NoUsableModel), which lab staff act on (features/screening.feature)."""
+    (web.hospital.deployment.models.NoUsableModel), which lab staff act on (features/screening.feature)."""
 
     NOT_ELIGIBLE = "not_eligible", "not eligible"
     NO_DEPLOYED_MODEL = "no_deployed_model", "no screening model deployed"

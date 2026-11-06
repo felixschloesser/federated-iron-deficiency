@@ -11,9 +11,9 @@ from django.views.generic import TemplateView
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
-from web.deployment.forms import DeployForm
-from web.deployment.model_files import screening_models
-from web.deployment.models import Deployment, NoUsableModel
+from web.hospital.deployment.forms import DeployForm
+from web.hospital.deployment.model_files import screening_models
+from web.hospital.deployment.models import Deployment, NoUsableModel
 
 
 class LaboratoryDirectorRequiredMixin(RoleRequiredMixin):

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from web.training import views
+from web.startup.training import views
 
 app_name = "training"
 urlpatterns = [

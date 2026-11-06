@@ -59,7 +59,7 @@ def startup_kept(world: World, run_id: str, day: int, hour: int, minute: int) ->
 
 
 def listed(world: World) -> list[str]:
-    from web.training.final_models import final_models
+    from web.startup.training.final_models import final_models
 
     return [model.run_id for model in final_models(world["final_models_dir"])]
 
@@ -74,7 +74,7 @@ def final_models_are(world: World, run_ids: str) -> None:
 
 @then(parsers.parse('final model "{run_id}" shows AUROC across hospitals {auroc:f}'))
 def final_model_shows(world: World, run_id: str, auroc: float) -> None:
-    from web.training.final_models import final_models
+    from web.startup.training.final_models import final_models
 
     model = next(
         model
@@ -153,8 +153,8 @@ def submit_form(world: World, data: dict[str, str]) -> None:
     """Submit through the form, as the page does: defaults for what is not given."""
     from django.core.exceptions import ValidationError
 
-    from web.training.forms import SubmitRunForm
-    from web.training.runs import submit_run
+    from web.startup.training.forms import SubmitRunForm
+    from web.startup.training.runs import submit_run
 
     form = SubmitRunForm({**SubmitRunForm.defaults(), **data})
     world["form"] = form
@@ -168,7 +168,7 @@ def submit_form(world: World, data: dict[str, str]) -> None:
 
 def field_named(label: str) -> str:
     """The form field a scenario names by its label."""
-    from web.training.forms import SubmitRunForm
+    from web.startup.training.forms import SubmitRunForm
 
     return next(
         name
@@ -270,7 +270,7 @@ def server_app_keeps_configured(
 
 @then(parsers.parse('final model "{run_id}" shows run configuration "{shown}"'))
 def shows_configuration(world: World, run_id: str, shown: str) -> None:
-    from web.training.final_models import final_models
+    from web.startup.training.final_models import final_models
 
     [model] = [
         model
@@ -306,7 +306,7 @@ def refused(world: World, code: str) -> None:
 
 @when(parsers.parse('the startup downloads final model "{run_id}" for sale'))
 def download_for_sale(world: World, run_id: str) -> None:
-    from web.training.final_models import for_sale
+    from web.startup.training.final_models import for_sale
 
     world["download"] = for_sale(world["final_models_dir"], run_id)
 
@@ -394,7 +394,7 @@ def superlink_unavailable(superlink: World) -> None:
 
 @then("the training runs are:")
 def training_runs_are(superlink: World, datatable: list[list[str]]) -> None:
-    from web.training.runs import training_runs
+    from web.startup.training.runs import training_runs
 
     header, *rows = datatable
     expected = [
@@ -413,7 +413,7 @@ def training_runs_are(superlink: World, datatable: list[list[str]]) -> None:
 
 @then(parsers.parse('training run "{run_id}" is "{status}", with details "{details}"'))
 def training_run_is(superlink: World, run_id: str, status: str, details: str) -> None:
-    from web.training.runs import training_runs
+    from web.startup.training.runs import training_runs
 
     (run,) = [run for run in training_runs() if str(run.run_id) == run_id]
     assert (run.status_label, run.details) == (status, details)
@@ -423,7 +423,7 @@ def training_run_is(superlink: World, run_id: str, status: str, details: str) ->
 def look_at_runs(world: World, superlink: World) -> None:
     from django.core.exceptions import ValidationError
 
-    from web.training.runs import training_runs
+    from web.startup.training.runs import training_runs
 
     try:
         world["runs"] = training_runs()
@@ -450,7 +450,7 @@ FLOWER_STATUSES = [
 
 @pytest.mark.parametrize("status_text", FLOWER_STATUSES)
 def test_every_status_flower_reports_has_a_label(status_text: str) -> None:
-    from web.training.runs import TrainingRun
+    from web.startup.training.runs import TrainingRun
 
     run = TrainingRun.from_flower(flower_run("3", status_text))
     assert run.status is not None
@@ -458,7 +458,7 @@ def test_every_status_flower_reports_has_a_label(status_text: str) -> None:
 
 
 def test_a_status_flower_adds_later_shows_as_flower_names_it() -> None:
-    from web.training.runs import TrainingRun
+    from web.startup.training.runs import TrainingRun
 
     run = TrainingRun.from_flower(flower_run("3", "finished:archived"))
     assert (run.status, run.status_label) == (None, "finished:archived")
@@ -466,7 +466,7 @@ def test_a_status_flower_adds_later_shows_as_flower_names_it() -> None:
 
 @pytest.mark.parametrize("status", FLOWER_STATUSES)
 def test_only_an_unfinished_run_is_in_progress(status: str) -> None:
-    from web.training.runs import RunStatus
+    from web.startup.training.runs import RunStatus
 
     assert RunStatus(status).in_progress == (not status.startswith("finished:"))
 
@@ -488,7 +488,7 @@ def superlink_refuses_stop(superlink: World) -> None:
 def stop(world: World, superlink: World, run_id: str) -> None:
     from django.core.exceptions import ValidationError
 
-    from web.training.runs import stop_run
+    from web.startup.training.runs import stop_run
 
     try:
         stop_run(int(run_id))
@@ -515,7 +515,7 @@ def stopping_refused(world: World, code: str) -> None:
 def transmit(world: World, superlink: World, run_id: str) -> None:
     from django.core.exceptions import ValidationError
 
-    from web.training.models import Transmission
+    from web.startup.training.models import Transmission
 
     superlink["answer"] = {"success": True, "run-id": "8"}
     try:
@@ -545,7 +545,7 @@ def receives_run_with(superlink: World, key: str, value: int) -> None:
 def records_transmission(
     world: World, run_id: str, final_model: str, name: str
 ) -> None:
-    from web.training.models import Transmission
+    from web.startup.training.models import Transmission
 
     transmission = Transmission.objects.get()
     assert (transmission.run_id, transmission.final_model) == (run_id, final_model)
@@ -595,7 +595,7 @@ def transmitting_refused(world: World, run_id: int) -> None:
     )
 )
 def transmitted_before(world: World, final_model: str, run_id: str) -> None:
-    from web.training.models import Transmission
+    from web.startup.training.models import Transmission
 
     Transmission.objects.create(
         final_model=final_model,
@@ -611,9 +611,9 @@ def superlink_knows_status(superlink: World, run_id: str, status: str) -> None:
 
 
 def delivery_of(world: World, run_id: str) -> Any:
-    from web.training.final_models import deliveries, final_models
-    from web.training.models import Transmission
-    from web.training.runs import training_runs
+    from web.startup.training.final_models import deliveries, final_models
+    from web.startup.training.models import Transmission
+    from web.startup.training.runs import training_runs
 
     kept = final_models(world["final_models_dir"])
     return deliveries(kept, training_runs(), list(Transmission.objects.all()))[run_id]
@@ -661,7 +661,7 @@ def transmission_succeeds(world: World) -> None:
 
 @pytest.mark.parametrize("status", FLOWER_STATUSES)
 def test_every_run_status_shows_a_delivery(status: str) -> None:
-    from web.training.final_models import Delivery
-    from web.training.runs import RunStatus
+    from web.startup.training.final_models import Delivery
+    from web.startup.training.runs import RunStatus
 
     assert isinstance(Delivery.of_run(RunStatus(status)), Delivery)

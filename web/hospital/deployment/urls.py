@@ -1,6 +1,6 @@
 from django.urls import path
 
-from web.deployment import views
+from web.hospital.deployment import views
 
 app_name = "deployment"
 urlpatterns = [

@@ -16,7 +16,7 @@ from tests.conftest import (
     write_final_model,
 )
 from web.accounts.models import User
-from web.deployment.models import Deployment
+from web.hospital.deployment.models import Deployment
 
 pytestmark = pytest.mark.django_db
 VALIDATION = {

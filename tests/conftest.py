@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from web.accounts.models import User
     from web.accounts.roles import Role
-    from web.lab.models import LabOrder, Practice
+    from web.hospital.lab.models import LabOrder, Practice
     from web.practice.models import Order, Patient, Sample
     from web.vocabulary import ClinicalIndication, Test
 from ml.cohort import CBC_VARS, FEATURES
@@ -65,7 +65,7 @@ def make_patient(name: str, sex: "RegisteredSex", age: int) -> "Patient":
     """A patient whose sample ID is a new NHANES number; the hospital's analyser
     stand-in holds placeholder values for it and no ferritin."""
     from ml.cohort import CBC_VARS
-    from web.nhanes.models import Participant
+    from web.hospital.nhanes.models import Participant
     from web.practice.models import Patient
 
     participant = Participant.objects.create(
@@ -124,7 +124,7 @@ def make_data_scientist(name: str) -> "User":
 
 def make_practice(certificate_name: str = "practice") -> "Practice":
     """A practice the hospital works with, by its certificate name."""
-    from web.lab.models import Practice
+    from web.hospital.lab.models import Practice
 
     return Practice.objects.add(
         certificate_name=certificate_name, name=certificate_name.title()
@@ -133,7 +133,7 @@ def make_practice(certificate_name: str = "practice") -> "Practice":
 
 def deliver(order: "Order") -> "LabOrder":
     """The lab order (DF23) arriving at the hospital, as its messaging endpoint records it."""
-    from web.lab.models import LabOrder, LabOrderDetails
+    from web.hospital.lab.models import LabOrder, LabOrderDetails
     from web.vocabulary import RegisteredSex, Test
 
     return LabOrder.objects.receive(
