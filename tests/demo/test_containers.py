@@ -489,10 +489,10 @@ seen["ordered"] = back == patient and "Awaiting lab report" in page
 seen["sent_to"] = laboratory in page
 
 lab.log_in("staff")
-_, to_analyse = lab.get("/lab/orders/")
-analyse = re.search(r'action="(/lab/orders/\d+/analyse/)"', to_analyse)[1]
+_, to_analyse = lab.get("/lab/test-requests/")
+analyse = re.search(r'action="(/lab/test-requests/\d+/analyse/)"', to_analyse)[1]
 lab.post(analyse, to_analyse)
-_, analysed = lab.get("/lab/orders/analysed/")
+_, analysed = lab.get("/lab/test-requests/analysed/")
 seen["analysed"] = "not screened" in analysed.lower()
 
 _, page = doctor.get(patient)
