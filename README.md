@@ -12,7 +12,7 @@ and 2017–2018, keeping fixed 50% and 25% samples for the medium and small
 hospitals. Each client trains on its own locally standardized data.
 
 After training, the ServerApp deploys the final model to every hospital, and
-each hospital screens new blood counts locally with `ml.screening`.
+each hospital screens new blood counts locally with `ml.inference`.
 
 ## Changes from `@javier/iron-deficiency`
 
@@ -44,11 +44,11 @@ and three Belgian hospitals.
   hospital acknowledges it. Each stores it as a new file named after the training run ID in its
   `final-models-path`, with its own standardization and a local validation on
   its validation split: the confusion matrix at each threshold from 0.05 to
-  0.95 in steps of 0.05, and AUROC (`ml/final_models.py`). A
+  0.95 in steps of 0.05, and AUROC (`ml/training.py`). A
   hospital decides itself which final model to deploy, and at which threshold. The startup keeps a copy of every final
   model in `<demo-dir>/startup/final-models/`, so the assessment can cover how
   the model is used, not only how it is trained.
-- **Local screening** (`ml/screening.py`). Only registered women
+- **Local screening** (`ml/inference.py`). Only registered women
   aged 18–49 are scored, as the model was trained on them alone. Only each
   sample ID and its decision leave the screening, with no scores or other input
   columns.
@@ -140,7 +140,7 @@ blood-count variables; other columns are ignored. Only women aged 18–49 are
 screened, as the model was trained on them alone:
 
 ```shell
-python -m ml.screening \
+python -m ml.inference \
   --model ~/.cache/iron-deficiency/hospitals/az-diest/screening-models/<run-id>.pt \
   --input demo_data/new_samples.csv \
   --threshold 0.5 \

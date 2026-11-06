@@ -13,8 +13,8 @@ from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains, assertNotContains, assertRedirects
 from pytest_django.fixtures import Settings
 
-from ml.final_models import keep_final_model
-from ml.training import Net
+from ml.final_model import Net
+from ml.training import keep_final_model
 from tests.conftest import make_data_scientist, make_laboratory_director
 from web.startup.training.forms import SubmitRunForm
 
@@ -62,8 +62,8 @@ def test_final_models_page(
 def test_a_final_models_run_configuration_is_listed(
     client: Client, final_models_dir: Path
 ) -> None:
-    from ml.final_models import keep_final_model
-    from ml.training import Net
+    from ml.final_model import Net
+    from ml.training import keep_final_model
 
     keep_final_model(
         final_models_dir,
@@ -242,7 +242,7 @@ def test_a_run_without_an_answer_shows_no_server_paths(
 def test_a_final_model_downloads_for_sale(
     client: Client, final_models_dir: Path
 ) -> None:
-    from ml.final_model_file import from_bytes
+    from ml.final_model import from_bytes
 
     response = client.get(reverse("training:for_sale", kwargs={"run_id": "7"}))
     assert response.status_code == 200
@@ -280,7 +280,7 @@ def test_each_final_model_links_to_its_sale(
 
 
 def test_every_offered_parameter_is_kept_with_the_final_model() -> None:
-    from ml.final_models import TRAINING_PARAMETERS
+    from ml.training import TRAINING_PARAMETERS
 
     for name in SubmitRunForm.base_fields:
         assert name.replace("_", "-") in TRAINING_PARAMETERS
