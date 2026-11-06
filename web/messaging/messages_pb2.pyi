@@ -70,15 +70,15 @@ class LabOrder(_message.Message):
 
     DESCRIPTOR: _descriptor.Descriptor
 
-    PRACTICE_FIELD_NUMBER: _builtins.int
+    CERTIFICATE_NAME_FIELD_NUMBER: _builtins.int
     SAMPLE_ID_FIELD_NUMBER: _builtins.int
     TEST_FIELD_NUMBER: _builtins.int
     SCREENED_INDICATION_FIELD_NUMBER: _builtins.int
     REGISTERED_SEX_FIELD_NUMBER: _builtins.int
     AGE_FIELD_NUMBER: _builtins.int
     ORDERED_AT_FIELD_NUMBER: _builtins.int
-    practice: _builtins.str
-    """the sending practice's certificate name (features/messaging.feature)"""
+    certificate_name: _builtins.str
+    """the sending practice's (features/messaging.feature)"""
     sample_id: _builtins.str
     test: Test.ValueType
     screened_indication: _builtins.bool
@@ -90,7 +90,7 @@ class LabOrder(_message.Message):
     def __init__(
         self,
         *,
-        practice: _builtins.str = ...,
+        certificate_name: _builtins.str = ...,
         sample_id: _builtins.str = ...,
         test: Test.ValueType = ...,
         screened_indication: _builtins.bool = ...,
@@ -103,10 +103,10 @@ class LabOrder(_message.Message):
     type _ClearFieldArgType = _typing.Literal[
         "age",
         b"age",
+        "certificate_name",
+        b"certificate_name",
         "ordered_at",
         b"ordered_at",
-        "practice",
-        b"practice",
         "registered_sex",
         b"registered_sex",
         "sample_id",
@@ -211,24 +211,24 @@ class Received(_message.Message):
 type Global___Received = Received  # noqa: Y015
 
 @_typing.final
-class FetchLabReports(_message.Message):
+class NewLabReportsRequest(_message.Message):
     DESCRIPTOR: _descriptor.Descriptor
 
-    PRACTICE_FIELD_NUMBER: _builtins.int
-    practice: _builtins.str
-    """the sending practice's certificate name"""
+    CERTIFICATE_NAME_FIELD_NUMBER: _builtins.int
+    certificate_name: _builtins.str
+    """the sending practice's"""
     def __init__(
         self,
         *,
-        practice: _builtins.str = ...,
+        certificate_name: _builtins.str = ...,
     ) -> None: ...
     type _HasFieldArgType = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _typing.Literal["practice", b"practice"]  # noqa: Y015
+    type _ClearFieldArgType = _typing.Literal["certificate_name", b"certificate_name"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___FetchLabReports = FetchLabReports  # noqa: Y015
+type Global___NewLabReportsRequest = NewLabReportsRequest  # noqa: Y015
 
 @_typing.final
 class LabReports(_message.Message):
@@ -256,22 +256,22 @@ type Global___LabReports = LabReports  # noqa: Y015
 class Acknowledgement(_message.Message):
     DESCRIPTOR: _descriptor.Descriptor
 
-    PRACTICE_FIELD_NUMBER: _builtins.int
+    CERTIFICATE_NAME_FIELD_NUMBER: _builtins.int
     REPORT_IDS_FIELD_NUMBER: _builtins.int
-    practice: _builtins.str
-    """the sending practice's certificate name"""
+    certificate_name: _builtins.str
+    """the sending practice's"""
     @_builtins.property
     def report_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
     def __init__(
         self,
         *,
-        practice: _builtins.str = ...,
+        certificate_name: _builtins.str = ...,
         report_ids: _abc.Iterable[_builtins.str] | None = ...,
     ) -> None: ...
     type _HasFieldArgType = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
     type _ClearFieldArgType = _typing.Literal[
-        "practice", b"practice", "report_ids", b"report_ids"
+        "certificate_name", b"certificate_name", "report_ids", b"report_ids"
     ]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...

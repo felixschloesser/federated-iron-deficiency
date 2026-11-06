@@ -11,7 +11,7 @@ from django.utils import timezone
 from web.lab.forms import LabOrderForm
 from web.lab.models import LabOrder, LabOrderDetails, Practice
 from web.messaging import messages_pb2, messages_pb2_grpc
-from web.messaging.choices import from_proto, moment, timestamp, to_proto
+from web.messaging.convert import from_proto, moment, timestamp, to_proto
 from web.vocabulary import RegisteredSex, Test
 
 
@@ -35,7 +35,9 @@ def _value(choice: models.TextChoices | None) -> str:
 
 
 type FromPractice = (
-    messages_pb2.LabOrder | messages_pb2.FetchLabReports | messages_pb2.Acknowledgement
+    messages_pb2.LabOrder
+    | messages_pb2.NewLabReportsRequest
+    | messages_pb2.Acknowledgement
 )
 
 
@@ -44,15 +46,17 @@ def practice_of(request: FromPractice, context: grpc.ServicerContext) -> Practic
     one, or from a practice the hospital does not know, is refused before anything
     is read or recorded (features/messaging.feature). With the report's mutual TLS
     the name would come from the connection, context.peer_identities()."""
-    if not request.practice:
+    if not request.certificate_name:
         context.abort(grpc.StatusCode.INVALID_ARGUMENT, "practice_required")
-    practice = Practice.objects.filter(certificate_name=request.practice).first()
+    practice = Practice.objects.filter(
+        certificate_name=request.certificate_name
+    ).first()
     if practice is None:
         context.abort(grpc.StatusCode.PERMISSION_DENIED, "unknown_practice")
     return practice
 
 
-class LabOrderService(messages_pb2_grpc.LaboratoryServicer):
+class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
     """Receives lab orders and hands out lab reports, like a view: form, service."""
 
     @with_database
@@ -80,7 +84,7 @@ class LabOrderService(messages_pb2_grpc.LaboratoryServicer):
         )
         if not form.is_valid():
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, form.errors.as_json())
-        LabOrder.objects.record(
+        LabOrder.objects.receive(
             practice=practice,
             details=LabOrderDetails(**form.cleaned_data),
         )
@@ -88,7 +92,7 @@ class LabOrderService(messages_pb2_grpc.LaboratoryServicer):
 
     @with_database
     def FetchNewLabReports(
-        self, request: messages_pb2.FetchLabReports, context: grpc.ServicerContext
+        self, request: messages_pb2.NewLabReportsRequest, context: grpc.ServicerContext
     ) -> messages_pb2.LabReports:
         practice = practice_of(request, context)
         return messages_pb2.LabReports(
@@ -121,7 +125,7 @@ class LabOrderService(messages_pb2_grpc.LaboratoryServicer):
 def serve(address: str) -> tuple[grpc.Server, int]:
     """Start the endpoint, plaintext: the demo leaves out the report's mutual TLS."""
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
-    messages_pb2_grpc.add_LaboratoryServicer_to_server(LabOrderService(), server)
+    messages_pb2_grpc.add_LaboratoryServicer_to_server(LaboratoryService(), server)
     port = server.add_insecure_port(address)
     server.start()
     return server, port

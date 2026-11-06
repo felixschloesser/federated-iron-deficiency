@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "iron-deficiency"
 version = "1.3.0"
-description = "Federated iron-deficiency classification with PyTorch and Flower"
+description = "Federated iron-deficiency screening with PyTorch and Flower"
 license = {file = "LICENSE"}
 requires-python = ">=3.13"
 dependencies = [

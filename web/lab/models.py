@@ -159,7 +159,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
         )
 
     @transaction.atomic
-    def record(self, *, practice: Practice, details: LabOrderDetails) -> LabOrder:
+    def receive(self, *, practice: Practice, details: LabOrderDetails) -> LabOrder:
         """Record a lab order (DF23) from `practice` once, however often it arrives
         (features/messaging.feature)."""
         sample, _ = Sample.objects.get_or_create(

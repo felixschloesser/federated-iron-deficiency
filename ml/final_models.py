@@ -36,7 +36,7 @@ TRAINING_PARAMETERS = (
 DEFAULT_DEMO_DIR = Path.home() / ".cache" / "iron-deficiency"
 
 
-def hospital_final_models(demo_dir: Path, partition_id: int) -> Path:
+def hospital_screening_models(demo_dir: Path, partition_id: int) -> Path:
     """The screening-models folder of the hospital that holds this partition."""
     cycle = list(CYCLES)[partition_id]  # Partition IDs follow CYCLES order
     return demo_dir / "hospitals" / hospital_slug(HOSPITALS[cycle]) / "screening-models"
