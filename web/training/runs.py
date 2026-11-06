@@ -24,13 +24,15 @@ LIST_TIMEOUT_SECONDS = 5
 CONNECTION = "demo"
 
 
-def run_configuration() -> str:
-    """The run configuration the ServerApp reads: in a deployment, the demo folder
-    above the startup's. No threshold: each hospital's laboratory director
-    chooses one (features/deployment.feature)."""
-    if settings.STARTUP_DIR is None:
-        return ""
-    return f"demo-dir='{settings.STARTUP_DIR.parent}'"
+def run_configuration(chosen: dict[str, int | float]) -> str:
+    """The run configuration as `flwr run --run-config` takes it: what the data
+    scientist chose and, in a deployment, the demo folder above the startup's. No
+    threshold: each hospital's laboratory director chooses one
+    (features/deployment.feature)."""
+    pairs = [f"{key}={value!r}" for key, value in chosen.items()]
+    if settings.STARTUP_DIR is not None:
+        pairs.append(f"demo-dir='{settings.STARTUP_DIR.parent}'")
+    return " ".join(pairs)
 
 
 def flower(arguments: list[str], timeout: int) -> dict[str, Any]:
@@ -52,9 +54,9 @@ def flower(arguments: list[str], timeout: int) -> dict[str, Any]:
     return answer
 
 
-def submit_run() -> int:
-    """Submit one training run of this app; return its run ID."""
-    configuration = run_configuration()
+def submit_run(chosen: dict[str, int | float]) -> int:
+    """Submit one training run of this app, configured as chosen; return its run ID."""
+    configuration = run_configuration(chosen)
     try:
         answer = flower(
             [
