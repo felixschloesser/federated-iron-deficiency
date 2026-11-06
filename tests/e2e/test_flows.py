@@ -256,7 +256,8 @@ def kept_not_stored(compose: Compose, journey: dict[str, Any]) -> None:
 
 
 # As prepare does for the demo: the startup's web app, migrated, with its data
-# scientist, knowing UZ Leuven as a recipient hospital by its folder's name.
+# scientist, knowing AZ Diest as a recipient hospital by its folder's name. AZ
+# Diest never trained here: any hospital the startup registers may fetch.
 RELEASE = """
 from django.utils import timezone
 from web.accounts.models import User
@@ -268,8 +269,8 @@ Release.objects.release(
 )
 """
 
-# What the laboratory director's Fetch new final models runs, in UZ Leuven's
-# own web app container, on the final-models network; the run IDs it stored.
+# What the laboratory director's Fetch new final models runs, in AZ Diest's own
+# web app container, on the final-models network; the run IDs it stored.
 FETCH_FINAL_MODELS = """
 import json
 from django.utils import timezone
@@ -278,31 +279,47 @@ print(json.dumps(fetch_final_models(now=timezone.now())))
 """
 
 
+def stored_at(compose: Compose, hospital: str) -> dict[str, str]:
+    """The final models a hospital stored: each file's name and SHA-256."""
+    script = (
+        "import hashlib, json; from pathlib import Path;"
+        f" folder = Path('/demo/hospitals/{hospital}/screening-models');"
+        " print(json.dumps({path.name: hashlib.sha256(path.read_bytes()).hexdigest()"
+        " for path in sorted(folder.glob('*.pt'))}))"
+    )
+    result = compose("run", "--rm", "--no-deps", "prepare", "python", "-c", script)
+    held: dict[str, str] = json.loads(result.stdout.strip().splitlines()[-1])
+    return held
+
+
 @when("the data scientist releases that final model")
 def release(compose: Compose, journey: dict[str, Any]) -> None:
     seeding = ["run", "--rm", "--no-deps", "-e", "DJANGO_DEBUG=1", "startup-web"]
     manage = ["python", "manage.py"]
     compose(*seeding, *manage, "migrate", "-v0")
     compose(*seeding, *manage, "seed_startup")
-    compose(*seeding, *manage, "add_hospital", HOSPITAL, "UZ Leuven")
+    compose(*seeding, *manage, "add_hospital", APP_HOSPITAL, "AZ Diest")
     up(compose, "startup-web")
     release_one = RELEASE.format(run_id=journey["training"])
     compose(*seeding, *manage, "shell", "-c", release_one)
+    # AZ Diest's own cohort, to validate on, as prepare saves every hospital's.
+    cohort = "from pathlib import Path" + synthetic_cohort(APP_HOSPITAL)
+    compose("run", "--rm", "--no-deps", "prepare", "python", "-c", cohort)
 
 
-@then("UZ Leuven still stores none")
-def still_none(compose: Compose) -> None:
-    assert folders(compose)["hospital"] == {}
+@then("AZ Diest stores none yet")
+def none_yet(compose: Compose) -> None:
+    assert stored_at(compose, APP_HOSPITAL) == {}
 
 
-@when(parsers.re("UZ Leuven fetches new final models(?: again)?"))
+@when(parsers.re("AZ Diest fetches new final models(?: again)?"))
 def hospital_fetches(compose: Compose, journey: dict[str, Any]) -> None:
-    journey["before"] = folders(compose)["hospital"]
+    journey["before"] = stored_at(compose, APP_HOSPITAL)
     result = compose(
         "run",
         "--rm",
         "--no-deps",
-        f"{HOSPITAL}-web",
+        f"{APP_HOSPITAL}-web",
         "python",
         "manage.py",
         "shell",
@@ -313,14 +330,14 @@ def hospital_fetches(compose: Compose, journey: dict[str, Any]) -> None:
 
 
 @then(
-    "UZ Leuven stores the final model under the training run's ID, with its local"
+    "AZ Diest stores the final model under the training run's ID, with its local"
     " validation"
 )
 def stored(compose: Compose, journey: dict[str, Any]) -> None:
     assert journey["fetched"] == [journey["training"]]
-    held = folders(compose)["hospital"]
+    held = stored_at(compose, APP_HOSPITAL)
     assert list(held) == [f"{journey['training']}.pt"], held
-    path = f"/demo/hospitals/{HOSPITAL}/screening-models/{journey['training']}.pt"
+    path = f"/demo/hospitals/{APP_HOSPITAL}/screening-models/{journey['training']}.pt"
     script = (
         "from pathlib import Path; from ml.final_model import read;"
         f" model = read(Path({path!r}));"
@@ -330,7 +347,7 @@ def stored(compose: Compose, journey: dict[str, Any]) -> None:
     assert result.stdout.strip().splitlines()[-1] == "True"
 
 
-@then("it fetches none and UZ Leuven's copy is unchanged")
+@then("it fetches none and AZ Diest's copy is unchanged")
 def unchanged(compose: Compose, journey: dict[str, Any]) -> None:
     assert journey["fetched"] == []
-    assert folders(compose)["hospital"] == journey["before"]
+    assert stored_at(compose, APP_HOSPITAL) == journey["before"]
