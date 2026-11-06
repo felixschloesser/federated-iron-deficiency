@@ -141,7 +141,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
 
     def order_url(self, sample: Sample, test: Test) -> str:
         return reverse(
-            "practice:new_order",
+            "practice:order",
             kwargs={"patient": self.object.pk, "sample": sample.pk, "test": test},
         )
 
@@ -248,7 +248,7 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSample
         messages.success(self.request, f"Sample {sample.sample_id} collected.")
         # Straight to the routine first test; any other is ordered from the sample.
         return redirect(
-            "practice:new_order",
+            "practice:order",
             patient=self.patient.pk,
             sample=sample.pk,
             test=Test.CBC,

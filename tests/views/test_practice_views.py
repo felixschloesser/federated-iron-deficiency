@@ -75,7 +75,7 @@ def test_account_without_a_role_is_refused(client: Client, patient: Patient) -> 
         reverse("practice:orders"),
         patient_url(patient),
         reverse(
-            "practice:new_order",
+            "practice:order",
             kwargs={"patient": patient.pk, "sample": 1, "test": OrderedTest.CBC},
         ),
     ):
@@ -252,7 +252,7 @@ def test_unknown_test_is_not_found(
 ) -> None:
     logged_in(client, general_practitioner).post(collect_url(patient))
     sample = patient.samples.get()
-    url = patient_url(patient) + f"samples/{sample.pk}/orders/new/vitamin-d/"
+    url = patient_url(patient) + f"samples/{sample.pk}/orders/vitamin-d/"
     assert client.get(url).status_code == 404
 
 
@@ -379,7 +379,7 @@ def test_form_error_is_shown_once_in_the_summary(client: Client) -> None:
 
 def sample_order_url(patient: Patient, test: OrderedTest) -> str:
     return reverse(
-        "practice:new_order",
+        "practice:order",
         kwargs={
             "patient": patient.pk,
             "sample": patient.samples.latest("pk").pk,
@@ -447,7 +447,7 @@ def test_another_patients_sample_is_not_found(
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
     url = reverse(
-        "practice:new_order",
+        "practice:order",
         kwargs={
             "patient": other_patient.pk,
             "sample": patient.samples.get().pk,
