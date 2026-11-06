@@ -14,11 +14,11 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from tests.conftest import World
 from web.hospital.lab.messaging import serve
 from web.hospital.lab.models import (
-    LabOrder,
     LabOrderDetails,
     Practice,
     Sample,
     ScreeningResult,
+    TestRequest,
 )
 from web.hospital.nhanes.models import Participant
 from web.messaging import messages_pb2, messages_pb2_grpc
@@ -119,12 +119,12 @@ def sends_from_unknown_practice(world: World, certificate_name: str) -> None:
 
 @then(parsers.parse('"{name}" has a lab order for sample "{sample_id}"'))
 def has_lab_order(name: str, sample_id: str) -> None:
-    assert LabOrder.objects.filter(sample__sample_id=sample_id).exists()
+    assert TestRequest.objects.filter(sample__sample_id=sample_id).exists()
 
 
 @then(parsers.parse('"{name}" has one lab order for sample "{sample_id}"'))
 def has_one_lab_order(name: str, sample_id: str) -> None:
-    assert LabOrder.objects.filter(sample__sample_id=sample_id).count() == 1
+    assert TestRequest.objects.filter(sample__sample_id=sample_id).count() == 1
 
 
 @then(
@@ -134,22 +134,25 @@ def has_one_lab_order(name: str, sample_id: str) -> None:
     )
 )
 def lab_order_holds(world: World, certificate_name: str) -> None:
-    lab_order = LabOrder.objects.select_related("sample__practice").get()
+    test_request = TestRequest.objects.select_related("sample__practice").get()
     sent = world["sent"]
-    assert lab_order.sample.sample_id == sent.sample_id
-    assert (lab_order.test, lab_order.screened_indication) == (OrderedTest.CBC, True)
-    assert (lab_order.registered_sex, lab_order.age) == (RegisteredSex.FEMALE, 32)
-    assert lab_order.ordered_at == NOW
+    assert test_request.sample.sample_id == sent.sample_id
+    assert (test_request.test, test_request.screened_indication) == (
+        OrderedTest.CBC,
+        True,
+    )
+    assert (test_request.registered_sex, test_request.age) == (RegisteredSex.FEMALE, 32)
+    assert test_request.ordered_at == NOW
     # The practice by the certificate name it sent; no general practitioner.
-    assert lab_order.sample.practice.certificate_name == certificate_name
+    assert test_request.sample.practice.certificate_name == certificate_name
 
 
 @then("no lab order names a clinical indication")
 def names_no_indication() -> None:
     # What the hospital stores (DS8) has no field for it: the laboratory never
     # learns why a CBC was ordered; the message (DF23) has none either.
-    assert LabOrder.objects.exists()
-    assert "indication" not in {field.name for field in LabOrder._meta.get_fields()}
+    assert TestRequest.objects.exists()
+    assert "indication" not in {field.name for field in TestRequest._meta.get_fields()}
     assert "indication" not in messages_pb2.LabOrder.DESCRIPTOR.fields_by_name
 
 
@@ -167,15 +170,15 @@ def refused_unknown_practice(world: World) -> None:
 
 @then(parsers.parse('"{name}" has no lab order'))
 def no_lab_order(name: str) -> None:
-    assert not LabOrder.objects.exists()
+    assert not TestRequest.objects.exists()
 
 
-def release(sample_id: str, certificate_name: str, test: OrderedTest) -> LabOrder:
+def release(sample_id: str, certificate_name: str, test: OrderedTest) -> TestRequest:
     """A lab order of the practice, analysed: its lab report released at once."""
     Participant.objects.get_or_create(
         seqn=int(sample_id.split("-")[0]), defaults={"cbc": {}}
     )
-    lab_order = LabOrder.objects.receive(
+    test_request = TestRequest.objects.receive(
         practice=Practice.objects.get(certificate_name=certificate_name),
         details=LabOrderDetails(
             sample_id=sample_id,
@@ -186,7 +189,7 @@ def release(sample_id: str, certificate_name: str, test: OrderedTest) -> LabOrde
             ordered_at=NOW,
         ),
     )
-    return lab_order.run_analyser(directory=None, now=NOW)
+    return test_request.run_analyser(directory=None, now=NOW)
 
 
 @given(
@@ -206,9 +209,9 @@ def released(name: str, sample_id: str, certificate_name: str) -> None:
     )
 )
 def released_suggested(name: str, sample_id: str, certificate_name: str) -> None:
-    lab_order = release(sample_id, certificate_name, OrderedTest.CBC)
+    test_request = release(sample_id, certificate_name, OrderedTest.CBC)
     # As the deployed model would have decided (features/hospital/screening.feature).
-    LabOrder.objects.filter(pk=lab_order.pk).update(
+    TestRequest.objects.filter(pk=test_request.pk).update(
         screening_result=ScreeningResult.FERRITIN_SUGGESTED, not_screened_reason=None
     )
 
@@ -223,7 +226,7 @@ def fetches(world: World, certificate_name: str) -> None:
 
 
 def report_id(sample_id: str) -> str:
-    return str(LabOrder.objects.get(sample__sample_id=sample_id).pk)
+    return str(TestRequest.objects.get(sample__sample_id=sample_id).pk)
 
 
 ACKNOWLEDGES = (
@@ -266,8 +269,8 @@ def receives_none(world: World) -> None:
 
 @then(parsers.parse('the lab report on sample "{sample_id}" is still new at "{name}"'))
 def still_new(sample_id: str, name: str) -> None:
-    lab_order = LabOrder.objects.get(sample__sample_id=sample_id)
-    assert lab_order.report_acknowledged_at is None
+    test_request = TestRequest.objects.get(sample__sample_id=sample_id)
+    assert test_request.report_acknowledged_at is None
 
 
 @then(parsers.parse('"{name}" has two samples with sample ID "{sample_id}"'))

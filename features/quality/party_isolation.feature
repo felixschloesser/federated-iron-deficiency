@@ -16,7 +16,7 @@ Feature: Each party's software and data stay inside its trust boundary
 
     Examples:
       | party    | own                    | others                                          |
-      | hospital | lab_laborder           | "practice_", "training_"                        |
+      | hospital | lab_testrequest        | "practice_", "training_"                        |
       | practice | practice_patient       | "lab_", "nhanes_", "deployment_", "training_"   |
       | startup  | accounts_user          | "lab_", "nhanes_", "deployment_", "practice_"   |
 

@@ -88,6 +88,9 @@ django_settings_module = "web.settings"
 DJANGO_SETTINGS_MODULE = "web.settings"
 # The audit lives in .claude/, out of readers' way; its test imports it.
 pythonpath = [".claude"]
+# Every test is a function: no class is collected, so domain classes named
+# Test... (Test, TestRequest) can be imported into tests as they are.
+python_classes = []
 bdd_features_base_dir = "features/"
 # A parametrisation that finds nothing fails, never skips quietly.
 empty_parameter_set_mark = "fail_at_collect"

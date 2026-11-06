@@ -16,7 +16,7 @@ OTHER_COMMITS_AFTER_SECONDS = 1.0
 
 def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
     from tests.hospital.conftest import make_practice
-    from web.hospital.lab.models import LabOrder, LabOrderDetails
+    from web.hospital.lab.models import LabOrderDetails, TestRequest
     from web.vocabulary import RegisteredSex, Test
 
     practice = make_practice()
@@ -29,7 +29,7 @@ def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
     commit = threading.Timer(OTHER_COMMITS_AFTER_SECONDS, other.execute, ["COMMIT"])
     commit.start()
     try:
-        LabOrder.objects.receive(
+        TestRequest.objects.receive(
             practice=practice,
             details=LabOrderDetails(
                 sample_id="135318-1",
@@ -44,4 +44,4 @@ def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
         commit.join()
         other.close()
 
-    assert LabOrder.objects.count() == 1
+    assert TestRequest.objects.count() == 1
