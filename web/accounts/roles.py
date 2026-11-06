@@ -33,7 +33,7 @@ class Role(models.TextChoices):
             case Role.GENERAL_PRACTITIONER:
                 return reverse("practice:patients")
             case Role.LABORATORY_STAFF:
-                return reverse("lab:orders")
+                return reverse("lab:test_requests")
             case Role.LABORATORY_DIRECTOR:
                 return reverse("deployment:screening_models")
             case Role.DATA_SCIENTIST:
@@ -51,7 +51,7 @@ class Role(models.TextChoices):
                 ]
             case Role.LABORATORY_STAFF:
                 return [
-                    {"url": reverse("lab:orders"), "label": "To analyse"},
+                    {"url": reverse("lab:test_requests"), "label": "To analyse"},
                     {"url": reverse("lab:analysed"), "label": "Analysed"},
                 ]
             case Role.LABORATORY_DIRECTOR:

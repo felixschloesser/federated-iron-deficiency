@@ -122,13 +122,13 @@ class StoredSample(TypedDict):
     stored_sample: bool
 
 
-class LabOrderManager(models.Manager["LabOrder"]):
-    """What laboratory staff see: lab orders, which hold no patient field (features/practice/access.feature)."""
+class TestRequestManager(models.Manager["TestRequest"]):
+    """What laboratory staff see: test requests, which hold no patient field (features/practice/access.feature)."""
 
-    def to_analyse(self) -> models.QuerySet[WithAnnotations[LabOrder, StoredSample]]:
+    def to_analyse(self) -> models.QuerySet[WithAnnotations[TestRequest, StoredSample]]:
         """Tests the analyser has not run yet. A sample arrives with its lab order; it
         is a stored sample once another test on it has been analysed (features/hospital/lab.feature)."""
-        analysed_on_same_sample = LabOrder.objects.filter(
+        analysed_on_same_sample = TestRequest.objects.filter(
             sample=OuterRef("sample"), analysed_at__isnull=False
         )
         return (
@@ -138,7 +138,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
             .order_by("ordered_at", "pk")
         )
 
-    def analysed(self) -> models.QuerySet[LabOrder]:
+    def analysed(self) -> models.QuerySet[TestRequest]:
         """Tests with results, newest first."""
         return (
             self.filter(analysed_at__isnull=False)
@@ -146,8 +146,8 @@ class LabOrderManager(models.Manager["LabOrder"]):
             .order_by("-analysed_at", "-pk")
         )
 
-    def reports_to_send(self, practice: Practice) -> models.QuerySet[LabOrder]:
-        """`practice`'s analysed lab orders it has not acknowledged yet (features/hospital/messaging.feature)."""
+    def reports_to_send(self, practice: Practice) -> models.QuerySet[TestRequest]:
+        """`practice`'s analysed test requests it has not acknowledged yet (features/hospital/messaging.feature)."""
         return (
             self.filter(
                 sample__practice=practice,
@@ -159,13 +159,14 @@ class LabOrderManager(models.Manager["LabOrder"]):
         )
 
     @transaction.atomic
-    def receive(self, *, practice: Practice, details: LabOrderDetails) -> LabOrder:
-        """Record a lab order (DF23) from `practice` once, however often it arrives
+    def receive(self, *, practice: Practice, details: LabOrderDetails) -> TestRequest:
+        """Receive a lab order (DF23) from `practice` as a test request, once,
+        however often it arrives
         (features/hospital/messaging.feature)."""
         sample, _ = Sample.objects.get_or_create(
             practice=practice, sample_id=details.sample_id
         )
-        lab_order, _ = self.get_or_create(
+        test_request, _ = self.get_or_create(
             sample=sample,
             test=details.test,
             defaults={
@@ -175,7 +176,7 @@ class LabOrderManager(models.Manager["LabOrder"]):
                 "ordered_at": details.ordered_at,
             },
         )
-        return lab_order
+        return test_request
 
     @transaction.atomic
     def acknowledge(
@@ -189,11 +190,11 @@ class LabOrderManager(models.Manager["LabOrder"]):
         ).update(report_acknowledged_at=now)
 
 
-class LabOrder(models.Model):
-    """One test on a sample, as the lab order (DF23) said: no patient field (features/practice/access.feature)."""
+class TestRequest(models.Model):
+    """A test request: one test on a sample, as its lab order (DF23) said; no patient field (features/practice/access.feature)."""
 
     sample = models.ForeignKey(
-        Sample, on_delete=models.PROTECT, related_name="lab_orders"
+        Sample, on_delete=models.PROTECT, related_name="test_requests"
     )
     test = models.CharField(max_length=8, choices=Test.choices)
     # Whether the general practitioner's indication is a screened one (features/hospital/screening.feature, features/hospital/messaging.feature);
@@ -225,7 +226,7 @@ class LabOrder(models.Model):
     # Absent until the general practitioner's app confirmed it has the lab report.
     report_acknowledged_at = models.DateTimeField(null=True, blank=True)
 
-    objects = LabOrderManager()
+    objects = TestRequestManager()
 
     class Meta:
         constraints = (
@@ -254,7 +255,7 @@ class LabOrder(models.Model):
         return self.screening_result == ScreeningResult.FERRITIN_SUGGESTED
 
     @transaction.atomic
-    def run_analyser(self, *, directory: Path | None, now: datetime) -> LabOrder:
+    def run_analyser(self, *, directory: Path | None, now: datetime) -> TestRequest:
         """Record what the analyser measures on the stored sample for the test (features/hospital/lab.feature), screen a CBC with the deployed model in `directory`, and so release its
         lab report at once (features/hospital/screening.feature): the report goes out with the analysis, never before."""
         # Read again under the write lock: this copy may predate another analysis.

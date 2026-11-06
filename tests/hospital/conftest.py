@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from web.accounts.models import User
-    from web.hospital.lab.models import LabOrder, Practice
+    from web.hospital.lab.models import Practice, TestRequest
     from web.hospital.nhanes.models import Participant
     from web.vocabulary import Test
 
@@ -55,12 +55,12 @@ def receive_lab_order(
     now: "datetime",
     sex: "RegisteredSex" = RegisteredSex.FEMALE,
     age: int = 32,
-) -> "LabOrder":
+) -> "TestRequest":
     """A lab order (DF23) as the hospital's messaging endpoint records it, from the
     practice make_practice() adds; a CBC for a screened indication."""
-    from web.hospital.lab.models import LabOrder, LabOrderDetails
+    from web.hospital.lab.models import LabOrderDetails, TestRequest
 
-    return LabOrder.objects.receive(
+    return TestRequest.objects.receive(
         practice=make_practice(),
         details=LabOrderDetails(
             sample_id=sample_id,

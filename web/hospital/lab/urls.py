@@ -4,10 +4,10 @@ from web.hospital.lab import views
 
 app_name = "lab"
 urlpatterns = [
-    path("orders/", views.ToAnalyseView.as_view(), name="orders"),
-    path("orders/analysed/", views.AnalysedView.as_view(), name="analysed"),
+    path("test-requests/", views.ToAnalyseView.as_view(), name="test_requests"),
+    path("test-requests/analysed/", views.AnalysedView.as_view(), name="analysed"),
     path(
-        "orders/<int:pk>/analyse/",
+        "test-requests/<int:pk>/analyse/",
         views.RunAnalyserView.as_view(),
         name="analyse",
     ),

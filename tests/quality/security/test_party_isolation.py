@@ -111,7 +111,7 @@ def tables_after_migrating_and_seeding(party: str, folder: Path) -> set[str]:
 @pytest.mark.parametrize(
     ("party", "own", "others"),
     [
-        ("hospital", "lab_laborder", ("practice_", "training_")),
+        ("hospital", "lab_testrequest", ("practice_", "training_")),
         (
             "practice",
             "practice_patient",

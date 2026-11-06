@@ -11,7 +11,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from ml.cohort import CBC_VARS
 from tests.conftest import World
 from tests.hospital.conftest import make_practice, make_tube, receive_lab_order
-from web.hospital.lab.models import LabOrder, Sample
+from web.hospital.lab.models import Sample, TestRequest
 from web.hospital.nhanes.models import FERRITIN, Participant
 from web.vocabulary import RegisteredSex
 from web.vocabulary import Test as OrderedTest
@@ -32,7 +32,7 @@ def place(world: World, test: str, patient: str) -> None:
     """A new sample of the patient arriving with its lab order."""
     record = world["patients"][patient]
     record["samples"] += 1
-    world["lab_order"] = receive_lab_order(
+    world["test_request"] = receive_lab_order(
         f"{record['seqn']}-{record['samples']}",
         TESTS[test],
         NOW,
@@ -86,8 +86,8 @@ def an_order(world: World, test: str, patient: str) -> None:
 
 @given("a ferritin order on that sample")
 def ferritin_on_that_sample(world: World) -> None:
-    analysed = world["lab_order"]
-    world["lab_order"] = receive_lab_order(
+    analysed = world["test_request"]
+    world["test_request"] = receive_lab_order(
         analysed.sample.sample_id,
         OrderedTest.FERRITIN,
         NOW,
@@ -101,7 +101,7 @@ def ferritin_on_that_sample(world: World) -> None:
 )
 def an_analysed_sample(world: World, test: str, patient: str) -> None:
     place(world, test, patient)
-    world["lab_order"].run_analyser(directory=None, now=NOW)
+    world["test_request"].run_analyser(directory=None, now=NOW)
 
 
 @given(
@@ -113,9 +113,9 @@ def no_tube(world: World, patient: str) -> None:
 
 @when("laboratory staff run the analyser")
 def run_analyser(world: World) -> None:
-    lab_order = LabOrder.objects.get(pk=world["lab_order"].pk)
+    test_request = TestRequest.objects.get(pk=world["test_request"].pk)
     try:
-        world["lab_order"] = lab_order.run_analyser(directory=None, now=NOW)
+        world["test_request"] = test_request.run_analyser(directory=None, now=NOW)
     except ValidationError as error:
         world["error"] = error
 
@@ -126,7 +126,9 @@ PAGES = {"first": 0, "second": 1}
 @given("laboratory staff opened the CBC order on two pages")
 def two_pages(world: World) -> None:
     """Two copies of the lab order as loaded, like two open tabs or two staff."""
-    world["pages"] = [LabOrder.objects.get(pk=world["lab_order"].pk) for _ in PAGES]
+    world["pages"] = [
+        TestRequest.objects.get(pk=world["test_request"].pk) for _ in PAGES
+    ]
 
 
 @when(parsers.parse("laboratory staff run the analyser from the {page} page"))
@@ -143,7 +145,7 @@ def run_analyser_from(world: World, page: str) -> None:
 
 @then("the CBC order keeps the analysis from the first page")
 def keeps_first_analysis(world: World) -> None:
-    assert LabOrder.objects.get(pk=world["lab_order"].pk).analysed_at == NOW
+    assert TestRequest.objects.get(pk=world["test_request"].pk).analysed_at == NOW
 
 
 @then(parsers.parse('{action} is refused with code "{code}"'))
@@ -153,35 +155,37 @@ def refused(world: World, action: str, code: str) -> None:
 
 @then(parsers.parse('the sample has the 13 NHANES CBC values of "{patient}"'))
 def sample_has_cbc(world: World, patient: str) -> None:
-    lab_order = world["lab_order"]
-    assert lab_order.results == tube(world, patient).cbc
-    assert len(lab_order.results) == 13
-    assert lab_order.analysed_at == NOW
+    test_request = world["test_request"]
+    assert test_request.results == tube(world, patient).cbc
+    assert len(test_request.results) == 13
+    assert test_request.analysed_at == NOW
 
 
 @then(parsers.re(r"the (?P<test>CBC|ferritin) order is ready to analyse"))
 def ready_to_analyse(world: World, test: str) -> None:
-    assert world["lab_order"].test == TESTS[test]
-    assert world["lab_order"] in LabOrder.objects.to_analyse()
+    assert world["test_request"].test == TESTS[test]
+    assert world["test_request"] in TestRequest.objects.to_analyse()
 
 
 @then(parsers.re(r"its sample is (?P<negated>not )?a stored sample"))
 def stored_sample(world: World, negated: str | None) -> None:
     (row,) = [
-        row for row in LabOrder.objects.to_analyse() if row.pk == world["lab_order"].pk
+        row
+        for row in TestRequest.objects.to_analyse()
+        if row.pk == world["test_request"].pk
     ]
     assert row.stored_sample is (negated is None)
 
 
 @then(parsers.parse("the sample has ferritin {ferritin:g} ng/mL"))
 def sample_has_ferritin(world: World, ferritin: float) -> None:
-    assert world["lab_order"].results == {FERRITIN: ferritin}
+    assert world["test_request"].results == {FERRITIN: ferritin}
 
 
 @then("the sample's ferritin is not available in the demo data")
 def ferritin_not_available(world: World) -> None:
-    assert world["lab_order"].analysed_at == NOW
-    assert world["lab_order"].results == {}
+    assert world["test_request"].analysed_at == NOW
+    assert world["test_request"].results == {}
 
 
 @then(
@@ -189,22 +193,22 @@ def ferritin_not_available(world: World) -> None:
     " indication is screened and results, and no general practitioner"
 )
 def lab_rows_hold(world: World) -> None:
-    (lab_order,) = LabOrder.objects.to_analyse()
-    assert lab_order.sample.sample_id == world["lab_order"].sample.sample_id
+    (test_request,) = TestRequest.objects.to_analyse()
+    assert test_request.sample.sample_id == world["test_request"].sample.sample_id
     # The practice, by its name, stands for its one general practitioner.
-    fields = {field.name for field in LabOrder._meta.fields}
+    fields = {field.name for field in TestRequest._meta.fields}
     assert not {"general_practitioner", "name", "patient"} & fields
-    assert lab_order.get_registered_sex_display() == "Female"
-    assert lab_order.get_test_display() == "CBC"
+    assert test_request.get_registered_sex_display() == "Female"
+    assert test_request.get_test_display() == "CBC"
     # Ordered for a screened indication, which is all the lab learns of it.
-    assert lab_order.screened_indication is True
+    assert test_request.screened_indication is True
 
 
 @then("the lab's records relate to nothing outside the hospital")
 def lab_relates_to_the_hospital_only(world: World) -> None:
     # So no lab query can reach a general practitioner's records, and with them
     # a patient's name.
-    for model in (Sample, LabOrder):
+    for model in (Sample, TestRequest):
         related = {
             field.related_model._meta.app_label
             for field in model._meta.get_fields()
