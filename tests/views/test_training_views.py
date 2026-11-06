@@ -14,7 +14,7 @@ from pytest_django.asserts import assertContains, assertNotContains, assertRedir
 from pytest_django.fixtures import Settings
 
 from ml.final_models import keep_final_model
-from ml.task import Net
+from ml.training import Net
 from tests.conftest import make_data_scientist, make_laboratory_director
 from web.training.forms import SubmitRunForm
 

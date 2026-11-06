@@ -20,7 +20,7 @@ import pandas as pd
 import torch
 
 from ml.cohort import CBC_VARS, FEATURES, eligible
-from ml.task import Net
+from ml.training import Net
 
 # One lab export row: sample ID, registered sex, age, and the 13 CBC values.
 COLUMNS = ["sample_id", "sex", "age", *CBC_VARS]

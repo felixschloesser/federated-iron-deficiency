@@ -13,7 +13,7 @@ from django.views.generic import FormView
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.models import User
 from web.accounts.roles import Role
-from web.training.final_models import deliveries, final_models, for_sale
+from web.training.final_models import final_models, for_sale, transmission_statuses
 from web.training.forms import SubmitRunForm
 from web.training.models import Transmission
 from web.training.runs import TrainingRun, stop_run, submit_run, training_runs
@@ -38,7 +38,7 @@ class TrainingRunsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
             runs, runs_unknown = None, error.messages[0]
         kept = final_models(settings.FINAL_MODELS_DIR)
         transmissions = list(Transmission.objects.all())
-        delivered = deliveries(kept, runs, transmissions)
+        delivered = transmission_statuses(kept, runs, transmissions)
         by_run = {transmission.run_id: transmission for transmission in transmissions}
         return {
             **super().get_context_data(**kwargs),
