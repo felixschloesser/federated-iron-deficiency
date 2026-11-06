@@ -1,12 +1,10 @@
-"""Repository audit: counts rule violations against a baseline that only goes down.
+"""Repository audit: lists every rule violation, and fails on any.
 
-Run `python tools/audit.py` as a commit gate; `--update` lowers the baseline
-after a fix and refuses to raise it.
+Run `python tools/audit.py` as a commit gate.
 """
 
 import argparse
 import ast
-import json
 import re
 import sys
 import tomllib
@@ -17,7 +15,6 @@ from typing import assert_never
 from web.party import Party
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = Path("tools") / "audit_baseline.json"
 ALLOWLIST = Path("tools") / "audit_allowlist.toml"
 GLOSSARY = Path("glossary.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
@@ -326,26 +323,17 @@ def run(root: Path) -> dict[str, list[str]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
-    parser.add_argument("--update", action="store_true", help="lower the baseline")
     args = parser.parse_args(argv)
 
-    baseline_path = args.root / BASELINE
-    baseline = json.loads(baseline_path.read_text()) if baseline_path.exists() else {}
     findings = run(args.root)
-    counts = {name: len(found) for name, found in findings.items()}
-    increased = [
-        name for name, count in counts.items() if count > baseline.get(name, 0)
-    ]
-
-    for name in increased:
-        print(f"{name}: {counts[name]} (baseline {baseline.get(name, 0)})")
-        for finding in findings[name]:
-            print(f"  {finding}")
-    if increased:
+    for name, found in findings.items():
+        if found:
+            print(f"{name}: {len(found)}")
+            for finding in found:
+                print(f"  {finding}")
+    if any(findings.values()):
         return 1
-    if args.update:
-        baseline_path.write_text(json.dumps(counts, indent=2, sort_keys=True) + "\n")
-    print("audit: " + ", ".join(f"{name} {count}" for name, count in counts.items()))
+    print("audit: no findings (" + ", ".join(findings) + ")")
     return 0
 
 

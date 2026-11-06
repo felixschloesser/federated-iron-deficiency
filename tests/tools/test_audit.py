@@ -1,6 +1,5 @@
 """Checks for tools/audit.py, each on a small tree with one violation."""
 
-import json
 from pathlib import Path
 
 import pytest
@@ -177,23 +176,13 @@ def test_unsourced_glossary_term(tmp_path: Path) -> None:
     ]
 
 
-def test_ratchet_fails_above_the_baseline(tmp_path: Path) -> None:
+def test_any_finding_fails_the_audit(tmp_path: Path) -> None:
     root = tree(tmp_path, {"web/x.py": f"x = 1  {NOQA}\n"})
-    baseline = root / "tools" / "audit_baseline.json"
-    baseline.parent.mkdir()
-    baseline.write_text(json.dumps({"suppressions": 0}))
     assert audit.main(["--root", str(root)]) == 1
-    assert audit.main(["--root", str(root), "--update"]) == 1
-    assert json.loads(baseline.read_text()) == {"suppressions": 0}
 
 
-def test_update_lowers_the_baseline(tmp_path: Path) -> None:
+def test_no_finding_passes_the_audit(tmp_path: Path) -> None:
     root = tree(tmp_path, {"web/x.py": "x = 1\n"})
-    baseline = root / "tools" / "audit_baseline.json"
-    baseline.parent.mkdir()
-    baseline.write_text(json.dumps({"suppressions": 2}))
-    assert audit.main(["--root", str(root), "--update"]) == 0
-    assert json.loads(baseline.read_text())["suppressions"] == 0
     assert audit.main(["--root", str(root)]) == 0
 
 

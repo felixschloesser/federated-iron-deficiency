@@ -29,7 +29,7 @@ uv run --frozen python tools/audit.py
 - Merge gate: `uv run --frozen pytest -W error -m containers` must also exit 0 when a branch touches compose, Docker files, `.dockerignore`, `web/settings.py`, `demo/`, `pyproject.toml` or `uv.lock`, and always on the merge to `main`.
 
 - Zero warnings. Never suppress one (`# noqa`, `# type: ignore`, `filterwarnings`); fix the root cause. If the fix is genuinely unclear, stop and report with a recommendation.
-- `tools/audit.py` is a ratchet: its baseline may only go down. After `python tools/audit.py --update`, `git diff tools/` must show no increase.
+- `tools/audit.py` fails on any finding.
 - Under machine load, rerun a timed-out test once and report it.
 
 ## Vocabulary first
@@ -76,7 +76,7 @@ A branch that changes templates or CSS is checked in a browser by a separate age
 
 ## Report back
 
-Commits; scenarios added, changed or deleted (and what covers a deleted one); red-first evidence; audit baseline moves explained; what was not checked.
+Commits; scenarios added, changed or deleted (and what covers a deleted one); red-first evidence; what was not checked.
 
 ## To build
 
