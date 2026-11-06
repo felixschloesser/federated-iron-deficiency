@@ -8,6 +8,7 @@ Feature: A final model reaches a hospital only when transmitted
   @containers
   Scenario: Train, transmit, transmit again
     Given the SuperLink and UZ Leuven's SuperNode and ClientApp are running
+    And Heilig Hart Leuven's SuperNode and ClientApp too, as FedAvg trains only with two hospitals
     When the data scientist trains for one round
     Then the startup keeps the run's final model and UZ Leuven stores none
     When the data scientist transmits that final model

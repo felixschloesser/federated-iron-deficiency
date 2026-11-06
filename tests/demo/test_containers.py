@@ -109,6 +109,21 @@ def compose_folder(compose: Compose) -> Path:
     return folder
 
 
+def synthetic_cohort(hospital: str) -> str:
+    """Python that gives a hospital a synthetic cohort the real ClientApp trains
+    on, and an empty screening-models folder: random values in the real columns,
+    both labels; what a model learns from it is no matter."""
+    return (
+        f"; hospital = Path('/demo/hospitals/{hospital}');"
+        " (hospital / 'screening-models').mkdir(exist_ok=True);"
+        " import numpy as np, pandas as pd; from datasets import Dataset;"
+        " from ml.cohort import FEATURES; rng = np.random.default_rng(0);"
+        " frame = pd.DataFrame(rng.normal(size=(300, len(FEATURES))), columns=FEATURES);"
+        " frame['iron_deficient'] = rng.integers(0, 2, size=300);"
+        " Dataset.from_pandas(frame).save_to_disk(hospital / 'cohort')"
+    )
+
+
 def start(run: Compose, folder: Path) -> None:
     """Flower's part of `prepare`, then the SuperLink and one hospital."""
     # Into the party volumes, through prepare, which hands them to the demo user.
@@ -121,17 +136,9 @@ def start(run: Compose, folder: Path) -> None:
         "python",
         "-c",
         "from pathlib import Path; from demo.demo import prepare_flower;"
-        " prepare_flower(Path('/demo'));"
-        f" hospital = Path('/demo/hospitals/{HOSPITAL}');"
-        " (hospital / 'screening-models').mkdir();"
-        # A synthetic cohort the real ClientApp trains on: random values in the
-        # real columns, both labels; what a model learns from it is no matter.
-        " import numpy as np, pandas as pd; from datasets import Dataset;"
-        " from ml.cohort import FEATURES; rng = np.random.default_rng(0);"
-        " frame = pd.DataFrame(rng.normal(size=(300, len(FEATURES))), columns=FEATURES);"
-        " frame['iron_deficient'] = rng.integers(0, 2, size=300);"
-        " Dataset.from_pandas(frame).save_to_disk(hospital / 'cohort');"
-        " (hospital / 'web.sqlite3').write_text('lab orders')",
+        " prepare_flower(Path('/demo'))"
+        + synthetic_cohort(HOSPITAL)
+        + f"; (Path('/demo/hospitals/{HOSPITAL}') / 'web.sqlite3').write_text('lab orders')",
     )
     up(run, "flower-superlink")
     run(
@@ -584,7 +591,11 @@ def flower_run(compose: Compose, configuration: str) -> str:
         (run,) = json.loads(listing)["runs"]
         if run["status"].startswith("finished"):
             break
-        assert time.monotonic() < deadline, run
+        assert time.monotonic() < deadline, (
+            run["status"],
+            compose("logs", "flower-server-app").stdout[-2000:],
+            compose("logs", f"{HOSPITAL}-flower-client-app").stdout[-2000:],
+        )
         time.sleep(3)
     assert run["status"] == "finished:completed", (
         run,
@@ -612,9 +623,40 @@ def journey() -> dict[str, Any]:
     return {}
 
 
+# FedAvg trains only with at least two hospitals available.
+SECOND_HOSPITAL = "heilig-hart-leuven"
+
+
+@given(
+    "Heilig Hart Leuven's SuperNode and ClientApp too, as FedAvg trains only with"
+    " two hospitals"
+)
+def second_hospital(compose: Compose) -> None:
+    compose(
+        "run",
+        "--rm",
+        "--no-deps",
+        "prepare",
+        "python",
+        "-c",
+        "from pathlib import Path" + synthetic_cohort(SECOND_HOSPITAL),
+    )
+    compose(
+        "up",
+        "--detach",
+        "--no-deps",
+        "--no-build",
+        f"{SECOND_HOSPITAL}-flower-supernode",
+        f"{SECOND_HOSPITAL}-flower-client-app",
+    )
+    deadline = time.monotonic() + 120
+    while online_nodes(compose) < 2:
+        assert time.monotonic() < deadline, "the second hospital did not come online"
+        time.sleep(2)
+
+
 @when("the data scientist trains for one round")
 def train_one_round(compose: Compose, journey: dict[str, Any]) -> None:
-    wait_until_online(compose)
     journey["training"] = flower_run(compose, "num-server-rounds=1")
 
 
