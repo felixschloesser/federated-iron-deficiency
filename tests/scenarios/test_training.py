@@ -97,6 +97,8 @@ def superlink(monkeypatch: pytest.MonkeyPatch) -> World:
         # What `flwr ls` answers: the runs, as its JSON lists them.
         "runs": [],
         "listing": None,
+        # What `flwr stop` answers, when not that it stopped the run.
+        "stop_answer": None,
     }
 
     def run(command: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
@@ -105,6 +107,8 @@ def superlink(monkeypatch: pytest.MonkeyPatch) -> World:
         if state["hangs"]:
             raise subprocess.TimeoutExpired(command, kwargs.get("timeout") or 0)
         answer = state["answer"]
+        if command[1] == "stop":
+            answer = state["stop_answer"] or {"success": True, "run-id": command[2]}
         if command[1] == "ls":
             answer = state["listing"] or {"success": True, "runs": state["runs"]}
         return subprocess.CompletedProcess(command, 0, json.dumps(answer), "")
@@ -465,3 +469,39 @@ def test_only_an_unfinished_run_is_in_progress(status: str) -> None:
     from web.training.runs import RunStatus
 
     assert RunStatus(status).in_progress == (not status.startswith("finished:"))
+
+
+@given(parsers.parse('the SuperLink knows run "{run_id}" is running'))
+def superlink_knows_running(superlink: World, run_id: str) -> None:
+    superlink["runs"] = [flower_run(run_id, "running")]
+
+
+@given("the SuperLink refuses to stop it")
+def superlink_refuses_stop(superlink: World) -> None:
+    superlink["stop_answer"] = {
+        "success": False,
+        "error-message": "Run 7 couldn't be stopped.",
+    }
+
+
+@when(parsers.parse('the data scientist stops training run "{run_id}"'))
+def stop(world: World, superlink: World, run_id: str) -> None:
+    from django.core.exceptions import ValidationError
+
+    from web.training.runs import stop_run
+
+    try:
+        stop_run(int(run_id))
+    except ValidationError as error:
+        world["error"] = error
+
+
+@then(parsers.parse('the SuperLink is asked to stop run "{run_id}"'))
+def asked_to_stop(superlink: World, run_id: str) -> None:
+    stops = [command for command in superlink["commands"] if command[1] == "stop"]
+    assert [command[2] for command in stops] == [run_id]
+
+
+@then(parsers.parse('stopping is refused with code "{code}"'))
+def stopping_refused(world: World, code: str) -> None:
+    assert world["error"].code == code
