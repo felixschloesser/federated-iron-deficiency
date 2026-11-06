@@ -1,4 +1,4 @@
-"""Views of the startup's training runs: who may, what the Final models page shows."""
+"""Views of the startup's training runs: who may, what the Training runs page shows."""
 
 import json
 import subprocess
@@ -42,11 +42,11 @@ def test_final_models_page(
     client.force_login(make_data_scientist("Data One").user)
     # Session, user with role.
     with django_assert_num_queries(2):
-        response = client.get(reverse("training:final_models"))
+        response = client.get(reverse("training:runs"))
     assertContains(
         response,
         "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.86</td>"
-        '<td><a href="/training/final-models/7/for-sale/" download'
+        '<td><a href="/training/runs/7/for-sale/" download'
         ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
         "</td></tr>",
         html=True,
@@ -55,7 +55,7 @@ def test_final_models_page(
 
 def test_a_laboratory_director_is_sent_to_their_own_page(client: Client) -> None:
     client.force_login(make_laboratory_director("Director One").user)
-    response = client.get(reverse("training:final_models"))
+    response = client.get(reverse("training:runs"))
     assertRedirects(response, reverse("deployment:models"))
 
 
@@ -98,7 +98,7 @@ def test_the_page_shows_each_training_runs_status(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answering(monkeypatch, {}, {"success": True, "runs": [RUNNING]})
-    response = client.get(reverse("training:final_models"))
+    response = client.get(reverse("training:runs"))
     assertContains(
         response,
         '<tr><td>7</td><td class="no-wrap"><strong>Running</strong></td>'
@@ -118,11 +118,11 @@ def test_without_the_superlink_the_page_says_the_statuses_are_unknown(
         {},
         {"success": False, "error-message": "Connection to 127.0.0.1:9093 unavailable"},
     )
-    response = client.get(reverse("training:final_models"))
+    response = client.get(reverse("training:runs"))
     assertContains(response, "the training runs&#x27; statuses are unknown")
     assertNotContains(response, "127.0.0.1")
     # The final models still show.
-    assertContains(response, 'href="/training/final-models/7/for-sale/"')
+    assertContains(response, 'href="/training/runs/7/for-sale/"')
 
 
 @pytest.mark.usefixtures("data_scientist")
@@ -137,7 +137,7 @@ def test_a_submission_without_an_answer_points_to_the_training_runs(
         raise subprocess.TimeoutExpired(command, 20)
 
     monkeypatch.setattr(subprocess, "run", run)
-    response = client.post(reverse("training:final_models"))
+    response = client.post(reverse("training:runs"))
     assertContains(response, "check the training runs below before submitting again")
 
 
@@ -151,8 +151,8 @@ def test_submitting_a_run_redirects_to_the_final_models(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answering(monkeypatch, {"success": True, "run-id": "7"})
-    response = client.post(reverse("training:final_models"))
-    assertRedirects(response, reverse("training:final_models"))
+    response = client.post(reverse("training:runs"))
+    assertRedirects(response, reverse("training:runs"))
     assert [str(message) for message in get_messages(response.wsgi_request)] == [
         "Training run 7 submitted. Its final model appears here when the run finishes."
     ]
@@ -163,7 +163,7 @@ def test_a_refused_run_says_why(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answering(monkeypatch, {"success": False, "error-message": "unavailable"})
-    response = client.post(reverse("training:final_models"))
+    response = client.post(reverse("training:runs"))
     assert response.status_code == 200
     errors = response.context["form"].errors.as_data()["__all__"]
     assert [error.code for error in errors] == ["superlink_refused"]
@@ -191,7 +191,7 @@ def test_a_run_without_an_answer_shows_no_server_paths(
         return subprocess.CompletedProcess(command, 1, "", "/srv/flwr-home/config.toml")
 
     monkeypatch.setattr(subprocess, "run", run)
-    response = client.post(reverse("training:final_models"))
+    response = client.post(reverse("training:runs"))
     assertContains(response, "The SuperLink refused the run: it gave no answer")
     assertNotContains(response, "/srv/flwr-home")
 
@@ -230,7 +230,7 @@ def test_only_the_data_scientist_downloads_for_sale(
 def test_each_final_model_links_to_its_sale(
     client: Client, final_models_dir: Path
 ) -> None:
-    response = client.get(reverse("training:final_models"))
+    response = client.get(reverse("training:runs"))
     assertContains(
         response,
         f'href="{reverse("training:for_sale", kwargs={"run_id": "7"})}"',

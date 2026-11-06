@@ -20,12 +20,12 @@ class DataScientistRequiredMixin(RoleRequiredMixin):
     role = Role.DATA_SCIENTIST
 
 
-class FinalModelsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
+class TrainingRunsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
     """The startup's final models, and the form that submits the next run."""
 
-    template_name = "training/final_models.html"
+    template_name = "training/training_runs.html"
     form_class = SubmitRunForm
-    success_url = reverse_lazy("training:final_models")
+    success_url = reverse_lazy("training:runs")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         try:

@@ -10,14 +10,14 @@ urlpatterns = [
     path("patients/", views.PatientIndexView.as_view(), name="patients"),
     path("patients/<int:pk>/", views.PatientDetailView.as_view(), name="patient"),
     path(
-        "patients/<int:patient>/samples/collect/",
+        "patients/<int:patient>/collect-sample/",
         views.CollectSampleView.as_view(),
         name="collect_sample",
     ),
     path(
-        "patients/<int:patient>/samples/<int:sample>/orders/new/<test:test>/",
+        "patients/<int:patient>/samples/<int:sample>/orders/<test:test>/",
         views.NewOrderView.as_view(),
-        name="new_order",
+        name="order",
     ),
     path(
         "patients/<int:patient>/check-for-reports/",
