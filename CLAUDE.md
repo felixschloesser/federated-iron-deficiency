@@ -80,4 +80,4 @@ Commits; scenarios added, changed or deleted (and what covers a deleted one); re
 
 ## To build
 
-These are referenced above but do not exist yet: `tools/audit.py` (derive-don't-list, CSS classes, `|safe` allowlist, kit-only templates, glossary sources, GET-mutation) and a `tools/red_first.py` that checks each `Red:` commit in a temporary worktree.
+Referenced above but not built yet: a `tools/red_first.py` that checks each `Red:` commit in a temporary worktree.
