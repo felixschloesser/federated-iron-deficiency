@@ -210,12 +210,12 @@ rejected = [
 ["deploy"]
 source = "Report, Use case: the model \"is then deployed to every hospital\""
 why = "The laboratory director's decision that a screening model screens this hospital's patients, at the threshold they choose"
-rejected = ["activate", "release", "roll out"]
-
-["deployment (of a party)"]
-source = "Flower documentation, \"Deployment Engine\": running the federation on real nodes, not in simulation"
-why = "One party's running copy of the code, in its own folder (demo/README.md); never a final model being deployed"
-rejected = ["installation", "instance"]
+rejected = [
+    "activate",
+    "release",
+    "roll out",
+    "deployment for a party's running copy (that is a party's web app)",
+]
 
 ["deployed model"]
 source = "Report, DF29, DF30 \"deployed final model\""

@@ -1,1 +1,1 @@
-"""A hospital's lab and practice web app: one deployment per party (features/)."""
+"""The web app: one per party, each installing only its own apps (features/)."""
