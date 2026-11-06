@@ -14,7 +14,7 @@ from pytest_django.asserts import assertContains, assertNotContains, assertRedir
 from pytest_django.fixtures import Settings
 
 from ml.final_models import keep_final_model
-from ml.task import Net
+from ml.training import Net
 from tests.startup.conftest import make_data_scientist
 from web.startup.training.forms import SubmitRunForm
 
@@ -63,7 +63,7 @@ def test_a_final_models_run_configuration_is_listed(
     client: Client, final_models_dir: Path
 ) -> None:
     from ml.final_models import keep_final_model
-    from ml.task import Net
+    from ml.training import Net
 
     keep_final_model(
         final_models_dir,
@@ -236,7 +236,7 @@ def test_a_run_without_an_answer_shows_no_server_paths(
 def test_a_final_model_downloads_for_sale(
     client: Client, final_models_dir: Path
 ) -> None:
-    from ml.screening import from_bytes
+    from ml.final_model_file import from_bytes
 
     response = client.get(reverse("training:for_sale", kwargs={"run_id": "7"}))
     assert response.status_code == 200

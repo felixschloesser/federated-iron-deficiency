@@ -54,9 +54,6 @@ and three Belgian hospitals.
   columns.
 - **Seeded training.** The initial weights and dropout are seeded, so repeated
   runs give the same flags.
-- **Evaluation scripts** (`analysis/`, run from a checkout; not in the FAB).
-  They check flags against ferritin, which the screening never sees, and train
-  a centralized baseline to compare against.
 - **Tests** for the screening, run with `pytest`.
 
 ## Run on SuperGrid
@@ -153,33 +150,6 @@ python -m ml.screening \
 The output holds only each `sample_id` and its screening result: `ferritin
 suggested`, `ferritin not suggested`, or `not screened`. The threshold is the one the hospital deploys the model
 at; a training run sets none.
-
-## Evaluate a screening
-
-The screening never sees ferritin. To check a deployed model against the
-women's actual ferritin, print its AUROC and the confusion matrix of its flags:
-
-```shell
-python -m analysis.evaluate_screening \
-  --model ~/.cache/iron-deficiency/hospitals/az-diest/screening-models/<run-id>.pt \
-  --input demo_data/new_samples.csv \
-  --threshold 0.5
-```
-
-Training is seeded with the `model-seed` run config value, so repeated runs give
-the same flags. To see how much the results depend on the seed, and how
-federated training compares with a centralized baseline, train both once per
-seed and evaluate every hospital's deployment:
-
-```shell
-python -m analysis.seed_sweep --seeds 10  # writes seed_sweep.csv
-```
-
-The centralized baseline (`analysis/train_centralized.py`) trains on the union of
-the hospitals' training splits, with each row standardized by its own hospital
-and the same seed, hyperparameters, and epochs. Pooling the training instead of
-averaging updates is the only difference. The sweep reports the federated minus
-centralized AUROC per hospital, paired by seed, and whether it lies within ±0.01.
 
 ## Tests
 

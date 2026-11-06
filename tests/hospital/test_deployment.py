@@ -10,7 +10,7 @@ from django.urls import reverse
 from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.fixtures import Settings
 
-from ml.screening import Problem
+from ml.final_model_file import Problem
 from tests.conftest import World
 from tests.hospital.conftest import make_laboratory_staff_member, write_final_model
 

@@ -86,7 +86,7 @@ def write_final_model(
     with `validation`, its confusion matrix at each threshold."""
     import torch
 
-    from ml.task import Net
+    from ml.training import Net
 
     contents = {
         "state_dict": Net(n_features=n_features).state_dict(),

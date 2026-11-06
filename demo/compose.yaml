@@ -11,8 +11,8 @@
 # Browsers reach http://<party>.localhost through the proxy, the only
 # published port. Networks: startup (TB2), startup-web (the startup's web app and the proxy), <hospital> (TB1), <hospital>-flower-client-app (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
-# lab-orders crosses TB3-TB1 (DF23, DF25): every practice reaches every hospital's
-# endpoint there, by the alias <hospital>-lab-orders.
+# messaging crosses TB3-TB1 (DF23, DF25): every practice reaches every hospital's
+# endpoint there, by the alias <hospital>-messaging.
 
 name: iron-deficiency
 
@@ -194,7 +194,7 @@ services:
       - |
         trap 'kill $$(jobs -p)' TERM INT
         gunicorn web.wsgi --bind=uz-leuven-pages:8000 --workers=2 --access-logfile=- &
-        python manage.py serve_messages uz-leuven-lab-orders:8441 &
+        python manage.py serve_messages uz-leuven-messaging:8441 &
         wait -n
         exit 1
     restart: unless-stopped
@@ -202,7 +202,7 @@ services:
     # under a name ALLOWED_HOSTS knows.
     healthcheck:
       <<: *health
-      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://uz-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('uz-leuven-lab-orders', 8441)).close()"]
+      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://uz-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('uz-leuven-messaging', 8441)).close()"]
     environment:
       PARTY: hospital
       DATA_DIR: /demo/hospitals/uz-leuven
@@ -217,7 +217,7 @@ services:
     tmpfs: [/demo/hospitals/uz-leuven/cohort]
     networks:
       uz-leuven: {aliases: [uz-leuven-pages]}
-      lab-orders: {aliases: [uz-leuven-lab-orders]}
+      messaging: {aliases: [uz-leuven-messaging]}
 
   # TB1 and TB4, Heilig Hart Leuven.
   heilig-hart-leuven-flower-supernode:
@@ -253,7 +253,7 @@ services:
       - |
         trap 'kill $$(jobs -p)' TERM INT
         gunicorn web.wsgi --bind=heilig-hart-leuven-pages:8000 --workers=2 --access-logfile=- &
-        python manage.py serve_messages heilig-hart-leuven-lab-orders:8441 &
+        python manage.py serve_messages heilig-hart-leuven-messaging:8441 &
         wait -n
         exit 1
     restart: unless-stopped
@@ -261,7 +261,7 @@ services:
     # under a name ALLOWED_HOSTS knows.
     healthcheck:
       <<: *health
-      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://heilig-hart-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('heilig-hart-leuven-lab-orders', 8441)).close()"]
+      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://heilig-hart-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('heilig-hart-leuven-messaging', 8441)).close()"]
     environment:
       PARTY: hospital
       DATA_DIR: /demo/hospitals/heilig-hart-leuven
@@ -276,7 +276,7 @@ services:
     tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort]
     networks:
       heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
-      lab-orders: {aliases: [heilig-hart-leuven-lab-orders]}
+      messaging: {aliases: [heilig-hart-leuven-messaging]}
 
   # TB1 and TB4, AZ Diest.
   az-diest-flower-supernode:
@@ -312,7 +312,7 @@ services:
       - |
         trap 'kill $$(jobs -p)' TERM INT
         gunicorn web.wsgi --bind=az-diest-pages:8000 --workers=2 --access-logfile=- &
-        python manage.py serve_messages az-diest-lab-orders:8441 &
+        python manage.py serve_messages az-diest-messaging:8441 &
         wait -n
         exit 1
     restart: unless-stopped
@@ -320,7 +320,7 @@ services:
     # under a name ALLOWED_HOSTS knows.
     healthcheck:
       <<: *health
-      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://az-diest-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('az-diest-lab-orders', 8441)).close()"]
+      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://az-diest-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('az-diest-messaging', 8441)).close()"]
     environment:
       PARTY: hospital
       DATA_DIR: /demo/hospitals/az-diest
@@ -335,10 +335,10 @@ services:
     tmpfs: [/demo/hospitals/az-diest/cohort]
     networks:
       az-diest: {aliases: [az-diest-pages]}
-      lab-orders: {aliases: [az-diest-lab-orders]}
+      messaging: {aliases: [az-diest-messaging]}
 
   # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory (features/practice/messaging.feature): on the lab-orders network.
+  # laboratory (features/practice/messaging.feature): on the messaging network.
   huisartsenpraktijk-de-akker-web:
     <<: *practice-web
     build: {context: .., dockerfile: demo/practice-web.Dockerfile}
@@ -354,7 +354,7 @@ services:
       PARTY_COLOUR: green
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-akker, target: /demo/practices/huisartsenpraktijk-de-akker}
-    networks: [huisartsenpraktijk-de-akker, lab-orders]
+    networks: [huisartsenpraktijk-de-akker, messaging]
 
   huisartsenpraktijk-de-berk-web:
     <<: *practice-web
@@ -370,7 +370,7 @@ services:
       PARTY_COLOUR: amber
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-berk, target: /demo/practices/huisartsenpraktijk-de-berk}
-    networks: [huisartsenpraktijk-de-berk, lab-orders]
+    networks: [huisartsenpraktijk-de-berk, messaging]
 
   huisartsenpraktijk-de-ceder-web:
     <<: *practice-web
@@ -386,7 +386,7 @@ services:
       PARTY_COLOUR: purple
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-ceder, target: /demo/practices/huisartsenpraktijk-de-ceder}
-    networks: [huisartsenpraktijk-de-ceder, lab-orders]
+    networks: [huisartsenpraktijk-de-ceder, messaging]
 
   # Between the browser and the parties, like the internet: routes each
   # <party>.localhost by its Host header. The only published port.
@@ -409,7 +409,7 @@ networks:
   startup: {internal: true}
   startup-web: {}
   model-updates: {internal: true}
-  lab-orders: {internal: true}
+  messaging: {internal: true}
   uz-leuven: {}
   uz-leuven-flower-client-app: {internal: true}
   heilig-hart-leuven: {}

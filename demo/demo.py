@@ -59,9 +59,9 @@ def hospitals() -> list[tuple[int, str]]:
     ]
 
 
-def lab_orders_host(slug: str) -> str:
+def messaging_host(slug: str) -> str:
     """The hospital's lab-order endpoint in compose.yaml."""
-    return f"{slug}-lab-orders"
+    return f"{slug}-messaging"
 
 
 def nhanes_csv(demo_dir: Path) -> Path:
@@ -135,7 +135,7 @@ def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
     return [
         [
             HOSPITALS[cycle],
-            f"{lab_orders_host(slug)}:8441",
+            f"{messaging_host(slug)}:8441",
             *(["--primary"] if cycle == practice_cycle else []),
         ]
         for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True)

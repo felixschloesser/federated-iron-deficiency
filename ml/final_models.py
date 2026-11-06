@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 
 from ml.dataset import CYCLES, HOSPITALS, hospital_slug
-from ml.screening import (
+from ml.final_model_file import (
     THRESHOLDS,
     FinalModel,
     final_model_path,
@@ -18,7 +18,7 @@ from ml.screening import (
     standardization_tensor,
     write,
 )
-from ml.task import Net, load_data, standardization, test
+from ml.training import Net, evaluate, load_data, standardization
 
 # The run configuration that says how a model was trained; never the folder it
 # was kept in nor the W&B key, which the run configuration also carries.
@@ -97,7 +97,7 @@ def local_validation(
     net = Net()
     net.load_state_dict(state_dict)
     _, valloader, _ = load_data(cohort)
-    _, metrics, probabilities, labels = test(net, valloader)
+    _, metrics, probabilities, labels = evaluate(net, valloader)
     deficient = labels == 1
     matrices = {}
     for threshold in THRESHOLDS:

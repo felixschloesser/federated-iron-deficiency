@@ -199,7 +199,7 @@ def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
 def test_crossings_and_the_startup_are_internal_networks() -> None:
     networks = config()["networks"]
     internal = {name for name, spec in networks.items() if spec.get("internal")}
-    assert internal == {"startup", "model-updates", "lab-orders"} | {
+    assert internal == {"startup", "model-updates", "messaging"} | {
         f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS
     }
 
@@ -222,23 +222,23 @@ def test_each_practice_reaches_every_hospitals_lab_order_endpoint_and_nothing_el
     """A practice chooses the laboratory per sample (features/practice/messaging.feature); its laboratories are
     rows add_laboratory made, not environment variables."""
     spec = service(f"{practice}-web")
-    assert set(spec["networks"]) == {practice, "lab-orders"}
+    assert set(spec["networks"]) == {practice, "messaging"}
     assert "MESSAGING_ADDRESS" not in spec["environment"]
 
 
-def test_one_lab_orders_network_holds_every_hospital_and_practice_only() -> None:
+def test_one_messaging_network_holds_every_hospital_and_practice_only() -> None:
     """Every practice may send to every hospital (features/practice/messaging.feature): one crossing, TB3-TB1,
     like the internet between them; separate networks would isolate nothing."""
     members = {
         name
         for name, spec in config()["services"].items()
-        if "lab-orders" in spec.get("networks", {})
+        if "messaging" in spec.get("networks", {})
     }
     assert members == {f"{slug}-web" for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS}
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_the_hospital_serves_its_pages_and_its_lab_orders_each_on_one_network_only(
+def test_the_hospital_serves_its_pages_and_its_messaging_each_on_one_network_only(
     slug: str,
 ) -> None:
     # One container, two servers: each listens on a name only one network
@@ -246,11 +246,11 @@ def test_the_hospital_serves_its_pages_and_its_lab_orders_each_on_one_network_on
     spec = service(f"{slug}-web")
     assert spec["networks"] == {
         slug: {"aliases": [f"{slug}-pages"]},
-        "lab-orders": {"aliases": [f"{slug}-lab-orders"]},
+        "messaging": {"aliases": [f"{slug}-messaging"]},
     }
     script = spec["command"][-1]
     assert f"--bind={slug}-pages:8000" in script
-    assert f"serve_messages {slug}-lab-orders:8441" in script
+    assert f"serve_messages {slug}-messaging:8441" in script
     # Either server stopping stops the container, which compose restarts.
     assert "wait -n" in script
     assert spec["restart"] == "unless-stopped"
@@ -339,7 +339,7 @@ def test_what_others_wait_for_says_when_it_is_ready(name: str) -> None:
 def test_a_hospital_is_ready_when_both_its_servers_answer(slug: str) -> None:
     check = " ".join(service(f"{slug}-web")["healthcheck"]["test"])
     assert f"'http://{slug}-pages:8000/login/'" in check
-    assert f"('{slug}-lab-orders', 8441)" in check
+    assert f"('{slug}-messaging', 8441)" in check
 
 
 @pytest.mark.parametrize(
@@ -376,7 +376,7 @@ def test_each_project_runs_images_of_its_own() -> None:
 
 
 # Scenarios on compose.yaml as declared (features/quality/); the running
-# containers are in tests/containers/.
+# containers are in test_containers.py.
 
 
 @scenario(

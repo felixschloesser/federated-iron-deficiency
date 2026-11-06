@@ -97,7 +97,7 @@ markers = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["analysis", "demo", "ml", "tests", "tools", "web"]
+known-first-party = ["demo", "ml", "tests", "tools", "web"]
 
 # Torch on Linux from PyTorch's CPU index: the containers screen and train on
 # CPU, and PyPI's x86-64 wheel would pull several GB of CUDA libraries.

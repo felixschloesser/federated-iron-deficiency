@@ -11,9 +11,10 @@ import torch
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from ml.cohort import FEATURES
+from ml.final_model_file import Problem, read
 from ml.final_models import store_final_model
-from ml.screening import Problem, read, score
-from ml.task import Net
+from ml.screening import score
+from ml.training import Net
 from tests.conftest import World
 
 STORED_AT = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)

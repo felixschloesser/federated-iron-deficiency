@@ -61,8 +61,8 @@ HEAD = """\
 # Browsers reach http://<party>.localhost through the proxy, the only
 # published port. Networks: startup (TB2), startup-web (the startup's web app and the proxy), <hospital> (TB1), <hospital>-flower-client-app (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
-# lab-orders crosses TB3-TB1 (DF23, DF25): every practice reaches every hospital's
-# endpoint there, by the alias <hospital>-lab-orders.
+# messaging crosses TB3-TB1 (DF23, DF25): every practice reaches every hospital's
+# endpoint there, by the alias <hospital>-messaging.
 
 name: iron-deficiency
 
@@ -244,7 +244,7 @@ HOSPITAL = """\
       - |
         trap 'kill $$(jobs -p)' TERM INT
         gunicorn web.wsgi --bind={slug}-pages:8000 --workers=2 --access-logfile=- &
-        python manage.py serve_messages {slug}-lab-orders:8441 &
+        python manage.py serve_messages {slug}-messaging:8441 &
         wait -n
         exit 1
     restart: unless-stopped
@@ -252,7 +252,7 @@ HOSPITAL = """\
     # under a name ALLOWED_HOSTS knows.
     healthcheck:
       <<: *health
-      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://{slug}-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('{slug}-lab-orders', 8441)).close()"]
+      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://{slug}-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('{slug}-messaging', 8441)).close()"]
     environment:
       PARTY: hospital
       DATA_DIR: /demo/hospitals/{slug}
@@ -267,13 +267,13 @@ HOSPITAL = """\
     tmpfs: [/demo/hospitals/{slug}/cohort]
     networks:
       {slug}: {aliases: [{slug}-pages]}
-      lab-orders: {aliases: [{slug}-lab-orders]}
+      messaging: {aliases: [{slug}-messaging]}
 
 """
 
 PRACTICE_INTRO = """\
   # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory (features/practice/messaging.feature): on the lab-orders network.
+  # laboratory (features/practice/messaging.feature): on the messaging network.
 """
 
 PRACTICE = """\
@@ -291,7 +291,7 @@ PRACTICE = """\
       PARTY_COLOUR: {colour}
     volumes:
       - {type: volume, source: {slug}, target: /demo/practices/{slug}}
-    networks: [{slug}, lab-orders]
+    networks: [{slug}, messaging]
 
 """
 
@@ -392,7 +392,7 @@ def compose() -> str:
     )
     text += ", ".join(practice_slugs) + "]\n\n"
     text += "networks:\n  setup: {}\n  startup: {internal: true}\n  startup-web: {}\n"
-    text += "  model-updates: {internal: true}\n  lab-orders: {internal: true}\n"
+    text += "  model-updates: {internal: true}\n  messaging: {internal: true}\n"
     for slug in hospital_slugs:
         text += f"  {slug}: {{}}\n  {slug}-flower-client-app: {{internal: true}}\n"
     text += "".join(f"  {slug}: {{}}\n" for slug in practice_slugs)
