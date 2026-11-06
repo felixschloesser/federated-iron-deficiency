@@ -140,6 +140,29 @@ class Sample(models.Model):
     def __str__(self) -> str:
         return self.sample_id
 
+    # .all(), not .filter(), below: they use the orders when the page prefetched them.
+    def tests_to_order(self) -> list[Test]:
+        """The tests this sample does not have yet, but not one ordered on
+        suspicion: that one is offered only beside the lab report suggesting it
+        (features/ordering.feature)."""
+        ordered = {order.test for order in self.orders.all()}
+        return [
+            test for test in Test if test not in ordered and not test.on_suspicion()
+        ]
+
+    @property
+    def tests_display(self) -> str:
+        """The tests ordered on it, in the order the queryset gives: "CBC, ferritin"."""
+        return ", ".join(order.get_test_display() for order in self.orders.all())
+
+    @property
+    def ferritin_suggested(self) -> bool:
+        """Whether a lab report on this sample suggests ferritin."""
+        return any(
+            order.report is not None and order.report.ferritin_suggested
+            for order in self.orders.all()
+        )
+
     @transaction.atomic
     def place_order(
         self,
@@ -232,6 +255,12 @@ class Order(models.Model):
             raise ValidationError(
                 {"test": ValidationError(NOT_SUGGESTED, code="ferritin_not_suggested")}
             )
+
+    @property
+    def report(self) -> "LabReport | None":
+        """Its lab report, once fetched; None before."""
+        report: LabReport | None = getattr(self, "lab_report", None)
+        return report
 
     @property
     def screened_indication(self) -> bool:
