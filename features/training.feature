@@ -45,3 +45,29 @@ Feature: The startup's training runs
     When the data scientist submits a training run
     Then the submission is refused with code "superlink_no_answer"
     And the submission waited at most 20 seconds
+
+  Scenario: The training runs show each run's status, newest first
+    Given the SuperLink knows the runs:
+      | run | status             | pending at           | running at           | finished at          |
+      | 6   | finished:completed | 2026-10-30 13:20:00Z | 2026-10-30 13:21:00Z | 2026-10-30 13:40:00Z |
+      | 7   | running            | 2026-10-30 14:01:00Z | 2026-10-30 14:02:00Z | N/A                  |
+      | 8   | pending            | 2026-10-30 14:05:00Z | N/A                  | N/A                  |
+    Then the training runs are:
+      | run | status    | since            |
+      | 8   | Pending   | 2026-10-30 14:05 |
+      | 7   | Running   | 2026-10-30 14:02 |
+      | 6   | Completed | 2026-10-30 13:40 |
+
+  Scenario: A failed training run says why
+    Given the SuperLink knows run "9" failed with details "ServerApp raised an exception"
+    Then training run "9" is "Failed", with details "ServerApp raised an exception"
+
+  Scenario Outline: Without the SuperLink's answer the training runs' statuses are unknown
+    Given the SuperLink <state>
+    When the data scientist looks at the training runs
+    Then looking is refused with code "<code>"
+
+    Examples:
+      | state                         | code                  |
+      | does not answer               | superlink_no_answer   |
+      | answers that it is unavailable | superlink_unavailable |

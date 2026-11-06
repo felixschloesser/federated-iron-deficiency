@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http import Http404, HttpRequest, HttpResponse
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.views import View
 from django.views.generic import FormView
 
@@ -12,7 +13,7 @@ from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
 from web.training.final_models import final_models, for_sale
 from web.training.forms import SubmitRunForm
-from web.training.runs import submit_run
+from web.training.runs import submit_run, training_runs
 
 
 class DataScientistRequiredMixin(RoleRequiredMixin):
@@ -27,9 +28,16 @@ class FinalModelsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
     success_url = reverse_lazy("training:final_models")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        try:
+            runs, runs_unknown = training_runs(), None
+        except ValidationError as error:
+            runs, runs_unknown = [], error.messages[0]
         return {
             **super().get_context_data(**kwargs),
             "final_models": final_models(settings.FINAL_MODELS_DIR),
+            "training_runs": runs,
+            "runs_unknown": runs_unknown,
+            "checked_at": timezone.now(),
         }
 
     def form_valid(self, form: SubmitRunForm) -> HttpResponse:
