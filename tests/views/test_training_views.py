@@ -265,7 +265,7 @@ def test_only_a_run_in_progress_offers_stop(
     answering(monkeypatch, {}, {"success": True, "runs": [RUNNING, completed]})
     response = client.get(reverse("training:runs"))
     assertContains(response, 'action="/training/runs/7/stop/"')
-    assertContains(response, 'aria-label="Stop training run 7"')
+    assertContains(response, 'aria-label="Stop run 7"')
     assertNotContains(response, 'action="/training/runs/6/stop/"')
 
 
@@ -302,7 +302,8 @@ def test_without_the_superlink_the_page_offers_no_submission(
     assert response.context["submits"] is False
     assertNotContains(response, 'name="batch_size"')
     assertContains(
-        response, "Submitting and stopping runs come back when the SuperLink answers."
+        response,
+        "Submitting, stopping and transmitting come back when the SuperLink answers.",
     )
 
 
