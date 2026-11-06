@@ -59,7 +59,10 @@ class Role(models.TextChoices):
                     {"url": reverse("deployment:models"), "label": "Screening models"}
                 ]
             case Role.DATA_SCIENTIST:
-                return [{"url": reverse("training:runs"), "label": "Training runs"}]
+                return [
+                    {"url": reverse("training:runs"), "label": "Training runs"},
+                    {"url": reverse("training:models"), "label": "Final models"},
+                ]
             case _:
                 assert_never(self)
 
