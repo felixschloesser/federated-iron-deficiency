@@ -1,6 +1,8 @@
-// Messages between the general practitioner's app and the hospital.
-// The general practitioner's app is always the client (features/hospital/messaging.feature) and names its
-// practice in every message (features/hospital/messaging.feature); the demo leaves out the report's mutual TLS.
+// Messages between the general practitioner's app and the hospital
+// (features/hospital/messaging.feature), and between a hospital's web app and the
+// startup (features/startup/release.feature). The client is always the one that
+// asks, the practice or the hospital, and names itself by its certificate name in
+// every message; the demo leaves out the report's mutual TLS.
 syntax = "proto3";
 
 package messaging.v1;
@@ -73,4 +75,32 @@ service Laboratory {
   rpc SendLabOrder(LabOrder) returns (Received);
   rpc FetchNewLabReports(NewLabReportsRequest) returns (LabReports);
   rpc AcknowledgeLabReports(Acknowledgement) returns (Received);
+}
+
+// A released final model as a recipient hospital fetches it (DF37): its weights
+// (a final model file holding only them), the AUROC across hospitals and the
+// other averaged validation metrics, and its training run's ID; never its run
+// configuration.
+message FinalModel {
+  string run_id = 1;
+  bytes weights = 2;
+  map<string, double> federated = 3;
+}
+
+message NewFinalModelsRequest {
+  string certificate_name = 1;      // the fetching hospital's
+}
+
+message NewFinalModels {
+  repeated FinalModel final_models = 1;
+}
+
+message FinalModelAcknowledgement {
+  string certificate_name = 1;      // the fetching hospital's
+  repeated string run_ids = 2;      // the final models it stored
+}
+
+service FinalModels {
+  rpc FetchNewFinalModels(NewFinalModelsRequest) returns (NewFinalModels);
+  rpc AcknowledgeFinalModels(FinalModelAcknowledgement) returns (Received);
 }

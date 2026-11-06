@@ -169,6 +169,32 @@ def add_practices(hospital: Path) -> None:
         )
 
 
+def hospital_arguments() -> list[list[str]]:
+    """add_hospital's arguments for every hospital: the certificate name the
+    startup issues it (its folder's name) and its name (features/startup/release.feature)."""
+    return [
+        [slug, HOSPITALS[cycle]]
+        for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True)
+    ]
+
+
+def add_hospitals(startup: Path) -> None:
+    """Every hospital, at the startup, as a recipient of released final models."""
+    env = {
+        **os.environ,
+        "PARTY": "startup",
+        "DATA_DIR": str(startup),
+        "DJANGO_DEBUG": "1",
+    }
+    for arguments in hospital_arguments():
+        subprocess.run(
+            manage("add_hospital", *arguments),
+            env=env,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+
+
 def add_laboratories(practice: Path, practice_cycle: str) -> None:
     """Every hospital's laboratory, at its lab-order endpoint (features/practice/messaging.feature)."""
     env = {
@@ -287,6 +313,8 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
                 add_laboratories(folder, cycle)
             if party == "hospital":
                 add_practices(folder)
+            if party == "startup":
+                add_hospitals(folder)
             bar.update()
         for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
             bar.set_description_str(f"{'Checking ' + HOSPITALS[cycle]:<{width}}")

@@ -571,8 +571,8 @@ def test_the_startups_web_app_reaches_the_superlink_but_not_its_state(
     assert report == {"superlink": "open", "state": []}
 
 
-@scenario("transmission.feature", "Train, transmit, transmit again")
-def test_train_transmit_transmit_again() -> None:
+@scenario("final_model_journey.feature", "Train, release, fetch, fetch again")
+def test_train_release_fetch_fetch_again() -> None:
     pass
 
 
@@ -686,23 +686,82 @@ def kept_not_stored(compose: Compose, journey: dict[str, Any]) -> None:
     assert held["hospital"] == {}, held
 
 
-@when(parsers.re("the data scientist transmits (that final model|it again)"))
-def transmit(compose: Compose, journey: dict[str, Any]) -> None:
+# As prepare does for the demo: the startup's web app, migrated, with its data
+# scientist, knowing UZ Leuven as a recipient hospital by its folder's name.
+RELEASE = """
+from django.utils import timezone
+from web.accounts.models import User
+from web.startup.training.models import Release
+Release.objects.release(
+    final_model_run_id={run_id!r},
+    released_by=User.objects.get(username="data-scientist"),
+    now=timezone.now(),
+)
+"""
+
+# What the laboratory director's Fetch new final models runs, in UZ Leuven's
+# own web app container, on the final-models network; the run IDs it stored.
+FETCH_FINAL_MODELS = """
+import json
+from django.utils import timezone
+from web.hospital.deployment.fetching import fetch_final_models
+print(json.dumps(fetch_final_models(now=timezone.now())))
+"""
+
+
+@when("the data scientist releases that final model")
+def release(compose: Compose, journey: dict[str, Any]) -> None:
+    seeding = ["run", "--rm", "--no-deps", "-e", "DJANGO_DEBUG=1", "startup-web"]
+    manage = ["python", "manage.py"]
+    compose(*seeding, *manage, "migrate", "-v0")
+    compose(*seeding, *manage, "seed_startup")
+    compose(*seeding, *manage, "add_hospital", HOSPITAL, "UZ Leuven")
+    up(compose, "startup-web")
+    release_one = RELEASE.format(run_id=journey["training"])
+    compose(*seeding, *manage, "shell", "-c", release_one)
+
+
+@then("UZ Leuven still stores none")
+def still_none(compose: Compose) -> None:
+    assert folders(compose)["hospital"] == {}
+
+
+@when(parsers.re("UZ Leuven fetches new final models(?: again)?"))
+def hospital_fetches(compose: Compose, journey: dict[str, Any]) -> None:
     journey["before"] = folders(compose)["hospital"]
-    journey["transmission"] = flower_run(
-        compose, f"transmit-final-model='{journey['training']}'"
+    result = compose(
+        "run",
+        "--rm",
+        "--no-deps",
+        f"{HOSPITAL}-web",
+        "python",
+        "manage.py",
+        "shell",
+        "-c",
+        FETCH_FINAL_MODELS,
     )
+    journey["fetched"] = json.loads(result.stdout.strip().splitlines()[-1])
 
 
 @then(
-    "the transmitting run completes and UZ Leuven stores the final model under"
-    " the training run's ID"
+    "UZ Leuven stores the final model under the training run's ID, with its local"
+    " validation"
 )
 def stored(compose: Compose, journey: dict[str, Any]) -> None:
+    assert journey["fetched"] == [journey["training"]]
     held = folders(compose)["hospital"]
     assert list(held) == [f"{journey['training']}.pt"], held
+    path = f"/demo/hospitals/{HOSPITAL}/screening-models/{journey['training']}.pt"
+    script = (
+        "from pathlib import Path; from ml.final_model import read;"
+        f" model = read(Path({path!r}));"
+        " print(model.problem() is None and bool(model.confusion_matrices))"
+    )
+    result = compose("run", "--rm", "--no-deps", "prepare", "python", "-c", script)
+    assert result.stdout.strip().splitlines()[-1] == "True"
 
 
-@then("that run completes too and UZ Leuven's copy is unchanged")
+@then("it fetches none and UZ Leuven's copy is unchanged")
 def unchanged(compose: Compose, journey: dict[str, Any]) -> None:
+    assert journey["fetched"] == []
     assert folders(compose)["hospital"] == journey["before"]

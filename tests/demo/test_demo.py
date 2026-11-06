@@ -83,6 +83,18 @@ def test_every_hospital_knows_every_practice_by_its_folder_name() -> None:
     ]
 
 
+def test_the_startup_knows_every_hospital_by_the_name_its_web_app_sends() -> None:
+    """Any hospital may fetch released final models (features/startup/release.feature),
+    so the startup registers every one, by the certificate name its web app sends:
+    its folder name, as compose.yaml sets it."""
+    from demo.demo import hospital_arguments
+    from ml.dataset import CYCLES, HOSPITALS, hospital_slug
+
+    assert hospital_arguments() == [
+        [hospital_slug(HOSPITALS[cycle]), HOSPITALS[cycle]] for cycle in CYCLES
+    ]
+
+
 def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise() -> None:
     """Every hospital's laboratory, its paired hospital's the primary one, so
     lab orders follow the hospitals' sizes by default."""

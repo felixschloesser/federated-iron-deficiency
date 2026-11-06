@@ -1,16 +1,19 @@
 from typing import Any
 
+import grpc
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
+from web.hospital.deployment.fetching import fetch_final_models, unreachable
 from web.hospital.deployment.forms import DeployForm
 from web.hospital.deployment.model_files import screening_models
 from web.hospital.deployment.models import Deployment, NoUsableModel
@@ -38,7 +41,40 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
             if isinstance(deployed, NoUsableModel)
             else None,
             "history": history,
+            # Only a hospital that knows the startup's endpoint can fetch.
+            "post_actions": [
+                {
+                    "url": reverse("deployment:fetch_final_models"),
+                    "label": "Fetch new final models",
+                }
+            ]
+            if settings.STARTUP_ADDRESS
+            else [],
         }
+
+
+class FetchFinalModelsView(LaboratoryDirectorRequiredMixin, View):
+    """Fetches the startup's new final models, validated on this hospital's own
+    past patients, then back (features/hospital/fetch.feature)."""
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        if not settings.STARTUP_ADDRESS:
+            raise Http404("This hospital knows no startup to fetch from.")
+        try:
+            stored = fetch_final_models(now=timezone.now())
+        except grpc.RpcError as error:
+            messages.error(
+                request,
+                "The startup could not be reached. Try again later."
+                if unreachable(error)
+                else "The startup refused the request. Tell the administrator.",
+            )
+        else:
+            messages.success(
+                request,
+                f"{len(stored) or 'No'} new final model{'' if len(stored) == 1 else 's'}.",
+            )
+        return redirect("deployment:screening_models")
 
 
 class DeployView(LaboratoryDirectorRequiredMixin, View):

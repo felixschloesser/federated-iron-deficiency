@@ -199,3 +199,129 @@ class Laboratory:
             metadata,
             _registered_method=True,
         )
+
+
+class FinalModelsStub:
+    """Missing associated documentation comment in .proto file."""
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.FetchNewFinalModels = channel.unary_unary(
+            "/messaging.v1.FinalModels/FetchNewFinalModels",
+            request_serializer=messages__pb2.NewFinalModelsRequest.SerializeToString,
+            response_deserializer=messages__pb2.NewFinalModels.FromString,
+            _registered_method=True,
+        )
+        self.AcknowledgeFinalModels = channel.unary_unary(
+            "/messaging.v1.FinalModels/AcknowledgeFinalModels",
+            request_serializer=messages__pb2.FinalModelAcknowledgement.SerializeToString,
+            response_deserializer=messages__pb2.Received.FromString,
+            _registered_method=True,
+        )
+
+
+class FinalModelsServicer:
+    """Missing associated documentation comment in .proto file."""
+
+    def FetchNewFinalModels(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def AcknowledgeFinalModels(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+
+def add_FinalModelsServicer_to_server(servicer, server):
+    rpc_method_handlers = {
+        "FetchNewFinalModels": grpc.unary_unary_rpc_method_handler(
+            servicer.FetchNewFinalModels,
+            request_deserializer=messages__pb2.NewFinalModelsRequest.FromString,
+            response_serializer=messages__pb2.NewFinalModels.SerializeToString,
+        ),
+        "AcknowledgeFinalModels": grpc.unary_unary_rpc_method_handler(
+            servicer.AcknowledgeFinalModels,
+            request_deserializer=messages__pb2.FinalModelAcknowledgement.FromString,
+            response_serializer=messages__pb2.Received.SerializeToString,
+        ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+        "messaging.v1.FinalModels", rpc_method_handlers
+    )
+    server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers(
+        "messaging.v1.FinalModels", rpc_method_handlers
+    )
+
+
+# This class is part of an EXPERIMENTAL API.
+class FinalModels:
+    """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def FetchNewFinalModels(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/messaging.v1.FinalModels/FetchNewFinalModels",
+            messages__pb2.NewFinalModelsRequest.SerializeToString,
+            messages__pb2.NewFinalModels.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True,
+        )
+
+    @staticmethod
+    def AcknowledgeFinalModels(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/messaging.v1.FinalModels/AcknowledgeFinalModels",
+            messages__pb2.FinalModelAcknowledgement.SerializeToString,
+            messages__pb2.Received.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True,
+        )

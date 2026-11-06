@@ -171,7 +171,7 @@ def receive_final_model(
     federated: dict[str, float],
     stored_at: datetime,
 ) -> Path:
-    """Store a transmitted final model; one transmitted again is kept as it was.
+    """Store a fetched final model; one fetched again is kept as it was.
     Other weights under a stored run's ID are refused (features/final_models.feature)."""
     path = final_model_path(directory, run_id)
     if path.exists():

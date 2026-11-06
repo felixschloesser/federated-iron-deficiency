@@ -1,8 +1,5 @@
 """ClientApp: each hospital trains and evaluates on its own cohort."""
 
-from datetime import UTC, datetime
-from pathlib import Path
-
 import pandas as pd
 import torch
 from datasets import load_from_disk
@@ -13,13 +10,11 @@ from flwr_datasets import FederatedDataset
 from ml.dataset import load_federated_dataset
 from ml.final_model import Net
 from ml.training import (
-    DEFAULT_DEMO_DIR,
     dataset_size,
-    hospital_screening_models,
 )
 from ml.training import train as train_fn
 from ml.validation import evaluate as evaluate_fn
-from ml.validation import load_data, receive_final_model
+from ml.validation import load_data
 
 # Flower ClientApp
 app = ClientApp()
@@ -127,36 +122,3 @@ def evaluate(msg: Message, context: Context) -> Message:
     )
     content = RecordDict({"metrics": metric_record})
     return Message(content=content, reply_to=msg)
-
-
-def final_models_path(context: Context) -> Path:
-    """Return the folder where this hospital keeps its final models."""
-    # Deployment Runtime: the hospital chooses the folder
-    if "data-path" in context.node_config:
-        return Path(str(context.node_config["final-models-path"]))
-
-    # Simulation Runtime: the hospital's folder under the demo directory
-    demo_dir = str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR
-    partition_id = int(context.node_config["partition-id"])
-    return hospital_screening_models(Path(demo_dir), partition_id)
-
-
-@app.query("receive")
-def receive(msg: Message, context: Context) -> Message:
-    """Store a final model the data scientist transmitted, for the hospital to
-    deploy or not, under its training run's ID (features/final_models.feature)."""
-
-    aggregate = msg.content.metric_records["federated"]
-    receive_final_model(
-        final_models_path(context),
-        run_id=int(str(msg.content.config_records["final-model"]["run-id"])),
-        state_dict=msg.content.array_records["arrays"].to_torch_state_dict(),
-        cohort=load_cohort(context),
-        federated={
-            name: float(value)
-            for name, value in aggregate.items()
-            if isinstance(value, (int, float))
-        },
-        stored_at=datetime.now(UTC),
-    )
-    return Message(content=RecordDict(), reply_to=msg)

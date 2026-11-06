@@ -39,8 +39,14 @@ SCREENING_MODELS_DIR: Path | None = (
 FINAL_MODELS_DIR: Path | None = (
     Path(os.environ["FINAL_MODELS_DIR"]) if "FINAL_MODELS_DIR" in os.environ else None
 )
+# The hospital's cohort, which its web app validates fetched final models on
+# (features/hospital/fetch.feature); in development, an optional folder.
+COHORT_DIR: Path | None = (
+    Path(os.environ["COHORT_DIR"]) if "COHORT_DIR" in os.environ else None
+)
 if DATA_DIR is not None and PARTY is Party.HOSPITAL:
     SCREENING_MODELS_DIR = DATA_DIR / "screening-models"
+    COHORT_DIR = DATA_DIR / "cohort"
 if DATA_DIR is not None and PARTY is Party.STARTUP:
     FINAL_MODELS_DIR = DATA_DIR / "final-models"
 # Shown in the title bar and header; never the screening's name. A development
@@ -49,6 +55,11 @@ PARTY_NAME = os.environ.get("PARTY_NAME") or (PARTY or Party.HOSPITAL).demo_name
 # The name the hospitals issued this practice and know it by, which its app
 # sends in every message (glossary.toml, certificate name).
 PRACTICE_CERTIFICATE_NAME = os.environ.get("PRACTICE_CERTIFICATE_NAME", "demo-practice")
+# The startup's final-models endpoint (host:port) and the name the startup issued
+# this hospital and knows it by (glossary.toml, certificate name); without the
+# endpoint, the hospital offers no fetching.
+STARTUP_ADDRESS = os.environ.get("STARTUP_ADDRESS") or None
+HOSPITAL_CERTIFICATE_NAME = os.environ.get("HOSPITAL_CERTIFICATE_NAME", "demo-hospital")
 # A Pico colour theme per party, so its pages are told apart at a glance; absent:
 # Pico's default. Only a vendored theme will do.
 PICO_DIR = BASE_DIR / "web" / "static" / "css" / "vendor" / "pico-2.1.1"

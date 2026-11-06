@@ -1,7 +1,7 @@
 {% extends "kit/base.html" %}
 {% block title %}Screening models{% endblock %}
 {% block content %}
-{% include "kit/index_header.html" with title="Screening models" %}
+{% include "kit/index_header.html" with title="Screening models" post_actions=post_actions %}
 
 {% if no_usable_model %}
 {% include "kit/alert.html" with level="error" role="status" text=no_usable_model.label|add:"." %}

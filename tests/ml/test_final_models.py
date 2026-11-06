@@ -50,7 +50,7 @@ def hospital(tmp_path: Path, cohort: pd.DataFrame) -> World:
 
 @given(
     parsers.parse(
-        "the ClientApp stored the final models of runs {first:d} and {second:d}"
+        "the hospital stored the final models of runs {first:d} and {second:d}"
     )
 )
 def stored_two(hospital: World, first: int, second: int) -> None:
@@ -73,7 +73,7 @@ def disk_full(monkeypatch: pytest.MonkeyPatch, run_id: int) -> None:
 
 
 @when(
-    parsers.re(r"the ClientApp stores the final model of run (?P<run_id>\d+)( again)?")
+    parsers.re(r"the hospital stores the final model of run (?P<run_id>\d+)( again)?")
 )
 def stores(hospital: World, run_id: str) -> None:
     try:
@@ -222,16 +222,14 @@ def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
     )
 
 
-@given(parsers.parse("the ClientApp received the final model of run {run_id:d}"))
+@given(parsers.parse("the hospital received the final model of run {run_id:d}"))
 def received(hospital: World, run_id: int) -> None:
     receive(hospital, run_id)
     hospital["before"] = (hospital["folder"] / f"{run_id}.pt").read_bytes()
 
 
 @when(
-    parsers.re(
-        r"the ClientApp receives the final model of run (?P<run_id>\d+)( again)?"
-    )
+    parsers.re(r"the hospital receives the final model of run (?P<run_id>\d+)( again)?")
 )
 def receives(hospital: World, run_id: str) -> None:
     try:
@@ -247,7 +245,7 @@ def receiving_succeeds(hospital: World) -> None:
 
 @when(
     parsers.parse(
-        "the ClientApp receives other weights as the final model of run {run_id:d}"
+        "the hospital receives other weights as the final model of run {run_id:d}"
     )
 )
 def receives_other(hospital: World, run_id: int) -> None:

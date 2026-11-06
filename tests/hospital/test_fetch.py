@@ -71,7 +71,9 @@ def released(world: World, run_id: str) -> None:
     world["startup"].offered.append(offered(run_id, seed=1))
 
 
-@given(parsers.parse('the startup offers final model "{run_id}" again, with other weights'))
+@given(
+    parsers.parse('the startup offers final model "{run_id}" again, with other weights')
+)
 def offered_again(world: World, run_id: str) -> None:
     world["startup"].acknowledged.clear()
     world["startup"].offered[:] = [offered(run_id, seed=2)]
@@ -90,9 +92,7 @@ def director_fetches(world: World, client: Client) -> None:
     if "director" not in world:
         world["director"] = make_laboratory_director("Director One")
     client.force_login(world["director"])
-    world["page"] = client.post(
-        reverse("deployment:fetch_final_models"), follow=True
-    )
+    world["page"] = client.post(reverse("deployment:fetch_final_models"), follow=True)
 
 
 @then("the hospital holds no final model")

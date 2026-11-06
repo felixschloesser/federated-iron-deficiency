@@ -363,11 +363,6 @@ source = "Report, \"Federated version\": \"its data scientist submits the app\" 
 why = "What the data scientist does to start a training run: the report's verb, and Flower's"
 rejected = ["start", "launch", "trigger"]
 
-["model sale"]
-source = "Report, P5 \"Model sale\"; Stakeholders table: other hospitals \"May buy the model from the startup\"; DF16 \"Final model weights, if sold\""
-why = "What the startup's *Download for sale* stands in for: the final model's weights only; a buyer standardizes and chooses a threshold on its own cohort, as each hospital does. Never a hospital's standardization or any metrics"
-rejected = ["export", "share", "release"]
-
 ["run status"]
 source = "Flower CLI, `flwr ls`: \"Current status of the run (pending, starting, running, finished)\"; a finished run is completed, failed or stopped (Flower, `flwr.common.constant.SubStatus`)"
 why = "Where a training run is, in the data scientist's own tool's words: Pending, Starting, Running, Completed, Failed, Stopped"
@@ -412,8 +407,3 @@ rejected = ["random state", "model seed (the key, not the word)"]
 source = "Flower CLI, `flwr stop`: \"Stop a Flower run\"; the run status Stopped"
 why = "What the data scientist does to a training run in progress they no longer want, so no hospital trains or sends weights for it any more"
 rejected = ["cancel", "abort", "kill"]
-
-["transmit"]
-source = "Report, \"Federated version\": \"The data scientist then transmits a final model to every connected hospital, with its averaged validation metrics, in a run of its own (DF8)\""
-why = "What the data scientist does to a final model so that every connected hospital stores it as a screening model its laboratory director may deploy; the report's word. Flower's own API calls each message it carries a send (`grid.send_and_receive`), the app's design, not a Flower feature"
-rejected = ["send (Flower's word for any message)", "deploy (the laboratory director's word)", "push", "distribute"]

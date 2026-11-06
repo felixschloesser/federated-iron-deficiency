@@ -1,6 +1,5 @@
-"""Data loading, training and evaluation; then the final model as each hospital
-keeps and validates it, transmits it, and the startup stores its own copy: one
-file per training run."""
+"""Training at each hospital, and the final model as the startup keeps it: one
+file per training run, which recipient hospitals fetch once it is released."""
 
 from collections.abc import Mapping, Sized
 from datetime import UTC, datetime
@@ -125,28 +124,3 @@ def latest_final_model(directory: Path) -> Path:
     return max(
         final_model_paths(directory), key=lambda path: read(path).stored_at or unknown
     )
-
-
-def final_model_to_transmit(directory: Path, run_id: int) -> FinalModel:
-    """What a transmission sends every hospital of the startup's kept final model:
-    its weights, the AUROC across hospitals and its run ID; never its run
-    configuration (features/training.feature)."""
-    path = final_model_path(directory, run_id)
-    kept = read(path) if path.is_file() else FinalModel()
-    if kept.state_dict is None:
-        raise FileNotFoundError(f"There is no final model of run {run_id}.")
-    return FinalModel(
-        state_dict=kept.state_dict, run_id=run_id, federated=kept.federated
-    )
-
-
-def transmission_failure(*, connected: int, replied: int, errors: int) -> str | None:
-    """Why a transmission did not reach every connected hospital, or None when
-    each acknowledged it. Flower leaves a missing reply out, not as an error."""
-    if connected == 0:
-        return "No hospital is connected."
-    if replied < connected:
-        return f"{replied} of {connected} connected hospitals replied."
-    if errors:
-        return f"{errors} of {connected} connected hospitals could not store it."
-    return None

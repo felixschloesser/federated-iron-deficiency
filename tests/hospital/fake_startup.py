@@ -20,9 +20,9 @@ class FakeStartup(messages_pb2_grpc.FinalModelsServicer):
 
     def FetchNewFinalModels(
         self, request: messages_pb2.NewFinalModelsRequest, context: grpc.ServicerContext
-    ) -> messages_pb2.FinalModels:
+    ) -> messages_pb2.NewFinalModels:
         self.certificate_names.append(request.certificate_name)
-        return messages_pb2.FinalModels(
+        return messages_pb2.NewFinalModels(
             final_models=[
                 model for model in self.offered if model.run_id not in self.acknowledged
             ]

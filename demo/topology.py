@@ -187,15 +187,26 @@ MIDDLE = """\
       - {type: volume, source: startup, target: /demo/startup/flwr-home, volume: {subpath: flwr-home}}
     networks: [startup]
 
-  # The startup's web app: its data scientist sees the final models and submits
-  # training runs. On startup to reach the SuperLink, on startup-web for the
-  # proxy, which so never reaches the SuperLink.
+  # The startup's web app: its data scientist sees the final models, submits
+  # training runs and releases final models. One container, two servers, each on
+  # a name only one network knows: the proxy reaches the pages, the hospitals'
+  # web apps only the final-models endpoint (P12, features/startup/release.feature).
+  # On startup to reach the SuperLink, which so neither the proxy nor a hospital reaches.
   startup-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    command:
+      - bash
+      - -c
+      - |
+        trap 'kill $$(jobs -p)' TERM INT
+        gunicorn web.wsgi --bind=startup-pages:8000 --workers=2 --access-logfile=- &
+        python manage.py serve_final_models startup-final-models:8442 &
+        wait -n
+        exit 1
+    restart: unless-stopped
     healthcheck:
       <<: *health
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
+      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://startup-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('startup-final-models', 8442)).close()"]
     environment:
       PARTY: startup
       DATA_DIR: /demo/startup
@@ -205,7 +216,10 @@ MIDDLE = """\
       - {type: volume, source: startup, target: /demo/startup/final-models, read_only: true, volume: {subpath: final-models}}
     # Masked: the SuperLink's state (DS3) is the SuperLink's alone.
     tmpfs: [/demo/startup/superlink]
-    networks: [startup, startup-web]
+    networks:
+      startup: {}
+      startup-web: {aliases: [startup-pages]}
+      final-models: {aliases: [startup-final-models]}
 
 """
 
@@ -219,18 +233,18 @@ HOSPITAL = """\
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
-      - --node-config=data-path='/demo/hospitals/{slug}/cohort' final-models-path='/demo/hospitals/{slug}/screening-models'
+      - --node-config=data-path='/demo/hospitals/{slug}/cohort'
     networks: [model-updates, {slug}-flower-client-app]
 
-  # The startup's code at the hospital (TB4): only the cohort and the final
-  # models, and a network that reaches nothing but its SuperNode (features/quality/client_app_isolation.feature).
+  # The startup's code at the hospital (TB4): only the cohort, read-only, so it
+  # writes nothing at the hospital, and a network that reaches nothing but its
+  # SuperNode (features/quality/client_app_isolation.feature).
   {slug}-flower-client-app:
     <<: *superexec
     depends_on: [{slug}-flower-supernode]
     command: [--runtime-api-address={slug}-flower-supernode:9094, --insecure]
     volumes:
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/cohort, read_only: true, volume: {subpath: cohort}}
-      - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/screening-models, volume: {subpath: screening-models}}
     networks: [{slug}-flower-client-app]
 
   {slug}-web:
@@ -258,16 +272,20 @@ HOSPITAL = """\
       DATA_DIR: /demo/hospitals/{slug}
       PARTY_NAME: {name}
       PARTY_COLOUR: {colour}
+      # The startup's final-models endpoint, and the name the startup issued this
+      # hospital (features/hospital/fetch.feature).
+      STARTUP_ADDRESS: startup-final-models:8442
+      HOSPITAL_CERTIFICATE_NAME: {slug}
     volumes:
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}}
-      - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/screening-models, read_only: true, volume: {subpath: screening-models}}
-    # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
+      # Read-only: the web app validates fetched final models on the cohort, and
+      # stores them in screening-models itself.
+      - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/cohort, read_only: true, volume: {subpath: cohort}}
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (features/quality/web_apps.feature).
-    # Masked: the startup's data.
-    tmpfs: [/demo/hospitals/{slug}/cohort]
     networks:
       {slug}: {aliases: [{slug}-pages]}
       messaging: {aliases: [{slug}-messaging]}
+      final-models: {}
 
 """
 
@@ -391,7 +409,7 @@ def compose() -> str:
         "    networks:\n      [startup-web, " + ", ".join(hospital_slugs) + ",\n       "
     )
     text += ", ".join(practice_slugs) + "]\n\n"
-    text += "networks:\n  setup: {}\n  startup: {internal: true}\n  startup-web: {}\n"
+    text += "networks:\n  setup: {}\n  startup: {internal: true}\n  startup-web: {}\n  final-models: {internal: true}\n"
     text += "  model-updates: {internal: true}\n  messaging: {internal: true}\n"
     for slug in hospital_slugs:
         text += f"  {slug}: {{}}\n  {slug}-flower-client-app: {{internal: true}}\n"
