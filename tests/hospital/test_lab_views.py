@@ -8,7 +8,7 @@ from django.urls import reverse
 from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains, assertNotContains
 
-from tests.conftest import (
+from tests.hospital.conftest import (
     make_laboratory_director,
     make_laboratory_staff_member,
     make_tube,

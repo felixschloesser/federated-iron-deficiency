@@ -10,7 +10,7 @@ class SubmitRunForm(forms.Form):
     Each field is named after its run configuration key (`num_server_rounds` for
     `num-server-rounds`). Not offered: the fraction of hospitals evaluating (fewer
     than all would make the AUROC across hospitals one hospital's), the folder
-    final models are kept in, and the W&B key (features/training.feature)."""
+    final models are kept in, and the W&B key (features/startup/training.feature)."""
 
     num_server_rounds = forms.IntegerField(label="Rounds", min_value=1, max_value=20)
     local_epochs = forms.IntegerField(label="Local epochs", min_value=1, max_value=10)

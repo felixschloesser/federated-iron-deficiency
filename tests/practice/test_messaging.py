@@ -1,6 +1,6 @@
 """Scenarios: the general practitioner's app sending lab orders and fetching lab
 reports over gRPC (features/practice/messaging.feature), and its pages and
-commands that do. The hospital is the stand-in tests/fake_laboratory.py:
+commands that do. The hospital is the stand-in tests/practice/fake_laboratory.py:
 no hospital code, no hospital database."""
 
 from datetime import UTC, datetime
@@ -14,15 +14,15 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
 
-from tests.conftest import (
+from tests.conftest import World
+from tests.practice.conftest import (
     Running,
-    World,
     collect_and_order,
     make_general_practitioner,
     make_patient,
     suggest_ferritin_on,
 )
-from tests.fake_laboratory import FakeLaboratory
+from tests.practice.fake_laboratory import FakeLaboratory
 from web.accounts.models import User
 from web.messaging import messages_pb2
 from web.practice import messaging
@@ -242,7 +242,7 @@ def owner() -> User:
 
 def new_order_url(client: Client, record: Patient) -> str:
     """Collect a sample from the patient; the ferritin order page on it, beside
-    a CBC lab report suggesting ferritin (features/ordering.feature)."""
+    a CBC lab report suggesting ferritin (features/practice/ordering.feature)."""
     client.post(reverse("practice:collect_sample", kwargs={"patient": record.pk}))
     suggest_ferritin_on(record.samples.latest("pk"), NOW)
     return reverse(

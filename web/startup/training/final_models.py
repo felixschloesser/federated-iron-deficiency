@@ -82,7 +82,7 @@ def for_sale(directory: Path | None, run_id: str) -> bytes | None:
 
 class Delivery(models.TextChoices):
     """Whether a final model reached the hospitals, from its latest transmission's
-    run status (features/training.feature)."""
+    run status (features/startup/training.feature)."""
 
     NOT_TRANSMITTED = "not_transmitted", "Not transmitted"
     TRANSMITTING = "transmitting", "Transmitting"

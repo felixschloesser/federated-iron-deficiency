@@ -64,7 +64,7 @@ type Global___RegisteredSex = RegisteredSex  # noqa: Y015
 class LabOrder(_message.Message):
     """DF23. No patient name, no blood values, no clinical indication (features/hospital/messaging.feature): the
     tube's values are measured at the hospital, and of the indication the
-    laboratory needs only whether it is screened (features/screening.feature). The hospital's form still
+    laboratory needs only whether it is screened (features/hospital/screening.feature). The hospital's form still
     checks every field.
     """
 
@@ -123,7 +123,7 @@ type Global___LabOrder = LabOrder  # noqa: Y015
 
 @_typing.final
 class LabReport(_message.Message):
-    """DF25. Results and one bit of screening (features/reports.feature, features/hospital/messaging.feature): no score, and nothing that
+    """DF25. Results and one bit of screening (features/practice/reports.feature, features/hospital/messaging.feature): no score, and nothing that
     tells ferritin not suggested from not screened.
     """
 

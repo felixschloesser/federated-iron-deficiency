@@ -1,5 +1,5 @@
 """Scenarios: screening a CBC in the lab app with a deployed model
-(features/screening.feature)."""
+(features/hospital/screening.feature)."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,7 +18,8 @@ from ml.screening import (
     write,
 )
 from ml.task import Net
-from tests.conftest import World, make_practice
+from tests.conftest import World
+from tests.hospital.conftest import make_practice
 from web.hospital.deployment.model_files import sha256
 from web.hospital.deployment.models import Deployment, NoUsableModel
 from web.hospital.lab.models import (
@@ -32,7 +33,7 @@ from web.hospital.nhanes.models import Participant
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
-# Scenarios: screening a CBC when the analyser runs (features/screening.feature).
+# Scenarios: screening a CBC when the analyser runs (features/hospital/screening.feature).
 
 NOW = datetime(2026, 10, 30, 11, 0, tzinfo=UTC)
 PRACTICE = "client"
@@ -41,7 +42,7 @@ DECIDING = CBC_VARS[0]
 SIDES = {"above": 20.0, "below": 0.0}
 pytestmark = pytest.mark.django_db
 
-scenarios("screening.feature")
+scenarios("hospital/screening.feature")
 
 
 def deciding_model() -> dict[str, torch.Tensor]:

@@ -26,7 +26,7 @@ from ml.task import Net
 COLUMNS = ["sample_id", "sex", "age", *CBC_VARS]
 
 # The thresholds a laboratory director chooses from: each hospital counts its
-# local validation at every one (features/deployment.feature).
+# local validation at every one (features/hospital/deployment.feature).
 THRESHOLDS = tuple(step / 20 for step in range(1, 20))
 
 # What torch.load raises on a file that is no model file, or none it loads safely.
@@ -203,7 +203,7 @@ def suggests_ferritin(
     cbc: Mapping[str, float], age: int, model: FinalModel, threshold: float
 ) -> bool:
     """Whether the model scores one CBC at or above the threshold it was deployed
-    at. Who is screened is the caller's decision (features/screening.feature)."""
+    at. Who is screened is the caller's decision (features/hospital/screening.feature)."""
     features = pd.DataFrame([{**cbc, "RIDAGEYR": age}], columns=FEATURES)
     if features.isna().any(axis=None):
         raise ValueError("A CBC without all its values cannot be screened.")

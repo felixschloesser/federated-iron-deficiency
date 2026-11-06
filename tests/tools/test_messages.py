@@ -97,7 +97,7 @@ def test_none_and_unknown_numbers_are_no_choice(vocabulary: str) -> None:
 
 
 def test_a_lab_order_says_whether_its_indication_is_screened_and_nothing_more() -> None:
-    """The laboratory needs the indication only to decide whether to screen (features/screening.feature, features/practice/messaging.feature): one yes or no, never which indication, pregnancy included."""
+    """The laboratory needs the indication only to decide whether to screen (features/hospital/screening.feature, features/practice/messaging.feature): one yes or no, never which indication, pregnancy included."""
     from google.protobuf.descriptor import FieldDescriptor
 
     from web.messaging import messages_pb2

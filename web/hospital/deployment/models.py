@@ -1,4 +1,4 @@
-"""The screening models the laboratory director deployed (features/deployment.feature)."""
+"""The screening models the laboratory director deployed (features/hospital/deployment.feature)."""
 
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         self, *, run_id: str, threshold: float, directory: Path | None, now: datetime
     ) -> Deployment:
         """Make a screening model in the hospital's folder the deployed model, at a
-        threshold its local validation holds, from `now` (features/deployment.feature)."""
+        threshold its local validation holds, from `now` (features/hospital/deployment.feature)."""
         path = None if directory is None else final_model_path(directory, run_id)
         if path is None or not path.is_file():
             raise ValidationError(
@@ -113,7 +113,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         return self.create(screening_model=screening_model, deployed_at=now)
 
     def screener(self, directory: Path | None) -> Screener | NoUsableModel:
-        """The deployed model ready to screen, or why there is none (features/screening.feature)."""
+        """The deployed model ready to screen, or why there is none (features/hospital/screening.feature)."""
         latest = (
             self.select_related("screening_model")
             .order_by("-deployed_at", "-pk")
@@ -146,7 +146,7 @@ class Deployment(models.Model):
 
 @dataclass(frozen=True)
 class Screener:
-    """The deployed model, loaded from the very bytes whose hash was checked (features/screening.feature)."""
+    """The deployed model, loaded from the very bytes whose hash was checked (features/hospital/screening.feature)."""
 
     screening_model: ScreeningModel
     final_model: FinalModel

@@ -63,7 +63,7 @@ def _log_result_to_wandb(result: Result, api_key: str) -> None:
 @app.main()
 def main(grid: Grid, context: Context) -> None:
     """A training run, or, with `transmit-final-model` set, the transmission of a
-    final model the startup kept to every hospital (features/training.feature)."""
+    final model the startup kept to every hospital (features/startup/training.feature)."""
     demo_dir = Path(str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR)
     # A string: Flower's run IDs exceed TOML's integers; empty for a training run.
     transmit = str(context.run_config["transmit-final-model"])
@@ -139,7 +139,7 @@ def train(grid: Grid, context: Context, directory: Path) -> None:
         else MetricRecord()
     )
     # No threshold: each hospital's laboratory director chooses one
-    # (features/deployment.feature).
+    # (features/hospital/deployment.feature).
     keep_final_model(
         directory,
         run_id=context.run_id,

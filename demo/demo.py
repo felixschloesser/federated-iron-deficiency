@@ -131,7 +131,7 @@ def prepare_web(
 def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
     """add_laboratory's arguments for every hospital's laboratory; the practice's
     paired hospital's is its primary laboratory, so by default lab orders follow
-    the hospitals' sizes (features/ordering.feature)."""
+    the hospitals' sizes (features/practice/ordering.feature)."""
     return [
         [
             HOSPITALS[cycle],

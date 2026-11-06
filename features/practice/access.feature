@@ -1,6 +1,6 @@
 Feature: Who sees what
   A practice has one general practitioner. That the lab never learns a patient's
-  name is in lab.feature and hospital/messaging.feature.
+  name is in features/hospital/lab.feature and features/hospital/messaging.feature.
 
   Background:
     Given general practitioner "Dr. Demo A" with patient "Test Patient 1"

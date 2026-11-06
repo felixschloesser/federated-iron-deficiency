@@ -23,14 +23,14 @@ enum RegisteredSex {
 
 // DF23. No patient name, no blood values, no clinical indication (features/hospital/messaging.feature): the
 // tube's values are measured at the hospital, and of the indication the
-// laboratory needs only whether it is screened (features/screening.feature). The hospital's form still
+// laboratory needs only whether it is screened (features/hospital/screening.feature). The hospital's form still
 // checks every field.
 message LabOrder {
   reserved 2, 3, 4, 7;              // were strings: test, indication, sex, ordered_at
   reserved 9;                       // was the clinical indication itself
   reserved "indication";
   reserved 6;                       // was the general practitioner's name: the
-  reserved "general_practitioner";  // certificate_name says who ordered (features/access.feature)
+  reserved "general_practitioner";  // certificate_name says who ordered (features/practice/access.feature)
   string certificate_name = 13;     // the sending practice's (features/hospital/messaging.feature)
   string sample_id = 1;
   Test test = 8;
@@ -40,7 +40,7 @@ message LabOrder {
   google.protobuf.Timestamp ordered_at = 11;
 }
 
-// DF25. Results and one bit of screening (features/reports.feature, features/hospital/messaging.feature): no score, and nothing that
+// DF25. Results and one bit of screening (features/practice/reports.feature, features/hospital/messaging.feature): no score, and nothing that
 // tells ferritin not suggested from not screened.
 message LabReport {
   reserved 3, 6;                    // were strings: test, released_at

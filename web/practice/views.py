@@ -70,7 +70,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             )
             .order_by("-collected_at", "-pk")
         )
-        # Blood is collected first; tests are ordered on a sample afterwards (features/ordering.feature).
+        # Blood is collected first; tests are ordered on a sample afterwards (features/practice/ordering.feature).
         collect = reverse("practice:collect_sample", kwargs={"patient": patient.pk})
         laboratories = Laboratory.objects.count()
         # Several laboratories: the choice comes first, on its own page (features/practice/messaging.feature).
@@ -83,7 +83,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             "label": "Check for reports",
         }
         # Each sample with the tests on it, in the order they were placed, so a
-        # ferritin ordered beside a suggestion shows right under it (features/reports.feature, features/ordering.feature).
+        # ferritin ordered beside a suggestion shows right under it (features/practice/reports.feature, features/practice/ordering.feature).
         # Only the newest opens; the others summarise their tests and whether a
         # lab report in them suggests ferritin.
         return {
@@ -154,7 +154,7 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
 
 class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSampleForm]):
     """Records a sample collected from one of the practice's patients, for the
-    laboratory chosen; a practice with one laboratory skips the choice (features/practice/messaging.feature, features/ordering.feature)."""
+    laboratory chosen; a practice with one laboratory skips the choice (features/practice/messaging.feature, features/practice/ordering.feature)."""
 
     template_name = "practice/collect_sample.html"
     form_class = CollectSampleForm

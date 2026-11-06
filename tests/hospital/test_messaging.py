@@ -207,7 +207,7 @@ def released(name: str, sample_id: str, certificate_name: str) -> None:
 )
 def released_suggested(name: str, sample_id: str, certificate_name: str) -> None:
     lab_order = release(sample_id, certificate_name, OrderedTest.CBC)
-    # As the deployed model would have decided (features/screening.feature).
+    # As the deployed model would have decided (features/hospital/screening.feature).
     LabOrder.objects.filter(pk=lab_order.pk).update(
         screening_result=ScreeningResult.FERRITIN_SUGGESTED, not_screened_reason=None
     )

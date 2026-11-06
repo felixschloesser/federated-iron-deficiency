@@ -114,7 +114,7 @@ def local_validation(
 def final_model_to_transmit(directory: Path, run_id: int) -> FinalModel:
     """What a transmission sends every hospital of the startup's kept final model:
     its weights, the AUROC across hospitals and its run ID; never its run
-    configuration (features/training.feature)."""
+    configuration (features/startup/training.feature)."""
     path = final_model_path(directory, run_id)
     kept = read(path) if path.is_file() else FinalModel()
     if kept.state_dict is None:

@@ -1,5 +1,5 @@
 """Screening models as files in the hospital's folder: what the laboratory
-director sees of each, and why one cannot be deployed (features/deployment.feature)."""
+director sees of each, and why one cannot be deployed (features/hospital/deployment.feature)."""
 
 import hashlib
 from dataclasses import dataclass, field

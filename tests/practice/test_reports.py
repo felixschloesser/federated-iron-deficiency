@@ -1,4 +1,4 @@
-"""Scenarios: lab reports for the general practitioner (features/reports.feature)."""
+"""Scenarios: lab reports for the general practitioner (features/practice/reports.feature)."""
 
 from datetime import UTC, datetime
 
@@ -6,7 +6,8 @@ import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from ml.cohort import CBC_VARS
-from tests.conftest import World, collect_and_order
+from tests.conftest import World
+from tests.practice.conftest import collect_and_order
 from web.practice.models import LabReport, Order, Patient
 from web.vocabulary import ClinicalIndication
 from web.vocabulary import Test as OrderedTest
@@ -16,7 +17,7 @@ NOW = datetime(2026, 10, 30, 12, 0, tzinfo=UTC)
 CBC = {var: float(index) for index, var in enumerate(CBC_VARS, 1)}
 pytestmark = pytest.mark.django_db
 
-scenarios("reports.feature")
+scenarios("practice/reports.feature")
 
 
 def order(patient: Patient, test: OrderedTest) -> Order:

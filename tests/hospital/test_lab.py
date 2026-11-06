@@ -1,5 +1,5 @@
 """Scenarios: analysing samples, and the lab never seeing a patient's name
-(features/lab.feature). Only the hospital's side: lab orders arrive as its
+(features/hospital/lab.feature). Only the hospital's side: lab orders arrive as its
 messaging endpoint records them."""
 
 from datetime import UTC, datetime, timedelta
@@ -9,7 +9,8 @@ from django.core.exceptions import ValidationError
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from ml.cohort import CBC_VARS
-from tests.conftest import World, make_practice, make_tube, receive_lab_order
+from tests.conftest import World
+from tests.hospital.conftest import make_practice, make_tube, receive_lab_order
 from web.hospital.lab.models import LabOrder, Sample
 from web.hospital.nhanes.models import FERRITIN, Participant
 from web.vocabulary import RegisteredSex
@@ -19,7 +20,7 @@ NOW = datetime(2026, 10, 29, 10, 0, tzinfo=UTC)
 TESTS = {"CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
 pytestmark = pytest.mark.django_db
 
-scenarios("lab.feature")
+scenarios("hospital/lab.feature")
 
 
 def tube(world: World, patient: str) -> Participant:

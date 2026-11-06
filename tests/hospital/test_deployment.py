@@ -1,4 +1,4 @@
-"""Scenarios: deploying a screening model (features/deployment.feature)."""
+"""Scenarios: deploying a screening model (features/hospital/deployment.feature)."""
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -11,12 +11,13 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.fixtures import Settings
 
 from ml.screening import Problem
-from tests.conftest import World, make_laboratory_staff_member, write_final_model
+from tests.conftest import World
+from tests.hospital.conftest import make_laboratory_staff_member, write_final_model
 
 NOW = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
 pytestmark = pytest.mark.django_db
 
-scenarios("deployment.feature")
+scenarios("hospital/deployment.feature")
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ def screening_models_dir(tmp_path: Path) -> Path:
 def laboratory_director(
     world: World, db: None, name: str, screening_models_dir: Path
 ) -> None:
-    from tests.conftest import make_laboratory_director
+    from tests.hospital.conftest import make_laboratory_director
 
     world["director"] = make_laboratory_director(name)
     world["screening_models_dir"] = screening_models_dir
