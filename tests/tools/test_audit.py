@@ -200,7 +200,7 @@ def test_update_lowers_the_baseline(tmp_path: Path) -> None:
 def test_web_imports_only_the_screening_side(tmp_path: Path) -> None:
     code = (
         "from ml.cohort import CBC_VARS\n"
-        "from ml.screening import score\n"
+        "from ml.inference import score\n"
         "from ml.client_app import app\n"
         "import ml.server_app\n"
     )
@@ -234,8 +234,8 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
 def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
     code = (
         "from ml.cohort import CBC_VARS\n"
-        "from ml.screening import score\n"
-        "from ml.final_model_file import read\n"
+        "from ml.inference import score\n"
+        "from ml.final_model import read\n"
     )
     root = tree(
         tmp_path,
@@ -247,11 +247,11 @@ def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
         },
     )
     assert audit.run(root)["training_imports"] == [
-        "web/practice/views.py:2: imports ml.screening, the hospital's code",
-        "web/practice/views.py:3: imports ml.final_model_file, the hospital's or the startup's code",
-        "web/seeding/command.py:2: imports ml.screening, the hospital's code",
-        "web/seeding/command.py:3: imports ml.final_model_file, the hospital's or the startup's code",
-        "web/startup/training/views.py:2: imports ml.screening, the hospital's code",
+        "web/practice/views.py:2: imports ml.inference, the hospital's code",
+        "web/practice/views.py:3: imports ml.final_model, the hospital's or the startup's code",
+        "web/seeding/command.py:2: imports ml.inference, the hospital's code",
+        "web/seeding/command.py:3: imports ml.final_model, the hospital's or the startup's code",
+        "web/startup/training/views.py:2: imports ml.inference, the hospital's code",
     ]
 
 

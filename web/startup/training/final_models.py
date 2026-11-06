@@ -7,7 +7,7 @@ from typing import assert_never
 
 from django.db import models
 
-from ml.final_model_file import (
+from ml.final_model import (
     FinalModel,
     final_model_path,
     final_model_paths,
