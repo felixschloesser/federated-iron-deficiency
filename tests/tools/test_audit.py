@@ -194,15 +194,15 @@ def test_update_lowers_the_baseline(tmp_path: Path) -> None:
 
 def test_web_imports_only_the_screening_side(tmp_path: Path) -> None:
     code = (
-        "from iron_deficiency.cohort import CBC_VARS\n"
-        "from iron_deficiency.screening import score\n"
-        "from iron_deficiency.client_app import app\n"
-        "import iron_deficiency.server_app\n"
+        "from ml.cohort import CBC_VARS\n"
+        "from ml.screening import score\n"
+        "from ml.client_app import app\n"
+        "import ml.server_app\n"
     )
     root = tree(tmp_path, {"web/lab/models.py": code, "tools/x.py": code})
     assert audit.run(root)["training_imports"] == [
-        "web/lab/models.py:3: imports iron_deficiency.client_app, startup code",
-        "web/lab/models.py:4: imports iron_deficiency.server_app, startup code",
+        "web/lab/models.py:3: imports ml.client_app, startup code",
+        "web/lab/models.py:4: imports ml.server_app, startup code",
     ]
 
 
@@ -227,10 +227,7 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
 
 
 def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
-    code = (
-        "from iron_deficiency.cohort import CBC_VARS\n"
-        "from iron_deficiency.screening import score\n"
-    )
+    code = "from ml.cohort import CBC_VARS\nfrom ml.screening import score\n"
     root = tree(
         tmp_path,
         {
@@ -240,8 +237,8 @@ def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
         },
     )
     assert audit.run(root)["training_imports"] == [
-        "web/practice/views.py:2: imports iron_deficiency.screening, the hospital's code",
-        "web/seeding/command.py:2: imports iron_deficiency.screening, the hospital's code",
+        "web/practice/views.py:2: imports ml.screening, the hospital's code",
+        "web/seeding/command.py:2: imports ml.screening, the hospital's code",
     ]
 
 

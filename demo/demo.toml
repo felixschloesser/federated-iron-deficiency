@@ -1,4 +1,4 @@
-# The demo's parties (demo/README.md): each hospital, keyed as iron_deficiency.dataset
+# The demo's parties (demo/README.md): each hospital, keyed as ml.dataset
 # names it, with the general practitioner's practice whose primary laboratory
 # it is; every practice may send samples to every hospital (features/messaging.feature).
 # How each hospital trains (its NHANES cycle and sample) is the startup's

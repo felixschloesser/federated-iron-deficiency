@@ -15,7 +15,7 @@ import pytest
 from pytest_bdd import given, parsers, scenario, then, when
 
 from demo.topology import COLOURS, PRACTICES
-from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
+from ml.dataset import CYCLES, HOSPITALS, hospital_slug
 
 ROOT = Path(__file__).resolve().parents[2]
 HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]

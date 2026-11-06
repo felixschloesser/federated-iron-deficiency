@@ -24,7 +24,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from demo.topology import PATIENTS, PRACTICES
-from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
+from ml.dataset import CYCLES, HOSPITALS, hospital_slug
 from web.seeding.accounts import (
     DATA_SCIENTIST,
     GENERAL_PRACTITIONER,
@@ -202,7 +202,7 @@ def prepare_flower(demo_dir: Path) -> None:
 
 def prepare(demo_dir: Path) -> None:
     """Create what is missing: Flower's connection, cohorts, the NHANES data."""
-    from iron_deficiency.dataset import (
+    from ml.dataset import (
         load_federated_dataset,
         load_ferritin,
         load_new_samples,

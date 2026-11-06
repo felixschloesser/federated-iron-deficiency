@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from iron_deficiency.cohort import CBC_VARS
+from ml.cohort import CBC_VARS
 from web.accounts.roles import Role
 from web.nhanes.models import Participant
 from web.seeding.accounts import LABORATORY_DIRECTOR, LABORATORY_STAFF

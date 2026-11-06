@@ -7,7 +7,7 @@ import pandas as pd
 from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import NaturalIdPartitioner
 
-from iron_deficiency.cohort import CBC_VARS, FEATURES, FERRITIN_THRESHOLD, eligible
+from ml.cohort import CBC_VARS, FEATURES, FERRITIN_THRESHOLD, eligible
 
 # NHANES merged into one row per participant and cycle, pinned to a fixed revision.
 HF_DATASET = "gracemyu/nhanes-merged"

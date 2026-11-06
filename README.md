@@ -12,7 +12,7 @@ and 2017–2018, keeping fixed 50% and 25% samples for the medium and small
 hospitals. Each client trains on its own locally standardized data.
 
 After training, the ServerApp deploys the final model to every hospital, and
-each hospital screens new blood counts locally with `iron_deficiency.screening`.
+each hospital screens new blood counts locally with `ml.screening`.
 
 ## Changes from `@javier/iron-deficiency`
 
@@ -20,6 +20,8 @@ This app extends [`@javier/iron-deficiency`](https://flower.ai/apps/javier/iron-
 v1.3.0 for a privacy impact assessment of a hypothetical deployment: a startup
 and three Belgian hospitals.
 
+- **Package `ml/`.** The original's package is `iron_deficiency/`; here the
+  Flower app is `ml/`, beside the web app in `web/` and the demo in `demo/`.
 - **Data from Hugging Face.** The original downloads the NHANES files from the
   CDC on each client. Here the cohorts come from a pinned revision of
   `gracemyu/nhanes-merged` through Flower Datasets, so the app also runs in
@@ -42,11 +44,11 @@ and three Belgian hospitals.
   hospital acknowledges it. Each stores it as a new file named after the training run ID in its
   `final-models-path`, with its own standardization and a local validation on
   its validation split: the confusion matrix at each threshold from 0.05 to
-  0.95 in steps of 0.05, and AUROC (`iron_deficiency/final_models.py`). A
+  0.95 in steps of 0.05, and AUROC (`ml/final_models.py`). A
   hospital decides itself which final model to deploy, and at which threshold. The startup keeps a copy of every final
   model in `<demo-dir>/startup/final-models/`, so the assessment can cover how
   the model is used, not only how it is trained.
-- **Local screening** (`iron_deficiency/screening.py`). Only registered women
+- **Local screening** (`ml/screening.py`). Only registered women
   aged 18–49 are scored, as the model was trained on them alone. Only each
   sample ID and its decision leave the screening, with no scores or other input
   columns.
@@ -72,7 +74,7 @@ partitions, download the cohorts and save one partition per cycle
 screen (`demo_data/new_samples.csv`, from the unused 2021–2023 cycle):
 
 ```shell
-python -m iron_deficiency.dataset --out-dir demo_data
+python -m ml.dataset --out-dir demo_data
 ```
 
 Then pass each SuperNode the path to its partition, and where to store the
@@ -124,7 +126,7 @@ flwr run . --federation-config "num-supernodes=3" --run-config "demo-dir='$PWD/.
 ```
 
 `flwr run` starts a local SuperLink in the background and reuses it for later
-runs, from any checkout: its simulation imports `iron_deficiency` from the
+runs, from any checkout: its simulation imports `ml` from the
 environment it was started in. Stop it (`pkill -f flower-superlink`) before
 running the simulation from another checkout.
 
@@ -141,7 +143,7 @@ blood-count variables; other columns are ignored. Only women aged 18–49 are
 screened, as the model was trained on them alone:
 
 ```shell
-python -m iron_deficiency.screening \
+python -m ml.screening \
   --model ~/.cache/iron-deficiency/hospitals/az-diest/screening-models/<run-id>.pt \
   --input demo_data/new_samples.csv \
   --threshold 0.5 \

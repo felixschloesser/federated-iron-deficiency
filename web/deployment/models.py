@@ -10,7 +10,7 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
-from iron_deficiency.screening import (
+from ml.screening import (
     FinalModel,
     final_model_path,
     from_bytes,

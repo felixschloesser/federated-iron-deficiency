@@ -7,7 +7,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
-from iron_deficiency.cohort import CBC_VARS
+from ml.cohort import CBC_VARS
 from tests.conftest import World, collect_and_order, deliver, suggest_ferritin_on
 from web.lab.models import LabOrder, Sample
 from web.nhanes.models import FERRITIN, Participant

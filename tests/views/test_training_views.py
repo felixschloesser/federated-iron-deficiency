@@ -13,8 +13,8 @@ from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains, assertNotContains, assertRedirects
 from pytest_django.fixtures import Settings
 
-from iron_deficiency.final_models import keep_final_model
-from iron_deficiency.task import Net
+from ml.final_models import keep_final_model
+from ml.task import Net
 from tests.conftest import make_data_scientist, make_laboratory_director
 from web.training.forms import SubmitRunForm
 
@@ -207,7 +207,7 @@ def test_a_run_without_an_answer_shows_no_server_paths(
 def test_a_final_model_downloads_for_sale(
     client: Client, final_models_dir: Path
 ) -> None:
-    from iron_deficiency.screening import from_bytes
+    from ml.screening import from_bytes
 
     response = client.get(reverse("training:for_sale", kwargs={"run_id": "7"}))
     assert response.status_code == 200
@@ -245,7 +245,7 @@ def test_each_final_model_links_to_its_sale(
 
 
 def test_every_offered_parameter_is_kept_with_the_final_model() -> None:
-    from iron_deficiency.final_models import TRAINING_PARAMETERS
+    from ml.final_models import TRAINING_PARAMETERS
 
     for name in SubmitRunForm.base_fields:
         assert name.replace("_", "-") in TRAINING_PARAMETERS

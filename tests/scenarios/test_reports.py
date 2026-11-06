@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from iron_deficiency.cohort import CBC_VARS
+from ml.cohort import CBC_VARS
 from tests.conftest import World, collect_and_order
 from web.practice.models import LabReport, Order, Patient
 from web.vocabulary import ClinicalIndication

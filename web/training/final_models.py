@@ -7,7 +7,7 @@ from typing import assert_never
 
 from django.db import models
 
-from iron_deficiency.screening import (
+from ml.screening import (
     FinalModel,
     final_model_path,
     final_model_paths,
