@@ -1,11 +1,11 @@
-"""Checks for tools/audit.py, each on a small tree with one violation."""
+"""Checks for .claude/audit.py, each on a small tree with one violation."""
 
 import json
 from pathlib import Path
 
 import pytest
 
-from tools import audit
+import audit
 
 # Split so that this file does not itself trip the audit.
 NOQA = "# no" + "qa"
@@ -66,7 +66,7 @@ def test_safe_filter_needs_an_allowlist_entry(tmp_path: Path) -> None:
     files = {"templates/kit/base.html": "{{ body" + SAFE + " }}\n"}
     assert counts(tree(tmp_path, files))["safe"] == 1
     allowlist = '[safe]\n"templates/kit/base.html" = "Rendered Markdown we write"\n'
-    tree(tmp_path, {"tools/audit_allowlist.toml": allowlist})
+    tree(tmp_path, {".claude/audit_allowlist.toml": allowlist})
     assert counts(tmp_path)["safe"] == 0
 
 
@@ -189,7 +189,7 @@ def test_ratchet_fails_above_the_baseline(tmp_path: Path) -> None:
 
 def test_update_lowers_the_baseline(tmp_path: Path) -> None:
     root = tree(tmp_path, {"web/x.py": "x = 1\n"})
-    baseline = root / "tools" / "audit_baseline.json"
+    baseline = root / ".claude" / "audit_baseline.json"
     baseline.parent.mkdir()
     baseline.write_text(json.dumps({"suppressions": 2}))
     assert audit.main(["--root", str(root), "--update"]) == 0

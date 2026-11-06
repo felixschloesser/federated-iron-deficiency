@@ -18,7 +18,7 @@ staticfiles/
 report/
 sources/
 
-# Each worktree's own notes (CLAUDE.md); never committed.
+# Each worktree's own notes (.claude/CLAUDE.md); never committed.
 PROGRESS.md
 
 # Tool caches: never committed, even before a tool writes its own .gitignore.
