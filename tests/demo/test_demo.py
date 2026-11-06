@@ -86,7 +86,7 @@ def test_every_hospital_knows_every_practice_by_its_folder_name() -> None:
 def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise() -> None:
     """Every hospital's laboratory, its paired hospital's the primary one, so
     lab orders follow the hospitals' sizes by default."""
-    from demo.demo import lab_orders_host, laboratory_arguments
+    from demo.demo import laboratory_arguments, messaging_host
     from ml.dataset import CYCLES, HOSPITALS, hospital_slug
 
     for cycle in CYCLES:
@@ -95,7 +95,7 @@ def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise() -> None
             HOSPITALS[other] for other in CYCLES
         ]
         for argument, other in zip(arguments, CYCLES, strict=True):
-            host = lab_orders_host(hospital_slug(HOSPITALS[other]))
+            host = messaging_host(hospital_slug(HOSPITALS[other]))
             assert argument[1] == f"{host}:8441"
             assert ("--primary" in argument) is (other == cycle)
 

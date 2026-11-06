@@ -23,7 +23,7 @@ from ml.final_models import (
     training_parameters,
     transmission_failure,
 )
-from ml.task import Net
+from ml.training import Net
 
 # Create ServerApp
 app = ServerApp()

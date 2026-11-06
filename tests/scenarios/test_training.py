@@ -17,7 +17,7 @@ scenarios("training.feature")
 
 def keep(directory: Path, run_id: str, auroc: float, at: datetime) -> None:
     from ml.final_models import keep_final_model
-    from ml.task import Net
+    from ml.training import Net
 
     keep_final_model(
         directory,
@@ -250,7 +250,7 @@ def server_app_keeps_configured(
     import tomllib
 
     from ml.final_models import keep_final_model, training_parameters
-    from ml.task import Net
+    from ml.training import Net
 
     run_config = {
         key: value
@@ -314,7 +314,7 @@ def download_for_sale(world: World, run_id: str) -> None:
 @then("the download holds the final model's weights")
 def weights(world: World) -> None:
     from ml.screening import from_bytes
-    from ml.task import Net
+    from ml.training import Net
 
     model = from_bytes(world["download"])
     assert model.state_dict is not None
@@ -610,20 +610,22 @@ def superlink_knows_status(superlink: World, run_id: str, status: str) -> None:
     superlink["runs"] = [flower_run(run_id, status)]
 
 
-def delivery_of(world: World, run_id: str) -> Any:
-    from web.startup.training.final_models import deliveries, final_models
+def transmission_status_of(world: World, run_id: str) -> Any:
+    from web.startup.training.final_models import final_models, transmission_statuses
     from web.startup.training.models import Transmission
     from web.startup.training.runs import training_runs
 
     kept = final_models(world["final_models_dir"])
-    return deliveries(kept, training_runs(), list(Transmission.objects.all()))[run_id]
+    return transmission_statuses(
+        kept, training_runs(), list(Transmission.objects.all())
+    )[run_id]
 
 
 @then(parsers.parse('final model "{run_id}" shows "{shown}"'))
-def final_model_shows_delivery(
+def final_model_shows_transmission_status(
     world: World, superlink: World, run_id: str, shown: str
 ) -> None:
-    assert delivery_of(world, run_id).label == shown
+    assert transmission_status_of(world, run_id).label == shown
 
 
 @then(
@@ -632,7 +634,7 @@ def final_model_shows_delivery(
     )
 )
 def offers_send(world: World, superlink: World, run_id: str, offers: str) -> None:
-    assert delivery_of(world, run_id).offers_transmit is (offers == "offers")
+    assert transmission_status_of(world, run_id).offers_transmit is (offers == "offers")
 
 
 @when(
@@ -660,8 +662,8 @@ def transmission_succeeds(world: World) -> None:
 
 
 @pytest.mark.parametrize("status", FLOWER_STATUSES)
-def test_every_run_status_shows_a_delivery(status: str) -> None:
-    from web.startup.training.final_models import Delivery
+def test_every_run_status_shows_a_transmission_status(status: str) -> None:
+    from web.startup.training.final_models import TransmissionStatus
     from web.startup.training.runs import RunStatus
 
-    assert isinstance(Delivery.of_run(RunStatus(status)), Delivery)
+    assert isinstance(TransmissionStatus.of_run(RunStatus(status)), TransmissionStatus)

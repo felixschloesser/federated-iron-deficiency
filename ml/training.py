@@ -156,7 +156,7 @@ def train(
 
 
 @torch.no_grad()
-def test(
+def evaluate(
     net: nn.Module,
     dataloader: Loader,
     device: torch.device | None = None,

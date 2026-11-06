@@ -8,11 +8,11 @@
 {% include "kit/alert.html" with level="warning" role="status" text=runs_unknown %}
 <p>Transmitting comes back when the SuperLink answers.</p>
 {% endif %}
-{% for model, delivery in final_models %}
+{% for model, transmission_status in final_models %}
 <article>
   <header class="card-header">
     <h2>{% if model.stored_at %}Final model of <span class="no-wrap">{{ model.stored_at|date:"j M Y, H:i" }}</span>{% else %}Final model of run {{ model.run_id }}{% endif %}</h2>
-    <p>{{ delivery.label }}</p>
+    <p>{{ transmission_status.label }}</p>
   </header>
   <dl>
     <dt>Run</dt><dd>{{ model.run_id }}</dd>
@@ -20,7 +20,7 @@
     {% for label, value in model.run_configuration_items %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
   </dl>
   <div class="action-row">
-    {% if transmits and delivery.offers_transmit %}{% url "training:transmit" model.run_id as transmit_url %}{% include "kit/action_button.html" with url=transmit_url label="Transmit to hospitals" accessible_label="Transmit final model of run "|add:model.run_id|add:" to the hospitals" %}{% endif %}
+    {% if transmits and transmission_status.offers_transmit %}{% url "training:transmit" model.run_id as transmit_url %}{% include "kit/action_button.html" with url=transmit_url label="Transmit to hospitals" accessible_label="Transmit final model of run "|add:model.run_id|add:" to the hospitals" %}{% endif %}
     <a href="{% url "training:for_sale" model.run_id %}" download aria-label="Download final model of run {{ model.run_id }} for sale">Download for sale</a>
   </div>
 </article>
