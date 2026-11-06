@@ -52,14 +52,15 @@ def startup(settings: Settings) -> Iterator[FakeStartup]:
 def training_cohort(
     world: World, settings: Settings, tmp_path: Path, startup: FakeStartup
 ) -> None:
-    """The cohort the hospital's web app validates on, as the SuperNode keeps it."""
-    from datasets import Dataset
+    """The training cohort the hospital's web app validates on, as its laboratory
+    director provided it."""
+    from ml.training_cohort import write_training_cohort
 
     rng = np.random.default_rng(0)
     frame = pd.DataFrame(rng.normal(size=(200, len(FEATURES))), columns=FEATURES)
     frame = frame.assign(iron_deficient=rng.integers(0, 2, size=200))
-    settings.COHORT_DIR = tmp_path / "cohort"
-    Dataset.from_pandas(frame).save_to_disk(settings.COHORT_DIR)
+    settings.TRAINING_COHORT_DIR = tmp_path / "cohort"
+    write_training_cohort(frame, settings.TRAINING_COHORT_DIR)
     settings.SCREENING_MODELS_DIR = tmp_path / "screening-models"
     settings.SCREENING_MODELS_DIR.mkdir()
     world["startup"] = startup

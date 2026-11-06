@@ -22,7 +22,8 @@ not a process of the report's DFDs:
 
 | DFD element | Where it runs |
 |---|---|
-| P1 Cohort extraction | not built: `prepare` stands in, saving each hospital's cohort |
+| DS1 Lab records | each hospital's NHANES cycle, which `prepare` seeds into its database |
+| P1 Cohort extraction | *Provide the training cohort* on `<hospital>-web`, by its laboratory director; *Withdraw* takes it back |
 | P2 SuperNode, ClientApp | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
 | P3 SuperLink | `flower-superlink` |
 | P4 ServerApp | `flower-server-app` |
@@ -57,7 +58,7 @@ web apps, the practices' leaner ones without PyTorch or Flower, and the
 startup's Flower app with PyTorch, CPU only), then runs these steps in order:
 
 1. **prepare** creates what each party needs and the DFDs do not draw:
-   the hospitals' training cohorts and the 2021–2023
+   each hospital's lab records (its NHANES cycle) and the 2021–2023
    blood counts (downloaded from Hugging Face; set `HF_TOKEN` in `.env` if
    it refuses), and each party's database with its demo accounts. It is the
    only container that sees every party's folder: setup done once, out of
@@ -105,6 +106,13 @@ addresses.
 
 ## 5. Train, deploy, order
 
+UZ Leuven's and Heilig Hart Leuven's laboratory directors have provided
+their training cohorts; AZ Diest's has not, so it takes no part in a
+training run (its SuperNode answers each round with an error, which FedAvg
+leaves out) until you log in there as `director` and provide it on the
+*Training cohort* page. Until then, transmitting a final model fails at AZ
+Diest, as its ClientApp has no cohort to validate the model on.
+
 Log in to http://startup.localhost as `data-scientist` and submit a training
 run, or from a second terminal:
 
@@ -128,7 +136,7 @@ screening comes back to the practice.
 - Ctrl-C in the first terminal stops every container; `up` again carries on
   where it stopped.
 - Each party's data is a Docker volume of its own:
-  cohorts, final models, the SuperLink's state and the databases.
+  training cohorts, final models, the SuperLink's state and the databases.
   `docker compose down -v` deletes them all, so the next `up` starts over;
   `.demo/` on your machine keeps only what that must not cost you: the
   Hugging Face downloads (`.demo/huggingface/`), with the NHANES 2021–2023
@@ -152,7 +160,7 @@ mkdir -p .demo && mv demo/browser-ca demo/huggingface .demo/
 
 A `demo/` from before the volumes (2026-11-03) also still holds `startup/`,
 `hospitals/` and `practices/`; nothing reads them any more, so delete those
-three once. The first `up` downloads the cohorts again.
+three once. The first `up` downloads the NHANES data again.
 A demo from before 2026-11-05 left a browser CA in `demo/browser-ca/`; if
 you trusted it, run `CAROOT=$PWD/.demo/browser-ca mkcert -uninstall` after the
 move, then delete the folder. Your browser may also remember HSTS for the `*.localhost`

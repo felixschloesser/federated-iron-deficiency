@@ -128,17 +128,17 @@ def test_each_service_mounts_only_its_own_partys_folder() -> None:
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_the_hospitals_web_app_reads_the_cohort_and_stores_its_screening_models(
+def test_the_hospitals_web_app_writes_the_cohort_and_its_screening_models(
     slug: str,
 ) -> None:
-    """It validates fetched final models on the cohort, read-only, and stores them
-    itself (features/hospital/fetch.feature): the startup's code writes nothing."""
+    """The laboratory director provides the training cohort from the web app
+    (features/hospital/training_cohort.feature) and fetches final models there,
+    validated on it (features/hospital/fetch.feature): the web app writes the
+    cohort folder and screening-models, through the hospital's whole volume,
+    unmasked, and the startup's code writes nothing at the hospital."""
     name = f"{slug}-web"
     assert "tmpfs" not in service(name)
-    assert mounts(name) == {
-        f"/demo/hospitals/{slug}": (f"hospitals/{slug}", False),
-        f"/demo/hospitals/{slug}/cohort": (f"hospitals/{slug}/cohort", True),
-    }
+    assert mounts(name) == {f"/demo/hospitals/{slug}": (f"hospitals/{slug}", False)}
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)

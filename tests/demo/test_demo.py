@@ -150,23 +150,19 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
     import pandas as pd
 
     import ml.dataset
-    from demo.demo import hospitals, nhanes_csv, practices, prepare
+    from demo.demo import hospitals, lab_records_csv, nhanes_csv, practices, prepare
     from ml.cohort import CBC_VARS
-
-    class Cohort:
-        def save_to_disk(self, path: Path) -> None:
-            path.mkdir(parents=True)
-
-    class Cohorts:
-        def load_partition(self, partition: int) -> Cohort:
-            return Cohort()
 
     samples = pd.DataFrame(
         {"sample_id": [1], "sex": ["Female"], "age": [30]}
         | {var: [1.0] for var in CBC_VARS}
     )
     ferritin = pd.DataFrame({"sample_id": [1], "LBXFER": [20.0]})
-    monkeypatch.setattr(ml.dataset, "load_federated_dataset", Cohorts)
+    records = pd.DataFrame(
+        {"sex": ["Female"], "age": [30], "LBXFER": [20.0]}
+        | {var: [1.0] for var in CBC_VARS}
+    )
+    monkeypatch.setattr(ml.dataset, "load_lab_records", lambda cycle: records)
     monkeypatch.setattr(ml.dataset, "load_new_samples", lambda: samples)
     monkeypatch.setattr(ml.dataset, "load_ferritin", lambda: ferritin)
     # A folder prepared before the participants stayed with prepare.
@@ -190,3 +186,25 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
     # The seed commands still get the cycle, from where only prepare looks.
     assert nhanes_csv(tmp_path).is_file()
     assert (stale[0] / "screening-models" / "7.pt").read_text() == "model"
+    # Each hospital's lab records (DS1) for its seed command, beside the
+    # downloads; its cohort folder empty until its laboratory director provides
+    # one (features/hospital/training_cohort.feature).
+    for _, slug in hospitals():
+        assert lab_records_csv(tmp_path, slug).is_file()
+        assert list((tmp_path / "hospitals" / slug / "cohort").iterdir()) == []
+
+
+def test_two_hospitals_provide_their_training_cohort_at_start(tmp_path: Path) -> None:
+    """AZ Diest's laboratory director has not, so a training run shows a hospital
+    taking no part until its director provides one."""
+    from demo.demo import lab_record_arguments
+
+    provides = {
+        slug: "--provide" in arguments
+        for slug, arguments in lab_record_arguments(tmp_path).items()
+    }
+    assert provides == {
+        "uz-leuven": True,
+        "heilig-hart-leuven": True,
+        "az-diest": False,
+    }

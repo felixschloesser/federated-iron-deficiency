@@ -1,9 +1,17 @@
 """ClientApp: each hospital trains and evaluates on its own cohort."""
 
+from pathlib import Path
+
 import pandas as pd
 import torch
-from datasets import load_from_disk
-from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
+from flwr.app import (
+    ArrayRecord,
+    ConfigRecord,
+    Context,
+    Message,
+    MetricRecord,
+    RecordDict,
+)
 from flwr.clientapp import ClientApp
 from flwr_datasets import FederatedDataset
 
@@ -13,6 +21,7 @@ from ml.training import (
     dataset_size,
 )
 from ml.training import train as train_fn
+from ml.training_cohort import read_training_cohort
 from ml.validation import evaluate as evaluate_fn
 from ml.validation import load_data
 
@@ -20,13 +29,24 @@ from ml.validation import load_data
 app = ClientApp()
 
 fds: FederatedDataset | None = None  # Cache across calls in a simulation
+# Where a run's state notes the training cohort it reads.
+TRAINING_COHORT = "training-cohort"
 
 
 def load_cohort(context: Context) -> pd.DataFrame:
-    """Load this node's NHANES cycle cohort."""
-    # Deployment Runtime: read the partition saved on this SuperNode
+    """Load this node's cohort: at a hospital, the training cohort its laboratory
+    director provided, the same one every round of a run
+    (features/training_cohort_in_runs.feature)."""
+    # Deployment Runtime: the training cohort, noted in the run's state, which
+    # Flower keeps on this SuperNode from round to round.
     if "data-path" in context.node_config:
-        return load_from_disk(str(context.node_config["data-path"])).to_pandas()
+        noted = context.state.config_records.get(TRAINING_COHORT)
+        digest, rows = read_training_cohort(
+            Path(str(context.node_config["data-path"])),
+            None if noted is None else str(noted["sha256"]),
+        )
+        context.state[TRAINING_COHORT] = ConfigRecord({"sha256": digest})
+        return rows
 
     # Simulation Runtime: download and partition by cycle on the fly
     global fds

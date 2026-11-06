@@ -246,6 +246,31 @@ rejected = [
     "laboratory manager",
 ]
 
+["lab record"]
+source = "Report, DS1 \"Lab records\"; DF1 \"Past CBC and ferritin results\""
+why = "What the laboratory holds of a past patient: registered sex, age, the CBC values and the ferritin result; what the training cohort is extracted from. Kept apart from the test requests (DS8) and the analyser stand-in"
+rejected = ["past result", "patient record", "participant (NHANES's word)"]
+
+["past patient"]
+source = "Report, DF2 \"Cohort: 13 CBC values, age and label per past patient\""
+why = "Whom the training cohort holds a row for: an eligible woman with a complete CBC and a ferritin result in the lab records"
+rejected = ["participant", "subject", "sample"]
+
+["training cohort"]
+source = "Report, DS2 \"Training cohort\""
+why = "What the startup's code at this hospital trains on: the 13 CBC values, age and whether ferritin was below the cutoff, per past patient; nothing else. Exists only once the laboratory director provides it"
+rejected = ["cohort (alone, in copy)", "dataset", "partition (Flower's word)", "snapshot", "extract"]
+
+["provide"]
+source = "User decision, 2026-11-06"
+why = "The laboratory director's decision that the startup's code at this hospital may train on the training cohort; the page says it goes to that code, which runs inside the hospital"
+rejected = ["release (the data scientist's word for final models)", "share (suggests the data leaves the hospital)", "approve", "make available"]
+
+["withdraw"]
+source = "User decision, 2026-11-06"
+why = "The laboratory director takes the training cohort back: the startup's code at this hospital finds none from its next round, and the hospital takes no part in training until it is provided again"
+rejected = ["revoke", "stop sharing", "delete"]
+
 ["local validation"]
 source = "Built from *validation* (report, DF10 \"validation example count\")"
 why = "A screening model on this hospital's own validation split: the confusion matrix at each threshold from 0.05 to 0.95, as counts, then AUROC; what the laboratory director chooses a threshold from"

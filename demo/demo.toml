@@ -9,15 +9,18 @@ colour = "jade"                                   # Pico theme of its web app
 practice = "Huisartsenpraktijk De Akker"          # fictional; Heverlee
 practice_colour = "green"                         # same family as the hospital's
 patients = 40                                     # the practice's, sized like the hospital
+provided = true                                   # its laboratory director provided the training cohort
 
 [hospitals.heilig-hart-leuven]
 colour = "pumpkin"
 practice = "Huisartsenpraktijk De Berk"           # fictional; Kessel-Lo
 practice_colour = "amber"
 patients = 24
+provided = true
 
 [hospitals.az-diest]
 colour = "violet"
 practice = "Huisartsenpraktijk De Ceder"          # fictional; Diest
 practice_colour = "purple"
 patients = 12
+provided = false                                  # so a run shows a hospital taking no part

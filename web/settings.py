@@ -34,19 +34,22 @@ SCREENING_MODELS_DIR: Path | None = (
     if "SCREENING_MODELS_DIR" in os.environ
     else None
 )
+# The training cohort the laboratory director provides, which the startup's
+# code at the hospital reads (features/hospital/training_cohort.feature); in
+# development, an optional folder.
+TRAINING_COHORT_DIR: Path | None = (
+    Path(os.environ["TRAINING_COHORT_DIR"])
+    if "TRAINING_COHORT_DIR" in os.environ
+    else None
+)
 # The startup's copy of every final model (features/startup/training.feature); in
 # development, an optional folder.
 FINAL_MODELS_DIR: Path | None = (
     Path(os.environ["FINAL_MODELS_DIR"]) if "FINAL_MODELS_DIR" in os.environ else None
 )
-# The hospital's cohort, which its web app validates fetched final models on
-# (features/hospital/fetch.feature); in development, an optional folder.
-COHORT_DIR: Path | None = (
-    Path(os.environ["COHORT_DIR"]) if "COHORT_DIR" in os.environ else None
-)
 if DATA_DIR is not None and PARTY is Party.HOSPITAL:
     SCREENING_MODELS_DIR = DATA_DIR / "screening-models"
-    COHORT_DIR = DATA_DIR / "cohort"
+    TRAINING_COHORT_DIR = DATA_DIR / "cohort"
 if DATA_DIR is not None and PARTY is Party.STARTUP:
     FINAL_MODELS_DIR = DATA_DIR / "final-models"
 # Shown in the title bar and header; never the screening's name. A development

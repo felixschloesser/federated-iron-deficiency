@@ -56,7 +56,7 @@ x-supernode: &supernode
     flower-superlink: {condition: service_healthy}
 
 services:
-  # Out-of-band setup, not drawn in the DFDs: cohorts,
+  # Out-of-band setup, not drawn in the DFDs: lab records,
   # databases. The one container that sees every party's folder.
   prepare:
     <<: *web
@@ -74,7 +74,7 @@ services:
     command: [python, -m, demo.demo, prepare, --demo-dir, /demo]
     environment:
       DEMO_USER: *user
-      # Hugging Face may refuse unauthenticated downloads of the cohorts.
+      # Hugging Face may refuse unauthenticated downloads of the NHANES data.
       HF_TOKEN: ${HF_TOKEN:-}
       # Downloads stay on the host, so a reset fetches nothing twice.
       HF_HOME: /demo/huggingface
@@ -228,9 +228,10 @@ services:
       HOSPITAL_CERTIFICATE_NAME: uz-leuven
     volumes:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
-      # Read-only: the web app validates fetched final models on the cohort, and
-      # stores them in screening-models itself.
-      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/cohort, read_only: true, volume: {subpath: cohort}}
+    # The laboratory director provides the training cohort and fetches final
+    # models here, so the web app writes the cohort folder and screening-models,
+    # through the hospital's whole volume (features/hospital/training_cohort.feature,
+    # features/hospital/fetch.feature); it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       uz-leuven: {aliases: [uz-leuven-pages]}
@@ -291,9 +292,10 @@ services:
       HOSPITAL_CERTIFICATE_NAME: heilig-hart-leuven
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
-      # Read-only: the web app validates fetched final models on the cohort, and
-      # stores them in screening-models itself.
-      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/cohort, read_only: true, volume: {subpath: cohort}}
+    # The laboratory director provides the training cohort and fetches final
+    # models here, so the web app writes the cohort folder and screening-models,
+    # through the hospital's whole volume (features/hospital/training_cohort.feature,
+    # features/hospital/fetch.feature); it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
@@ -354,9 +356,10 @@ services:
       HOSPITAL_CERTIFICATE_NAME: az-diest
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
-      # Read-only: the web app validates fetched final models on the cohort, and
-      # stores them in screening-models itself.
-      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/cohort, read_only: true, volume: {subpath: cohort}}
+    # The laboratory director provides the training cohort and fetches final
+    # models here, so the web app writes the cohort folder and screening-models,
+    # through the hospital's whole volume (features/hospital/training_cohort.feature,
+    # features/hospital/fetch.feature); it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       az-diest: {aliases: [az-diest-pages]}

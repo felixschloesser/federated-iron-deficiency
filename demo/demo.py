@@ -14,6 +14,7 @@ practitioner's practice its own web app.
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -23,7 +24,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from demo.topology import PATIENTS, PRACTICES
+from demo.topology import PATIENTS, PRACTICES, PROVIDED
 from ml.dataset import CYCLES, HOSPITALS, hospital_slug
 from web.seeding.accounts import (
     DATA_SCIENTIST,
@@ -68,6 +69,25 @@ def nhanes_csv(demo_dir: Path) -> Path:
     """The NHANES cycle the seed commands pick participants from: beside the
     downloads it comes from, which only prepare mounts, never in a party's folder."""
     return demo_dir / "huggingface" / "nhanes-2021-2023.csv"
+
+
+def lab_records_csv(demo_dir: Path, slug: str) -> Path:
+    """A hospital's past lab records (DS1), for its seed command; beside the
+    downloads, as nhanes_csv, never in the hospital's folder."""
+    return demo_dir / "huggingface" / f"lab-records-{slug}.csv"
+
+
+def lab_record_arguments(demo_dir: Path) -> dict[str, list[str]]:
+    """seed_lab_records's arguments for each hospital, by folder name: its lab
+    records, and whether its laboratory director provides the training cohort."""
+    return {
+        slug: [
+            "--csv",
+            str(lab_records_csv(demo_dir, slug)),
+            *(["--provide"] if PROVIDED[cycle] else []),
+        ]
+        for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True)
+    }
 
 
 def practices() -> list[tuple[int, str]]:
@@ -195,6 +215,23 @@ def add_hospitals(startup: Path) -> None:
         )
 
 
+def seed_lab_records(hospital: Path, arguments: list[str]) -> None:
+    """The hospital's lab records, and its training cohort where its laboratory
+    director provided one."""
+    env = {
+        **os.environ,
+        "PARTY": "hospital",
+        "DATA_DIR": str(hospital),
+        "DJANGO_DEBUG": "1",
+    }
+    subprocess.run(
+        manage("seed_lab_records", *arguments),
+        env=env,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+
+
 def add_laboratories(practice: Path, practice_cycle: str) -> None:
     """Every hospital's laboratory, at its lab-order endpoint (features/practice/messaging.feature)."""
     env = {
@@ -227,16 +264,12 @@ def prepare_flower(demo_dir: Path) -> None:
 
 
 def prepare(demo_dir: Path) -> None:
-    """Create what is missing: Flower's connection, cohorts, the NHANES data."""
-    from ml.dataset import (
-        load_federated_dataset,
-        load_ferritin,
-        load_new_samples,
-    )
+    """Create what is missing: Flower's connection, each hospital's lab
+    records, the NHANES data."""
+    from ml.dataset import load_ferritin, load_lab_records, load_new_samples
 
     prepare_flower(demo_dir)
-    federated_dataset = None
-    for (partition, slug), (_, practice_slug), _cycle in zip(
+    for (_, slug), (_, practice_slug), cycle in zip(
         hospitals(), practices(), CYCLES, strict=True
     ):
         hospital = hospital_dir(demo_dir, slug)
@@ -248,10 +281,16 @@ def prepare(demo_dir: Path) -> None:
             (hospital / "final-models").rename(hospital / "screening-models")
         (hospital / "screening-models").mkdir(parents=True, exist_ok=True)
         practice.mkdir(parents=True, exist_ok=True)
-        if not (hospital / "cohort").exists():
-            federated_dataset = federated_dataset or load_federated_dataset()
-            cohort = from_hub(partial(federated_dataset.load_partition, partition))
-            cohort.save_to_disk(hospital / "cohort")
+        # Empty until the laboratory director provides the training cohort; the
+        # ClientApp's mount needs the folder. One prepare wrote before goes.
+        if (hospital / "cohort" / "state.json").exists():
+            shutil.rmtree(hospital / "cohort")
+        (hospital / "cohort").mkdir(exist_ok=True)
+        if not lab_records_csv(demo_dir, slug).exists():
+            lab_records_csv(demo_dir, slug).parent.mkdir(parents=True, exist_ok=True)
+            from_hub(partial(load_lab_records, cycle)).to_csv(
+                lab_records_csv(demo_dir, slug), index=False
+            )
         # Folders prepared before the cycle stayed with prepare held a copy.
         for folder in (hospital, practice):
             (folder / "nhanes.csv").unlink(missing_ok=True)
@@ -313,6 +352,7 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
                 add_laboratories(folder, cycle)
             if party == "hospital":
                 add_practices(folder)
+                seed_lab_records(folder, lab_record_arguments(demo_dir)[folder.name])
             if party == "startup":
                 add_hospitals(folder)
             bar.update()

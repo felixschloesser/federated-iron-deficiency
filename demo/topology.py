@@ -35,6 +35,11 @@ PRACTICES: dict[str, str] = {
 PATIENTS: dict[str, int] = {
     cycle: entry["patients"] for cycle, entry in ENTRIES.items()
 }
+# Whether each hospital's laboratory director provided the training cohort at
+# start (features/hospital/training_cohort.feature).
+PROVIDED: dict[str, bool] = {
+    cycle: entry["provided"] for cycle, entry in ENTRIES.items()
+}
 # Each hospital's Pico colour, and its practice's from the same family.
 COLOURS: dict[str, tuple[str, str]] = {
     cycle: (entry["colour"], entry["practice_colour"])
@@ -106,7 +111,7 @@ x-supernode: &supernode
     flower-superlink: {condition: service_healthy}
 
 services:
-  # Out-of-band setup, not drawn in the DFDs: cohorts,
+  # Out-of-band setup, not drawn in the DFDs: lab records,
   # databases. The one container that sees every party's folder.
   prepare:
     <<: *web
@@ -124,7 +129,7 @@ services:
     command: [python, -m, demo.demo, prepare, --demo-dir, /demo]
     environment:
       DEMO_USER: *user
-      # Hugging Face may refuse unauthenticated downloads of the cohorts.
+      # Hugging Face may refuse unauthenticated downloads of the NHANES data.
       HF_TOKEN: ${HF_TOKEN:-}
       # Downloads stay on the host, so a reset fetches nothing twice.
       HF_HOME: /demo/huggingface
@@ -278,9 +283,10 @@ HOSPITAL = """\
       HOSPITAL_CERTIFICATE_NAME: {slug}
     volumes:
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}}
-      # Read-only: the web app validates fetched final models on the cohort, and
-      # stores them in screening-models itself.
-      - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/cohort, read_only: true, volume: {subpath: cohort}}
+    # The laboratory director provides the training cohort and fetches final
+    # models here, so the web app writes the cohort folder and screening-models,
+    # through the hospital's whole volume (features/hospital/training_cohort.feature,
+    # features/hospital/fetch.feature); it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       {slug}: {aliases: [{slug}-pages]}

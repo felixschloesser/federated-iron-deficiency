@@ -13,6 +13,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 from ml.final_model import from_bytes
+from ml.training_cohort import read_training_cohort
 from ml.validation import receive_final_model
 from web.messaging import messages_pb2, messages_pb2_grpc
 
@@ -28,18 +29,18 @@ def unreachable(error: grpc.RpcError) -> bool:
 
 
 def fetch_final_models(*, now: datetime) -> list[str]:
-    """Fetch the released final models this hospital has not stored, validate and
-    store each, then acknowledge them; the run IDs stored. One the hospital holds
-    other weights for is never overwritten, nor acknowledged. Raises grpc.RpcError
-    when the startup cannot be reached or refuses."""
+    """Fetch the released final models this hospital has not stored, validate
+    each on the training cohort its laboratory director provided, store it, then
+    acknowledge them; the run IDs stored. One the hospital holds other weights
+    for is never overwritten, nor acknowledged. Raises grpc.RpcError when the
+    startup cannot be reached or refuses."""
     address, directory = settings.STARTUP_ADDRESS, settings.SCREENING_MODELS_DIR
-    cohort_dir, certificate_name = (
-        settings.COHORT_DIR,
-        settings.HOSPITAL_CERTIFICATE_NAME,
-    )
+    cohort_dir = settings.TRAINING_COHORT_DIR
+    certificate_name = settings.HOSPITAL_CERTIFICATE_NAME
     if address is None or directory is None or cohort_dir is None:
         raise ImproperlyConfigured(
-            "Fetching needs STARTUP_ADDRESS, the screening models' folder and the cohort's."
+            "Fetching needs STARTUP_ADDRESS, the screening models' folder and the"
+            " training cohort's."
         )
     with grpc.insecure_channel(address) as channel:
         startup = messages_pb2_grpc.FinalModelsStub(channel)
@@ -54,11 +55,7 @@ def fetch_final_models(*, now: datetime) -> list[str]:
             if state_dict is None:
                 continue
             if cohort is None:
-                # Here, not at import: the web app boots without the training
-                # data libraries (tests/demo/test_images.py).
-                from datasets import load_from_disk
-
-                cohort = load_from_disk(str(cohort_dir)).to_pandas()
+                _, cohort = read_training_cohort(cohort_dir, None)
             try:
                 receive_final_model(
                     directory,

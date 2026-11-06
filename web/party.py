@@ -17,6 +17,7 @@ class Party(enum.Enum):
                     "web.hospital.nhanes",
                     "web.hospital.lab",
                     "web.hospital.deployment",
+                    "web.hospital.cohort",
                 ]
             case Party.PRACTICE:
                 return ["web.practice"]
