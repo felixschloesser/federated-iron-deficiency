@@ -5,7 +5,7 @@
 
 {% if submits %}
 <h2>Submit a training run</h2>
-<p>Every hospital trains on its own cohort, as configured here; the startup keeps the final model, and you transmit it to the hospitals below, where each laboratory director chooses whether to deploy it and at which threshold. Every hospital evaluates each round, so the AUROC is across all of them.</p>
+<p>Every hospital trains on its own cohort, as configured here; the startup keeps the final model, and you transmit it to the hospitals from Final models, where each laboratory director chooses whether to deploy it and at which threshold. Every hospital evaluates each round, so the AUROC is across all of them.</p>
 {% include "kit/form.html" with form=form submit_label="Submit training run" %}
 {% endif %}
 
