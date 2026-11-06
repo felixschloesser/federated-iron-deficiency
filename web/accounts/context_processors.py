@@ -9,6 +9,6 @@ def navigation(request: HttpRequest) -> dict[str, list[dict[str, str | bool]]]:
     role = role_of(getattr(request, "user", None))
     links = role.nav_links() if role else []
     holding = [link for link in links if request.path.startswith(link["url"])]
-    # /lab/orders/analysed/ is under /lab/orders/ too: the longest one is current.
+    # /lab/test-requests/analysed/ is under /lab/test-requests/ too: the longest one is current.
     current = max(holding, key=lambda link: len(link["url"]), default=None)
     return {"nav_links": [{**link, "current": link is current} for link in links]}

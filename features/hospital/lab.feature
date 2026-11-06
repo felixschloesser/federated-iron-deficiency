@@ -6,7 +6,7 @@ Feature: Analysing samples
     Given practice "De Ceder" sends samples of patient "Test Patient 1", registered sex female, aged 32
     And "Test Patient 1" has NHANES CBC values and ferritin 11.0 ng/mL
 
-  Scenario: A lab order is ready to analyse as soon as it arrives
+  Scenario: A test request is ready to analyse as soon as its lab order arrives
     Given a CBC order for "Test Patient 1"
     Then the CBC order is ready to analyse
     And its sample is not a stored sample

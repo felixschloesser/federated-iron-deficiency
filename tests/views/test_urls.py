@@ -19,9 +19,9 @@ from django.urls import reverse
             {"run_id": "7"},
             "/deployment/screening-models/7/deploy/",
         ),
-        ("lab:orders", {}, "/lab/orders/"),
-        ("lab:analysed", {}, "/lab/orders/analysed/"),
-        ("lab:analyse", {"pk": 3}, "/lab/orders/3/analyse/"),
+        ("lab:test_requests", {}, "/lab/test-requests/"),
+        ("lab:analysed", {}, "/lab/test-requests/analysed/"),
+        ("lab:analyse", {"pk": 3}, "/lab/test-requests/3/analyse/"),
         ("practice:patients", {}, "/practice/patients/"),
         ("practice:patient", {"pk": 3}, "/practice/patients/3/"),
         (

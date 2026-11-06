@@ -23,11 +23,11 @@ from tests.hospital.conftest import make_practice
 from web.hospital.deployment.model_files import sha256
 from web.hospital.deployment.models import Deployment, NoUsableModel
 from web.hospital.lab.models import (
-    LabOrder,
     LabOrderDetails,
     NotScreened,
     Sample,
     ScreeningResult,
+    TestRequest,
 )
 from web.hospital.nhanes.models import Participant
 from web.vocabulary import ClinicalIndication, RegisteredSex
@@ -127,7 +127,7 @@ def lab_sample(
     Participant.objects.create(
         seqn=seqn, cbc={var: 0.0 for var in CBC_VARS}, ferritin=10.0
     )
-    world["lab_order"] = LabOrder.objects.receive(
+    world["test_request"] = TestRequest.objects.receive(
         practice=make_practice(PRACTICE),
         details=LabOrderDetails(
             sample_id=str(seqn),
@@ -164,42 +164,44 @@ def ferritin_sample(world: World, age: int) -> None:
 
 @given(parsers.parse("the deployed model scores the sample {side} the threshold"))
 def scores(world: World, side: str) -> None:
-    Participant.objects.filter(seqn=int(world["lab_order"].sample.sample_id)).update(
+    Participant.objects.filter(seqn=int(world["test_request"].sample.sample_id)).update(
         cbc={var: SIDES[side] if var == DECIDING else 0.0 for var in CBC_VARS}
     )
 
 
 @when("laboratory staff run the analyser")
 def run_analyser(world: World) -> None:
-    world["lab_order"] = LabOrder.objects.get(pk=world["lab_order"].pk).run_analyser(
+    world["test_request"] = TestRequest.objects.get(
+        pk=world["test_request"].pk
+    ).run_analyser(
         directory=world["screening_models_dir"],
         now=NOW,
     )
 
 
-def result_label(lab_order: LabOrder) -> str:
-    assert lab_order.screening_result is not None
-    return ScreeningResult(lab_order.screening_result).label.lower()
+def result_label(test_request: TestRequest) -> str:
+    assert test_request.screening_result is not None
+    return ScreeningResult(test_request.screening_result).label.lower()
 
 
 @then(parsers.re(r'the screening result is "(?P<result>[^"]+)"$'))
 def screening_result(world: World, result: str) -> None:
-    assert result_label(world["lab_order"]) == result
+    assert result_label(world["test_request"]) == result
 
 
 @then(parsers.parse('the screening result is "not screened" with reason "{reason}"'))
 def not_screened(world: World, reason: str) -> None:
-    lab_order = world["lab_order"]
-    assert result_label(lab_order) == "not screened"
-    assert lab_order.not_screened_reason == reason
-    assert lab_order.screened_by is None
+    test_request = world["test_request"]
+    assert result_label(test_request) == "not screened"
+    assert test_request.not_screened_reason == reason
+    assert test_request.screened_by is None
 
 
 @then("the sample is screened by the model")
 def screened(world: World) -> None:
-    lab_order = world["lab_order"]
-    assert result_label(lab_order) != "not screened"
-    assert lab_order.screened_by is not None
+    test_request = world["test_request"]
+    assert result_label(test_request) != "not screened"
+    assert test_request.screened_by is not None
 
 
 @then(
@@ -209,7 +211,7 @@ def screened(world: World) -> None:
     )
 )
 def records_final_model(world: World, run_id: str, threshold: float) -> None:
-    screening_model = world["lab_order"].screened_by
+    screening_model = world["test_request"].screened_by
     assert screening_model.run_id == run_id
     path = final_model_path(world["screening_models_dir"], run_id)
     assert screening_model.sha256 == sha256(path.read_bytes())
@@ -218,21 +220,21 @@ def records_final_model(world: World, run_id: str, threshold: float) -> None:
 
 @then("no stored field of the sample or its screening result holds a score")
 def no_score(world: World) -> None:
-    lab_order = world["lab_order"]
-    for model in (LabOrder, Sample):
+    test_request = world["test_request"]
+    for model in (TestRequest, Sample):
         for field in model._meta.concrete_fields:
             assert not isinstance(field, FloatField | DecimalField), field
     # The JSON results are the analyser's values only.
-    tube = Participant.objects.get(seqn=int(lab_order.sample.sample_id))
-    assert lab_order.results == tube.measure(OrderedTest.CBC)
+    tube = Participant.objects.get(seqn=int(test_request.sample.sample_id))
+    assert test_request.results == tube.measure(OrderedTest.CBC)
 
 
 @then("the sample has no screening result")
 def no_screening_result(world: World) -> None:
-    lab_order = world["lab_order"]
-    assert lab_order.screening_result is None
-    assert lab_order.not_screened_reason is None
-    assert lab_order.screened_by is None
+    test_request = world["test_request"]
+    assert test_request.screening_result is None
+    assert test_request.not_screened_reason is None
+    assert test_request.screened_by is None
 
 
 @then(
@@ -241,9 +243,9 @@ def no_screening_result(world: World) -> None:
     )
 )
 def released(world: World, suggested: str) -> None:
-    (lab_order,) = LabOrder.objects.reports_to_send(make_practice(PRACTICE))
-    assert lab_order.pk == world["lab_order"].pk
-    assert lab_order.ferritin_suggested is (suggested == "with")
+    (test_request,) = TestRequest.objects.reports_to_send(make_practice(PRACTICE))
+    assert test_request.pk == world["test_request"].pk
+    assert test_request.ferritin_suggested is (suggested == "with")
 
 
 @pytest.mark.parametrize("reason", NoUsableModel)
@@ -294,6 +296,6 @@ def test_every_indication_is_answered() -> None:
 def test_the_lab_screens_exactly_whom_the_model_was_trained_on(
     sex: RegisteredSex, age: int
 ) -> None:
-    lab_order = LabOrder(screened_indication=True, registered_sex=sex, age=age)
+    test_request = TestRequest(screened_indication=True, registered_sex=sex, age=age)
     trained_on = eligible(pd.Series([sex.label]), pd.Series([age])).iloc[0]
-    assert (lab_order.not_eligible() is None) == trained_on
+    assert (test_request.not_eligible() is None) == trained_on

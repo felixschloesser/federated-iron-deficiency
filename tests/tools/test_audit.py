@@ -34,7 +34,7 @@ def test_clean_tree_has_no_findings(tmp_path: Path) -> None:
             "web/hospital/lab/views.py": (
                 "class ReceiveView(View):\n"
                 "    def post(self, request) -> HttpResponse:\n"
-                "        self.lab_order.run_analyser(now)\n"
+                "        self.test_request.run_analyser(now)\n"
             ),
         },
     )
@@ -206,11 +206,11 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
         {
             "web/practice/views.py": "from web.practice.models import Order\n"
             "from web.vocabulary import Test\n"
-            "from web.hospital.lab.models import LabOrder\n",
+            "from web.hospital.lab.models import TestRequest\n",
             "web/hospital/lab/models.py": "import web.practice.models\n",
             "web/accounts/backends.py": "from web.hospital.deployment import models\n",
             "web/messaging/messages_pb2.py": "import grpc\n",
-            "demo/demo.py": "from web.hospital.lab.models import LabOrder\n",
+            "demo/demo.py": "from web.hospital.lab.models import TestRequest\n",
         },
     )
     assert audit.run(root)["party_imports"] == [
@@ -225,7 +225,7 @@ def test_each_partys_tests_import_only_its_own_code(tmp_path: Path) -> None:
         tmp_path,
         {
             "tests/practice/test_messaging.py": "from tests.practice.conftest import x\n"
-            "from web.hospital.lab.models import LabOrder\n",
+            "from web.hospital.lab.models import TestRequest\n",
             "tests/hospital/test_lab.py": "from tests.practice.conftest import make_patient\n",
             "tests/views/test_urls.py": "import web.hospital.lab.urls\nimport web.practice.urls\n",
         },

@@ -9,7 +9,7 @@ from django.db import close_old_connections, models
 from django.utils import timezone
 
 from web.hospital.lab.forms import LabOrderForm
-from web.hospital.lab.models import LabOrder, LabOrderDetails, Practice
+from web.hospital.lab.models import LabOrderDetails, Practice, TestRequest
 from web.messaging import messages_pb2, messages_pb2_grpc
 from web.messaging.convert import from_proto, moment, timestamp, to_proto
 from web.vocabulary import RegisteredSex, Test
@@ -84,7 +84,7 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
         )
         if not form.is_valid():
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, form.errors.as_json())
-        LabOrder.objects.receive(
+        TestRequest.objects.receive(
             practice=practice,
             details=LabOrderDetails(**form.cleaned_data),
         )
@@ -98,15 +98,15 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
         return messages_pb2.LabReports(
             reports=[
                 messages_pb2.LabReport(
-                    report_id=str(lab_order.pk),
-                    sample_id=lab_order.sample.sample_id,
-                    test=to_proto(Test(lab_order.test), messages_pb2.Test),
-                    results=lab_order.results or {},
-                    ferritin_suggested=lab_order.ferritin_suggested,
-                    released_at=timestamp(lab_order.analysed_at),
+                    report_id=str(test_request.pk),
+                    sample_id=test_request.sample.sample_id,
+                    test=to_proto(Test(test_request.test), messages_pb2.Test),
+                    results=test_request.results or {},
+                    ferritin_suggested=test_request.ferritin_suggested,
+                    released_at=timestamp(test_request.analysed_at),
                 )
-                for lab_order in LabOrder.objects.reports_to_send(practice)
-                if lab_order.analysed_at is not None
+                for test_request in TestRequest.objects.reports_to_send(practice)
+                if test_request.analysed_at is not None
             ]
         )
 
@@ -114,7 +114,7 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
     def AcknowledgeLabReports(
         self, request: messages_pb2.Acknowledgement, context: grpc.ServicerContext
     ) -> messages_pb2.Received:
-        LabOrder.objects.acknowledge(
+        TestRequest.objects.acknowledge(
             practice=practice_of(request, context),
             report_ids=[int(report_id) for report_id in request.report_ids],
             now=timezone.now(),
