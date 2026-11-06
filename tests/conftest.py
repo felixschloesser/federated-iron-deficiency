@@ -1,28 +1,18 @@
-"""Test-wide settings, shared givens for the scenarios, and builders for the
-view tests."""
+"""Test-wide settings, the scenarios' world, and what every party's tests and
+the demo's share. Each party's builders are in tests/<party>/conftest.py."""
 
 import copy
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_bdd import given, parsers
 from pytest_django.fixtures import Settings
 
-# The models are imported inside the builders too, so a missing app fails only
-# the tests that use it.
 if TYPE_CHECKING:
-    from datetime import datetime
-    from pathlib import Path
-
     import pandas as pd
 
     from web.accounts.models import User
     from web.accounts.roles import Role
-    from web.hospital.lab.models import LabOrder, Practice
-    from web.practice.models import Order, Patient, Sample
-    from web.vocabulary import ClinicalIndication, Test
-from ml.cohort import CBC_VARS, FEATURES
-from web.vocabulary import RegisteredSex
+from ml.cohort import CBC_VARS
 
 World = dict[str, Any]
 
@@ -53,178 +43,6 @@ def make_user(name: str, role: "Role") -> "User":
     from web.accounts.models import User
 
     return User.objects.create_user(username=name.lower().replace(" ", "-"), role=role)
-
-
-def make_general_practitioner(name: str) -> "User":
-    from web.accounts.roles import Role
-
-    return make_user(name, Role.GENERAL_PRACTITIONER)
-
-
-def make_patient(name: str, sex: "RegisteredSex", age: int) -> "Patient":
-    """A patient whose sample ID is a new NHANES number; the hospital's analyser
-    stand-in holds placeholder values for it and no ferritin."""
-    from ml.cohort import CBC_VARS
-    from web.hospital.nhanes.models import Participant
-    from web.practice.models import Patient
-
-    participant = Participant.objects.create(
-        seqn=Participant.objects.count() + 1, cbc=dict.fromkeys(CBC_VARS, 1.0)
-    )
-    return Patient.objects.create(
-        name=name,
-        registered_sex=sex,
-        age=age,
-        nhanes_number=str(participant.seqn),
-    )
-
-
-@given(
-    parsers.re(
-        r'general practitioner "(?P<general_practitioner>[^"]+)" with patient "(?P<patient>[^"]+)"'
-        r"(?:, registered sex (?P<sex>\w+), aged (?P<age>\d+))?$"
-    )
-)
-def general_practitioner_with_patient(
-    world: World,
-    db: None,
-    general_practitioner: str,
-    patient: str,
-    sex: str | None,
-    age: str | None,
-) -> None:
-    from web.vocabulary import RegisteredSex
-
-    owner = world["general_practitioners"].get(
-        general_practitioner
-    ) or make_general_practitioner(general_practitioner)
-    world["general_practitioners"][general_practitioner] = owner
-    world["patients"][patient] = make_patient(
-        patient, RegisteredSex(sex or "female"), int(age or 30)
-    )
-
-
-def make_laboratory_staff_member(name: str) -> "User":
-    from web.accounts.roles import Role
-
-    return make_user(name, Role.LABORATORY_STAFF)
-
-
-def make_laboratory_director(name: str) -> "User":
-    from web.accounts.roles import Role
-
-    return make_user(name, Role.LABORATORY_DIRECTOR)
-
-
-def make_data_scientist(name: str) -> "User":
-    from web.accounts.roles import Role
-
-    return make_user(name, Role.DATA_SCIENTIST)
-
-
-def make_practice(certificate_name: str = "practice") -> "Practice":
-    """A practice the hospital works with, by its certificate name."""
-    from web.hospital.lab.models import Practice
-
-    return Practice.objects.add(
-        certificate_name=certificate_name, name=certificate_name.title()
-    )
-
-
-def deliver(order: "Order") -> "LabOrder":
-    """The lab order (DF23) arriving at the hospital, as its messaging endpoint records it."""
-    from web.hospital.lab.models import LabOrder, LabOrderDetails
-    from web.vocabulary import RegisteredSex, Test
-
-    return LabOrder.objects.receive(
-        practice=make_practice(),
-        details=LabOrderDetails(
-            sample_id=order.sample.sample_id,
-            test=Test(order.test),
-            screened_indication=order.screened_indication,
-            registered_sex=RegisteredSex(order.registered_sex),
-            age=order.age,
-            ordered_at=order.ordered_at,
-        ),
-    )
-
-
-def suggest_ferritin_on(sample: "Sample", now: "datetime") -> None:
-    """The sample's CBC, placed if missing, with a fetched lab report suggesting
-    ferritin: what any ferritin order needs (features/ordering.feature). The CBC counts as sent, so no
-    test sends it to a laboratory by accident."""
-    from web.practice.models import LabReport, Order
-    from web.vocabulary import ClinicalIndication, Test
-
-    cbc = sample.orders.filter(test=Test.CBC).first()
-    if cbc is None:
-        cbc = sample.place_order(
-            test=Test.CBC, indication=ClinicalIndication.OTHER, now=now
-        )
-    Order.objects.filter(pk=cbc.pk, sent_at=None).update(sent_at=now)
-    LabReport.objects.update_or_create(
-        order=cbc,
-        defaults={
-            "results": {},
-            "ferritin_suggested": True,
-            "released_at": now,
-            "fetched_at": now,
-        },
-    )
-
-
-def collect_and_order(
-    *,
-    patient: "Patient",
-    test: "Test",
-    indication: "ClinicalIndication | None",
-    now: "datetime",
-) -> "Order":
-    """Collect a sample from the patient and order one test on it."""
-    from web.practice.models import Laboratory
-
-    # The practice's first laboratory, if it works with any (features/messaging.feature).
-    laboratory = Laboratory.objects.order_by("pk").first()
-    sample = patient.collect_sample(laboratory=laboratory, now=now)
-    if test.on_suspicion():
-        suggest_ferritin_on(sample, now)
-    return sample.place_order(
-        test=test,
-        indication=indication,
-        now=now,
-    )
-
-
-def write_final_model(
-    directory: "Path",
-    run_id: str,
-    validation: dict[float, dict[str, int]],
-    stored_at: "datetime",
-    local_auroc: float = 0.84,
-    leave_out: tuple[str, ...] = (),
-    n_features: int = len(FEATURES),
-) -> "Path":
-    """A final model as the ClientApp stores it (ml.training),
-    with `validation`, its confusion matrix at each threshold."""
-    import torch
-
-    from ml.final_model import Net
-
-    contents = {
-        "state_dict": Net(n_features=n_features).state_dict(),
-        "mean": torch.zeros(len(FEATURES)),
-        "std": torch.ones(len(FEATURES)),
-        "run_id": run_id,
-        "stored_at": stored_at.isoformat(),
-        "federated": {"eval_auroc": 0.87},
-        "confusion_matrices": validation,
-        "local_auroc": local_auroc,
-    }
-    for key in leave_out:
-        del contents[key]
-    path = directory / f"{run_id}.pt"
-    torch.save(contents, path)
-    return path
 
 
 # (sex, age, ferritin) per group, in the order seeding.Group lists them.

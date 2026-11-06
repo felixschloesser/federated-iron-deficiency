@@ -5,7 +5,7 @@ from django.test import Client
 from django.urls import resolve, reverse
 from pytest_django.asserts import assertContains, assertNotContains
 
-from tests.conftest import make_general_practitioner
+from tests.practice.conftest import make_general_practitioner
 from web.accounts.models import User
 from web.accounts.roles import Role, role_of
 
@@ -18,7 +18,7 @@ def test_role_of_a_general_practitioner() -> None:
 
 
 def test_role_of_laboratory_staff() -> None:
-    from tests.conftest import make_laboratory_staff_member
+    from tests.hospital.conftest import make_laboratory_staff_member
 
     assert role_of(make_laboratory_staff_member("Lab One")) is Role.LABORATORY_STAFF
 
@@ -31,14 +31,14 @@ def test_every_navigation_link_of_a_role_resolves(role: Role) -> None:
 
 
 def test_role_of_a_laboratory_director() -> None:
-    from tests.conftest import make_laboratory_director
+    from tests.hospital.conftest import make_laboratory_director
 
     director = make_laboratory_director("Director One")
     assert role_of(director) is Role.LABORATORY_DIRECTOR
 
 
 def test_role_of_a_data_scientist() -> None:
-    from tests.conftest import make_data_scientist
+    from tests.startup.conftest import make_data_scientist
 
     assert role_of(make_data_scientist("Data One")) is Role.DATA_SCIENTIST
 

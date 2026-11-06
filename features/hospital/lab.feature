@@ -3,7 +3,7 @@ Feature: Analysing samples
   which returns the patient's NHANES 2021–2023 values.
 
   Background:
-    Given general practitioner "Dr. Demo A" with patient "Test Patient 1", registered sex female, aged 32
+    Given practice "De Ceder" sends samples of patient "Test Patient 1", registered sex female, aged 32
     And "Test Patient 1" has NHANES CBC values and ferritin 11.0 ng/mL
 
   Scenario: A lab order is ready to analyse as soon as it arrives
@@ -41,7 +41,7 @@ Feature: Analysing samples
     Then the sample has ferritin 11.0 ng/mL
 
   Scenario: Ferritin missing from NHANES
-    Given patient "Test Patient 2" of "Dr. Demo A" without NHANES ferritin
+    Given patient "Test Patient 2" without NHANES ferritin
     And a ferritin order for "Test Patient 2"
     When laboratory staff run the analyser
     Then the sample's ferritin is not available in the demo data
@@ -59,3 +59,8 @@ Feature: Analysing samples
     And a CBC order for "Test Patient 1"
     When laboratory staff run the analyser
     Then the sample has the 13 NHANES CBC values of "Test Patient 1"
+
+  Scenario: The lab never sees a patient's name
+    Given a CBC order for "Test Patient 1"
+    Then the lab's samples hold sample ID, registered sex, age, test, whether the indication is screened and results, and no general practitioner
+    And the lab's records relate to nothing outside the hospital

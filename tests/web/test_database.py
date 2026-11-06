@@ -8,14 +8,14 @@ from datetime import UTC, datetime
 import pytest
 from django.db import connection
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = [pytest.mark.subprocess, pytest.mark.django_db(transaction=True)]
 
 # Long enough for the service to reach its write while the other process holds the lock.
 OTHER_COMMITS_AFTER_SECONDS = 1.0
 
 
 def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
-    from tests.conftest import make_practice
+    from tests.hospital.conftest import make_practice
     from web.hospital.lab.models import LabOrder, LabOrderDetails
     from web.vocabulary import RegisteredSex, Test
 

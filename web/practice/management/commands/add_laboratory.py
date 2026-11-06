@@ -1,5 +1,5 @@
 """Add a laboratory the practice sends samples to, or change its address; with
---primary, the one samples go to unless the general practitioner picks another (features/ordering.feature)."""
+--primary, the one samples go to unless the general practitioner picks another (features/practice/ordering.feature)."""
 
 from typing import Any
 

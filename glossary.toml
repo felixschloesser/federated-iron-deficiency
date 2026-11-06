@@ -51,7 +51,7 @@ rejected = ["participant (NHANES word; data origin only)"]
 
 ["practice"]
 source = "Report, \"Federated version\": \"Each GP practice runs its own app\"; \"Design choices and assumptions\", DF24: \"Lab orders, with the sending practice\""
-why = "Who orders at the hospital: a general practitioner's practice, through its app, with one general practitioner (features/access.feature). The lab holds each sample by its practice"
+why = "Who orders at the hospital: a general practitioner's practice, through its app, with one general practitioner (features/practice/access.feature). The lab holds each sample by its practice"
 rejected = [
     "client (WHO 13-2; the code's word until 2026-11-03)",
     "sender",
@@ -92,7 +92,7 @@ rejected = ["blood count (report uses both; one word only)"]
 
 ["clinical indication"]
 source = "Report, Data table"
-why = "The report's word; decides screening (features/screening.feature). One of the six below, in the guidelines' words"
+why = "The report's word; decides screening (features/hospital/screening.feature). One of the six below, in the guidelines' words"
 rejected = ["reason for testing"]
 
 ["suspected anaemia"]
@@ -130,15 +130,15 @@ rejected = []
 
 ["screened indication"]
 source = "Report, Data table: \"the three screened indications\""
-why = "All the lab order says of the clinical indication: whether it is one the screening covers (features/screening.feature, features/messaging.feature), never which"
+why = "All the lab order says of the clinical indication: whether it is one the screening covers (features/hospital/screening.feature, features/hospital/messaging.feature), never which"
 rejected = [
     "screen requested (the general practitioner requests nothing)",
     "eligible (also sex and age)",
 ]
 
 ["not eligible"]
-source = "Built from the report's Use case: the screening applies to one group, women aged 18–49 with a screened indication (features/screening.feature)"
-why = "The not-screened reason when the screening excludes a CBC (an indication not screened, not female, or not aged 18–49), never which condition (features/screening.feature)"
+source = "Built from the report's Use case: the screening applies to one group, women aged 18–49 with a screened indication (features/hospital/screening.feature)"
+why = "The not-screened reason when the screening excludes a CBC (an indication not screened, not female, or not aged 18–49), never which condition (features/hospital/screening.feature)"
 rejected = ["not screened because of indication", "sex or age"]
 
 ["registered sex"]
@@ -186,7 +186,7 @@ rejected = ["screening (in ml/: the hospital's word)", "prediction"]
 
 ["screening result"]
 source = "Report, DF31 \"screening result\", P10"
-why = "What screening records per CBC: one of the three below, with the reason when not screened (features/screening.feature) and the screening model when screened (features/screening.feature)"
+why = "What screening records per CBC: one of the three below, with the reason when not screened (features/hospital/screening.feature) and the screening model when screened (features/hospital/screening.feature)"
 rejected = ["flag", "outcome", "classification"]
 
 ["ferritin suggested / ferritin not suggested / not screened"]
@@ -229,7 +229,7 @@ rejected = ["active release", "fingerprint"]
 
 ["laboratory director"]
 source = "WHO LQMS ch. 2, p. 21: the director assesses \"all potential risks … including services to patients\" (20 uses)"
-why = "Decides which screening model screens patients; one per hospital (features/deployment.feature), as WHO's singular has it"
+why = "Decides which screening model screens patients; one per hospital (features/hospital/deployment.feature), as WHO's singular has it"
 rejected = [
     "clinical biologist (not in either source)",
     "quality manager (WHO: runs the quality system, does not decide)",
@@ -264,7 +264,7 @@ rejected = [
 
 ["negative predictive value"]
 source = "WHO LQMS 3-3, p. 40: test methods are \"evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)\""
-why = "Women without a suggestion who were not iron deficient: what a silent lab report is worth (features/reports.feature)"
+why = "Women without a suggestion who were not iron deficient: what a silent lab report is worth (features/practice/reports.feature)"
 rejected = []
 
 ["threshold"]

@@ -5,10 +5,13 @@ One compose project in a temporary demo folder: the SuperLink, and UZ Leuven's
 SuperNode and ClientApp. Needs a running Docker engine.
 """
 
+import fcntl
 import json
 import os
 import shutil
 import subprocess
+import sys
+import tempfile
 import time
 import uuid
 from collections.abc import Callable, Iterator
@@ -18,14 +21,14 @@ from typing import Any
 import pytest
 from pytest_bdd import given, parsers, scenario, then, when
 
-pytestmark = pytest.mark.containers
-
 ROOT = Path(__file__).resolve().parents[2]
 HOSPITAL = "uz-leuven"
 
 Compose = Callable[..., subprocess.CompletedProcess[str]]
 # Each compose fixture's project name, for the checks that look at Docker itself.
 PROJECT: dict[Compose, str] = {}
+# One file for every worktree: their container runs share one Docker engine.
+LOCK = Path(tempfile.gettempdir()) / "iron-deficiency-containers.lock"
 
 
 def engine_running() -> bool:
@@ -36,7 +39,23 @@ def engine_running() -> bool:
 
 
 @pytest.fixture(scope="module")
-def compose(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Compose]:
+def engine_to_itself() -> Iterator[None]:
+    """Wait until no other worktree's container run uses the engine: parallel
+    builds and cohorts slow every one of them past its timeouts."""
+    with LOCK.open("w") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            # Past pytest's capture, so a wait never looks like a hang.
+            print(f"Waiting for another container run ({LOCK})", file=sys.__stderr__)
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+@pytest.fixture(scope="module")
+def compose(
+    tmp_path_factory: pytest.TempPathFactory, engine_to_itself: None
+) -> Iterator[Compose]:
     """A compose project of its own, built from this checkout, in a temporary folder."""
     if not engine_running():
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
@@ -220,7 +239,7 @@ def bait() -> None:
 )
 def run_probe(compose: Compose, tmp_path: Path) -> dict[str, Any]:
     probe = tmp_path / "probe"
-    shutil.copytree(ROOT / "tests" / "demo" / "probe", probe)
+    shutil.copytree(ROOT / "tests" / "containers" / "probe", probe)
     output = flwr(
         compose,
         "-v",
