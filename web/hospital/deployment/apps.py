@@ -2,6 +2,6 @@ from django.apps import AppConfig
 
 
 class DeploymentConfig(AppConfig):
-    name = "web.deployment"
+    name = "web.hospital.deployment"
     label = "deployment"
     verbose_name = "Deployed model"

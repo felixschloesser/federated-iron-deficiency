@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from django.conf import settings
 from django.db import models, transaction
 
-from web.training.runs import submit_run
+from web.startup.training.runs import submit_run
 
 if TYPE_CHECKING:
     from web.accounts.models import User

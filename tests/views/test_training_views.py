@@ -16,7 +16,7 @@ from pytest_django.fixtures import Settings
 from ml.final_models import keep_final_model
 from ml.task import Net
 from tests.conftest import make_data_scientist, make_laboratory_director
-from web.training.forms import SubmitRunForm
+from web.startup.training.forms import SubmitRunForm
 
 pytestmark = pytest.mark.django_db
 
@@ -213,7 +213,7 @@ def test_a_refused_run_says_why(
 def test_a_deployment_tells_the_server_app_its_demo_folder(
     settings: Settings, tmp_path: Path
 ) -> None:
-    from web.training.runs import run_configuration
+    from web.startup.training.runs import run_configuration
 
     settings.DATA_DIR = tmp_path / "startup"
     assert (
@@ -362,8 +362,8 @@ def test_each_cell_names_its_column_for_narrow_screens(
 def test_a_file_not_named_after_a_run_is_no_final_model(
     final_models_dir: Path,
 ) -> None:
-    from web.deployment.model_files import screening_models
-    from web.training.final_models import final_models
+    from web.hospital.deployment.model_files import screening_models
+    from web.startup.training.final_models import final_models
 
     (final_models_dir / "7.pt").rename(final_models_dir / "run123.pt")
     assert final_models(final_models_dir) == []
@@ -398,7 +398,7 @@ def test_transmitting_a_final_model_returns_with_its_run(
 def test_a_run_that_transmits_a_final_model_says_so(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from web.training.models import Transmission
+    from web.startup.training.models import Transmission
 
     Transmission.objects.create(
         final_model="7",
