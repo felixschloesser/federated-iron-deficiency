@@ -411,3 +411,11 @@ def test_a_run_that_transmits_a_final_model_says_so(
     assertContains(
         response, '<td data-label="Run">8 · transmits final model 7</td>', html=True
     )
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_the_runs_section_does_not_repeat_the_page_title(client: Client) -> None:
+    """Its runs include transmissions; Flower calls them all runs."""
+    response = client.get(reverse("training:runs"))
+    assertContains(response, "<h2>Runs</h2>", html=True)
+    assertNotContains(response, "<h2>Training runs</h2>", html=True)
