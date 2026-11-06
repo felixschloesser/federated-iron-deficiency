@@ -228,7 +228,7 @@ HOSPITAL = """\
     networks: [model-updates, {slug}-flower-client-app]
 
   # The startup's code at the hospital (TB4): only the cohort and the final
-  # models, and a network that reaches nothing but its SuperNode (features/quality/client_app_isolation.feature).
+  # models, and a network that reaches nothing but its SuperNode (tests/quality/security/test_running_containers.py).
   {slug}-flower-client-app:
     <<: *superexec
     depends_on: [{slug}-flower-supernode]
@@ -241,7 +241,7 @@ HOSPITAL = """\
   {slug}-web:
     <<: *web
     # One container, two servers, each on a name only one network knows: the
-    # proxy reaches the pages, the practice only the lab-order endpoint (features/quality/party_isolation.feature).
+    # proxy reaches the pages, the practice only the lab-order endpoint (tests/quality/security/test_running_containers.py).
     # Either one stopping stops the container, and compose restarts it.
     command:
       - bash
@@ -268,7 +268,7 @@ HOSPITAL = """\
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/screening-models, read_only: true, volume: {subpath: screening-models}}
     # The laboratory director provides the training cohort here, so the web app
     # writes the cohort folder (features/hospital/training_cohort.feature); it holds no SuperNode key.
-    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (features/quality/web_apps.feature).
+    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       {slug}: {aliases: [{slug}-pages]}
       messaging: {aliases: [{slug}-messaging]}

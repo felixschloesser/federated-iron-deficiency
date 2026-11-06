@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
-# One web app per party: what it stores lives in its own folder (demo/README.md, features/quality/party_isolation.feature).
+# One web app per party: what it stores lives in its own folder (demo/README.md, tests/quality/security/test_party_isolation.py).
 # Without PARTY: a development checkout, serving every party's pages from one database.
 try:
     PARTY: Party | None = Party(os.environ["PARTY"]) if "PARTY" in os.environ else None
