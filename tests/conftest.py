@@ -13,10 +13,10 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
-    from web.deployment.models import LaboratoryDirector
-    from web.lab.models import LaboratoryStaffMember, LabOrder, Practice
-    from web.practice.models import GeneralPractitioner, Order, Patient, Sample
-    from web.training.models import DataScientist
+    from web.accounts.models import User
+    from web.accounts.roles import Role
+    from web.lab.models import LabOrder, Practice
+    from web.practice.models import Order, Patient, Sample
     from web.vocabulary import ClinicalIndication, Test
 from iron_deficiency.cohort import CBC_VARS, FEATURES
 from web.vocabulary import RegisteredSex
@@ -30,12 +30,16 @@ def world() -> World:
     return {"general_practitioners": {}, "patients": {}}
 
 
-def make_general_practitioner(name: str) -> "GeneralPractitioner":
+def make_user(name: str, role: "Role") -> "User":
     from web.accounts.models import User
-    from web.practice.models import GeneralPractitioner
 
-    user = User.objects.create_user(username=name.lower().replace(" ", "-"))
-    return GeneralPractitioner.objects.create(user=user, name=name)
+    return User.objects.create_user(username=name.lower().replace(" ", "-"), role=role)
+
+
+def make_general_practitioner(name: str) -> "User":
+    from web.accounts.roles import Role
+
+    return make_user(name, Role.GENERAL_PRACTITIONER)
 
 
 def make_patient(name: str, sex: "RegisteredSex", age: int) -> "Patient":
@@ -81,28 +85,22 @@ def general_practitioner_with_patient(
     )
 
 
-def make_laboratory_staff_member(name: str) -> "LaboratoryStaffMember":
-    from web.accounts.models import User
-    from web.lab.models import LaboratoryStaffMember
+def make_laboratory_staff_member(name: str) -> "User":
+    from web.accounts.roles import Role
 
-    user = User.objects.create_user(username=name.lower().replace(" ", "-"))
-    return LaboratoryStaffMember.objects.create(user=user, name=name)
+    return make_user(name, Role.LABORATORY_STAFF)
 
 
-def make_laboratory_director(name: str) -> "LaboratoryDirector":
-    from web.accounts.models import User
-    from web.deployment.models import LaboratoryDirector
+def make_laboratory_director(name: str) -> "User":
+    from web.accounts.roles import Role
 
-    user = User.objects.create_user(username=name.lower().replace(" ", "-"))
-    return LaboratoryDirector.objects.create(user=user, name=name)
+    return make_user(name, Role.LABORATORY_DIRECTOR)
 
 
-def make_data_scientist(name: str) -> "DataScientist":
-    from web.accounts.models import User
-    from web.training.models import DataScientist
+def make_data_scientist(name: str) -> "User":
+    from web.accounts.roles import Role
 
-    user = User.objects.create_user(username=name.lower().replace(" ", "-"))
-    return DataScientist.objects.create(user=user, name=name)
+    return make_user(name, Role.DATA_SCIENTIST)
 
 
 def make_practice(certificate_name: str = "practice") -> "Practice":
@@ -136,13 +134,13 @@ def suggest_ferritin_on(sample: "Sample", now: "datetime") -> None:
     """The sample's CBC, placed if missing, with a fetched lab report suggesting
     ferritin: what any ferritin order needs (features/ordering.feature). The CBC counts as sent, so no
     test sends it to a laboratory by accident."""
-    from web.practice.models import GeneralPractitioner, LabReport, Order
+    from web.practice.models import LabReport, Order
     from web.vocabulary import ClinicalIndication, Test
 
     cbc = sample.orders.filter(test=Test.CBC).first()
     if cbc is None:
-        cbc = GeneralPractitioner.objects.get().place_order(
-            sample=sample, test=Test.CBC, indication=ClinicalIndication.OTHER, now=now
+        cbc = sample.place_order(
+            test=Test.CBC, indication=ClinicalIndication.OTHER, now=now
         )
     Order.objects.filter(pk=cbc.pk, sent_at=None).update(sent_at=now)
     LabReport.objects.update_or_create(
@@ -158,7 +156,6 @@ def suggest_ferritin_on(sample: "Sample", now: "datetime") -> None:
 
 def collect_and_order(
     *,
-    general_practitioner: "GeneralPractitioner",
     patient: "Patient",
     test: "Test",
     indication: "ClinicalIndication | None",
@@ -169,13 +166,10 @@ def collect_and_order(
 
     # The practice's first laboratory, if it works with any (features/messaging.feature).
     laboratory = Laboratory.objects.order_by("pk").first()
-    sample = general_practitioner.collect_sample(
-        patient=patient, laboratory=laboratory, now=now
-    )
+    sample = patient.collect_sample(laboratory=laboratory, now=now)
     if test.on_suspicion():
         suggest_ferritin_on(sample, now)
-    return general_practitioner.place_order(
-        sample=sample,
+    return sample.place_order(
         test=test,
         indication=indication,
         now=now,

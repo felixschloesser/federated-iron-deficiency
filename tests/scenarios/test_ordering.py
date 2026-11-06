@@ -9,7 +9,7 @@ from django.db import IntegrityError, transaction
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from tests.conftest import World
-from web.practice.models import GeneralPractitioner, Order
+from web.practice.models import Order
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 
@@ -29,8 +29,10 @@ def test_a_practice_has_one_general_practitioner() -> None:
 @when(parsers.parse('general practitioner "{name}" is added to the practice'))
 def add_general_practitioner(world: World, name: str) -> None:
     from web.accounts.models import User
+    from web.accounts.roles import Role
 
-    added = GeneralPractitioner(user=User.objects.create_user(username="b"), name=name)
+    added = User(username=name, role=Role.GENERAL_PRACTITIONER)
+    added.set_unusable_password()
     try:
         added.full_clean()
     except ValidationError as error:
@@ -57,10 +59,7 @@ def indication_named(text: str) -> ClinicalIndication:
 @when(parsers.parse('"{general_practitioner}" collects a sample from "{patient}"'))
 def collect(world: World, general_practitioner: str, patient: str) -> None:
     try:
-        world["sample"] = world["general_practitioners"][
-            general_practitioner
-        ].collect_sample(
-            patient=world["patients"][patient],
+        world["sample"] = world["patients"][patient].collect_sample(
             now=NOW,
         )
     except ValidationError as error:
@@ -82,13 +81,14 @@ def place_order(
 ) -> None:
     """An order on the patient's latest sample."""
     try:
-        world["order"] = world["general_practitioners"][
-            general_practitioner
-        ].place_order(
-            sample=world["patients"][patient].samples.latest("pk"),
-            test=TESTS[test],
-            indication=indication_named(indication) if indication else None,
-            now=NOW,
+        world["order"] = (
+            world["patients"][patient]
+            .samples.latest("pk")
+            .place_order(
+                test=TESTS[test],
+                indication=indication_named(indication) if indication else None,
+                now=NOW,
+            )
         )
     except ValidationError as error:
         world["error"] = error
@@ -140,8 +140,7 @@ def sample_has_lab_report(world: World, suggestion: str) -> None:
     from web.practice.models import LabReport
 
     sample = world["sample"]
-    cbc = GeneralPractitioner.objects.get().place_order(
-        sample=sample,
+    cbc = sample.place_order(
         test=OrderedTest.CBC,
         indication=ClinicalIndication.OTHER,
         now=NOW,
@@ -164,12 +163,13 @@ def sample_has_lab_report(world: World, suggestion: str) -> None:
 def ask_refusal(
     world: World, general_practitioner: str, test: str, patient: str
 ) -> None:
-    world["refusal"] = world["general_practitioners"][
-        general_practitioner
-    ].order_refusal(
-        sample=world["patients"][patient].samples.latest("pk"),
-        test=TESTS[test],
-        now=NOW,
+    world["refusal"] = (
+        world["patients"][patient]
+        .samples.latest("pk")
+        .order_refusal(
+            test=TESTS[test],
+            now=NOW,
+        )
     )
 
 
@@ -224,8 +224,7 @@ def database_refuses(world: World) -> None:
 def ordered_before(
     world: World, general_practitioner: str, patient: str, indication: str
 ) -> None:
-    world["general_practitioners"][general_practitioner].place_order(
-        sample=world["patients"][patient].samples.latest("pk"),
+    world["patients"][patient].samples.latest("pk").place_order(
         test=OrderedTest.CBC,
         indication=indication_named(indication),
         now=NOW,
@@ -267,10 +266,7 @@ def collect_for(
 ) -> None:
     from web.practice.models import Laboratory
 
-    world["sample"] = world["general_practitioners"][
-        general_practitioner
-    ].collect_sample(
-        patient=world["patients"][patient],
+    world["sample"] = world["patients"][patient].collect_sample(
         laboratory=Laboratory.objects.get(name=laboratory),
         now=NOW,
     )

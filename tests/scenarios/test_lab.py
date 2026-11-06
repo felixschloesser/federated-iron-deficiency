@@ -11,7 +11,7 @@ from iron_deficiency.cohort import CBC_VARS
 from tests.conftest import World, collect_and_order, deliver, suggest_ferritin_on
 from web.lab.models import LabOrder, Sample
 from web.nhanes.models import FERRITIN, Participant
-from web.practice.models import GeneralPractitioner, Patient
+from web.practice.models import Patient
 from web.vocabulary import ClinicalIndication
 from web.vocabulary import Test as OrderedTest
 
@@ -39,7 +39,6 @@ def place(world: World, test: str, patient: str) -> None:
     )
     record = world["patients"][patient]
     world["order"] = collect_and_order(
-        general_practitioner=GeneralPractitioner.objects.get(),
         patient=record,
         test=ordered,
         indication=indication,
@@ -75,8 +74,7 @@ def an_order(world: World, test: str, patient: str) -> None:
 def ferritin_on_that_sample(world: World) -> None:
     sample = world["order"].sample
     suggest_ferritin_on(sample, NOW)
-    world["order"] = GeneralPractitioner.objects.get().place_order(
-        sample=sample,
+    world["order"] = sample.place_order(
         test=OrderedTest.FERRITIN,
         indication=None,
         now=NOW,

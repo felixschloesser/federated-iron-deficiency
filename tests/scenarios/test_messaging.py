@@ -22,13 +22,13 @@ from tests.conftest import (
     make_practice,
     suggest_ferritin_on,
 )
+from web.accounts.models import User
 from web.lab.messaging import serve
 from web.lab.models import LabOrder, Practice, Sample
 from web.messaging import messages_pb2, messages_pb2_grpc
 from web.nhanes.models import Participant
 from web.practice import messaging
 from web.practice.models import (
-    GeneralPractitioner,
     Laboratory,
     LabReport,
     Order,
@@ -113,7 +113,6 @@ def order(
         else None
     )
     placed: Order = collect_and_order(
-        general_practitioner=GeneralPractitioner.objects.get(),
         patient=record,
         test=test,
         indication=choice,
@@ -433,7 +432,7 @@ def practice(settings: Settings, hospital: str) -> Laboratory:
 
 
 @pytest.fixture
-def owner() -> GeneralPractitioner:
+def owner() -> User:
     return make_general_practitioner("Dr. Demo A")
 
 
@@ -453,21 +452,21 @@ def new_order_url(client: Client, record: Patient) -> str:
 
 
 def test_placing_an_order_sends_its_lab_order(
-    client: Client, practice: Laboratory, owner: GeneralPractitioner
+    client: Client, practice: Laboratory, owner: User
 ) -> None:
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
-    client.force_login(owner.user)
+    client.force_login(owner)
     client.post(new_order_url(client, record))
     assert LabOrder.objects.filter(sample__sample_id=latest_sample_id(record)).exists()
     assert Order.objects.get(test=OrderedTest.FERRITIN).sent_at is not None
 
 
 def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
-    client: Client, settings: Settings, practice: Laboratory, owner: GeneralPractitioner
+    client: Client, settings: Settings, practice: Laboratory, owner: User
 ) -> None:
     Laboratory.objects.update(address="127.0.0.1:1")
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
-    client.force_login(owner.user)
+    client.force_login(owner)
     response = client.post(new_order_url(client, record), follow=True)
     assertContains(response, "Ferritin ordered on sample")
     assertContains(
@@ -478,7 +477,7 @@ def test_an_unreachable_hospital_gets_the_order_with_the_next_check(
 
 
 def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
-    client: Client, practice: Laboratory, owner: GeneralPractitioner
+    client: Client, practice: Laboratory, owner: User
 ) -> None:
     """A message the hospital's form rejects (INVALID_ARGUMENT) is a fault to
     report, not a network problem to wait out."""
@@ -487,21 +486,18 @@ def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
         sample_id="x" * 25, collected_at=NOW, laboratory=Laboratory.objects.get()
     )
     suggest_ferritin_on(sample, NOW)
-    owner.place_order(
-        sample=sample, test=OrderedTest.FERRITIN, indication=None, now=NOW
-    )
-    client.force_login(owner.user)
+    sample.place_order(test=OrderedTest.FERRITIN, indication=None, now=NOW)
+    client.force_login(owner)
     response = client.post(reverse("practice:check_for_reports"), follow=True)
     assertNotContains(response, "could not be reached")
     assertContains(response, "AZ Diest refused a message. Tell the administrator.")
     assertNotContains(response, "INVALID_ARGUMENT")
 
 
-def released_ferritin(owner: GeneralPractitioner) -> Patient:
+def released_ferritin(owner: User) -> Patient:
     """A patient whose ferritin the hospital has analysed and released."""
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     collect_and_order(
-        general_practitioner=owner,
         patient=record,
         test=OrderedTest.FERRITIN,
         indication=None,
@@ -515,10 +511,10 @@ def released_ferritin(owner: GeneralPractitioner) -> Patient:
 
 
 def test_check_for_reports_fetches_them(
-    client: Client, practice: Laboratory, owner: GeneralPractitioner
+    client: Client, practice: Laboratory, owner: User
 ) -> None:
     record = released_ferritin(owner)
-    client.force_login(owner.user)
+    client.force_login(owner)
     response = client.post(reverse("practice:check_for_reports"))
     assert response["Location"] == reverse("practice:orders")
     assertContains(client.get(response["Location"]), "1 new lab report.")
@@ -526,10 +522,10 @@ def test_check_for_reports_fetches_them(
 
 
 def test_check_for_reports_on_a_patients_page_returns_to_it(
-    client: Client, practice: Laboratory, owner: GeneralPractitioner
+    client: Client, practice: Laboratory, owner: User
 ) -> None:
     record = released_ferritin(owner)
-    client.force_login(owner.user)
+    client.force_login(owner)
     page = reverse("practice:patient", kwargs={"pk": record.pk})
     check = reverse("practice:patient_check_for_reports", kwargs={"patient": record.pk})
     assertContains(client.get(page), f'action="{check}"')
@@ -542,12 +538,12 @@ def test_check_for_reports_on_a_patients_page_returns_to_it(
 
 
 def test_check_for_reports_is_offered_only_with_a_laboratory_to_ask(
-    client: Client, practice: Laboratory, owner: GeneralPractitioner
+    client: Client, practice: Laboratory, owner: User
 ) -> None:
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     page = reverse("practice:patient", kwargs={"pk": record.pk})
     check = reverse("practice:patient_check_for_reports", kwargs={"patient": record.pk})
-    client.force_login(owner.user)
+    client.force_login(owner)
     assertContains(client.get(reverse("practice:orders")), "Check for reports")
     assertContains(client.get(page), "Check for reports")
     Laboratory.objects.all().delete()
@@ -558,11 +554,11 @@ def test_check_for_reports_is_offered_only_with_a_laboratory_to_ask(
 
 
 def test_an_awaited_lab_report_says_how_to_fetch_it(
-    client: Client, settings: Settings, practice: Laboratory, owner: GeneralPractitioner
+    client: Client, settings: Settings, practice: Laboratory, owner: User
 ) -> None:
     # No timer fetches lab reports: only Check for reports does.
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
-    client.force_login(owner.user)
+    client.force_login(owner)
     client.post(new_order_url(client, record))
     page = reverse("practice:patient", kwargs={"pk": record.pk})
     response = client.get(page)
@@ -596,18 +592,16 @@ def second_laboratory() -> Laboratory:
 
 
 def test_lab_orders_go_only_to_their_samples_laboratory(
-    practice: Laboratory, owner: GeneralPractitioner
+    practice: Laboratory, owner: User
 ) -> None:
     az_diest = Laboratory.objects.get(name="AZ Diest")
     uz_leuven = second_laboratory()
     first = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     second = make_patient("Test Patient 2", RegisteredSex.FEMALE, 40)
     for record, laboratory in ((first, az_diest), (second, uz_leuven)):
-        sample = owner.collect_sample(patient=record, laboratory=laboratory, now=NOW)
+        sample = record.collect_sample(laboratory=laboratory, now=NOW)
         suggest_ferritin_on(sample, NOW)
-        owner.place_order(
-            sample=sample, test=OrderedTest.FERRITIN, indication=None, now=NOW
-        )
+        sample.place_order(test=OrderedTest.FERRITIN, indication=None, now=NOW)
     assert messaging.send_pending_lab_orders(az_diest, now=NOW) == 1
     assert [lab_order.sample.sample_id for lab_order in LabOrder.objects.all()] == [
         latest_sample_id(first)
@@ -617,18 +611,16 @@ def test_lab_orders_go_only_to_their_samples_laboratory(
 
 
 def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
-    practice: Laboratory, owner: GeneralPractitioner
+    practice: Laboratory, owner: User
 ) -> None:
     """A lab report from AZ Diest for a sample that went to UZ Leuven is not
     stored, and stays unacknowledged there."""
     az_diest = Laboratory.objects.get(name="AZ Diest")
     uz_leuven = second_laboratory()
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
-    sample = owner.collect_sample(patient=record, laboratory=uz_leuven, now=NOW)
+    sample = record.collect_sample(laboratory=uz_leuven, now=NOW)
     suggest_ferritin_on(sample, NOW)
-    placed = owner.place_order(
-        sample=sample, test=OrderedTest.FERRITIN, indication=None, now=NOW
-    )
+    placed = sample.place_order(test=OrderedTest.FERRITIN, indication=None, now=NOW)
     # AZ Diest holds the lab order anyway, and releases a report on it.
     messaging.send_lab_order(placed, az_diest)
     LabOrder.objects.select_related("sample").get().run_analyser(
@@ -641,11 +633,11 @@ def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
 def test_check_for_reports_names_an_unreachable_laboratory_and_asks_the_others(
     client: Client,
     practice: Laboratory,
-    owner: GeneralPractitioner,
+    owner: User,
 ) -> None:
     second_laboratory()
     record = released_ferritin(owner)
-    client.force_login(owner.user)
+    client.force_login(owner)
     response = client.post(reverse("practice:check_for_reports"), follow=True)
     assertContains(response, "UZ Leuven could not be reached. Try again later.")
     assertContains(response, "1 new lab report.")

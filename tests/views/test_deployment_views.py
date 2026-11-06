@@ -15,7 +15,8 @@ from tests.conftest import (
     make_laboratory_staff_member,
     write_final_model,
 )
-from web.deployment.models import Deployment, LaboratoryDirector
+from web.accounts.models import User
+from web.deployment.models import Deployment
 
 pytestmark = pytest.mark.django_db
 VALIDATION = {
@@ -46,15 +47,15 @@ def screening_models_dir(tmp_path: Path, settings: Settings) -> Path:
 
 
 @pytest.fixture
-def director(client: Client) -> LaboratoryDirector:
+def director(client: Client) -> User:
     director = make_laboratory_director("Director One")
-    client.force_login(director.user)
+    client.force_login(director)
     return director
 
 
 def test_models_page(
     client: Client,
-    director: LaboratoryDirector,
+    director: User,
     screening_models_dir: Path,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
@@ -88,7 +89,7 @@ def test_models_page(
 
 
 def test_deploying_redirects_with_a_message(
-    client: Client, director: LaboratoryDirector, screening_models_dir: Path
+    client: Client, director: User, screening_models_dir: Path
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
     response = client.post(url, {"threshold": "0.4"}, follow=True)
@@ -106,7 +107,7 @@ def test_deploying_redirects_with_a_message(
 @pytest.mark.parametrize("posted", [{}, {"threshold": "high"}])
 def test_deploying_without_a_threshold_says_so(
     client: Client,
-    director: LaboratoryDirector,
+    director: User,
     screening_models_dir: Path,
     posted: dict[str, str],
 ) -> None:
@@ -118,7 +119,7 @@ def test_deploying_without_a_threshold_says_so(
 
 
 def test_a_refused_deployment_says_why(
-    client: Client, director: LaboratoryDirector, screening_models_dir: Path
+    client: Client, director: User, screening_models_dir: Path
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "run-2"})
     response = client.post(url, {"threshold": "0.5"}, follow=True)
@@ -127,7 +128,7 @@ def test_a_refused_deployment_says_why(
 
 
 def test_deploy_is_post_only(
-    client: Client, director: LaboratoryDirector, screening_models_dir: Path
+    client: Client, director: User, screening_models_dir: Path
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
     assert client.get(url).status_code == 405
@@ -136,14 +137,14 @@ def test_deploy_is_post_only(
 def test_laboratory_staff_are_sent_to_their_start_page(
     client: Client, screening_models_dir: Path
 ) -> None:
-    client.force_login(make_laboratory_staff_member("Lab One").user)
+    client.force_login(make_laboratory_staff_member("Lab One"))
     response = client.get(reverse("deployment:models"), follow=True)
     assert response.redirect_chain == [(reverse("lab:to_analyse"), 302)]
     assertContains(response, "That page is for laboratory directors.")
 
 
 def test_without_a_screening_models_folder(
-    client: Client, director: LaboratoryDirector, settings: Settings
+    client: Client, director: User, settings: Settings
 ) -> None:
     settings.SCREENING_MODELS_DIR = None
     assertContains(client.get(reverse("deployment:models")), "No models have arrived.")
@@ -166,7 +167,7 @@ def test_screening_status_without_models(settings: Settings, tmp_path: Path) -> 
 
 def test_screening_status_before_and_after_deploying(
     client: Client,
-    director: LaboratoryDirector,
+    director: User,
     screening_models_dir: Path,
     settings: Settings,
 ) -> None:

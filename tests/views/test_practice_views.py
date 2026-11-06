@@ -17,7 +17,7 @@ from tests.conftest import (
     suggest_ferritin_on,
 )
 from web.accounts.models import User
-from web.practice.models import GeneralPractitioner, Order, Patient
+from web.practice.models import Order, Patient
 from web.views import ServerErrorView
 from web.vocabulary import RegisteredSex
 from web.vocabulary import Test as OrderedTest
@@ -26,17 +26,17 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def general_practitioner() -> GeneralPractitioner:
+def general_practitioner() -> User:
     return make_general_practitioner("Dr. Demo A")
 
 
 @pytest.fixture
-def patient(general_practitioner: GeneralPractitioner) -> Patient:
+def patient(general_practitioner: User) -> Patient:
     return make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
 
 
-def logged_in(client: Client, general_practitioner: GeneralPractitioner) -> Client:
-    client.force_login(general_practitioner.user)
+def logged_in(client: Client, general_practitioner: User) -> Client:
+    client.force_login(general_practitioner)
     return client
 
 
@@ -84,7 +84,7 @@ def test_account_without_a_role_is_refused(client: Client, patient: Patient) -> 
 
 
 def test_navigation_links_to_patients_and_orders(
-    client: Client, general_practitioner: GeneralPractitioner
+    client: Client, general_practitioner: User
 ) -> None:
     response = logged_in(client, general_practitioner).get(reverse("practice:patients"))
     assertContains(response, f'href="{reverse("practice:patients")}"')
@@ -93,7 +93,7 @@ def test_navigation_links_to_patients_and_orders(
 
 def test_patients_lists_the_practices_patients(
     client: Client,
-    general_practitioner: GeneralPractitioner,
+    general_practitioner: User,
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
@@ -107,7 +107,7 @@ def test_patients_lists_the_practices_patients(
 
 
 def test_patient_page_offers_collecting_a_sample(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     response = logged_in(client, general_practitioner).get(patient_url(patient))
     assert response.context["post_actions"] == [
@@ -117,7 +117,7 @@ def test_patient_page_offers_collecting_a_sample(
 
 
 def test_patient_page_says_sex_and_age_under_the_name(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     response = logged_in(client, general_practitioner).get(patient_url(patient))
     assert response.context["subtitle"] == "Female, aged 32"
@@ -125,7 +125,7 @@ def test_patient_page_says_sex_and_age_under_the_name(
 
 
 def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     response = logged_in(client, general_practitioner).post(collect_url(patient))
     sample = patient.samples.get()
@@ -148,7 +148,7 @@ def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
 @pytest.mark.parametrize("test", list(OrderedTest))
 def test_a_sample_offers_an_order_page_per_test(
     client: Client,
-    general_practitioner: GeneralPractitioner,
+    general_practitioner: User,
     patient: Patient,
     test: OrderedTest,
 ) -> None:
@@ -159,7 +159,7 @@ def test_a_sample_offers_an_order_page_per_test(
 
 
 def test_a_sample_offers_only_tests_it_does_not_have(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
@@ -170,7 +170,7 @@ def test_a_sample_offers_only_tests_it_does_not_have(
 
 def test_patient_page_queries(
     client: Client,
-    general_practitioner: GeneralPractitioner,
+    general_practitioner: User,
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
@@ -186,7 +186,7 @@ def test_patient_page_queries(
 
 def test_patient_page_offers_ferritin_beside_a_suggestion(
     client: Client,
-    general_practitioner: GeneralPractitioner,
+    general_practitioner: User,
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
@@ -223,7 +223,7 @@ def test_patient_page_offers_ferritin_beside_a_suggestion(
 
 def test_patient_page_queries_do_not_grow_with_suggestions(
     client: Client,
-    general_practitioner: GeneralPractitioner,
+    general_practitioner: User,
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
@@ -248,7 +248,7 @@ def test_patient_page_queries_do_not_grow_with_suggestions(
 
 
 def test_unknown_test_is_not_found(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     logged_in(client, general_practitioner).post(collect_url(patient))
     sample = patient.samples.get()
@@ -262,7 +262,7 @@ def test_unknown_test_is_not_found(
 )
 def test_order_form_asks_only_what_the_test_needs(
     client: Client,
-    general_practitioner: GeneralPractitioner,
+    general_practitioner: User,
     patient: Patient,
     test: OrderedTest,
     fields: list[str],
@@ -274,7 +274,7 @@ def test_order_form_asks_only_what_the_test_needs(
 
 
 def test_placing_an_order_returns_to_the_patient_and_confirms(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     response = logged_in(client, general_practitioner).post(
         order_url(client, patient, OrderedTest.CBC),
@@ -290,7 +290,7 @@ def test_placing_an_order_returns_to_the_patient_and_confirms(
 
 
 def test_ferritin_needs_only_a_confirmation(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     logged_in(client, general_practitioner).post(
         order_url(client, patient, OrderedTest.FERRITIN)
@@ -300,7 +300,7 @@ def test_ferritin_needs_only_a_confirmation(
 
 
 def test_service_refusal_is_shown_on_its_field(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     response = logged_in(client, general_practitioner).post(
         order_url(client, patient, OrderedTest.CBC)
@@ -320,7 +320,7 @@ def test_service_refusal_is_shown_on_its_field(
 
 def test_orders_queries(
     client: Client,
-    general_practitioner: GeneralPractitioner,
+    general_practitioner: User,
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
@@ -337,9 +337,7 @@ def test_orders_queries(
         assert client.get(reverse("practice:orders")).status_code == 200
 
 
-def test_login_page_and_logout(
-    client: Client, general_practitioner: GeneralPractitioner
-) -> None:
+def test_login_page_and_logout(client: Client, general_practitioner: User) -> None:
     assert client.get(reverse("login")).status_code == 200
     logged_in(client, general_practitioner)
     response = client.post(reverse("logout"))
@@ -389,7 +387,7 @@ def sample_order_url(patient: Patient, test: OrderedTest) -> str:
 
 
 def test_ordering_on_a_sample_says_so_and_adds_no_sample(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
@@ -403,7 +401,7 @@ def test_ordering_on_a_sample_says_so_and_adds_no_sample(
 
 
 def test_an_order_that_would_be_refused_returns_to_the_patient(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     # Ferritin without a suggestion (features/ordering.feature), then a test the sample has (features/ordering.feature):
     # opening its order page goes back to the patient, with the refusal there.
@@ -427,7 +425,7 @@ def test_an_order_that_would_be_refused_returns_to_the_patient(
 
 
 def test_a_stale_form_for_a_test_the_sample_has_returns_to_the_patient(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     # Posted from a page opened before the test was placed (another tab).
     logged_in(client, general_practitioner)
@@ -441,7 +439,7 @@ def test_a_stale_form_for_a_test_the_sample_has_returns_to_the_patient(
 
 
 def test_another_patients_sample_is_not_found(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     other_patient = make_patient("Test Patient 3", RegisteredSex.MALE, 60)
     logged_in(client, general_practitioner)
@@ -458,7 +456,7 @@ def test_another_patients_sample_is_not_found(
 
 
 def test_orders_index_names_each_orders_sample(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     logged_in(client, general_practitioner)
     for _ in range(2):
@@ -471,7 +469,7 @@ def test_orders_index_names_each_orders_sample(
 
 
 def test_order_ferritin_names_its_sample_for_assistive_technology(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     from web.practice.models import LabReport
 
@@ -492,7 +490,7 @@ def test_order_ferritin_names_its_sample_for_assistive_technology(
 
 
 def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     from web.practice.models import LabReport
 
@@ -517,7 +515,7 @@ def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
 
 
 def test_each_sample_is_a_details_block_and_only_the_newest_is_open(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     from web.practice.models import LabReport
 
@@ -545,7 +543,7 @@ def test_each_sample_is_a_details_block_and_only_the_newest_is_open(
 
 
 def test_a_patient_without_samples_is_told_how_to_start(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     response = logged_in(client, general_practitioner).get(patient_url(patient))
     assertContains(response, "No samples yet. Collect a sample to order tests.")
@@ -553,7 +551,7 @@ def test_a_patient_without_samples_is_told_how_to_start(
 
 def test_patients_can_be_searched_by_name(
     client: Client,
-    general_practitioner: GeneralPractitioner,
+    general_practitioner: User,
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
@@ -566,7 +564,7 @@ def test_patients_can_be_searched_by_name(
 
 
 def test_the_patients_list_marks_a_patient_awaiting_ferritin(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     from web.practice.models import LabReport
 
@@ -590,7 +588,7 @@ def test_the_patients_list_marks_a_patient_awaiting_ferritin(
 
 
 def test_an_order_says_whether_its_lab_order_is_sent(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     """Until the hospital has the lab order, there is no report to wait for (features/messaging.feature)."""
     logged_in(client, general_practitioner)
@@ -607,7 +605,7 @@ def test_an_order_says_whether_its_lab_order_is_sent(
 
 
 def test_with_several_laboratories_collecting_starts_with_the_choice(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     from web.practice.models import Laboratory
 
@@ -642,7 +640,7 @@ def test_with_several_laboratories_collecting_starts_with_the_choice(
 
 
 def test_the_choice_of_laboratory_starts_at_the_primary_one(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     from web.practice.models import Laboratory
 
@@ -660,7 +658,7 @@ def test_the_choice_of_laboratory_starts_at_the_primary_one(
 
 
 def test_with_one_laboratory_collecting_is_one_click(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     from web.practice.models import Laboratory
 
@@ -681,7 +679,7 @@ def test_with_one_laboratory_collecting_is_one_click(
 
 
 def test_log_out_is_a_plain_button_so_picos_nav_rule_applies(
-    client: Client, general_practitioner: GeneralPractitioner
+    client: Client, general_practitioner: User
 ) -> None:
     # Pico's `nav li button { margin-bottom: 0 }` loses to its
     # `[type=submit] { margin-bottom: ... }`, which put Log out about 10px above
@@ -691,7 +689,7 @@ def test_log_out_is_a_plain_button_so_picos_nav_rule_applies(
 
 
 def test_a_page_headers_post_action_is_a_plain_button(
-    client: Client, general_practitioner: GeneralPractitioner, patient: Patient
+    client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     # As Log out: no type attribute, so Pico adds no form margin in the row.
     response = logged_in(client, general_practitioner).get(patient_url(patient))

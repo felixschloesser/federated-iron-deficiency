@@ -7,7 +7,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 
 from iron_deficiency.cohort import CBC_VARS
 from tests.conftest import World, collect_and_order
-from web.practice.models import GeneralPractitioner, LabReport, Order, Patient
+from web.practice.models import LabReport, Order, Patient
 from web.vocabulary import ClinicalIndication
 from web.vocabulary import Test as OrderedTest
 
@@ -21,7 +21,6 @@ scenarios("reports.feature")
 
 def order(patient: Patient, test: OrderedTest) -> Order:
     return collect_and_order(
-        general_practitioner=GeneralPractitioner.objects.get(),
         patient=patient,
         test=test,
         indication=ClinicalIndication.UNEXPLAINED_FATIGUE
@@ -91,8 +90,7 @@ def ferritin_order(world: World, patient: str) -> None:
 @given("a ferritin order on the lab report's sample")
 def ferritin_on_the_sample(world: World) -> None:
     sample = world["lab_report"].order.sample
-    GeneralPractitioner.objects.get().place_order(
-        sample=sample,
+    sample.place_order(
         test=OrderedTest.FERRITIN,
         indication=None,
         now=NOW,

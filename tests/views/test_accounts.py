@@ -14,18 +14,13 @@ PASSWORD = "check-pass-2026"
 
 
 def test_role_of_a_general_practitioner() -> None:
-    assert (
-        role_of(make_general_practitioner("Dr. Demo A").user)
-        is Role.GENERAL_PRACTITIONER
-    )
+    assert role_of(make_general_practitioner("Dr. Demo A")) is Role.GENERAL_PRACTITIONER
 
 
 def test_role_of_laboratory_staff() -> None:
     from tests.conftest import make_laboratory_staff_member
 
-    assert (
-        role_of(make_laboratory_staff_member("Lab One").user) is Role.LABORATORY_STAFF
-    )
+    assert role_of(make_laboratory_staff_member("Lab One")) is Role.LABORATORY_STAFF
 
 
 @pytest.mark.parametrize("role", list(Role))
@@ -39,13 +34,13 @@ def test_role_of_a_laboratory_director() -> None:
     from tests.conftest import make_laboratory_director
 
     director = make_laboratory_director("Director One")
-    assert role_of(director.user) is Role.LABORATORY_DIRECTOR
+    assert role_of(director) is Role.LABORATORY_DIRECTOR
 
 
 def test_role_of_a_data_scientist() -> None:
     from tests.conftest import make_data_scientist
 
-    assert role_of(make_data_scientist("Data One").user) is Role.DATA_SCIENTIST
+    assert role_of(make_data_scientist("Data One")) is Role.DATA_SCIENTIST
 
 
 def test_role_of_an_account_without_one() -> None:
@@ -58,7 +53,7 @@ def test_every_role_has_a_start_page(role: Role) -> None:
 
 
 def test_login_leads_to_the_start_page_of_the_role(client: Client) -> None:
-    user = make_general_practitioner("Dr. Demo A").user
+    user = make_general_practitioner("Dr. Demo A")
     user.set_password(PASSWORD)
     user.save()
     response = client.post(

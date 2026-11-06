@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
@@ -59,104 +58,6 @@ class Laboratory(models.Model):
         return self.name
 
 
-class GeneralPractitioner(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="general_practitioner",
-    )
-    name = models.CharField(max_length=100)
-
-    class Meta:
-        constraints = (
-            # A practice has one general practitioner (features/access.feature): any second row
-            # repeats the constant.
-            models.UniqueConstraint(
-                models.Value(1),
-                name="one_general_practitioner",
-                violation_error_code="one_general_practitioner",
-                violation_error_message="A practice has one general practitioner.",
-            ),
-        )
-
-    def __str__(self) -> str:
-        return self.name
-
-    @transaction.atomic
-    def collect_sample(
-        self,
-        *,
-        patient: "Patient",
-        now: datetime,
-        laboratory: Laboratory | None = None,
-    ) -> "Sample":
-        """Record blood collected from a patient of the practice, with the patient's
-        next sample ID, for the laboratory chosen for it; tests are ordered on it
-        afterwards and follow it there (features/lab.feature, features/messaging.feature, features/ordering.feature)."""
-        if laboratory is None and Laboratory.objects.exists():
-            raise ValidationError(
-                {
-                    "laboratory": ValidationError(
-                        "Choose the laboratory the sample goes to.",
-                        code="laboratory_required",
-                    )
-                }
-            )
-        return Sample.objects.create(
-            patient=patient,
-            sample_id=patient.next_sample_id(),
-            collected_at=now,
-            laboratory=laboratory,
-        )
-
-    @transaction.atomic
-    def place_order(
-        self,
-        *,
-        sample: "Sample",
-        test: Test,
-        indication: ClinicalIndication | None,
-        now: datetime,
-    ) -> "Order":
-        """Order one test on a collected sample, copying the patient's registered
-        sex and age, also a later one such as ferritin beside a suggestion (features/ordering.feature, features/lab.feature, features/access.feature)."""
-        order = self._order(sample=sample, test=test, indication=indication, now=now)
-        order.full_clean()
-        order.save()
-        return order
-
-    def order_refusal(
-        self, *, sample: "Sample", test: Test, now: datetime
-    ) -> ValidationError | None:
-        """What would refuse this test on this sample whatever its indication: a
-        test the sample has (features/ordering.feature), ferritin without a suggestion (features/ordering.feature). The order
-        page asks before showing its form; place_order checks it again."""
-        order = self._order(sample=sample, test=test, indication=None, now=now)
-        try:
-            order.full_clean(exclude=["indication"])
-        except ValidationError as refusal:
-            return refusal
-        return None
-
-    def _order(
-        self,
-        *,
-        sample: "Sample",
-        test: Test,
-        indication: ClinicalIndication | None,
-        now: datetime,
-    ) -> "Order":
-        """The order as placed: the patient's registered sex and age copied (features/ordering.feature)."""
-        return Order(
-            sample=sample,
-            test=test,
-            indication=indication,
-            registered_sex=sample.patient.registered_sex,
-            age=sample.patient.age,
-            ordered_at=now,
-        )
-
-
 def _awaits_ferritin() -> models.Exists:
     """Whether the outer patient has a lab report suggesting ferritin on a sample
     with no ferritin order yet (features/ordering.feature)."""
@@ -194,6 +95,28 @@ class Patient(models.Model):
         """The sample ID for this patient's next sample: 135318-1, 135318-2, …"""
         return f"{self.nhanes_number}-{self.samples.count() + 1}"
 
+    @transaction.atomic
+    def collect_sample(
+        self, *, now: datetime, laboratory: Laboratory | None = None
+    ) -> "Sample":
+        """Record blood collected from this patient, with their next sample ID,
+        for the laboratory chosen for it; tests are ordered on it afterwards and follow it there (features/lab.feature, features/messaging.feature, features/ordering.feature)."""
+        if laboratory is None and Laboratory.objects.exists():
+            raise ValidationError(
+                {
+                    "laboratory": ValidationError(
+                        "Choose the laboratory the sample goes to.",
+                        code="laboratory_required",
+                    )
+                }
+            )
+        return Sample.objects.create(
+            patient=self,
+            sample_id=self.next_sample_id(),
+            collected_at=now,
+            laboratory=laboratory,
+        )
+
 
 class Sample(models.Model):
     """Blood collected from a patient at the practice; its tests are ordered on
@@ -216,6 +139,49 @@ class Sample(models.Model):
 
     def __str__(self) -> str:
         return self.sample_id
+
+    @transaction.atomic
+    def place_order(
+        self,
+        *,
+        test: Test,
+        indication: ClinicalIndication | None,
+        now: datetime,
+    ) -> "Order":
+        """Order one test on this sample, copying the patient's registered
+        sex and age, also a later one such as ferritin beside a suggestion (features/ordering.feature, features/lab.feature, features/access.feature)."""
+        order = self._order(test=test, indication=indication, now=now)
+        order.full_clean()
+        order.save()
+        return order
+
+    def order_refusal(self, *, test: Test, now: datetime) -> ValidationError | None:
+        """What would refuse this test on this sample whatever its indication: a
+        test the sample has (features/ordering.feature), ferritin without a suggestion (features/ordering.feature). The order
+        page asks before showing its form; place_order checks it again."""
+        order = self._order(test=test, indication=None, now=now)
+        try:
+            order.full_clean(exclude=["indication"])
+        except ValidationError as refusal:
+            return refusal
+        return None
+
+    def _order(
+        self,
+        *,
+        test: Test,
+        indication: ClinicalIndication | None,
+        now: datetime,
+    ) -> "Order":
+        """The order as placed: the patient's registered sex and age copied (features/ordering.feature)."""
+        return Order(
+            sample=self,
+            test=test,
+            indication=indication,
+            registered_sex=self.patient.registered_sex,
+            age=self.patient.age,
+            ordered_at=now,
+        )
 
 
 class Order(models.Model):
