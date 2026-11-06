@@ -337,8 +337,10 @@ def hospital_app(compose: Compose) -> str:
         "from pathlib import Path;"
         " from demo.demo import hospital_dir;"
         f" hospital = hospital_dir(Path('/demo'), {APP_HOSPITAL!r});"
-        # A volume's subpath must exist before a container mounts it.
-        " (hospital / 'screening-models').mkdir(exist_ok=True)",
+        # A volume's subpath must exist before a container mounts it: the web
+        # app mounts the cohort, read-only, to validate fetched final models.
+        " (hospital / 'screening-models').mkdir(exist_ok=True);"
+        " (hospital / 'cohort').mkdir(exist_ok=True)",
     )
     name = f"{APP_HOSPITAL}-web"
     compose("run", "--rm", "--no-deps", name, "python", "manage.py", "migrate", "-v0")
