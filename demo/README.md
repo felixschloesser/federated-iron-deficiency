@@ -118,9 +118,9 @@ container inside the startup's network because that is where the data
 scientist sits in the report's DFD; the SuperLink's control API is never
 published to your machine, and the proxy reaches the startup's web app on a
 network of its own, `startup-web`, never the SuperLink. When the run
-finishes, its final model appears on the startup's page. Each hospital receives the final model; log in as
-`director` to compare its local validation at each threshold and deploy it at
-one. Then order a
+finishes, its final model appears on the startup's Final models page; transmit
+it to the hospitals there. Then log in to a hospital as `director` to compare
+its local validation at each threshold and deploy it at one. Then order a
 CBC as `doctor`, analyse it as `staff`, and the lab report with its
 screening comes back to the practice.
 

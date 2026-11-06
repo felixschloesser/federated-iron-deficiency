@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pytest_bdd import given, scenario, then, when
+from pytest_bdd import given, parsers, scenario, then, when
 
 pytestmark = pytest.mark.containers
 
@@ -109,6 +109,21 @@ def compose_folder(compose: Compose) -> Path:
     return folder
 
 
+def synthetic_cohort(hospital: str) -> str:
+    """Python that gives a hospital a synthetic cohort the real ClientApp trains
+    on, and an empty screening-models folder: random values in the real columns,
+    both labels; what a model learns from it is no matter."""
+    return (
+        f"; hospital = Path('/demo/hospitals/{hospital}');"
+        " (hospital / 'screening-models').mkdir(exist_ok=True);"
+        " import numpy as np, pandas as pd; from datasets import Dataset;"
+        " from ml.cohort import FEATURES; rng = np.random.default_rng(0);"
+        " frame = pd.DataFrame(rng.normal(size=(300, len(FEATURES))), columns=FEATURES);"
+        " frame['iron_deficient'] = rng.integers(0, 2, size=300);"
+        " Dataset.from_pandas(frame).save_to_disk(hospital / 'cohort')"
+    )
+
+
 def start(run: Compose, folder: Path) -> None:
     """Flower's part of `prepare`, then the SuperLink and one hospital."""
     # Into the party volumes, through prepare, which hands them to the demo user.
@@ -121,11 +136,9 @@ def start(run: Compose, folder: Path) -> None:
         "python",
         "-c",
         "from pathlib import Path; from demo.demo import prepare_flower;"
-        " prepare_flower(Path('/demo'));"
-        f" hospital = Path('/demo/hospitals/{HOSPITAL}');"
-        " (hospital / 'cohort').mkdir(); (hospital / 'screening-models').mkdir();"
-        " (hospital / 'cohort' / 'rows.arrow').write_text('cohort');"
-        " (hospital / 'web.sqlite3').write_text('lab orders')",
+        " prepare_flower(Path('/demo'))"
+        + synthetic_cohort(HOSPITAL)
+        + f"; (Path('/demo/hospitals/{HOSPITAL}') / 'web.sqlite3').write_text('lab orders')",
     )
     up(run, "flower-superlink")
     run(
@@ -225,9 +238,11 @@ def run_probe(compose: Compose, tmp_path: Path) -> dict[str, Any]:
     return report
 
 
-@then("the only file it finds is the cohort's")
+@then("the only files it finds are the cohort's")
 def only_the_cohort(probe_report: dict[str, Any]) -> None:
-    assert probe_report["files"] == [f"/demo/hospitals/{HOSPITAL}/cohort/rows.arrow"]
+    cohort = f"/demo/hospitals/{HOSPITAL}/cohort/"
+    assert probe_report["files"]
+    assert all(path.startswith(cohort) for path in probe_report["files"])
 
 
 @then("it reaches no address")
@@ -535,3 +550,140 @@ def test_the_startups_web_app_reaches_the_superlink_but_not_its_state(
     # Last: it adds the startup-web network, which the listing above leaves out.
     report = probe(compose, "startup-web", STARTUP_SIGHT)
     assert report == {"superlink": "open", "state": []}
+
+
+@scenario("transmission.feature", "Train, transmit, transmit again")
+def test_train_transmit_transmit_again() -> None:
+    pass
+
+
+def flower_run(compose: Compose, configuration: str) -> str:
+    """Submit a run of the app as the data scientist; wait until it finishes and
+    return its ID, failing unless it completed."""
+    submitted = json.loads(
+        flwr(
+            compose,
+            "train",
+            "flwr",
+            "run",
+            "/app",
+            "demo",
+            "--run-config",
+            f"demo-dir='/demo' {configuration}",
+            "--format",
+            "json",
+        )
+    )
+    run_id = str(submitted["run-id"])
+    deadline = time.monotonic() + 240
+    while True:
+        listing = flwr(
+            compose,
+            "train",
+            "flwr",
+            "ls",
+            "demo",
+            "--run-id",
+            run_id,
+            "--format",
+            "json",
+        )
+        (run,) = json.loads(listing)["runs"]
+        if run["status"].startswith("finished"):
+            break
+        assert time.monotonic() < deadline, (
+            run["status"],
+            compose("logs", "flower-server-app").stdout[-2000:],
+            compose("logs", f"{HOSPITAL}-flower-client-app").stdout[-2000:],
+        )
+        time.sleep(3)
+    assert run["status"] == "finished:completed", (
+        run,
+        compose("logs", "flower-server-app").stdout[-3000:],
+    )
+    return run_id
+
+
+def folders(compose: Compose) -> dict[str, Any]:
+    """What the startup and UZ Leuven hold: each file's name and SHA-256."""
+    script = (
+        "import hashlib, json; from pathlib import Path;"
+        " held = lambda folder: {path.name: hashlib.sha256(path.read_bytes()).hexdigest()"
+        " for path in sorted(Path(folder).glob('*.pt'))};"
+        " print(json.dumps({'startup': held('/demo/startup/final-models'),"
+        f" 'hospital': held('/demo/hospitals/{HOSPITAL}/screening-models')}}))"
+    )
+    result = compose("run", "--rm", "--no-deps", "prepare", "python", "-c", script)
+    held: dict[str, Any] = json.loads(result.stdout.strip().splitlines()[-1])
+    return held
+
+
+@pytest.fixture
+def journey() -> dict[str, Any]:
+    return {}
+
+
+# FedAvg trains only with at least two hospitals available.
+SECOND_HOSPITAL = "heilig-hart-leuven"
+
+
+@given(
+    "Heilig Hart Leuven's SuperNode and ClientApp too, as FedAvg trains only with"
+    " two hospitals"
+)
+def second_hospital(compose: Compose) -> None:
+    compose(
+        "run",
+        "--rm",
+        "--no-deps",
+        "prepare",
+        "python",
+        "-c",
+        "from pathlib import Path" + synthetic_cohort(SECOND_HOSPITAL),
+    )
+    compose(
+        "up",
+        "--detach",
+        "--no-deps",
+        "--no-build",
+        f"{SECOND_HOSPITAL}-flower-supernode",
+        f"{SECOND_HOSPITAL}-flower-client-app",
+    )
+    deadline = time.monotonic() + 120
+    while online_nodes(compose) < 2:
+        assert time.monotonic() < deadline, "the second hospital did not come online"
+        time.sleep(2)
+
+
+@when("the data scientist trains for one round")
+def train_one_round(compose: Compose, journey: dict[str, Any]) -> None:
+    journey["training"] = flower_run(compose, "num-server-rounds=1")
+
+
+@then("the startup keeps the run's final model and UZ Leuven stores none")
+def kept_not_stored(compose: Compose, journey: dict[str, Any]) -> None:
+    held = folders(compose)
+    assert f"{journey['training']}.pt" in held["startup"], held
+    assert held["hospital"] == {}, held
+
+
+@when(parsers.re("the data scientist transmits (that final model|it again)"))
+def transmit(compose: Compose, journey: dict[str, Any]) -> None:
+    journey["before"] = folders(compose)["hospital"]
+    journey["transmission"] = flower_run(
+        compose, f"transmit-final-model='{journey['training']}'"
+    )
+
+
+@then(
+    "the transmitting run completes and UZ Leuven stores the final model under"
+    " the training run's ID"
+)
+def stored(compose: Compose, journey: dict[str, Any]) -> None:
+    held = folders(compose)["hospital"]
+    assert list(held) == [f"{journey['training']}.pt"], held
+
+
+@then("that run completes too and UZ Leuven's copy is unchanged")
+def unchanged(compose: Compose, journey: dict[str, Any]) -> None:
+    assert folders(compose)["hospital"] == journey["before"]
