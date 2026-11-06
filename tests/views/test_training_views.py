@@ -100,13 +100,14 @@ def test_the_page_shows_each_training_runs_status(
 ) -> None:
     answering(monkeypatch, {}, {"success": True, "runs": [RUNNING]})
     response = client.get(reverse("training:runs"))
-    assertContains(
-        response,
-        '<tr><td>7</td><td class="no-wrap"><strong>Running</strong></td>'
-        '<td class="no-wrap">30 Oct 2026, 15:02</td><td class="no-wrap">0:01:01</td>'
-        "<td>—</td></tr>",
-        html=True,
-    )
+    for cell in (
+        "<td>7</td>",
+        '<td class="no-wrap"><strong>Running</strong></td>',
+        '<td class="no-wrap">30 Oct 2026, 15:02</td>',
+        '<td class="no-wrap">0:01:01</td>',
+        "<td>—</td>",
+    ):
+        assertContains(response, cell, html=True)
     assertContains(response, "reload the page")
 
 
@@ -251,3 +252,52 @@ def test_every_offered_parameter_is_kept_with_the_final_model() -> None:
 def test_the_form_starts_at_the_apps_own_run_configuration(client: Client) -> None:
     response = client.get(reverse("training:runs"))
     assertContains(response, 'name="batch_size" value="64"')
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_only_a_run_in_progress_offers_stop(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    completed = {**RUNNING, "run-id": "6", "status": "finished:completed"}
+    answering(monkeypatch, {}, {"success": True, "runs": [RUNNING, completed]})
+    response = client.get(reverse("training:runs"))
+    assertContains(response, 'action="/training/runs/7/stop/"')
+    assertContains(response, 'aria-label="Stop training run 7"')
+    assertNotContains(response, 'action="/training/runs/6/stop/"')
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_stopping_a_run_returns_to_the_training_runs(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    answering(monkeypatch, {"success": True, "run-id": "7"})
+    response = client.post(reverse("training:stop", kwargs={"run_id": 7}))
+    assertRedirects(response, reverse("training:runs"))
+    assert [str(message) for message in get_messages(response.wsgi_request)] == [
+        "Training run 7 stopped."
+    ]
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_refused_stop_says_why(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    answering(monkeypatch, {"success": False, "error-message": "no such run"})
+    response = client.post(reverse("training:stop", kwargs={"run_id": 7}))
+    assertRedirects(response, reverse("training:runs"))
+    assert [str(message) for message in get_messages(response.wsgi_request)] == [
+        "The SuperLink did not stop training run 7: no such run"
+    ]
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_without_the_superlink_the_page_offers_no_submission(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    answering(monkeypatch, {}, {"success": False, "error-message": "unavailable"})
+    response = client.get(reverse("training:runs"))
+    assert response.context["submits"] is False
+    assertNotContains(response, 'name="batch_size"')
+    assertContains(
+        response, "Submitting and stopping runs come back when the SuperLink answers."
+    )

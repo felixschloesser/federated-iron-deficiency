@@ -1,5 +1,6 @@
 """Submitting a training run to the startup's SuperLink (DF4), as `flwr run`
-does, and following each run's status, as `flwr ls` does."""
+does, following each run's status, as `flwr ls` does, and stopping one, as
+`flwr stop` does."""
 
 import json
 import logging
@@ -87,6 +88,25 @@ def submit_run(chosen: dict[str, int | float]) -> int:
             }
         )
     return int(answer["run-id"])
+
+
+def stop_run(run_id: int) -> None:
+    """Stop a training run in progress (features/training.feature)."""
+    try:
+        answer = flower(["stop", str(run_id), CONNECTION], SUBMIT_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as error:
+        raise ValidationError(
+            f"The SuperLink did not answer within {SUBMIT_TIMEOUT_SECONDS} seconds;"
+            f" training run {run_id} may or may not have stopped: check its status"
+            " below.",
+            code="superlink_no_answer",
+        ) from error
+    if not answer.get("success"):
+        raise ValidationError(
+            f"The SuperLink did not stop training run {run_id}:"
+            f" {answer.get('error-message')}",
+            code="superlink_refused_stop",
+        )
 
 
 class RunStatus(models.TextChoices):

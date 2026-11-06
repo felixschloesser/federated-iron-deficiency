@@ -114,3 +114,19 @@ Feature: The startup's training runs
       | state                         | code                  |
       | does not answer               | superlink_no_answer   |
       | answers that it is unavailable | superlink_unavailable |
+
+  Scenario: Stopping a training run in progress
+    Given the SuperLink knows run "7" is running
+    When the data scientist stops training run "7"
+    Then the SuperLink is asked to stop run "7"
+
+  Scenario Outline: A stop the SuperLink does not carry out
+    Given the SuperLink knows run "7" is running
+    And the SuperLink <state>
+    When the data scientist stops training run "7"
+    Then stopping is refused with code "<code>"
+
+    Examples:
+      | state                  | code                   |
+      | refuses to stop it     | superlink_refused_stop |
+      | does not answer        | superlink_no_answer    |
