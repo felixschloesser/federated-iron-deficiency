@@ -57,8 +57,8 @@ uv run --frozen python tools/audit.py
 
 ## Templates
 
-- Pages are built only from the shared kit (`templates/kit/`: base layout, index header, action row, archive/restore with the refusal beside the action, form layout, error summary). A missing piece goes into the kit, not the page.
-- Only CSS classes defined in the vendored stylesheet or `static/css/`. The audit checks `class="…"` in `templates/`.
+- Pages are built only from the shared kit (`web/templates/kit/`: base layout, index header, action row, archive/restore with the refusal beside the action, form layout, error summary). A missing piece goes into the kit, not the page.
+- Only CSS classes defined in the vendored stylesheet or `web/static/css/`. The audit checks `class="…"` in the templates.
 - Conditional controls (show only when the recorded facts make them applicable) are decided in the view or a query function and tested there, not by rendering.
 - In tests, `string_if_invalid` fails the test; a missing variable never renders blank.
 - `|safe` and `mark_safe` only with an entry and reason in the audit allowlist. No `csrf_exempt`.

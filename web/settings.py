@@ -51,7 +51,7 @@ PARTY_NAME = os.environ.get("PARTY_NAME") or (PARTY or Party.HOSPITAL).demo_name
 PRACTICE_CERTIFICATE_NAME = os.environ.get("PRACTICE_CERTIFICATE_NAME", "demo-practice")
 # A Pico colour theme per party, so its pages are told apart at a glance; absent:
 # Pico's default. Only a vendored theme will do.
-PICO_DIR = BASE_DIR / "static" / "css" / "vendor" / "pico-2.1.1"
+PICO_DIR = BASE_DIR / "web" / "static" / "css" / "vendor" / "pico-2.1.1"
 PARTY_COLOUR = os.environ.get("PARTY_COLOUR") or None
 if (
     PARTY_COLOUR is not None
@@ -113,7 +113,7 @@ ROOT_URLCONF = "web.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [BASE_DIR / "web" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -162,8 +162,8 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
-# WhiteNoise serves static/ through the finders, as checked out: no collectstatic.
+STATICFILES_DIRS = [BASE_DIR / "web" / "static"]
+# WhiteNoise serves web/static/ through the finders, as checked out: no collectstatic.
 WHITENOISE_USE_FINDERS = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
