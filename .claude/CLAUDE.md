@@ -18,18 +18,18 @@ Commit only when all of these exit 0:
 ```
 uv run --frozen ruff format --check .
 uv run --frozen ruff check .
-uv run --frozen mypy --strict .
+uv run --frozen mypy --strict . .claude/audit.py
 uv run --frozen python -W error manage.py check
 uv run --frozen python manage.py makemigrations --check --dry-run
 uv run --frozen pytest -W error
-uv run --frozen python tools/audit.py
+uv run --frozen python .claude/audit.py
 ```
 
 - Run every gate through `uv run --frozen`, never with a stale `.venv`.
 - Merge gate: `uv run --frozen pytest -W error -m containers` must also exit 0 when a branch touches compose, Docker files, `.dockerignore`, `web/settings.py`, `demo/`, `pyproject.toml` or `uv.lock`, and always on the merge to `main`.
 
 - Zero warnings. Never suppress one (`# noqa`, `# type: ignore`, `filterwarnings`); fix the root cause. If the fix is genuinely unclear, stop and report with a recommendation.
-- `tools/audit.py` is a ratchet: its baseline may only go down. After `python tools/audit.py --update`, `git diff tools/` must show no increase.
+- `.claude/audit.py` is a ratchet: its baseline may only go down. After `python .claude/audit.py --update`, `git diff .claude/audit_baseline.json` must show no increase.
 - Under machine load, rerun a timed-out test once and report it.
 
 ## Vocabulary first
@@ -80,4 +80,4 @@ Commits; scenarios added, changed or deleted (and what covers a deleted one); re
 
 ## To build
 
-Referenced above but not built yet: a `tools/red_first.py` that checks each `Red:` commit in a temporary worktree.
+Referenced above but not built yet: a `.claude/red_first.py` that checks each `Red:` commit in a temporary worktree.
