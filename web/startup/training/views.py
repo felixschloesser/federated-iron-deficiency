@@ -13,7 +13,11 @@ from django.views.generic import FormView, TemplateView
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.models import User
 from web.accounts.roles import Role
-from web.startup.training.final_models import deliveries, final_models, for_sale
+from web.startup.training.final_models import (
+    final_models,
+    for_sale,
+    transmission_statuses,
+)
 from web.startup.training.forms import SubmitRunForm
 from web.startup.training.models import Transmission
 from web.startup.training.runs import TrainingRun, stop_run, submit_run, training_runs
@@ -79,10 +83,10 @@ class FinalModelsView(DataScientistRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         runs, runs_unknown = listed_runs()
         kept = final_models(settings.FINAL_MODELS_DIR)
-        delivered = deliveries(kept, runs, list(Transmission.objects.all()))
+        statuses = transmission_statuses(kept, runs, list(Transmission.objects.all()))
         return {
             **super().get_context_data(**kwargs),
-            "final_models": [(model, delivered[model.run_id]) for model in kept],
+            "final_models": [(model, statuses[model.run_id]) for model in kept],
             "runs_unknown": runs_unknown,
             # A SuperLink that does not list runs would not take a transmission.
             "transmits": runs_unknown is None,

@@ -360,11 +360,11 @@ def both_answer(fetched: dict[str, Any]) -> None:
     assert fetched["css"][1].startswith("text/css"), fetched
 
 
-def test_the_practice_reaches_its_hospitals_lab_orders_and_not_its_pages(
+def test_the_practice_reaches_its_hospitals_messaging_and_not_its_pages(
     compose: Compose, hospital_app: str
 ) -> None:
     # One container serves both (features/quality/party_isolation.feature, DF23, DF25): from the crossing, only 8441.
-    host = f"{APP_HOSPITAL}-lab-orders"
+    host = f"{APP_HOSPITAL}-messaging"
     answers = probe(compose, f"{APP_PRACTICE}-web", PORTS, host, "8441", "8000")
     assert answers == {"8441": "open", "8000": "ConnectionRefusedError"}
 
@@ -416,7 +416,7 @@ def test_the_proxy_routes_a_partys_name_to_its_web_app(
             "model-updates",
             f"{HOSPITAL}-flower-client-app",
             APP_HOSPITAL,
-            "lab-orders",
+            "messaging",
             APP_PRACTICE,
         )
     }
@@ -509,7 +509,7 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
     ]
     compose(*as_practice, "prepare", *manage, "migrate", "-v0")
     compose(*as_practice, *nhanes, "prepare", *manage, "seed_practice", *seed)
-    address = f"{APP_HOSPITAL}-lab-orders:8441"
+    address = f"{APP_HOSPITAL}-messaging:8441"
     compose(*as_practice, "prepare", *manage, "add_laboratory", "AZ Diest", address)
     up(compose, practice)
     up(compose, "proxy")

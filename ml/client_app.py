@@ -16,9 +16,9 @@ from ml.final_models import (
     hospital_screening_models,
     receive_final_model,
 )
-from ml.task import Net, dataset_size, load_data
-from ml.task import test as test_fn
-from ml.task import train as train_fn
+from ml.training import Net, dataset_size, load_data
+from ml.training import evaluate as evaluate_fn
+from ml.training import train as train_fn
 
 # Flower ClientApp
 app = ClientApp()
@@ -110,7 +110,7 @@ def evaluate(msg: Message, context: Context) -> Message:
     _, valloader, _ = load_data(load_cohort(context), batch_size)
 
     # Call the evaluation function
-    eval_loss, eval_metrics, _, _ = test_fn(
+    eval_loss, eval_metrics, _, _ = evaluate_fn(
         model,
         valloader,
         device=device,

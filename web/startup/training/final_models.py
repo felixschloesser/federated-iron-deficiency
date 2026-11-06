@@ -80,7 +80,7 @@ def for_sale(directory: Path | None, run_id: str) -> bytes | None:
     return to_bytes(FinalModel(state_dict=model.state_dict))
 
 
-class Delivery(models.TextChoices):
+class TransmissionStatus(models.TextChoices):
     """Whether a final model reached the hospitals, from its latest transmission's
     run status (features/training.feature)."""
 
@@ -91,8 +91,8 @@ class Delivery(models.TextChoices):
     UNKNOWN = "unknown", "Status unknown"
 
     @classmethod
-    def of_run(cls, status: RunStatus | None) -> "Delivery":
-        """A transmission's delivery from its run's status; None for a status this
+    def of_run(cls, status: RunStatus | None) -> "TransmissionStatus":
+        """A transmission's status from its run's status; None for a status this
         app does not know."""
         match status:
             case None:
@@ -113,23 +113,23 @@ class Delivery(models.TextChoices):
         connected (receiving is idempotent)."""
         match self:
             case (
-                Delivery.NOT_TRANSMITTED
-                | Delivery.TRANSMITTED
-                | Delivery.NOT_EVERY_HOSPITAL
+                TransmissionStatus.NOT_TRANSMITTED
+                | TransmissionStatus.TRANSMITTED
+                | TransmissionStatus.NOT_EVERY_HOSPITAL
             ):
                 return True
-            case Delivery.TRANSMITTING | Delivery.UNKNOWN:
+            case TransmissionStatus.TRANSMITTING | TransmissionStatus.UNKNOWN:
                 return False
             case _:
                 assert_never(self)
 
 
-def deliveries(
+def transmission_statuses(
     kept: list[KeptFinalModel],
     runs: list[TrainingRun] | None,
     transmissions: list[Transmission],
-) -> dict[str, Delivery]:
-    """Each kept final model's delivery, from its latest transmission; runs is
+) -> dict[str, TransmissionStatus]:
+    """Each kept final model's transmission status, from its latest transmission; runs is
     None when the SuperLink did not answer, so a transmission's status is
     unknown."""
     latest = {
@@ -143,10 +143,12 @@ def deliveries(
     for model in kept:
         transmission = latest.get(model.run_id)
         if transmission is None:
-            shown[model.run_id] = Delivery.NOT_TRANSMITTED
+            shown[model.run_id] = TransmissionStatus.NOT_TRANSMITTED
             continue
         run = statuses.get(int(transmission.run_id)) if runs is not None else None
         shown[model.run_id] = (
-            Delivery.UNKNOWN if run is None else Delivery.of_run(run.status)
+            TransmissionStatus.UNKNOWN
+            if run is None
+            else TransmissionStatus.of_run(run.status)
         )
     return shown

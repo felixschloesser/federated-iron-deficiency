@@ -17,7 +17,7 @@ from ml.screening import (
     standardization_tensor,
     write,
 )
-from ml.task import Net
+from ml.training import Net
 from tests.conftest import World, make_practice
 from web.hospital.deployment.model_files import sha256
 from web.hospital.deployment.models import Deployment, NoUsableModel

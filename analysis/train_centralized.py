@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import ConcatDataset, DataLoader
 
 from ml.dataset import load_federated_dataset
-from ml.task import SEED, Loader, Net, load_data, train
+from ml.training import SEED, Loader, Net, load_data, train
 
 # Same hyperparameters as the federated run
 CONFIG = tomllib.loads(Path("pyproject.toml").read_text())["tool"]["flwr"]["app"][

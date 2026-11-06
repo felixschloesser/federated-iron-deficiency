@@ -6,7 +6,7 @@ import pandas as pd
 
 from ml.cohort import CBC_VARS, FEATURES
 from ml.screening import FinalModel, screen, standardization_tensor
-from ml.task import Net
+from ml.training import Net
 
 
 def test_screen_scores_only_eligible_women_and_returns_only_decisions(
