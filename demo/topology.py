@@ -202,7 +202,7 @@ MIDDLE = """\
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      PARTY: startup
+      DJANGO_SETTINGS_MODULE: web.settings.startup
       DATA_DIR: /demo/startup
       FLWR_HOME: /demo/startup/flwr-home
     volumes:
@@ -259,7 +259,7 @@ HOSPITAL = """\
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://{slug}-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('{slug}-messaging', 8441)).close()"]
     environment:
-      PARTY: hospital
+      DJANGO_SETTINGS_MODULE: web.settings.hospital
       DATA_DIR: /demo/hospitals/{slug}
       PARTY_NAME: {name}
       PARTY_COLOUR: {colour}
@@ -288,7 +288,7 @@ PRACTICE = """\
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      PARTY: practice
+      DJANGO_SETTINGS_MODULE: web.settings.practice
       DATA_DIR: /demo/practices/{slug}
       PARTY_NAME: {name}
       PRACTICE_CERTIFICATE_NAME: {slug}

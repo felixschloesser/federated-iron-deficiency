@@ -82,10 +82,9 @@ exclude = ["^\\.demo/"]
 plugins = ["mypy_django_plugin.main"]
 
 [tool.django-stubs]
-django_settings_module = "web.settings"
+django_settings_module = "web.settings.typecheck"
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "web.settings"
 # The audit and red_first live in .claude/, out of readers' way; their tests import them.
 pythonpath = [".claude"]
 # Every test is a function: no class is collected, so domain classes named

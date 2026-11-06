@@ -6,12 +6,12 @@ from django.test import RequestFactory
 from pytest_django.fixtures import Settings
 
 
-def test_base_layout_renders() -> None:
+def test_base_layout_renders(settings: Settings) -> None:
     template = engines["django"].from_string(
         '{% extends "kit/base.html" %}{% block title %}Probe{% endblock %}'
     )
     html = template.render({}, RequestFactory().get("/"))
-    assert "<title>Probe · Demo hospital</title>" in html
+    assert f"<title>Probe · {settings.PARTY_NAME}</title>" in html
     assert "screening" not in html.lower()
 
 

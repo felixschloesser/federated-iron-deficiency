@@ -70,19 +70,35 @@ def git(*args: str) -> str:
     ).stdout
 
 
+# One run per party's settings, and one for the tests outside the party
+# folders: no run holds two parties (conftest.py).
+RUNS: list[list[str]] = [
+    *([f"--ds=web.settings.{party}"] for party in ("hospital", "practice", "startup")),
+    [],
+]
+
+
 def pytest(tree: Path, *args: str) -> str:
-    # Each worktree keeps its own database; a DATA_DIR or DATABASE_NAME from the
-    # caller would point both at one.
+    """Every run's output, one after the other."""
+    # Each worktree keeps its own data; a DATA_DIR from the caller would point
+    # both at one, and a settings module would choose one party's tests.
     env = {
         key: value
         for key, value in os.environ.items()
-        if key not in ("DATA_DIR", "DATABASE_NAME")
+        if key not in ("DATA_DIR", "DJANGO_SETTINGS_MODULE")
     }
     # pytest exits 1 when tests fail, which a Red: commit must.
-    result = subprocess.run(
-        [*PYTEST, *args], check=False, cwd=tree, env=env, capture_output=True, text=True
+    return "".join(
+        subprocess.run(
+            [*PYTEST, *run, *args],
+            check=False,
+            cwd=tree,
+            env=env,
+            capture_output=True,
+            text=True,
+        ).stdout
+        for run in RUNS
     )
-    return result.stdout
 
 
 @contextmanager

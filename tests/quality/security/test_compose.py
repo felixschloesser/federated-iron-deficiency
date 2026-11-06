@@ -103,6 +103,21 @@ def party_folder(name: str) -> str:
     raise AssertionError(f"{name} belongs to no party")
 
 
+def test_every_web_app_names_its_party_and_its_folder() -> None:
+    """A web app without DATA_DIR would keep its data in the image's checkout
+    (.data/<party>/), outside its party's volume. Pass: every service that runs
+    a party's settings names them and a DATA_DIR."""
+    web_apps = {
+        name: spec["environment"]
+        for name, spec in config()["services"].items()
+        if "DJANGO_SETTINGS_MODULE" in (spec.get("environment") or {})
+    }
+    assert web_apps
+    for name, environment in web_apps.items():
+        assert environment["DJANGO_SETTINGS_MODULE"].startswith("web.settings."), name
+        assert environment.get("DATA_DIR", "").startswith("/demo/"), name
+
+
 def test_one_service_per_process_of_each_party() -> None:
     assert set(config()["services"]) == STARTUP_SERVICES | NETWORK_SERVICES | {
         f"{slug}-{role}"
@@ -186,7 +201,7 @@ def test_the_startups_web_app_reads_the_final_models_and_not_the_superlinks_stat
         "startup/final-models",
         True,
     )
-    assert spec["environment"]["PARTY"] == "startup"
+    assert spec["environment"]["DJANGO_SETTINGS_MODULE"] == "web.settings.startup"
     assert spec["environment"]["DATA_DIR"] == "/demo/startup"
 
 
