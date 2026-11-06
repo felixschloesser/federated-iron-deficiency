@@ -1,5 +1,5 @@
-"""The final model's file: the one format the ClientApp writes and every
-reader, the startup's and the hospital's, reads."""
+"""The final model: its network, and its file, the one format the ClientApp
+writes and every reader, the startup's and the hospital's, reads."""
 
 import enum
 import io
@@ -14,9 +14,36 @@ from typing import Any
 
 import pandas as pd
 import torch
+from torch import nn
 
 from ml.cohort import FEATURES
-from ml.training import Net
+
+
+class Net(nn.Module):
+    """MLP for binary classification on the NHANES tabular features."""
+
+    def __init__(
+        self,
+        n_features: int = len(FEATURES),
+        h1: int = 64,
+        h2: int = 32,
+        p_drop: float = 0.2,
+    ) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_features, h1),
+            nn.ReLU(),
+            nn.Dropout(p_drop),
+            nn.Linear(h1, h2),
+            nn.ReLU(),
+            nn.Dropout(p_drop),
+            nn.Linear(h2, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        logits: torch.Tensor = self.net(x)
+        return logits.squeeze(-1)
+
 
 # The thresholds a laboratory director chooses from: each hospital counts its
 # local validation at every one (features/deployment.feature).

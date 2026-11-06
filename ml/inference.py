@@ -1,4 +1,5 @@
-"""Local screening of new blood counts with the deployed model."""
+"""Inference: the deployed model on new blood counts, at the hospital. The
+hospital calls it screening; screen() and suggests_ferritin() speak its words."""
 
 import argparse
 from collections.abc import Mapping
@@ -10,8 +11,7 @@ import pandas as pd
 import torch
 
 from ml.cohort import CBC_VARS, FEATURES, eligible
-from ml.final_model_file import FinalModel, read
-from ml.training import Net
+from ml.final_model import FinalModel, Net, read
 
 # One lab export row: sample ID, registered sex, age, and the 13 CBC values.
 COLUMNS = ["sample_id", "sex", "age", *CBC_VARS]

@@ -10,7 +10,7 @@ from django.urls import reverse
 from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.fixtures import Settings
 
-from ml.final_model_file import Problem
+from ml.final_model import Problem
 from tests.conftest import World, make_laboratory_staff_member, write_final_model
 
 NOW = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
