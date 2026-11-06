@@ -7,6 +7,6 @@ Feature: The demo admits any SuperNode
   control. Its last step is its response measure, true or false.
 
   Scenario: Every Flower connection in the demo runs without TLS
-    Given the demo deployment as compose.yaml declares it
+    Given the demo as compose.yaml declares it
     When a SuperNode connects to the SuperLink
     Then every Flower component runs with "--insecure", and nothing else does
