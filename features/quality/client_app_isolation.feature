@@ -4,11 +4,11 @@ Feature: The startup's code at a hospital sees only the cohort and final models
   the hospital's cohort (read-only) and screening-models, on a network it shares
   only with its hospital's SuperNode: it sees no database, no key and no other
   party's folder, and reaches neither the hospital's web app nor anything
-  outside the deployment, so what it sends leaves only through DF9 and DF10.
+  outside the demo, so what it sends leaves only through DF9 and DF10.
   Each scenario's last step is its response measure, true or false.
 
   Scenario Outline: compose.yaml gives the startup's code only the cohort and final models
-    Given the demo deployment as compose.yaml declares it
+    Given the demo as compose.yaml declares it
     When the ClientApp at <hospital> starts
     Then it mounts only its hospital's cohort, read-only, and final models
     And it shares a network only with its hospital's SuperNode, and that network is internal

@@ -1,4 +1,4 @@
-"""Terms both kinds of deployment use: the general practitioner's app and the
+"""Terms every party's web app uses: the general practitioner's app and the
 hospital (terms: glossary.toml). No models, so either may import it."""
 
 from dataclasses import dataclass

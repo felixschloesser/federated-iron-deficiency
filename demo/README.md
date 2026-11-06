@@ -1,4 +1,4 @@
-# The demo deployment
+# The demo
 
 Run every command here from the repository root. The demo runs the whole scenario on your machine: the startup, three
 hospitals and each hospital's general practitioner's practice. Each party

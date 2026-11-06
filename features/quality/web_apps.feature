@@ -7,8 +7,8 @@ Feature: Every web app runs with DEBUG off
   its response measure, true or false.
 
   Scenario: No running service has DEBUG on
-    Given the demo deployment as compose.yaml declares it
-    When the deployment starts
+    Given the demo as compose.yaml declares it
+    When the demo starts
     Then no service sets "DJANGO_DEBUG"
 
   @containers

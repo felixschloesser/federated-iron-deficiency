@@ -1,6 +1,6 @@
 """Repository audit: lists every rule violation, and fails on any.
 
-Run `python tools/audit.py` as a commit gate.
+Run `python .claude/audit.py` as a commit gate.
 """
 
 import argparse
@@ -15,7 +15,7 @@ from typing import assert_never
 from web.party import Party
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWLIST = Path("tools") / "audit_allowlist.toml"
+ALLOWLIST = Path(".claude") / "audit_allowlist.toml"
 GLOSSARY = Path("glossary.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
 BUILD_OUTPUT = {"staticfiles"}
@@ -248,12 +248,12 @@ def _training_side(party: Party | None) -> set[str]:
         return SHARED_SIDE
     match party:
         case Party.HOSPITAL:
-            return SHARED_SIDE | {"ml.final_model_file", "ml.screening"}
+            return SHARED_SIDE | {"ml.final_model", "ml.inference"}
         case Party.PRACTICE:
             return SHARED_SIDE
         case Party.STARTUP:
             # Only to read its own final models, never to screen.
-            return SHARED_SIDE | {"ml.final_model_file"}
+            return SHARED_SIDE | {"ml.final_model"}
         case _:
             assert_never(party)
 

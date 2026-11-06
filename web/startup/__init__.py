@@ -1,1 +1,1 @@
-"""The startup's apps: only the startup's deployment installs them."""
+"""The startup's apps: only the startup's web app installs them."""
