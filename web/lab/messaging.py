@@ -52,7 +52,7 @@ def practice_of(request: FromPractice, context: grpc.ServicerContext) -> Practic
     return practice
 
 
-class Laboratory(messages_pb2_grpc.LaboratoryServicer):
+class LabOrderService(messages_pb2_grpc.LaboratoryServicer):
     """Receives lab orders and hands out lab reports, like a view: form, service."""
 
     @with_database
@@ -121,7 +121,7 @@ class Laboratory(messages_pb2_grpc.LaboratoryServicer):
 def serve(address: str) -> tuple[grpc.Server, int]:
     """Start the endpoint, plaintext: the demo leaves out the report's mutual TLS."""
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
-    messages_pb2_grpc.add_LaboratoryServicer_to_server(Laboratory(), server)
+    messages_pb2_grpc.add_LaboratoryServicer_to_server(LabOrderService(), server)
     port = server.add_insecure_port(address)
     server.start()
     return server, port

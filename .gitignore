@@ -17,3 +17,6 @@ staticfiles/
 # Never commit: the repository is public
 report/
 sources/
+
+# Each worktree's own notes (CLAUDE.md); never committed.
+PROGRESS.md
