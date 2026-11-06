@@ -389,9 +389,17 @@ def test_every_flower_connection_runs_without_tls() -> None:
 
 @scenario(
     "quality/client_app_isolation.feature",
-    "compose.yaml gives the startup's code only the cohort and final models",
+    "compose.yaml gives the startup's code only the cohort, read-only",
 )
-def test_compose_gives_the_startups_code_only_the_cohort_and_final_models() -> None:
+def test_compose_gives_the_startups_code_only_the_cohort_read_only() -> None:
+    pass
+
+
+@scenario(
+    "quality/client_app_isolation.feature",
+    "Only the hospitals' web apps reach the startup's final-models endpoint",
+)
+def test_only_the_hospitals_web_apps_reach_the_final_models_endpoint() -> None:
     pass
 
 
@@ -430,15 +438,29 @@ def every_flower_component_insecure(declared: dict[str, Any]) -> None:
     }
 
 
-@then("it mounts only its hospital's cohort, read-only, and final models")
-def mounts_only_cohort_and_final_models(slug: str) -> None:
+@then("it mounts only its hospital's cohort, read-only")
+def mounts_only_the_cohort(slug: str) -> None:
     assert mounts(f"{slug}-flower-client-app") == {
         f"/demo/hospitals/{slug}/cohort": (f"hospitals/{slug}/cohort", True),
-        f"/demo/hospitals/{slug}/screening-models": (
-            f"hospitals/{slug}/screening-models",
-            False,
-        ),
     }
+
+
+@then(
+    "the final-models network joins the startup's web app and every hospital's"
+    " web app, and nothing else"
+)
+def final_models_network(declared: dict[str, Any]) -> None:
+    members = {
+        name
+        for name, spec in declared["services"].items()
+        if "final-models" in spec.get("networks", {})
+    }
+    assert members == {"startup-web"} | {f"{slug}-web" for slug in HOSPITAL_SLUGS}
+
+
+@then("the final-models network is internal")
+def final_models_network_internal(declared: dict[str, Any]) -> None:
+    assert declared["networks"]["final-models"]["internal"] is True
 
 
 @then(
