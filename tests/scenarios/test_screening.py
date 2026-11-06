@@ -11,13 +11,13 @@ from django.db.models import DecimalField, FloatField
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from ml.cohort import CBC_VARS, FEATURES, eligible
-from ml.final_model_file import (
+from ml.final_model import (
     FinalModel,
+    Net,
     final_model_path,
     standardization_tensor,
     write,
 )
-from ml.training import Net
 from tests.conftest import World, make_practice
 from web.hospital.deployment.model_files import sha256
 from web.hospital.deployment.models import Deployment, NoUsableModel

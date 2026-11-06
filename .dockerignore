@@ -7,5 +7,7 @@
 !manage.py
 !ml/
 !web/
-!demo/
+# The demo's code and topology only: never a stray download or CA under demo/.
+!demo/*.py
+!demo/demo.toml
 **/__pycache__
