@@ -16,11 +16,10 @@ ROOT = Path(__file__).resolve().parents[2]
 def migrate(practice: Path, *target: str) -> None:
     env = {
         **os.environ,
-        "PARTY": "practice",
+        "DJANGO_SETTINGS_MODULE": "web.settings.practice",
         "DATA_DIR": str(practice),
         "DJANGO_DEBUG": "1",
     }
-    env.pop("DATABASE_NAME", None)
     subprocess.run(
         [sys.executable, str(ROOT / "manage.py"), "migrate", *target, "-v0"],
         env=env,
@@ -62,11 +61,10 @@ def test_the_practice_names_a_hospital_holds_become_practices(tmp_path: Path) ->
     practice, its slug the certificate name, and keeps every sample."""
     env = {
         **os.environ,
-        "PARTY": "hospital",
+        "DJANGO_SETTINGS_MODULE": "web.settings.hospital",
         "DATA_DIR": str(tmp_path),
         "DJANGO_DEBUG": "1",
     }
-    env.pop("DATABASE_NAME", None)
 
     def migrate_hospital(*target: str) -> None:
         subprocess.run(

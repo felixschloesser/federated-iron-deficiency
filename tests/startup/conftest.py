@@ -3,9 +3,13 @@
 from typing import TYPE_CHECKING
 
 from tests.conftest import make_user
+from tests.django_settings import _test_settings
 
 if TYPE_CHECKING:
     from web.accounts.models import User
+
+# The settings every test of this party runs with (tests/django_settings.py).
+__all__ = ["_test_settings"]
 
 
 def make_data_scientist(name: str) -> "User":

@@ -1,10 +1,13 @@
 """The roles a user may have; a user without one cannot log in."""
 
-from typing import assert_never
+from typing import TYPE_CHECKING, assert_never
 
-from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 from django.db import models
 from django.urls import reverse
+
+# Only for the annotations: settings import Role before Django loads its apps.
+if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 
 
 class Role(models.TextChoices):
@@ -70,7 +73,7 @@ class Role(models.TextChoices):
                 assert_never(self)
 
 
-def role_of(user: AbstractBaseUser | AnonymousUser | None) -> Role | None:
+def role_of(user: "AbstractBaseUser | AnonymousUser | None") -> Role | None:
     """Return the user's role, or None for an account without one."""
     role = getattr(user, "role", None)
     return None if role is None else Role(role)

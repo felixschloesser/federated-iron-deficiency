@@ -1,6 +1,8 @@
-"""Logging in and the start page of each role."""
+"""Logging in, as every party's web app does (web.accounts, shared; checked
+here, in the practice's run), and the practice's role and its pages."""
 
 import pytest
+from django.conf import settings
 from django.test import Client
 from django.urls import resolve, reverse
 from pytest_django.asserts import assertContains, assertNotContains
@@ -17,39 +19,8 @@ def test_role_of_a_general_practitioner() -> None:
     assert role_of(make_general_practitioner("Dr. Demo A")) is Role.GENERAL_PRACTITIONER
 
 
-def test_role_of_laboratory_staff() -> None:
-    from tests.hospital.conftest import make_laboratory_staff_member
-
-    assert role_of(make_laboratory_staff_member("Lab One")) is Role.LABORATORY_STAFF
-
-
-@pytest.mark.parametrize("role", list(Role))
-def test_every_navigation_link_of_a_role_resolves(role: Role) -> None:
-    assert role.nav_links()
-    for link in role.nav_links():
-        assert resolve(link["url"])
-
-
-def test_role_of_a_laboratory_director() -> None:
-    from tests.hospital.conftest import make_laboratory_director
-
-    director = make_laboratory_director("Director One")
-    assert role_of(director) is Role.LABORATORY_DIRECTOR
-
-
-def test_role_of_a_data_scientist() -> None:
-    from tests.startup.conftest import make_data_scientist
-
-    assert role_of(make_data_scientist("Data One")) is Role.DATA_SCIENTIST
-
-
 def test_role_of_an_account_without_one() -> None:
     assert role_of(User.objects.create_user(username="no-role")) is None
-
-
-@pytest.mark.parametrize("role", list(Role))
-def test_every_role_has_a_start_page(role: Role) -> None:
-    assert resolve(role.start_url())
 
 
 def test_login_leads_to_the_start_page_of_the_role(client: Client) -> None:
@@ -104,3 +75,13 @@ def test_a_refused_login_focuses_only_its_error(client: Client) -> None:
         reverse("login"), {"username": "someone", "password": "wrong"}
     )
     assertContains(response, "autofocus", count=1)
+
+
+@pytest.mark.parametrize("role", settings.ROLES)
+def test_each_role_of_this_party_has_its_pages_here(role: Role) -> None:
+    """The role's start page and header links are this party's own: none points
+    at another party's pages, which its URLconf does not serve."""
+    assert resolve(role.start_url())
+    assert role.nav_links()
+    for link in role.nav_links():
+        assert resolve(link["url"])
