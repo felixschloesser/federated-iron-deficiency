@@ -170,7 +170,7 @@ Feature: The startup's training runs
 
     Examples:
       | status             | shown                               | offers         |
-      | running            | Transmission                             | does not offer |
+      | running            | Transmitting                             | does not offer |
       | finished:completed | Transmitted                           | offers         |
       | finished:failed    | Not transmitted to every hospital          | offers         |
       | finished:stopped   | Not transmitted to every hospital          | offers         |

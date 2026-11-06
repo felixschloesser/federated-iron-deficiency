@@ -4,7 +4,9 @@ model's file: the one format the ClientApp writes and every reader reads."""
 import argparse
 import enum
 import io
+import os
 import pickle
+import tempfile
 import zipfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -142,12 +144,17 @@ def write(path: Path, model: FinalModel) -> None:
     if path.exists():
         raise FileExistsError(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    # Written beside it, then renamed: a reader of the folder never sees half a file,
-    # and "*.pt" never matches the partial one.
-    partial = path.with_name(f".{path.name}.partial")
+    # Written beside it under a name of its own, then linked: a reader of the
+    # folder never sees half a file, "*.pt" never matches the partial one, and of
+    # two writers at once the second fails, as link never replaces a file.
+    descriptor, name = tempfile.mkstemp(
+        dir=path.parent, prefix=f".{path.name}.", suffix=".partial"
+    )
+    os.close(descriptor)
+    partial = Path(name)
     try:
         torch.save(file_contents(model), partial)
-        partial.replace(path)
+        os.link(partial, path)
     finally:
         partial.unlink(missing_ok=True)
 

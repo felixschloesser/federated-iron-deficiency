@@ -35,9 +35,11 @@ and three Belgian hospitals.
   cycles keep fixed 50% and 25% samples, giving a large, a medium, and a small
   hospital (about 5:2:1). The latest cycle, 2021–2023, no longer trains, so it
   can stand in for new blood counts screened after training.
-- **Final models.** The original app stops after training. Here the ServerApp
-  sends the final model and the aggregated evaluation metrics to every
-  hospital. Each stores it as a new file named after the run ID in its
+- **Final models.** The original app stops after training. Here the startup
+  keeps each final model, and its data scientist transmits one to every
+  connected hospital in a run of its own (`transmit-final-model=<run ID>`),
+  with the aggregated evaluation metrics; the run fails unless every connected
+  hospital acknowledges it. Each stores it as a new file named after the training run ID in its
   `final-models-path`, with its own standardization and a local validation on
   its validation split: the confusion matrix at each threshold from 0.05 to
   0.95 in steps of 0.05, and AUROC (`iron_deficiency/final_models.py`). A

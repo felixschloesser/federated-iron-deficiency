@@ -1,7 +1,7 @@
 Feature: Final models at each hospital
-  After each training run the ClientApp's deploy handler stores the final model
-  in the hospital's screening-models folder: a new file named after the Flower run
-  ID, never overwriting one, with the federated metrics the ServerApp sends,
+  When the data scientist transmits a final model, the ClientApp's receive
+  handler stores it in the hospital's screening-models folder: a new file named
+  after its training run's ID, never overwriting one, with the federated metrics the ServerApp sends,
   and its local validation on this hospital's validation split: a confusion
   matrix at each threshold the laboratory director may choose, and AUROC. The
   training run sets no threshold. Its metadata holds only this hospital's local validation and the

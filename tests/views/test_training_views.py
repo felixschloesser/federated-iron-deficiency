@@ -41,19 +41,18 @@ def test_final_models_page(
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     client.force_login(make_data_scientist("Data One"))
-    # Session, user with role.
-    with django_assert_num_queries(2):
+    # Session, user with role, transmissions.
+    with django_assert_num_queries(3):
         response = client.get(reverse("training:runs"))
-    assertContains(
-        response,
-        '<tr><td data-label="Stored">30 Oct 2026, 10:00</td><td data-label="Run">7</td>'
-        '<td data-label="AUROC across hospitals">0.86</td>'
-        '<td data-label="Run configuration">—</td>'
+    for cell in (
+        '<td data-label="Stored">30 Oct 2026, 10:00</td>',
+        '<td data-label="AUROC across hospitals">0.86</td>',
+        '<td data-label="Run configuration">—</td>',
         '<td data-label="Model sale"><a href="/training/runs/7/for-sale/" download'
         ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
-        "</td></tr>",
-        html=True,
-    )
+        "</td>",
+    ):
+        assertContains(response, cell, html=True)
 
 
 def test_a_laboratory_director_is_sent_to_their_own_page(client: Client) -> None:

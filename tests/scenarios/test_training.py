@@ -532,7 +532,8 @@ def transmit(world: World, superlink: World, run_id: str) -> None:
     )
 )
 def receives_run_with(superlink: World, key: str, value: int) -> None:
-    assert run_configuration_sent(superlink)[key] == value
+    # A string: Flower's run IDs exceed TOML's integers.
+    assert run_configuration_sent(superlink)[key] == str(value)
 
 
 @then(
@@ -611,10 +612,11 @@ def superlink_knows_status(superlink: World, run_id: str, status: str) -> None:
 
 def delivery_of(world: World, run_id: str) -> Any:
     from web.training.final_models import deliveries, final_models
+    from web.training.models import Transmission
     from web.training.runs import training_runs
 
     kept = final_models(world["final_models_dir"])
-    return deliveries(kept, training_runs())[run_id]
+    return deliveries(kept, training_runs(), list(Transmission.objects.all()))[run_id]
 
 
 @then(parsers.parse('final model "{run_id}" shows "{shown}"'))
@@ -630,7 +632,7 @@ def final_model_shows_delivery(
     )
 )
 def offers_send(world: World, superlink: World, run_id: str, offers: str) -> None:
-    assert delivery_of(world, run_id).offers_send is (offers == "offers")
+    assert delivery_of(world, run_id).offers_transmit is (offers == "offers")
 
 
 @when(
