@@ -11,7 +11,7 @@ from django.views.generic import TemplateView
 
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
-from web.lab.models import LabOrder, NotScreened
+from web.hospital.lab.models import LabOrder, NotScreened
 
 
 class LaboratoryStaffRequiredMixin(RoleRequiredMixin):

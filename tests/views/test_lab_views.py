@@ -16,7 +16,7 @@ from tests.conftest import (
     make_patient,
 )
 from web.accounts.models import User
-from web.lab.models import LabOrder
+from web.hospital.lab.models import LabOrder
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 

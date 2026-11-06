@@ -13,11 +13,15 @@ class Party(enum.Enum):
         """This party's own Django apps; no other party installs them (features/quality/party_isolation.feature)."""
         match self:
             case Party.HOSPITAL:
-                return ["web.nhanes", "web.lab", "web.deployment"]
+                return [
+                    "web.hospital.nhanes",
+                    "web.hospital.lab",
+                    "web.hospital.deployment",
+                ]
             case Party.PRACTICE:
                 return ["web.practice"]
             case Party.STARTUP:
-                return ["web.training"]
+                return ["web.startup.training"]
             case _:
                 assert_never(self)
 

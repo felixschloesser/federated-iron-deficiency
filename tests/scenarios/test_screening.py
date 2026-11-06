@@ -19,16 +19,16 @@ from ml.screening import (
 )
 from ml.task import Net
 from tests.conftest import World, make_practice
-from web.deployment.model_files import sha256
-from web.deployment.models import Deployment, NoUsableModel
-from web.lab.models import (
+from web.hospital.deployment.model_files import sha256
+from web.hospital.deployment.models import Deployment, NoUsableModel
+from web.hospital.lab.models import (
     LabOrder,
     LabOrderDetails,
     NotScreened,
     Sample,
     ScreeningResult,
 )
-from web.nhanes.models import Participant
+from web.hospital.nhanes.models import Participant
 from web.vocabulary import ClinicalIndication, RegisteredSex
 from web.vocabulary import Test as OrderedTest
 

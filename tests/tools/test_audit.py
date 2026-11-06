@@ -32,7 +32,7 @@ def test_clean_tree_has_no_findings(tmp_path: Path) -> None:
             "static/css/app.css": ".page { margin: 0; }\n",
             "templates/kit/base.html": '<main class="page"></main>\n',
             "templates/lab/index.html": '{% extends "kit/base.html" %}\n',
-            "web/lab/views.py": (
+            "web/hospital/lab/views.py": (
                 "class ReceiveView(View):\n"
                 "    def post(self, request) -> HttpResponse:\n"
                 "        self.lab_order.run_analyser(now)\n"
@@ -84,7 +84,10 @@ def test_suppressions(tmp_path: Path, code: str) -> None:
 
 def test_listed_choice_members(tmp_path: Path) -> None:
     code = "OPEN = [Status.ORDERED, Status.RECEIVED]\n"
-    assert counts(tree(tmp_path, {"web/lab/models.py": code}))["listed_members"] == 1
+    assert (
+        counts(tree(tmp_path, {"web/hospital/lab/models.py": code}))["listed_members"]
+        == 1
+    )
 
 
 def test_mutation_outside_a_post_handler(tmp_path: Path) -> None:
@@ -93,8 +96,10 @@ def test_mutation_outside_a_post_handler(tmp_path: Path) -> None:
         "    def get_queryset(self) -> QuerySet:\n"
         "        sample.save()\n"
     )
-    assert audit.run(tree(tmp_path, {"web/lab/views.py": code}))["get_mutation"] == [
-        "web/lab/views.py:2: IndexView.get_queryset mutates outside a POST handler"
+    assert audit.run(tree(tmp_path, {"web/hospital/lab/views.py": code}))[
+        "get_mutation"
+    ] == [
+        "web/hospital/lab/views.py:2: IndexView.get_queryset mutates outside a POST handler"
     ]
 
 
@@ -149,9 +154,9 @@ def test_a_post_handler_may_call_a_writing_model_method(tmp_path: Path) -> None:
 
 def test_function_view(tmp_path: Path) -> None:
     code = "def index(request) -> HttpResponse:\n    return render(request, 'x.html')\n"
-    assert audit.run(tree(tmp_path, {"web/lab/views.py": code}))["get_mutation"] == [
-        "web/lab/views.py:1: function view index; use a class-based view"
-    ]
+    assert audit.run(tree(tmp_path, {"web/hospital/lab/views.py": code}))[
+        "get_mutation"
+    ] == ["web/hospital/lab/views.py:1: function view index; use a class-based view"]
 
 
 def test_helpers_are_not_views(tmp_path: Path) -> None:
@@ -199,10 +204,10 @@ def test_web_imports_only_the_screening_side(tmp_path: Path) -> None:
         "from ml.client_app import app\n"
         "import ml.server_app\n"
     )
-    root = tree(tmp_path, {"web/lab/models.py": code, "tools/x.py": code})
+    root = tree(tmp_path, {"web/hospital/lab/models.py": code, "tools/x.py": code})
     assert audit.run(root)["training_imports"] == [
-        "web/lab/models.py:3: imports ml.client_app, startup code",
-        "web/lab/models.py:4: imports ml.server_app, startup code",
+        "web/hospital/lab/models.py:3: imports ml.client_app, startup code",
+        "web/hospital/lab/models.py:4: imports ml.server_app, startup code",
     ]
 
 
@@ -212,17 +217,17 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
         {
             "web/practice/views.py": "from web.practice.models import Order\n"
             "from web.vocabulary import Test\n"
-            "from web.lab.models import LabOrder\n",
-            "web/lab/models.py": "import web.practice.models\n",
-            "web/accounts/backends.py": "from web.deployment import models\n",
+            "from web.hospital.lab.models import LabOrder\n",
+            "web/hospital/lab/models.py": "import web.practice.models\n",
+            "web/accounts/backends.py": "from web.hospital.deployment import models\n",
             "web/messaging/messages_pb2.py": "import grpc\n",
-            "demo/demo.py": "from web.lab.models import LabOrder\n",
+            "demo/demo.py": "from web.hospital.lab.models import LabOrder\n",
         },
     )
     assert audit.run(root)["party_imports"] == [
-        "web/accounts/backends.py:1: shared code imports web.deployment",
-        "web/lab/models.py:1: the hospital's code imports web.practice",
-        "web/practice/views.py:3: the practice's code imports web.lab",
+        "web/accounts/backends.py:1: shared code imports web.hospital",
+        "web/hospital/lab/models.py:1: the hospital's code imports web.practice",
+        "web/practice/views.py:3: the practice's code imports web.hospital",
     ]
 
 
@@ -231,7 +236,7 @@ def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
     root = tree(
         tmp_path,
         {
-            "web/lab/models.py": code,
+            "web/hospital/lab/models.py": code,
             "web/practice/views.py": code,
             "web/seeding/command.py": code,
         },

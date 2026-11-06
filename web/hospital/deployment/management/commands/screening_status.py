@@ -5,8 +5,8 @@ from typing import Any
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from web.deployment.model_files import screening_models
-from web.deployment.models import Deployment, NoUsableModel
+from web.hospital.deployment.model_files import screening_models
+from web.hospital.deployment.models import Deployment, NoUsableModel
 
 
 class Command(BaseCommand):

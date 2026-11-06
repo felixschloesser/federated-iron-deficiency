@@ -7,7 +7,7 @@ import pandas as pd
 
 from ml.cohort import CBC_VARS
 from web.accounts.roles import Role
-from web.nhanes.models import Participant
+from web.hospital.nhanes.models import Participant
 from web.seeding.accounts import LABORATORY_DIRECTOR, LABORATORY_STAFF
 from web.seeding.command import SeedCommand, user
 
