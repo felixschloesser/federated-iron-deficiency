@@ -18,7 +18,7 @@ Commit only when all of these exit 0:
 ```
 uv run --frozen ruff format --check .
 uv run --frozen ruff check .
-uv run --frozen mypy --strict . .claude/audit.py
+uv run --frozen mypy --strict . .claude/audit.py .claude/red_first.py
 uv run --frozen python -W error manage.py check
 uv run --frozen python manage.py makemigrations --check --dry-run
 uv run --frozen pytest -W error
@@ -42,6 +42,7 @@ uv run --frozen python .claude/audit.py
 - Each behaviour slice lands as two commits: `Red: …` with only the scenarios and steps (only the new scenarios fail), then the code commit (all green).
 - If code must come first (a removed field breaks imports), end the slice by disabling each new guard and confirming its scenarios go red; put the table (guard → scenarios) in the commit message.
 - Gates do not run on `Red:` commits.
+- Before merging, `uv run --frozen python .claude/red_first.py` (default range `main..HEAD`) exits 0: each `Red:` commit fails at least one test, and only tests that are new or that it changed (their module, or a feature file the module loads).
 
 ## Design rules
 
@@ -77,7 +78,3 @@ A branch that changes templates or CSS is checked in a browser by a separate age
 ## Report back
 
 Commits; scenarios added, changed or deleted (and what covers a deleted one); red-first evidence; what was not checked.
-
-## To build
-
-Referenced above but not built yet: a `.claude/red_first.py` that checks each `Red:` commit in a temporary worktree.
