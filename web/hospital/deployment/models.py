@@ -10,8 +10,8 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
-from ml.final_model_file import FinalModel, final_model_path, from_bytes
-from ml.screening import suggests_ferritin
+from ml.final_model import FinalModel, final_model_path, from_bytes
+from ml.inference import suggests_ferritin
 from web.hospital.deployment.model_files import (
     model_name,
     screening_model_file,

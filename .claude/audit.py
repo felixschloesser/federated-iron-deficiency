@@ -257,12 +257,12 @@ def _training_side(party: Party | None) -> set[str]:
         return SHARED_SIDE
     match party:
         case Party.HOSPITAL:
-            return SHARED_SIDE | {"ml.final_model_file", "ml.screening"}
+            return SHARED_SIDE | {"ml.final_model", "ml.inference"}
         case Party.PRACTICE:
             return SHARED_SIDE
         case Party.STARTUP:
             # Only to read its own final models, never to screen.
-            return SHARED_SIDE | {"ml.final_model_file"}
+            return SHARED_SIDE | {"ml.final_model"}
         case _:
             assert_never(party)
 

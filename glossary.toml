@@ -179,6 +179,11 @@ source = "Report, P7"
 why = "The report's process name"
 rejected = ["scoring", "classification"]
 
+["inference"]
+source = "PyTorch documentation, *Saving and Loading Models*: call model.eval() \"before running inference\""
+why = "The training package's word for running the trained model on new blood counts (ml.inference), beside training; the hospital's word for the same step stays screening"
+rejected = ["screening (in ml/: the hospital's word)", "prediction"]
+
 ["screening result"]
 source = "Report, DF31 \"screening result\", P10"
 why = "What screening records per CBC: one of the three below, with the reason when not screened (features/hospital/screening.feature) and the screening model when screened (features/hospital/screening.feature)"

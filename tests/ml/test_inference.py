@@ -5,9 +5,8 @@ from pathlib import Path
 import pandas as pd
 
 from ml.cohort import CBC_VARS, FEATURES
-from ml.final_model_file import FinalModel, standardization_tensor
-from ml.screening import screen
-from ml.training import Net
+from ml.final_model import FinalModel, Net, standardization_tensor
+from ml.inference import screen
 
 
 def test_screen_scores_only_eligible_women_and_returns_only_decisions(

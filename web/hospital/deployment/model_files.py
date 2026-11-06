@@ -10,7 +10,7 @@ from typing import assert_never
 from django.db import models
 from django.utils import formats, timezone
 
-from ml.final_model_file import Problem, final_model_paths, from_bytes
+from ml.final_model import Problem, final_model_paths, from_bytes
 
 
 def model_name(stored_at: datetime | None, run_id: str) -> str:

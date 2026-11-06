@@ -82,11 +82,11 @@ def write_final_model(
     leave_out: tuple[str, ...] = (),
     n_features: int = len(FEATURES),
 ) -> "Path":
-    """A final model as the ClientApp stores it (ml.final_models),
+    """A final model as the ClientApp stores it (ml.training),
     with `validation`, its confusion matrix at each threshold."""
     import torch
 
-    from ml.training import Net
+    from ml.final_model import Net
 
     contents = {
         "state_dict": Net(n_features=n_features).state_dict(),

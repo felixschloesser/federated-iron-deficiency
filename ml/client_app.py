@@ -11,12 +11,14 @@ from flwr.clientapp import ClientApp
 from flwr_datasets import FederatedDataset
 
 from ml.dataset import load_federated_dataset
-from ml.final_models import (
+from ml.final_model import Net
+from ml.training import (
     DEFAULT_DEMO_DIR,
+    dataset_size,
     hospital_screening_models,
+    load_data,
     receive_final_model,
 )
-from ml.training import Net, dataset_size, load_data
 from ml.training import evaluate as evaluate_fn
 from ml.training import train as train_fn
 
