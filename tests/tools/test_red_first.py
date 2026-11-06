@@ -48,13 +48,17 @@ def test_a_test_in_a_changed_module_may_fail() -> None:
 
 def test_a_changed_feature_changes_the_modules_that_load_it() -> None:
     modules = {
-        "tests/scenarios/test_lab.py": 'scenarios("lab.feature")\n',
-        "tests/scenarios/test_ordering.py": 'scenarios("ordering.feature")\n',
+        "tests/hospital/test_lab.py": 'scenarios("hospital/lab.feature")\n',
+        "tests/practice/test_lab.py": 'scenarios("practice/lab.feature")\n',
         "tests/tools/test_audit.py": "import audit\n",
     }
-    touched = ["features/lab.feature", "tests/tools/test_audit.py", "web/views.py"]
+    touched = [
+        "features/hospital/lab.feature",
+        "tests/tools/test_audit.py",
+        "web/views.py",
+    ]
     assert red_first.changed_modules(touched, modules) == {
-        "tests/scenarios/test_lab.py",
+        "tests/hospital/test_lab.py",
         "tests/tools/test_audit.py",
     }
 
