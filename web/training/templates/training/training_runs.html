@@ -13,10 +13,10 @@
 {% elif training_runs %}
 <p>Newest first, as the SuperLink reported them at {{ checked_at|time:"H:i" }}; reload the page to see a run move on.</p>
 <div class="overflow-auto"><table>
-  <thead><tr><th scope="col">Run</th><th scope="col">Status</th><th scope="col">Since</th><th scope="col">Elapsed</th><th scope="col">Details</th></tr></thead>
+  <thead><tr><th scope="col">Run</th><th scope="col">Status</th><th scope="col">Since</th><th scope="col">Elapsed</th><th scope="col">Details</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
   <tbody>
     {% for run in training_runs %}
-    <tr><td>{{ run.run_id }}</td><td class="no-wrap">{% if run.status.in_progress %}<strong>{{ run.status_label }}</strong>{% else %}{{ run.status_label }}{% endif %}</td><td class="no-wrap">{{ run.since|date:"j M Y, H:i"|default:"—" }}</td><td class="no-wrap">{{ run.elapsed }}</td><td>{{ run.details|default_if_none:"—" }}</td></tr>
+    <tr><td>{{ run.run_id }}</td><td class="no-wrap">{% if run.status.in_progress %}<strong>{{ run.status_label }}</strong>{% else %}{{ run.status_label }}{% endif %}</td><td class="no-wrap">{{ run.since|date:"j M Y, H:i"|default:"—" }}</td><td class="no-wrap">{{ run.elapsed }}</td><td>{{ run.details|default_if_none:"—" }}</td><td>{% if run.status.in_progress %}{% url "training:stop" run.run_id as stop_url %}{% with run_id=run.run_id|stringformat:"d" %}{% include "kit/action_button.html" with url=stop_url label="Stop" accessible_label="Stop training run "|add:run_id %}{% endwith %}{% endif %}</td></tr>
     {% endfor %}
   </tbody>
 </table></div>

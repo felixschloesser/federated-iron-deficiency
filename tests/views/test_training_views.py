@@ -100,13 +100,14 @@ def test_the_page_shows_each_training_runs_status(
 ) -> None:
     answering(monkeypatch, {}, {"success": True, "runs": [RUNNING]})
     response = client.get(reverse("training:runs"))
-    assertContains(
-        response,
-        '<tr><td>7</td><td class="no-wrap"><strong>Running</strong></td>'
-        '<td class="no-wrap">30 Oct 2026, 15:02</td><td class="no-wrap">0:01:01</td>'
-        "<td>—</td></tr>",
-        html=True,
-    )
+    for cell in (
+        "<td>7</td>",
+        '<td class="no-wrap"><strong>Running</strong></td>',
+        '<td class="no-wrap">30 Oct 2026, 15:02</td>',
+        '<td class="no-wrap">0:01:01</td>',
+        "<td>—</td>",
+    ):
+        assertContains(response, cell, html=True)
     assertContains(response, "reload the page")
 
 

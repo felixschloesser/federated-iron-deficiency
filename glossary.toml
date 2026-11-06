@@ -367,3 +367,8 @@ rejected = ["minibatch", "chunk size"]
 source = "Run configuration `model-seed` (pyproject.toml: \"Initial weights and dropout; data splits stay fixed\")"
 why = "What makes a run's initial weights and dropout repeatable"
 rejected = ["random state", "model seed (the key, not the word)"]
+
+["stop"]
+source = "Flower CLI, `flwr stop`: \"Stop a Flower run\"; the run status Stopped"
+why = "What the data scientist does to a training run in progress they no longer want, so no hospital trains or sends weights for it any more"
+rejected = ["cancel", "abort", "kill"]
