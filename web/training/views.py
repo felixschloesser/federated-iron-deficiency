@@ -38,6 +38,8 @@ class TrainingRunsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
             "final_models": final_models(settings.FINAL_MODELS_DIR),
             "training_runs": runs,
             "runs_unknown": runs_unknown,
+            # A SuperLink that does not list runs would not take one, nor a stop.
+            "submits": runs_unknown is None,
             "checked_at": timezone.now(),
         }
 

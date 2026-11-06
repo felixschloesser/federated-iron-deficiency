@@ -3,13 +3,16 @@
 {% block content %}
 {% include "kit/index_header.html" with title="Training runs" %}
 
+{% if submits %}
 <h2>Submit a training run</h2>
 <p>Every hospital trains on its own cohort, as configured here; at the end each is sent the final model, and its laboratory director chooses the threshold it screens at. Every hospital evaluates each round, so the AUROC is across all of them.</p>
 {% include "kit/form.html" with form=form submit_label="Submit training run" %}
+{% endif %}
 
 <h2>Training runs</h2>
 {% if runs_unknown %}
 {% include "kit/alert.html" with level="warning" role="status" text=runs_unknown %}
+<p>Submitting and stopping runs come back when the SuperLink answers.</p>
 {% elif training_runs %}
 <p>Newest first, as the SuperLink reported them at {{ checked_at|time:"H:i" }}; reload the page to see a run move on.</p>
 <div class="overflow-auto"><table>
