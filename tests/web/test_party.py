@@ -20,7 +20,7 @@ def test_a_hospital_serves_no_general_practitioner_pages() -> None:
 
 
 def test_a_practice_serves_no_hospital_pages() -> None:
-    assert prefixes(Party.GENERAL_PRACTITIONER) == {"practice/"}
+    assert prefixes(Party.PRACTICE) == {"practice/"}
 
 
 def test_the_startup_serves_only_its_training_pages() -> None:

@@ -14,11 +14,11 @@ import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
 ROOT = Path(__file__).resolve().parents[2]
-# Each party's folder setting and seed command.
-PARTIES = {
-    "hospital": ("HOSPITAL_DIR", "seed_hospital"),
-    "practice": ("PRACTICE_DIR", "seed_practice"),
-    "startup": ("STARTUP_DIR", "seed_startup"),
+# Each party's seed command.
+SEED_COMMANDS = {
+    "hospital": "seed_hospital",
+    "practice": "seed_practice",
+    "startup": "seed_startup",
 }
 BASE_ENV = {
     name: value
@@ -26,9 +26,8 @@ BASE_ENV = {
     if name
     not in {
         "DATABASE_NAME",
-        "HOSPITAL_DIR",
-        "PRACTICE_DIR",
-        "STARTUP_DIR",
+        "PARTY",
+        "DATA_DIR",
         "MESSAGING_ADDRESS",
     }
 }
@@ -49,21 +48,22 @@ def database_path(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
 
 
 def test_the_database_lives_in_the_hospital_folder(tmp_path: Path) -> None:
-    result = database_path({"HOSPITAL_DIR": str(tmp_path)})
+    result = database_path({"PARTY": "hospital", "DATA_DIR": str(tmp_path)})
     assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
 
 
 def test_a_practice_keeps_its_database_in_its_own_folder(tmp_path: Path) -> None:
-    result = database_path({"PRACTICE_DIR": str(tmp_path)})
+    result = database_path({"PARTY": "practice", "DATA_DIR": str(tmp_path)})
     assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
 
 
 def test_the_startup_keeps_its_database_and_final_models_in_its_folder(
     tmp_path: Path,
 ) -> None:
-    result = database_path({"STARTUP_DIR": str(tmp_path)})
+    env = {"PARTY": "startup", "DATA_DIR": str(tmp_path)}
+    result = database_path(env)
     assert result.stdout.strip() == str(tmp_path / "web.sqlite3")
-    final_models = setting("FINAL_MODELS_DIR", {"STARTUP_DIR": str(tmp_path)})
+    final_models = setting("FINAL_MODELS_DIR", env)
     assert final_models == str(tmp_path / "final-models")
 
 
@@ -90,8 +90,11 @@ scenarios("quality/party_isolation.feature")
     target_fixture="deployment",
 )
 def deployment(tmp_path: Path, party: str) -> dict[str, Any]:
-    setting, command = PARTIES[party]
-    return {"setting": setting, "command": command, "folder": tmp_path}
+    return {
+        "env": {"PARTY": party, "DATA_DIR": str(tmp_path)},
+        "command": SEED_COMMANDS[party],
+        "folder": tmp_path,
+    }
 
 
 @when("it migrates and seeds its database")
@@ -101,7 +104,7 @@ def migrate_and_seed(deployment: dict[str, Any]) -> None:
     folder = deployment["folder"]
     nhanes = folder / "nhanes.csv"
     nhanes_rows().to_csv(nhanes, index=False)
-    env = {deployment["setting"]: str(folder)}
+    env = deployment["env"]
     run_manage(env, "migrate", "-v0")
     run_manage(
         env, deployment["command"], *seed_arguments(deployment["command"], nhanes)
@@ -118,16 +121,18 @@ def migrate_and_seed(deployment: dict[str, Any]) -> None:
 @when("its settings name a database elsewhere")
 def database_elsewhere(deployment: dict[str, Any]) -> None:
     deployment["result"] = database_path(
-        {deployment["setting"]: str(deployment["folder"]), "DATABASE_NAME": "other"}
+        {**deployment["env"], "DATABASE_NAME": "other"}
     )
 
 
-@when("its settings also name a practice's folder")
-def two_parties(deployment: dict[str, Any]) -> None:
-    folder = deployment["folder"]
-    deployment["result"] = database_path(
-        {"HOSPITAL_DIR": str(folder / "h"), "PRACTICE_DIR": str(folder / "p")}
-    )
+@when(parsers.parse('its settings name the party "{party}"'))
+def unknown_party(deployment: dict[str, Any], party: str) -> None:
+    deployment["result"] = database_path({**deployment["env"], "PARTY": party})
+
+
+@when("its settings name no folder")
+def no_folder(deployment: dict[str, Any]) -> None:
+    deployment["result"] = database_path({"PARTY": deployment["env"]["PARTY"]})
 
 
 @then(parsers.parse('its database has the table "{own}"'))
@@ -174,15 +179,15 @@ for user in User.objects.order_by("username"):
 
 
 @pytest.mark.parametrize(
-    ("folder", "command", "users"),
+    ("party", "command", "users"),
     [
-        ("HOSPITAL_DIR", "seed_hospital", {"director", "staff"}),
-        ("PRACTICE_DIR", "seed_practice", {"doctor"}),
-        ("STARTUP_DIR", "seed_startup", {"data-scientist"}),
+        ("hospital", "seed_hospital", {"director", "staff"}),
+        ("practice", "seed_practice", {"doctor"}),
+        ("startup", "seed_startup", {"data-scientist"}),
     ],
 )
 def test_every_page_of_a_party_loads_in_its_own_deployment(
-    tmp_path: Path, folder: str, command: str, users: set[str]
+    tmp_path: Path, party: str, command: str, users: set[str]
 ) -> None:
     """Development serves every party from one database; this runs each party's
     pages with only its own apps installed."""
@@ -190,7 +195,7 @@ def test_every_page_of_a_party_loads_in_its_own_deployment(
 
     nhanes = tmp_path / "nhanes.csv"
     nhanes_rows().to_csv(nhanes, index=False)
-    env = {folder: str(tmp_path)}
+    env = {"PARTY": party, "DATA_DIR": str(tmp_path)}
     run_manage(env, "migrate", "-v0")
     run_manage(env, command, *seed_arguments(command, nhanes))
     result = subprocess.run(
@@ -226,13 +231,13 @@ def setting(name: str, env: dict[str, str]) -> str:
     ).stdout.strip()
 
 
-@pytest.mark.parametrize("party", ["HOSPITAL_DIR", "PRACTICE_DIR", "STARTUP_DIR"])
+@pytest.mark.parametrize("party", ["hospital", "practice", "startup"])
 def test_each_party_has_its_own_cookies(tmp_path: Path, party: str) -> None:
     # Browsers share cookies across ports, and the demo runs every party on
     # 127.0.0.1: one party's login must not replace another's session or token.
     folder = tmp_path / "uz-leuven"
     folder.mkdir()
-    env = {party: str(folder)}
+    env = {"PARTY": party, "DATA_DIR": str(folder)}
     assert setting("SESSION_COOKIE_NAME", env) == "sessionid-uz-leuven"
     assert setting("CSRF_COOKIE_NAME", env) == "csrftoken-uz-leuven"
 

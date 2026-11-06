@@ -35,7 +35,7 @@ def party_urls(party: Party | None) -> list[URLResolver]:
                 path("lab/", include("web.lab.urls")),
                 path("deployment/", include("web.deployment.urls")),
             ]
-        case Party.GENERAL_PRACTITIONER:
+        case Party.PRACTICE:
             return [path("practice/", include("web.practice.urls"))]
         case Party.STARTUP:
             return [path("training/", include("web.training.urls"))]

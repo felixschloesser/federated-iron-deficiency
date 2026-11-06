@@ -197,7 +197,8 @@ MIDDLE = """\
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      STARTUP_DIR: /demo/startup
+      PARTY: startup
+      DATA_DIR: /demo/startup
       FLWR_HOME: /demo/startup/flwr-home
     volumes:
       - {type: volume, source: startup, target: /demo/startup}
@@ -253,8 +254,9 @@ HOSPITAL = """\
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://{slug}-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('{slug}-lab-orders', 8441)).close()"]
     environment:
-      HOSPITAL_DIR: /demo/hospitals/{slug}
-      HOSPITAL_NAME: {name}
+      PARTY: hospital
+      DATA_DIR: /demo/hospitals/{slug}
+      PARTY_NAME: {name}
       PARTY_COLOUR: {colour}
     volumes:
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}}
@@ -282,8 +284,9 @@ PRACTICE = """\
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      PRACTICE_DIR: /demo/practices/{slug}
-      PRACTICE_NAME: {name}
+      PARTY: practice
+      DATA_DIR: /demo/practices/{slug}
+      PARTY_NAME: {name}
       PRACTICE_CERTIFICATE_NAME: {slug}
       PARTY_COLOUR: {colour}
     volumes:
