@@ -48,9 +48,11 @@ def test_final_models_page(
         '<td data-label="Stored">30 Oct 2026, 10:00</td>',
         '<td data-label="AUROC across hospitals">0.86</td>',
         '<td data-label="Run configuration">—</td>',
-        '<td data-label="Model sale"><a href="/training/runs/7/for-sale/" download'
-        ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
-        "</td>",
+        (
+            '<td data-label="Model sale"><a href="/training/runs/7/for-sale/" download'
+            ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
+            "</td>"
+        ),
     ):
         assertContains(response, cell, html=True)
 
