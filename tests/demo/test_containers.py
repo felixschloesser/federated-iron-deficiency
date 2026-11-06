@@ -446,17 +446,17 @@ _, patients = doctor.get("/practice/patients/")
 patient = re.search(r'href="(/practice/patients/\d+/)"', patients)[1]
 _, page = doctor.get(patient)
 # One laboratory: Collect sample is a button, and leads to the CBC order.
-order_page, page = doctor.post(f"{patient}samples/collect/", page)
+order_page, page = doctor.post(f"{patient}collect-sample/", page)
 seen["order_page"] = order_page
 back, page = doctor.post(order_page, page, indication="other")
 seen["ordered"] = back == patient and "Awaiting lab report" in page
 seen["sent_to"] = laboratory in page
 
 lab.log_in("staff")
-_, to_analyse = lab.get("/lab/lab-orders/")
-analyse = re.search(r'action="(/lab/lab-orders/\d+/analyse/)"', to_analyse)[1]
+_, to_analyse = lab.get("/lab/orders/")
+analyse = re.search(r'action="(/lab/orders/\d+/analyse/)"', to_analyse)[1]
 lab.post(analyse, to_analyse)
-_, analysed = lab.get("/lab/lab-orders/analysed/")
+_, analysed = lab.get("/lab/orders/analysed/")
 seen["analysed"] = "not screened" in analysed.lower()
 
 _, page = doctor.get(patient)
@@ -504,7 +504,7 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
         PASSWORD,
         "AZ Diest",
     )
-    assert seen["order_page"].endswith("/orders/new/cbc/"), seen
+    assert seen["order_page"].endswith("/orders/cbc/"), seen
     assert seen["ordered"], seen
     assert seen["sent_to"], seen
     assert seen["analysed"], seen
