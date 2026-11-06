@@ -43,18 +43,49 @@ def test_final_models_page(
     client.force_login(make_data_scientist("Data One"))
     # Session, user with role, transmissions.
     with django_assert_num_queries(3):
-        response = client.get(reverse("training:runs"))
-    for cell in (
-        '<td data-label="Stored">30 Oct 2026, 10:00</td>',
-        '<td data-label="AUROC across hospitals">0.86</td>',
-        '<td data-label="Run configuration">—</td>',
-        (
-            '<td data-label="Model sale"><a href="/training/runs/7/for-sale/" download'
-            ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
-            "</td>"
-        ),
-    ):
-        assertContains(response, cell, html=True)
+        response = client.get(reverse("training:models"))
+    assertContains(
+        response,
+        '<h2>Final model of <span class="no-wrap">30 Oct 2026, 10:00</span></h2>',
+        html=True,
+    )
+    for term, value in (("Run", "7"), ("AUROC across hospitals", "0.86")):
+        assertContains(response, f"<dt>{term}</dt><dd>{value}</dd>", html=True)
+    assertContains(
+        response,
+        '<a href="/training/models/7/for-sale/" download'
+        ' aria-label="Download final model of run 7 for sale">Download for sale</a>',
+        html=True,
+    )
+
+
+def test_a_final_models_run_configuration_is_listed(
+    client: Client, final_models_dir: Path
+) -> None:
+    from iron_deficiency.final_models import keep_final_model
+    from iron_deficiency.task import Net
+
+    keep_final_model(
+        final_models_dir,
+        run_id=8,
+        state_dict=Net().state_dict(),
+        federated={"eval_auroc": 0.8},
+        run_configuration={"num-server-rounds": 5, "batch-size": 128},
+        stored_at=datetime(2026, 10, 31, 9, 0, tzinfo=UTC),
+    )
+    client.force_login(make_data_scientist("Data One"))
+    response = client.get(reverse("training:models"))
+    for term, value in (("Rounds", "5"), ("Batch size", "128")):
+        assertContains(response, f"<dt>{term}</dt><dd>{value}</dd>", html=True)
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_the_training_runs_page_lists_no_final_model(
+    client: Client, final_models_dir: Path
+) -> None:
+    response = client.get(reverse("training:runs"))
+    assertNotContains(response, "for-sale")
+    assertContains(response, f'href="{reverse("training:models")}"')
 
 
 def test_a_laboratory_director_is_sent_to_their_own_page(client: Client) -> None:
@@ -127,7 +158,8 @@ def test_without_the_superlink_the_page_says_the_statuses_are_unknown(
     assertContains(response, "the training runs&#x27; statuses are unknown")
     assertNotContains(response, "127.0.0.1")
     # The final models still show.
-    assertContains(response, 'href="/training/runs/7/for-sale/"')
+    response = client.get(reverse("training:models"))
+    assertContains(response, 'href="/training/models/7/for-sale/"')
 
 
 @pytest.mark.usefixtures("data_scientist")
@@ -159,7 +191,10 @@ def test_submitting_a_run_redirects_to_the_final_models(
     response = client.post(reverse("training:runs"), SubmitRunForm.defaults())
     assertRedirects(response, reverse("training:runs"))
     assert [str(message) for message in get_messages(response.wsgi_request)] == [
-        "Training run 7 submitted. Its final model appears here when the run finishes."
+        (
+            "Training run 7 submitted. Its final model appears on Final models when"
+            " the run finishes."
+        )
     ]
 
 
@@ -237,7 +272,7 @@ def test_only_the_data_scientist_downloads_for_sale(
 def test_each_final_model_links_to_its_sale(
     client: Client, final_models_dir: Path
 ) -> None:
-    response = client.get(reverse("training:runs"))
+    response = client.get(reverse("training:models"))
     assertContains(
         response,
         f'href="{reverse("training:for_sale", kwargs={"run_id": "7"})}"',
@@ -322,7 +357,6 @@ def test_each_cell_names_its_column_for_narrow_screens(
     answering(monkeypatch, {}, {"success": True, "runs": [RUNNING]})
     response = client.get(reverse("training:runs"))
     assertContains(response, '<td data-label="Run">7</td>', html=True)
-    assertContains(response, '<td data-label="Run configuration">—</td>', html=True)
 
 
 def test_a_file_not_named_after_a_run_is_no_final_model(
@@ -340,9 +374,9 @@ def test_a_file_not_named_after_a_run_is_no_final_model(
 def test_a_final_model_not_transmitted_offers_transmit(
     client: Client, final_models_dir: Path
 ) -> None:
-    response = client.get(reverse("training:runs"))
-    assertContains(response, '<td data-label="Hospitals">Not transmitted', html=False)
-    assertContains(response, 'action="/training/runs/7/transmit/"')
+    response = client.get(reverse("training:models"))
+    assertContains(response, "<p>Not transmitted</p>", html=True)
+    assertContains(response, 'action="/training/models/7/transmit/"')
     assertContains(
         response, 'aria-label="Transmit final model of run 7 to the hospitals"'
     )
@@ -354,7 +388,7 @@ def test_transmitting_a_final_model_returns_with_its_run(
 ) -> None:
     answering(monkeypatch, {"success": True, "run-id": "8"})
     response = client.post(reverse("training:transmit", kwargs={"run_id": "7"}))
-    assertRedirects(response, reverse("training:runs"))
+    assertRedirects(response, reverse("training:models"))
     assert [str(message) for message in get_messages(response.wsgi_request)] == [
         "Run 8 transmits final model of run 7 to every hospital connected now."
     ]
