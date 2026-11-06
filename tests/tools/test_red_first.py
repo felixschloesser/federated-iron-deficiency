@@ -63,8 +63,10 @@ def test_an_old_test_failing_is_reported() -> None:
     before = {"tests/scenarios/test_lab.py::test_an_old_scenario"}
     failing = {"tests/scenarios/test_lab.py::test_an_old_scenario"}
     assert red_first.problems(failing, before, changed=set()) == [
-        "tests/scenarios/test_lab.py::test_an_old_scenario fails, but it is neither"
-        " new nor changed"
+        (
+            "tests/scenarios/test_lab.py::test_an_old_scenario fails, but it is neither"
+            " new nor changed"
+        )
     ]
 
 
