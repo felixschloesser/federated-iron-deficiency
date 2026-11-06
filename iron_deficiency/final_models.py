@@ -13,6 +13,7 @@ from iron_deficiency.screening import (
     THRESHOLDS,
     FinalModel,
     final_model_path,
+    final_model_paths,
     read,
     standardization_tensor,
     write,
@@ -83,7 +84,9 @@ def keep_final_model(
 def latest_final_model(directory: Path) -> Path:
     """The final model stored last in a folder."""
     unknown = datetime.min.replace(tzinfo=UTC)
-    return max(directory.glob("*.pt"), key=lambda path: read(path).stored_at or unknown)
+    return max(
+        final_model_paths(directory), key=lambda path: read(path).stored_at or unknown
+    )
 
 
 def local_validation(

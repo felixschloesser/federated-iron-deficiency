@@ -10,7 +10,7 @@ from typing import assert_never
 from django.db import models
 from django.utils import formats, timezone
 
-from iron_deficiency.screening import Problem, from_bytes
+from iron_deficiency.screening import Problem, final_model_paths, from_bytes
 
 
 def model_name(stored_at: datetime | None, run_id: str) -> str:
@@ -137,7 +137,7 @@ def screening_models(directory: Path | None) -> list[ScreeningModelFile]:
         return []
     files = [
         screening_model_file(path.stem, path.read_bytes())
-        for path in directory.glob("*.pt")
+        for path in final_model_paths(directory)
     ]
     return sorted(
         files,

@@ -41,8 +41,8 @@ def screening_models_dir(tmp_path: Path, settings: Settings) -> Path:
     directory.mkdir()
     settings.SCREENING_MODELS_DIR = directory
     stored_at = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
-    write_final_model(directory, "run-1", VALIDATION, stored_at)
-    (directory / "run-2.pt").write_bytes(b"not a model")
+    write_final_model(directory, "1", VALIDATION, stored_at)
+    (directory / "2.pt").write_bytes(b"not a model")
     return directory
 
 
@@ -80,8 +80,17 @@ def test_models_page(
         assertContains(
             response, f'name="threshold" value="{threshold}" required', count=1
         )
-        for cell in cells:
-            assertContains(response, f"<td>{cell}</td>", html=True)
+        for label, cell in zip(
+            (
+                "Sensitivity",
+                "Specificity",
+                "Positive predictive value",
+                "Negative predictive value",
+            ),
+            cells,
+            strict=True,
+        ):
+            assertContains(response, f'<td data-label="{label}">{cell}</td>', html=True)
     for term, value in (("AUROC here", "0.84"), ("AUROC across hospitals", "0.87")):
         assertContains(response, f"<dt>{term}</dt><dd>{value}</dd>", html=True)
     assertContains(response, "Cannot be deployed: not a readable model file")
@@ -91,14 +100,14 @@ def test_models_page(
 def test_deploying_redirects_with_a_message(
     client: Client, director: User, screening_models_dir: Path
 ) -> None:
-    url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
+    url = reverse("deployment:deploy", kwargs={"run_id": "1"})
     response = client.post(url, {"threshold": "0.4"}, follow=True)
     assert response.redirect_chain == [(reverse("deployment:models"), 302)]
     assertContains(
         response, "Screening model of 30 Oct 2026, 10:00 deployed at threshold 0.40."
     )
     screening_model = Deployment.objects.get().screening_model
-    assert (screening_model.run_id, screening_model.threshold) == ("run-1", 0.4)
+    assert (screening_model.run_id, screening_model.threshold) == ("1", 0.4)
     # The deployed threshold is the one chosen when the page shows again.
     assertContains(response, "Deployed at threshold 0.40")
     assertContains(response, 'value="0.4" required checked')
@@ -111,7 +120,7 @@ def test_deploying_without_a_threshold_says_so(
     screening_models_dir: Path,
     posted: dict[str, str],
 ) -> None:
-    url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
+    url = reverse("deployment:deploy", kwargs={"run_id": "1"})
     response = client.post(url, posted, follow=True)
     assert response.redirect_chain == [(reverse("deployment:models"), 302)]
     assertContains(response, "Choose a threshold to deploy at.")
@@ -121,7 +130,7 @@ def test_deploying_without_a_threshold_says_so(
 def test_a_refused_deployment_says_why(
     client: Client, director: User, screening_models_dir: Path
 ) -> None:
-    url = reverse("deployment:deploy", kwargs={"run_id": "run-2"})
+    url = reverse("deployment:deploy", kwargs={"run_id": "2"})
     response = client.post(url, {"threshold": "0.5"}, follow=True)
     assertContains(response, "not a readable model file")
     assert not Deployment.objects.exists()
@@ -130,7 +139,7 @@ def test_a_refused_deployment_says_why(
 def test_deploy_is_post_only(
     client: Client, director: User, screening_models_dir: Path
 ) -> None:
-    url = reverse("deployment:deploy", kwargs={"run_id": "run-1"})
+    url = reverse("deployment:deploy", kwargs={"run_id": "1"})
     assert client.get(url).status_code == 405
 
 
@@ -173,7 +182,7 @@ def test_screening_status_before_and_after_deploying(
 ) -> None:
     assert status(settings) == "2 screening models, none deployed"
     client.post(
-        reverse("deployment:deploy", kwargs={"run_id": "run-1"}), {"threshold": "0.5"}
+        reverse("deployment:deploy", kwargs={"run_id": "1"}), {"threshold": "0.5"}
     )
     assert (
         status(settings) == "Screening model of 30 Oct 2026, 10:00 deployed (2 in all)"

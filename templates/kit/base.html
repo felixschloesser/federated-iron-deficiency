@@ -16,7 +16,7 @@
       <ul><li>{% if party_name %}<strong>{{ party_name }}</strong>{% endif %}</li></ul>
       {% if user.is_authenticated %}
       <ul>
-        {% for link in nav_links %}<li><a href="{{ link.url }}">{{ link.label }}</a></li>{% endfor %}
+        {% for link in nav_links %}<li><a href="{{ link.url }}"{% if link.current %} aria-current="page"{% endif %}>{{ link.label }}</a></li>{% endfor %}
         <li>
           <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}
