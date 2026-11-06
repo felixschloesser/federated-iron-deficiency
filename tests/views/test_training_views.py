@@ -335,22 +335,43 @@ def test_a_file_not_named_after_a_run_is_no_final_model(
 
 
 @pytest.mark.usefixtures("data_scientist")
-def test_a_final_model_not_sent_offers_send(
+def test_a_final_model_not_transmitted_offers_transmit(
     client: Client, final_models_dir: Path
 ) -> None:
     response = client.get(reverse("training:runs"))
-    assertContains(response, '<td data-label="Hospitals">Not sent', html=False)
-    assertContains(response, 'action="/training/runs/7/send/"')
-    assertContains(response, 'aria-label="Send final model of run 7 to the hospitals"')
+    assertContains(response, '<td data-label="Hospitals">Not transmitted', html=False)
+    assertContains(response, 'action="/training/runs/7/transmit/"')
+    assertContains(
+        response, 'aria-label="Transmit final model of run 7 to the hospitals"'
+    )
 
 
 @pytest.mark.usefixtures("data_scientist")
-def test_sending_a_final_model_returns_with_its_run(
+def test_transmitting_a_final_model_returns_with_its_run(
     client: Client, monkeypatch: pytest.MonkeyPatch, final_models_dir: Path
 ) -> None:
     answering(monkeypatch, {"success": True, "run-id": "8"})
-    response = client.post(reverse("training:send", kwargs={"run_id": "7"}))
+    response = client.post(reverse("training:transmit", kwargs={"run_id": "7"}))
     assertRedirects(response, reverse("training:runs"))
     assert [str(message) for message in get_messages(response.wsgi_request)] == [
-        "Run 8 sends final model of run 7 to every hospital."
+        "Run 8 transmits final model of run 7 to every hospital connected now."
     ]
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_run_that_transmits_a_final_model_says_so(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from web.training.models import Transmission
+
+    Transmission.objects.create(
+        final_model="7",
+        run_id="8",
+        transmitted_by=make_data_scientist("Data Two"),
+        submitted_at=datetime(2026, 10, 30, 9, 0, tzinfo=UTC),
+    )
+    answering(monkeypatch, {}, {"success": True, "runs": [{**RUNNING, "run-id": "8"}]})
+    response = client.get(reverse("training:runs"))
+    assertContains(
+        response, '<td data-label="Run">8 · transmits final model 7</td>', html=True
+    )

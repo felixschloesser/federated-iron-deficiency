@@ -38,12 +38,18 @@ Feature: Final models at each hospital
     Then storing it fails
     And the hospital holds no final model
 
-  Scenario: A sent final model is stored under its training run's ID
+  Scenario: A transmitted final model is stored under its training run's ID
     When the ClientApp receives the final model of run 11
     Then the hospital holds "11.pt"
 
-  Scenario: A final model sent again is kept as it was
+  Scenario: A final model transmitted again is kept as it was
     Given the ClientApp received the final model of run 11
     When the ClientApp receives the final model of run 11 again
     Then receiving it succeeds
+    And "11.pt" is unchanged
+
+  Scenario: Other weights transmitted under a stored run's ID are refused
+    Given the ClientApp received the final model of run 11
+    When the ClientApp receives other weights as the final model of run 11
+    Then receiving it is refused
     And "11.pt" is unchanged

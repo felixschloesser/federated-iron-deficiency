@@ -207,13 +207,14 @@ def test_a_file_that_is_no_model_reads_as_unreadable(tmp_path: Path) -> None:
     assert read(path).problem() is Problem.UNREADABLE
 
 
-def receive(hospital: World, run_id: int) -> Path:
+def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
+    """The weights seeded by run_id, received as the final model of as_run."""
     from iron_deficiency.final_models import receive_final_model
 
     torch.manual_seed(run_id)
     return receive_final_model(
         hospital["folder"],
-        run_id=run_id,
+        run_id=run_id if as_run is None else as_run,
         state_dict=Net().state_dict(),
         cohort=hospital["cohort"],
         federated=FEDERATED,
@@ -242,3 +243,20 @@ def receives(hospital: World, run_id: str) -> None:
 @then("receiving it succeeds")
 def receiving_succeeds(hospital: World) -> None:
     assert hospital["error"] is None
+
+
+@when(
+    parsers.parse(
+        "the ClientApp receives other weights as the final model of run {run_id:d}"
+    )
+)
+def receives_other(hospital: World, run_id: int) -> None:
+    try:
+        hospital["path"] = receive(hospital, run_id + 1000, as_run=run_id)
+    except FileExistsError as error:
+        hospital["error"] = error
+
+
+@then("receiving it is refused")
+def receiving_refused(hospital: World) -> None:
+    assert isinstance(hospital["error"], FileExistsError)
