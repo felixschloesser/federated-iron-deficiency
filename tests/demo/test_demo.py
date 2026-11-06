@@ -76,7 +76,7 @@ def test_every_hospital_knows_every_practice_by_its_folder_name() -> None:
     sends: its folder name, as compose.yaml sets it."""
     from demo.demo import practice_arguments
     from demo.topology import PRACTICES
-    from iron_deficiency.dataset import CYCLES, hospital_slug
+    from ml.dataset import CYCLES, hospital_slug
 
     assert practice_arguments() == [
         [hospital_slug(PRACTICES[cycle]), PRACTICES[cycle]] for cycle in CYCLES
@@ -87,7 +87,7 @@ def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise() -> None
     """Every hospital's laboratory, its paired hospital's the primary one, so
     lab orders follow the hospitals' sizes by default."""
     from demo.demo import lab_orders_host, laboratory_arguments
-    from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
+    from ml.dataset import CYCLES, HOSPITALS, hospital_slug
 
     for cycle in CYCLES:
         arguments = laboratory_arguments(cycle)
@@ -137,9 +137,9 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
 ) -> None:
     import pandas as pd
 
-    import iron_deficiency.dataset
+    import ml.dataset
     from demo.demo import hospitals, nhanes_csv, practices, prepare
-    from iron_deficiency.cohort import CBC_VARS
+    from ml.cohort import CBC_VARS
 
     class Cohort:
         def save_to_disk(self, path: Path) -> None:
@@ -154,9 +154,9 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
         | {var: [1.0] for var in CBC_VARS}
     )
     ferritin = pd.DataFrame({"sample_id": [1], "LBXFER": [20.0]})
-    monkeypatch.setattr(iron_deficiency.dataset, "load_federated_dataset", Cohorts)
-    monkeypatch.setattr(iron_deficiency.dataset, "load_new_samples", lambda: samples)
-    monkeypatch.setattr(iron_deficiency.dataset, "load_ferritin", lambda: ferritin)
+    monkeypatch.setattr(ml.dataset, "load_federated_dataset", Cohorts)
+    monkeypatch.setattr(ml.dataset, "load_new_samples", lambda: samples)
+    monkeypatch.setattr(ml.dataset, "load_ferritin", lambda: ferritin)
     # A folder prepared before the participants stayed with prepare.
     stale = [tmp_path / "hospitals" / hospitals()[0][1]]
     stale += [tmp_path / "practices" / practices()[0][1]]

@@ -19,8 +19,8 @@ import numpy.typing as npt
 import pandas as pd
 import torch
 
-from iron_deficiency.cohort import CBC_VARS, FEATURES, eligible
-from iron_deficiency.task import Net
+from ml.cohort import CBC_VARS, FEATURES, eligible
+from ml.task import Net
 
 # One lab export row: sample ID, registered sex, age, and the 13 CBC values.
 COLUMNS = ["sample_id", "sex", "age", *CBC_VARS]

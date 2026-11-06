@@ -10,15 +10,15 @@ from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
 from flwr_datasets import FederatedDataset
 
-from iron_deficiency.dataset import load_federated_dataset
-from iron_deficiency.final_models import (
+from ml.dataset import load_federated_dataset
+from ml.final_models import (
     DEFAULT_DEMO_DIR,
     hospital_final_models,
     receive_final_model,
 )
-from iron_deficiency.task import Net, dataset_size, load_data
-from iron_deficiency.task import test as test_fn
-from iron_deficiency.task import train as train_fn
+from ml.task import Net, dataset_size, load_data
+from ml.task import test as test_fn
+from ml.task import train as train_fn
 
 # Flower ClientApp
 app = ClientApp()

@@ -10,14 +10,14 @@ import torch
 from django.db.models import DecimalField, FloatField
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from iron_deficiency.cohort import CBC_VARS, FEATURES, eligible
-from iron_deficiency.screening import (
+from ml.cohort import CBC_VARS, FEATURES, eligible
+from ml.screening import (
     FinalModel,
     final_model_path,
     standardization_tensor,
     write,
 )
-from iron_deficiency.task import Net
+from ml.task import Net
 from tests.conftest import World, make_practice
 from web.deployment.model_files import sha256
 from web.deployment.models import Deployment, NoUsableModel
