@@ -13,7 +13,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from ml.cohort import FEATURES
 from ml.final_model import Net, Problem, read
 from ml.inference import score
-from ml.training import store_final_model
+from ml.validation import store_final_model
 from tests.conftest import World
 
 STORED_AT = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
@@ -209,7 +209,7 @@ def test_a_file_that_is_no_model_reads_as_unreadable(tmp_path: Path) -> None:
 
 def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
     """The weights seeded by run_id, received as the final model of as_run."""
-    from ml.training import receive_final_model
+    from ml.validation import receive_final_model
 
     torch.manual_seed(run_id)
     return receive_final_model(

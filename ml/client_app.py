@@ -16,11 +16,10 @@ from ml.training import (
     DEFAULT_DEMO_DIR,
     dataset_size,
     hospital_screening_models,
-    load_data,
-    receive_final_model,
 )
-from ml.training import evaluate as evaluate_fn
 from ml.training import train as train_fn
+from ml.validation import evaluate as evaluate_fn
+from ml.validation import load_data, receive_final_model
 
 # Flower ClientApp
 app = ClientApp()
