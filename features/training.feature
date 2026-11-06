@@ -25,6 +25,49 @@ Feature: The startup's training runs
     Then the SuperLink receives a run without a screening threshold
     And the submission gives the run's ID
 
+  Scenario: Submitting a training run with its run configuration
+    When the data scientist submits a training run with:
+      | rounds | local epochs | learning rate | weight decay | batch size | seed |
+      | 5      | 2            | 0.05          | 0.0          | 128        | 7    |
+    Then the SuperLink receives the run configuration:
+      | key               | value |
+      | num-server-rounds | 5     |
+      | local-epochs      | 2     |
+      | learning-rate     | 0.05  |
+      | weight-decay      | 0.0   |
+      | batch-size        | 128   |
+      | model-seed        | 7     |
+    And the run configuration sets no fraction of hospitals evaluating and no W&B key
+
+  Scenario Outline: A run configuration out of bounds is refused
+    When the data scientist submits a training run with <parameter> <value>
+    Then the run configuration is refused on <parameter> with code "<code>"
+    And the SuperLink receives no run
+
+    Examples:
+      | parameter     | value | code      |
+      | batch size    | 16    | min_value |
+      | rounds        | 0     | min_value |
+      | rounds        | 21    | max_value |
+      | local epochs  | 11    | max_value |
+      | learning rate | 0     | min_value |
+      | weight decay  | -0.1  | min_value |
+
+  Scenario: The startup keeps each final model with its run configuration
+    When the ServerApp keeps the final model of run "7" trained with run configuration:
+      | key               | value              |
+      | num-server-rounds | 5                  |
+      | local-epochs      | 2                  |
+      | learning-rate     | 0.05               |
+      | weight-decay      | 0.0                |
+      | batch-size        | 128                |
+      | model-seed        | 7                  |
+      | fraction-evaluate | 1.0                |
+      | demo-dir          | /srv/demo          |
+      | wandb-api-key     | secret             |
+    Then final model "7" shows run configuration "Rounds 5, Local epochs 2, Learning rate 0.05, Weight decay 0.0, Batch size 128, Seed 7"
+    And the startup's copy of final model "7" holds no W&B key and no folder
+
   Scenario: A SuperLink that refuses the run
     Given the SuperLink refuses runs
     When the data scientist submits a training run
@@ -34,7 +77,7 @@ Feature: The startup's training runs
     Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
     When the startup downloads final model "7" for sale
     Then the download holds the final model's weights
-    And it holds no threshold, no standardization and no metrics: the buyer chooses and standardizes on its own cohort
+    And it holds no threshold, no standardization, no metrics and no run configuration: the buyer chooses and standardizes on its own cohort
 
   Scenario: No final model of a run the startup did not keep
     When the startup downloads final model "9" for sale
