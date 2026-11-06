@@ -15,10 +15,10 @@ Feature: Each party's software and data stay inside its trust boundary
     And its database has no table starting with <others>
 
     Examples:
-      | party    | own                    | others                                          |
-      | hospital | lab_testrequest        | "practice_", "training_"                        |
-      | practice | practice_patient       | "lab_", "nhanes_", "deployment_", "training_"   |
-      | startup  | accounts_user          | "lab_", "nhanes_", "deployment_", "practice_"   |
+      | party    | own                    | others                                                      |
+      | hospital | lab_testrequest        | "practice_", "training_"                                    |
+      | practice | practice_patient       | "lab_", "nhanes_", "deployment_", "cohort_", "training_" |
+      | startup  | accounts_user          | "lab_", "nhanes_", "deployment_", "cohort_", "practice_" |
 
   Scenario: A web app refuses a database outside its party's folder
     Given a hospital web app in a folder of its own
