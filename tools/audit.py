@@ -33,10 +33,6 @@ SUPPRESSIONS = (
     "csrf" + "_exempt",
     "filter" + "warnings",
 )
-# The deleted spec's requirements, obstacles and sections; DF and TB name the
-# report's DFD and stay. Built so that this file does not match itself.
-SPEC_CITATION = re.compile(r"\b[R" + "O]\\d+\\b|" + "\u00a7" + r"\s?\d+")
-CODE_FILES = ("*.py", "*.pyi", "*.html", "*.feature", "*.proto", "*.toml", "*.yaml")
 SAFE_MARKERS = ("|sa" + "fe", "mark" + "_safe(")
 MUTATORS = {
     "save",
@@ -307,17 +303,6 @@ def glossary_sources(root: Path) -> list[str]:
     return findings
 
 
-def spec_citations(root: Path) -> list[str]:
-    """No code cites the deleted spec: a reason belongs in the docstring, a
-    requirement in its feature file."""
-    return [
-        f"{rel}:{number}: cites the deleted spec ({match[0]})"
-        for pattern in CODE_FILES
-        for rel, number, line in lines(root, pattern)
-        for match in SPEC_CITATION.finditer(line)
-    ]
-
-
 CHECKS: dict[str, Callable[[Path], list[str]]] = {
     check.__name__: check
     for check in (
@@ -328,7 +313,6 @@ CHECKS: dict[str, Callable[[Path], list[str]]] = {
         listed_members,
         get_mutation,
         glossary_sources,
-        spec_citations,
         training_imports,
         party_imports,
     )

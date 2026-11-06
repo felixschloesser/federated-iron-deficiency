@@ -253,20 +253,3 @@ def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
         "web/seeding/command.py:3: imports ml.final_model_file, the hospital's or the startup's code",
         "web/startup/training/views.py:2: imports ml.screening, the hospital's code",
     ]
-
-
-@pytest.mark.parametrize(
-    "citation",
-    ["R" + "4", "O" + "18", "§" + "9", "§ " + "10"],
-)
-def test_a_citation_of_the_deleted_spec(tmp_path: Path, citation: str) -> None:
-    code = f"# Only a screened indication ({citation}).\n"
-    assert counts(tree(tmp_path, {"web/x.py": code}))["spec_citations"] == 1
-
-
-def test_data_flows_and_trust_boundaries_are_no_spec_citations(tmp_path: Path) -> None:
-    """DF and TB name the report's DFD, which stays."""
-    code = "# The lab order (DF23) crosses TB3-TB1.\n"
-    feature = "Feature: x\n  Not a citation: R2D2, CO2.\n"
-    root = tree(tmp_path, {"web/x.py": code, "features/x.feature": feature})
-    assert counts(root)["spec_citations"] == 0
