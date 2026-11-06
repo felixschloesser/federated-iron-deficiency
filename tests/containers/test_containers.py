@@ -130,8 +130,9 @@ def compose_folder(compose: Compose) -> Path:
 
 def synthetic_cohort(hospital: str) -> str:
     """Python that gives a hospital a synthetic cohort the real ClientApp trains
-    on, and an empty screening-models folder: random values in the real columns,
-    both labels; what a model learns from it is no matter."""
+    on, as if its laboratory director provided it (in a folder of its own, as
+    ml.training_cohort writes it), and an empty screening-models folder: random
+    values in the real columns, both labels; what a model learns from it is no matter."""
     return (
         f"; hospital = Path('/demo/hospitals/{hospital}');"
         " (hospital / 'screening-models').mkdir(exist_ok=True);"
@@ -139,7 +140,7 @@ def synthetic_cohort(hospital: str) -> str:
         " from ml.cohort import FEATURES; rng = np.random.default_rng(0);"
         " frame = pd.DataFrame(rng.normal(size=(300, len(FEATURES))), columns=FEATURES);"
         " frame['iron_deficient'] = rng.integers(0, 2, size=300);"
-        " Dataset.from_pandas(frame).save_to_disk(hospital / 'cohort')"
+        " Dataset.from_pandas(frame).save_to_disk(hospital / 'cohort' / 'synthetic')"
     )
 
 

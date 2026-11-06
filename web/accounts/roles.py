@@ -59,7 +59,11 @@ class Role(models.TextChoices):
                     {
                         "url": reverse("deployment:screening_models"),
                         "label": "Screening models",
-                    }
+                    },
+                    {
+                        "url": reverse("cohort:training_cohort"),
+                        "label": "Training cohort",
+                    },
                 ]
             case Role.DATA_SCIENTIST:
                 return [

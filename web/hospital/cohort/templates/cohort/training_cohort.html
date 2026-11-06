@@ -1,0 +1,40 @@
+{% extends "kit/base.html" %}
+{% block title %}Training cohort{% endblock %}
+{% block content %}
+{% include "kit/index_header.html" with title="Training cohort" subtitle="To the startup's code at this hospital" %}
+
+<p>The startup's code at this hospital trains its screening model on the training cohort, and only once you provide it. Providing extracts it from the lab records: eligible past patients with a complete CBC and a ferritin result, each as the {{ cbc_values }} CBC values, age and whether ferritin was below the cutoff. No name, patient number or date leaves the lab records. Withdrawing it ends this hospital's part in a training run from its next round.</p>
+
+<h2>Now</h2>
+{% if provided %}
+<p><strong>Provided</strong> on {{ provided.provided_at|date:"j M Y, H:i" }}: {{ provided.past_patients }} past patients, {{ provided.iron_deficient }} of them iron deficient.</p>
+<p><small>SHA-256 {{ provided.sha256 }}</small></p>
+{% include "kit/action_button.html" with url=withdraw_url label="Withdraw the training cohort" %}
+{% else %}
+<p>No training cohort is provided: the startup's code at this hospital finds none, and this hospital takes no part in training.</p>
+{% endif %}
+
+<h2>From the lab records</h2>
+<p>Providing now would hold {{ summary.past_patients }} past patients, {{ summary.iron_deficient }} of them iron deficient.</p>
+{% include "kit/action_button.html" with url=provide_url label="Provide the training cohort" %}
+
+<h2>Decisions</h2>
+{% if decisions %}
+<div class="overflow-auto"><table>
+  <thead><tr><th scope="col">Provided</th><th scope="col">By</th><th scope="col">Past patients</th><th scope="col">Withdrawn</th><th scope="col">By</th></tr></thead>
+  <tbody>
+    {% for decision in decisions %}
+    <tr>
+      <td>{{ decision.provided_at|date:"j M Y, H:i" }}</td>
+      <td>{{ decision.provided_by.username }}</td>
+      <td>{{ decision.past_patients }}</td>
+      <td>{% if decision.withdrawn_at %}{{ decision.withdrawn_at|date:"j M Y, H:i" }}{% else %}not withdrawn{% endif %}</td>
+      <td>{% if decision.withdrawn_by %}{{ decision.withdrawn_by.username }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p>No training cohort has been provided yet.</p>
+{% endif %}
+{% endblock %}

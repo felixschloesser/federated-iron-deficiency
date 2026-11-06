@@ -3,7 +3,8 @@ Feature: Each party's software and data stay inside its trust boundary
   names (hospital, practice or startup) and reads only its folder, DATA_DIR; it
   installs, migrates and serves only its own party's apps. Code under
   web/ imports from the training package only ml.cohort and ml.dataset; the
-  hospital's also ml.final_model and ml.inference, the startup's also
+  hospital's also ml.final_model, ml.inference and ml.training_cohort, to
+  write the training cohort its laboratory director provides, the startup's also
   ml.final_model, to read its final models, never to screen (the audit
   checks that).
   Each scenario's last step is its response measure, true or false.

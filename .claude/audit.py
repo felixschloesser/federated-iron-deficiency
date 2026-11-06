@@ -250,7 +250,12 @@ def _training_side(party: Party | None) -> set[str]:
         return SHARED_SIDE
     match party:
         case Party.HOSPITAL:
-            return SHARED_SIDE | {"ml.final_model", "ml.inference"}
+            # Also to write the training cohort its laboratory director provides.
+            return SHARED_SIDE | {
+                "ml.final_model",
+                "ml.inference",
+                "ml.training_cohort",
+            }
         case Party.PRACTICE:
             return SHARED_SIDE
         case Party.STARTUP:
