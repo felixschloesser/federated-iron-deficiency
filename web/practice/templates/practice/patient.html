@@ -2,19 +2,18 @@
 {% block title %}{{ patient.name }}{% endblock %}
 {% block content %}
 {% include "kit/index_header.html" with title=patient.name subtitle=subtitle actions=actions post_actions=post_actions %}
-{% for item in samples %}
-<details{% if item.open %} open{% endif %}>
-  <summary><h2>Sample <span class="sample-id">{{ item.sample.sample_id }}</span>, collected {{ item.sample.collected_at|date:"j M Y, H:i" }}{% if item.sample.laboratory %}, for {{ item.sample.laboratory }}{% endif %}</h2>{% if not item.open %}<small>{{ item.tests|default:"No tests ordered yet" }}{% if item.suggested %} · Ferritin suggested{% endif %}</small>{% endif %}</summary>
-  {% if not item.entries %}<p>No tests ordered yet.</p>{% endif %}
-  {% for entry in item.entries %}
+{% for sample in samples %}
+<details{% if forloop.first %} open{% endif %}>
+  <summary><h2>Sample <span class="sample-id">{{ sample.sample_id }}</span>, collected {{ sample.collected_at|date:"j M Y, H:i" }}{% if sample.laboratory %}, for {{ sample.laboratory }}{% endif %}</h2>{% if not forloop.first %}<small>{{ sample.tests_display|default:"No tests ordered yet" }}{% if sample.ferritin_suggested %} · Ferritin suggested{% endif %}</small>{% endif %}</summary>
+  {% for order in sample.orders.all %}
   <article>
-    <h3>{{ entry.order.get_test_display|capfirst }}{% if entry.order.indication %} ({{ entry.order.get_indication_display|lower }}){% endif %}</h3>
-    <p>{% if entry.lab_report %}<ins>Lab report released {{ entry.lab_report.released_at|date:"j M Y, H:i" }}</ins>{% elif entry.sent %}<mark>Awaiting lab report</mark>{% else %}<mark>Lab order not sent yet</mark>{% endif %} · Ordered {{ entry.order.ordered_at|date:"j M Y, H:i" }}{% if entry.sent and not entry.lab_report and fetches_reports %}<br><small>Check for reports to fetch it.</small>{% endif %}</p>
-    {% if entry.lab_report %}
-    {% if entry.lab_report.comment %}<p><strong>{{ entry.lab_report.comment }}</strong></p>{% endif %}
-    {% if entry.lab_report.note %}<p>{{ entry.lab_report.note }}</p>{% endif %}
-    {% if entry.order_ferritin_url %}<div class="action-row"><a href="{{ entry.order_ferritin_url }}" class="button-link" aria-label="Order ferritin on sample {{ entry.order.sample.sample_id }}">Order ferritin</a></div>{% endif %}
-    {% with values=entry.lab_report.values %}
+    <h3>{{ order.get_test_display|capfirst }}{% if order.indication %} ({{ order.get_indication_display|lower }}){% endif %}</h3>
+    <p>{% if order.report %}<ins>Lab report released {{ order.report.released_at|date:"j M Y, H:i" }}</ins>{% elif order.sent_at %}<mark>Awaiting lab report</mark>{% else %}<mark>Lab order not sent yet</mark>{% endif %} · Ordered {{ order.ordered_at|date:"j M Y, H:i" }}{% if order.sent_at and not order.report and fetches_reports %}<br><small>Check for reports to fetch it.</small>{% endif %}</p>
+    {% if order.report %}
+    {% if order.report.comment %}<p><strong>{{ order.report.comment }}</strong></p>{% endif %}
+    {% if order.report.note %}<p>{{ order.report.note }}</p>{% endif %}
+    {% if order.report.ferritin_order_offered %}<div class="action-row"><a href="{% url 'practice:order' patient=patient.pk sample=sample.pk test='ferritin' %}" class="button-link" aria-label="Order ferritin on sample {{ sample.sample_id }}">Order ferritin</a></div>{% endif %}
+    {% with values=order.report.values %}
     {% if values %}
     <div class="overflow-auto"><table>
       <thead>
@@ -33,8 +32,10 @@
     {% endwith %}
     {% endif %}
   </article>
+  {% empty %}
+  <p>No tests ordered yet.</p>
   {% endfor %}
-  {% if item.actions %}<div class="action-row">{% for action in item.actions %}<a href="{{ action.url }}" class="button-link secondary outline" aria-label="{{ action.label }} on sample {{ item.sample.sample_id }}">{{ action.label }}</a> {% endfor %}</div>{% endif %}
+  {% with tests=sample.tests_to_order %}{% if tests %}<div class="action-row">{% for test in tests %}<a href="{% url 'practice:order' patient=patient.pk sample=sample.pk test=test %}" class="button-link secondary outline" aria-label="Order {{ test.label }} on sample {{ sample.sample_id }}">Order {{ test.label }}</a> {% endfor %}</div>{% endif %}{% endwith %}
 </details>
 {% empty %}
 <p>No samples yet. Collect a sample to order tests.</p>

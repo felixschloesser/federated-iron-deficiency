@@ -140,9 +140,9 @@ def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
     assert not Order.objects.exists()
     response = client.get(patient_url(patient))
     assertContains(response, "No tests ordered yet.")
-    (item,) = response.context["samples"]
+    (sample,) = response.context["samples"]
     # Ferritin only beside a lab report suggesting it (features/ordering.feature).
-    assert [action["label"] for action in item["actions"]] == ["Order CBC"]
+    assert sample.tests_to_order() == [OrderedTest.CBC]
 
 
 @pytest.mark.parametrize("test", list(OrderedTest))
@@ -163,9 +163,9 @@ def test_a_sample_offers_only_tests_it_does_not_have(
 ) -> None:
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
-    (item,) = client.get(patient_url(patient)).context["samples"]
+    (sample,) = client.get(patient_url(patient)).context["samples"]
     # Not ferritin: only beside a lab report suggesting it (features/ordering.feature).
-    assert item["actions"] == []
+    assert sample.tests_to_order() == []
 
 
 def test_patient_page_queries(
@@ -205,10 +205,12 @@ def test_patient_page_offers_ferritin_beside_a_suggestion(
     with django_assert_num_queries(6):
         response = client.get(patient_url(patient))
     (sample,) = response.context["samples"]
-    (entry,) = sample["entries"]
-    assert sample["actions"] == []  # ferritin is offered beside the suggestion
-    assert entry["order_ferritin_url"] == sample_order_url(
-        patient, OrderedTest.FERRITIN
+    (order,) = sample.orders.all()
+    assert sample.tests_to_order() == []  # ferritin is offered beside the suggestion
+    assert order.report is not None
+    assert order.report.ferritin_order_offered()
+    assertContains(
+        response, f'href="{sample_order_url(patient, OrderedTest.FERRITIN)}"'
     )
     assertContains(
         response,
@@ -511,8 +513,10 @@ def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
     assertContains(response, f"Ferritin ordered on sample {sample_id}.")
     (sample,) = response.context["samples"]
     # The CBC first, then the ferritin ordered beside its suggestion.
-    assert [entry["order"].test for entry in sample["entries"]] == ["cbc", "ferritin"]
-    assert sample["entries"][0]["order_ferritin_url"] is None
+    cbc, ferritin = sample.orders.all()
+    assert (cbc.test, ferritin.test) == ("cbc", "ferritin")
+    assert cbc.report is not None
+    assert not cbc.report.ferritin_order_offered()
     # No hospital in these tests: the ferritin's lab order is not sent.
     assertContains(response, "<mark>Lab order not sent yet</mark>")
 
@@ -535,12 +539,8 @@ def test_each_sample_is_a_details_block_and_only_the_newest_is_open(
     client.post(order_url(client, patient, OrderedTest.FERRITIN))
     response = client.get(patient_url(patient))
     newest, older = response.context["samples"]
-    assert (newest["open"], newest["tests"], newest["suggested"]) == (
-        True,
-        "CBC, ferritin",
-        True,
-    )
-    assert (older["open"], older["tests"], older["suggested"]) == (False, "CBC", True)
+    assert (newest.tests_display, newest.ferritin_suggested) == ("CBC, ferritin", True)
+    assert (older.tests_display, older.ferritin_suggested) == ("CBC", True)
     assert response.content.decode().count("<details open>") == 1
     assertContains(response, "CBC · Ferritin suggested")
 
