@@ -694,3 +694,16 @@ def test_a_page_headers_post_action_is_a_plain_button(
     # As Log out: no type attribute, so Pico adds no form margin in the row.
     response = logged_in(client, general_practitioner).get(patient_url(patient))
     assertContains(response, "<button>Collect sample</button>")
+
+
+def test_a_patients_page_marks_patients_current(client: Client) -> None:
+    from web.vocabulary import RegisteredSex
+
+    client.force_login(make_general_practitioner("Doctor One"))
+    patient = make_patient("Test Patient 1", RegisteredSex.FEMALE, 30)
+    response = client.get(patient_url(patient))
+    assertContains(
+        response,
+        f'<a href="{reverse("practice:patients")}" aria-current="page">Patients</a>',
+        html=True,
+    )

@@ -226,3 +226,15 @@ def test_an_action_button_is_plain_so_pico_adds_no_form_margin(
         response,
         f'<button aria-label="Run analyser for sample {sample_id}">Run analyser</button>',
     )
+
+
+def test_the_header_marks_the_current_page(client: Client, staff_member: User) -> None:
+    response = logged_in(client, staff_member).get(reverse("lab:analysed"))
+    assertContains(
+        response,
+        f'<a href="{reverse("lab:analysed")}" aria-current="page">Analysed</a>',
+        html=True,
+    )
+    assertContains(
+        response, f'<a href="{reverse("lab:orders")}">To analyse</a>', html=True
+    )
