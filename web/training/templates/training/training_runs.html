@@ -5,11 +5,11 @@
 
 {% if submits %}
 <h2>Submit a training run</h2>
-<p>Every hospital trains on its own cohort, as configured here; the startup keeps the final model, and you transmit it to the hospitals below, where each laboratory director chooses whether to deploy it and at which threshold. Every hospital evaluates each round, so the AUROC is across all of them.</p>
+<p>Every hospital trains on its own cohort, as configured here; the startup keeps the final model, and you transmit it to the hospitals from Final models, where each laboratory director chooses whether to deploy it and at which threshold. Every hospital evaluates each round, so the AUROC is across all of them.</p>
 {% include "kit/form.html" with form=form submit_label="Submit training run" %}
 {% endif %}
 
-<h2>Training runs</h2>
+<h2>Runs</h2>
 {% if runs_unknown %}
 {% include "kit/alert.html" with level="warning" role="status" text=runs_unknown %}
 <p>Submitting, stopping and transmitting come back when the SuperLink answers.</p>
@@ -27,26 +27,5 @@
 <p>No training run submitted yet.</p>
 {% endif %}
 
-<h2>Final models</h2>
-
-<p>The final model of each training run, newest first. A hospital stores one only when you transmit it, to every hospital connected at the time; transmit again to reach one that was not. Every hospital already evaluated the final weights in the run's last round.</p>
-{% if final_models %}
-<div class="overflow-auto"><table class="stack-narrow">
-  <thead><tr><th scope="col">Stored</th><th scope="col">Run</th><th scope="col">AUROC across hospitals</th><th scope="col">Run configuration</th><th scope="col">Hospitals</th><th scope="col">Model sale</th></tr></thead>
-  <tbody>
-    {% for model, delivery in final_models %}
-    <tr>
-      <td data-label="Stored">{{ model.stored_at|date:"j M Y, H:i"|default:"—" }}</td>
-      <td data-label="Run">{{ model.run_id }}</td>
-      <td data-label="AUROC across hospitals">{{ model.federated_auroc|floatformat:2|default:"—" }}</td>
-      <td data-label="Run configuration">{{ model.run_configuration_shown|default_if_none:"—" }}</td>
-      <td data-label="Hospitals">{{ delivery.label }}{% if submits and delivery.offers_transmit %}{% url "training:transmit" model.run_id as transmit_url %}{% include "kit/action_button.html" with url=transmit_url label="Transmit to hospitals" accessible_label="Transmit final model of run "|add:model.run_id|add:" to the hospitals" %}{% endif %}</td>
-      <td data-label="Model sale"><a href="{% url "training:for_sale" model.run_id %}" download aria-label="Download final model of run {{ model.run_id }} for sale">Download for sale</a></td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table></div>
-{% else %}
-<p>No training run has finished yet.</p>
-{% endif %}
+<p>Each training run's final model appears on <a href="{% url "training:models" %}">Final models</a>, to transmit to the hospitals.</p>
 {% endblock %}

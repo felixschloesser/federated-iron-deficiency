@@ -110,6 +110,8 @@ article[data-level="error"] {
 .action-row {
   display: flex;
   flex-wrap: wrap;
+  /* A link beside a button sits level with its middle. */
+  align-items: center;
   gap: var(--pico-spacing);
   margin-bottom: var(--pico-typography-spacing-vertical);
 }
@@ -203,12 +205,14 @@ details article ins {
 /* A card's figures: each term beside its value. */
 article dl {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  /* minmax(0, …): a long value such as a 20-digit run ID wraps, not widens the card. */
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 0.25rem var(--pico-spacing);
 }
 
 article dl dd {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 /* A link that looks like a button: it leads somewhere, so it stays a link
