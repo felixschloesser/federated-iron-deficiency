@@ -24,5 +24,5 @@ Feature: The startup's code at a hospital sees only the cohort and final models
     Given the SuperLink and UZ Leuven's SuperNode and ClientApp are running
     And UZ Leuven's folder holds a database beside the cohort
     When the data scientist runs an app that lists every file it can read and every address it can reach
-    Then the only file it finds is the cohort's
+    Then the only files it finds are the cohort's
     And it reaches no address
