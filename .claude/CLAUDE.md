@@ -18,7 +18,7 @@ Commit only when all of these exit 0:
 ```
 uv run --frozen ruff format --check .
 uv run --frozen ruff check .
-uv run --frozen mypy --strict . .claude/audit.py
+uv run --frozen mypy --strict . .claude/audit.py .claude/red_first.py
 uv run --frozen python -W error manage.py check
 uv run --frozen python manage.py makemigrations --check --dry-run
 uv run --frozen pytest -W error
@@ -26,7 +26,7 @@ uv run --frozen python .claude/audit.py
 ```
 
 - Run every gate through `uv run --frozen`, never with a stale `.venv`.
-- Merge gate: `uv run --frozen pytest -W error -m containers` must also exit 0 when a branch touches compose, Docker files, `.dockerignore`, `web/settings.py`, `demo/`, `pyproject.toml` or `uv.lock`, and always on the merge to `main`.
+- Merge gate: `uv run --frozen pytest -W error -m containers` must also exit 0 when a branch touches what the images or containers are made of, or the tests that run them: compose, Docker files, `.dockerignore`, `web/settings.py`, `demo/`, `ml/`, `pyproject.toml`, `uv.lock`, `tests/compose_project.py` or a test marked `containers`. Other branches merge without it.
 
 - Zero warnings. Never suppress one (`# noqa`, `# type: ignore`, `filterwarnings`); fix the root cause. If the fix is genuinely unclear, stop and report with a recommendation.
 - `.claude/audit.py` fails on any finding.
@@ -42,6 +42,7 @@ uv run --frozen python .claude/audit.py
 - Each behaviour slice lands as two commits: `Red: …` with only the scenarios and steps (only the new scenarios fail), then the code commit (all green).
 - If code must come first (a removed field breaks imports), end the slice by disabling each new guard and confirming its scenarios go red; put the table (guard → scenarios) in the commit message.
 - Gates do not run on `Red:` commits.
+- Before merging, `uv run --frozen python .claude/red_first.py` (default range `main..HEAD`) exits 0: each `Red:` commit fails at least one test, and only tests that are new or that it changed (their module, or a feature file the module loads).
 
 ## Design rules
 
@@ -65,7 +66,8 @@ uv run --frozen python .claude/audit.py
 
 ## Tests
 
-- The requirements are the scenarios: `features/<party>/` for each party's behaviour (bound in `tests/<party>/`, which imports no other party's code; the audit checks), `features/` for what crosses parties, `features/quality/` for quality attributes, each scenario ending in a true-or-false response measure. Container-backed steps live in `tests/containers/`, which marks them `containers`; a test that starts a process of its own is marked `subprocess`, so the quick loop `pytest -m "not containers and not subprocess"` leaves it out (a `-m` replaces the default one). A docstring states the reason and may name the feature file.
+- The requirements are the scenarios: `features/<party>/` for each party's behaviour (bound in `tests/<party>/`, which imports no other party's code; the audit checks), `features/` for what crosses parties, each scenario ending in a true-or-false response measure. Folders say what a test checks, markers how it runs: `tests/e2e/` holds the flows through the running demo (the folder marks them `containers`), `tests/quality/security/` the security quality attributes at whatever tier each needs, marked `containers` where it needs Docker; a test that starts a process of its own is marked `subprocess`, so the quick loop `pytest -m "not containers and not subprocess"` leaves it out (a `-m` replaces the default one). A docstring states the reason and may name the feature file.
+- Quality tests are plain pytest, no Gherkin: `tests/quality/security/` and `tests/quality/privacy/`. Each test's docstring names the quality attribute or threat it covers and states its pass/fail measure in one sentence. The gates apply to them as to any code.
 - Domain behaviour: scenarios (pytest-bdd) against model and manager methods, not views.
 - Views: Django test client, asserting status, redirect target, form error codes and `assertNumQueries` on index pages. No whole-page HTML snapshots, no sweeps rendering every page.
 - One migration per slice, committed with the slice.
@@ -77,7 +79,3 @@ A branch that changes templates or CSS is checked in a browser by a separate age
 ## Report back
 
 Commits; scenarios added, changed or deleted (and what covers a deleted one); red-first evidence; what was not checked.
-
-## To build
-
-Referenced above but not built yet: a `.claude/red_first.py` that checks each `Red:` commit in a temporary worktree.

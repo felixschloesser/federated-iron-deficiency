@@ -14,6 +14,29 @@ if TYPE_CHECKING:
     from web.accounts.roles import Role
 from ml.cohort import CBC_VARS
 
+# The compose project and what runs in it, for every test that needs Docker
+# (tests/compose_project.py): one project per test run, whichever folder asks.
+from tests.compose_project import (
+    compose,
+    compose_folder,
+    engine_to_itself,
+    flower,
+    hospital_app,
+    proxy,
+    superlink,
+)
+
+# Fixtures defined there, offered to every test from here.
+__all__ = [
+    "compose",
+    "compose_folder",
+    "engine_to_itself",
+    "flower",
+    "hospital_app",
+    "proxy",
+    "superlink",
+]
+
 World = dict[str, Any]
 
 

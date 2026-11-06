@@ -4,7 +4,7 @@ Feature: A hospital fetches final models when its laboratory director asks
   final-models endpoint with the hospital's certificate name (DF38), validates
   each final model on the hospital's validation split (DF39), stores it under
   its training run's ID (DF17) and acknowledges it. The startup's code at the
-  hospital writes nothing there (features/quality/client_app_isolation.feature).
+  hospital writes nothing there (tests/quality/security/test_compose.py).
   Each scenario's last step is its response measure, true or false.
 
   Background:

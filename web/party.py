@@ -10,7 +10,7 @@ class Party(enum.Enum):
     STARTUP = "startup"
 
     def apps(self) -> list[str]:
-        """This party's own Django apps; no other party installs them (features/quality/party_isolation.feature)."""
+        """This party's own Django apps; no other party installs them (tests/quality/security/test_party_isolation.py)."""
         match self:
             case Party.HOSPITAL:
                 return [

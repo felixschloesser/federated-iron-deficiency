@@ -1,4 +1,4 @@
-"""The demo's preparation helpers (demo/README.md); compose.yaml is in tests/demo/test_compose.py."""
+"""The demo's preparation helpers (demo/README.md); compose.yaml is in tests/quality/security/test_compose.py."""
 
 from pathlib import Path
 

@@ -1,21 +1,25 @@
-"""Settings keep each party's web app inside its own folder: scenarios
-(features/quality/party_isolation.feature), and the checks beside them."""
+"""Each party's software and data stay inside its trust boundary.
+
+Quality attribute: isolation of the parties. A web app is the one party PARTY
+names (hospital, practice or startup) and reads only its folder, DATA_DIR; it
+installs, migrates and serves only its own party's apps. Code under web/
+imports from the training package only ml.cohort and ml.dataset; the
+hospital's also ml.final_model, ml.inference and ml.validation, the startup's also
+ml.final_model, to read its final models, never to screen (the audit checks
+that). Each test's docstring states its pass/fail measure."""
 
 import os
-import re
 import sqlite3
 import subprocess
 import sys
 from contextlib import closing
 from pathlib import Path
-from typing import Any
 
 import pytest
-from pytest_bdd import given, parsers, scenarios, then, when
 
 pytestmark = pytest.mark.subprocess
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 # Each party's seed command.
 SEED_COMMANDS = {
     "hospital": "seed_hospital",
@@ -84,33 +88,19 @@ def run_manage(env: dict[str, str], *args: str) -> None:
     )
 
 
-scenarios("quality/party_isolation.feature")
-
-
-@given(
-    parsers.parse("a {party} web app in a folder of its own"),
-    target_fixture="web_app",
-)
-def web_app(tmp_path: Path, party: str) -> dict[str, Any]:
-    return {
-        "env": {"PARTY": party, "DATA_DIR": str(tmp_path)},
-        "command": SEED_COMMANDS[party],
-        "folder": tmp_path,
-    }
-
-
-@when("it migrates and seeds its database")
-def migrate_and_seed(web_app: dict[str, Any]) -> None:
+def tables_after_migrating_and_seeding(party: str, folder: Path) -> set[str]:
+    """The tables of a `party` web app's database in `folder`, once it has
+    migrated and seeded it."""
     from tests.conftest import nhanes_rows
 
-    folder = web_app["folder"]
     nhanes = folder / "nhanes.csv"
     nhanes_rows().to_csv(nhanes, index=False)
-    env = web_app["env"]
+    env = {"PARTY": party, "DATA_DIR": str(folder)}
+    command = SEED_COMMANDS[party]
     run_manage(env, "migrate", "-v0")
-    run_manage(env, web_app["command"], *seed_arguments(web_app["command"], nhanes))
+    run_manage(env, command, *seed_arguments(command, nhanes))
     with closing(sqlite3.connect(folder / "web.sqlite3")) as database:
-        web_app["tables"] = {
+        return {
             name
             for (name,) in database.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -118,37 +108,54 @@ def migrate_and_seed(web_app: dict[str, Any]) -> None:
         }
 
 
-@when("its settings name a database elsewhere")
-def database_elsewhere(web_app: dict[str, Any]) -> None:
-    web_app["result"] = database_path({**web_app["env"], "DATABASE_NAME": "other"})
+@pytest.mark.parametrize(
+    ("party", "own", "others"),
+    [
+        ("hospital", "lab_testrequest", ("practice_", "training_")),
+        (
+            "practice",
+            "practice_patient",
+            ("lab_", "nhanes_", "deployment_", "training_"),
+        ),
+        ("startup", "accounts_user", ("lab_", "nhanes_", "deployment_", "practice_")),
+    ],
+)
+def test_a_partys_database_holds_only_its_own_partys_tables(
+    tmp_path: Path, party: str, own: str, others: tuple[str, ...]
+) -> None:
+    """Pass: once migrated and seeded, the party's database has its own table
+    and no table of another party's apps."""
+    tables = tables_after_migrating_and_seeding(party, tmp_path)
+    assert own in tables
+    assert not [table for table in tables if table.startswith(others)]
 
 
-@when(parsers.parse('its settings name the party "{party}"'))
-def unknown_party(web_app: dict[str, Any], party: str) -> None:
-    web_app["result"] = database_path({**web_app["env"], "PARTY": party})
+def refuses_to_start(result: subprocess.CompletedProcess[str], setting: str) -> None:
+    assert result.returncode != 0
+    assert setting in result.stderr
 
 
-@when("its settings name no folder")
-def no_folder(web_app: dict[str, Any]) -> None:
-    web_app["result"] = database_path({"PARTY": web_app["env"]["PARTY"]})
+def test_a_web_app_refuses_a_database_outside_its_partys_folder(
+    tmp_path: Path,
+) -> None:
+    """Pass: a hospital web app whose settings name a database elsewhere does not
+    start, naming DATA_DIR."""
+    env = {"PARTY": "hospital", "DATA_DIR": str(tmp_path), "DATABASE_NAME": "other"}
+    refuses_to_start(database_path(env), "DATA_DIR")
 
 
-@then(parsers.parse('its database has the table "{own}"'))
-def has_table(web_app: dict[str, Any], own: str) -> None:
-    assert own in web_app["tables"]
+def test_a_web_app_is_a_party_the_code_knows(tmp_path: Path) -> None:
+    """Pass: a web app whose settings name the party "clinic" does not start,
+    naming PARTY."""
+    refuses_to_start(
+        database_path({"PARTY": "clinic", "DATA_DIR": str(tmp_path)}), "PARTY"
+    )
 
 
-@then(parsers.parse("its database has no table starting with {others}"))
-def no_other_tables(web_app: dict[str, Any], others: str) -> None:
-    prefixes = tuple(re.findall(r'"([^"]+)"', others))
-    assert prefixes
-    assert not [table for table in web_app["tables"] if table.startswith(prefixes)]
-
-
-@then(parsers.parse('the web app does not start, naming "{setting}"'))
-def does_not_start(web_app: dict[str, Any], setting: str) -> None:
-    assert web_app["result"].returncode != 0
-    assert setting in web_app["result"].stderr
+def test_a_web_app_keeps_its_data_in_a_folder_of_its_own() -> None:
+    """Pass: a hospital web app whose settings name no folder does not start,
+    naming DATA_DIR."""
+    refuses_to_start(database_path({"PARTY": "hospital"}), "DATA_DIR")
 
 
 # Each seeded account opens its role's pages in the party's own deployment.
