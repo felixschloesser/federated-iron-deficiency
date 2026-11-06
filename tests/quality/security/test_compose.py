@@ -1,4 +1,5 @@
-"""The demo as compose.yaml declares it (demo/README.md, features/quality/party_isolation.feature, features/quality/client_app_isolation.feature).
+"""The demo as compose.yaml declares it (demo/README.md): each party's services
+see only their own party's folder and reach only their crossings.
 
 Read through `docker compose config`, which also validates the file.
 """
@@ -12,12 +13,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pytest_bdd import given, parsers, scenario, then, when
 
 from demo.topology import COLOURS, PRACTICES
 from ml.dataset import CYCLES, HOSPITALS, hospital_slug
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
 PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
 # Each practice sends to the hospital of the same cycle (demo/README.md).
@@ -375,52 +375,14 @@ def test_each_project_runs_images_of_its_own() -> None:
     }
 
 
-# Scenarios on compose.yaml as declared (features/quality/); the running
-# containers are in test_containers.py.
-
-
-@scenario(
-    "quality/flower_connections.feature",
-    "Every Flower connection in the demo runs without TLS",
-)
 def test_every_flower_connection_runs_without_tls() -> None:
-    pass
-
-
-@scenario(
-    "quality/client_app_isolation.feature",
-    "compose.yaml gives the startup's code only the cohort and final models",
-)
-def test_compose_gives_the_startups_code_only_the_cohort_and_final_models() -> None:
-    pass
-
-
-@scenario("quality/web_apps.feature", "No running service has DEBUG on")
-def test_no_running_service_has_debug_on() -> None:
-    pass
-
-
-@given("the demo as compose.yaml declares it", target_fixture="declared")
-def declared() -> dict[str, Any]:
-    return config()
-
-
-@when("a SuperNode connects to the SuperLink")
-@when("the demo starts")
-def starts() -> None:
-    """compose.yaml declares how every service starts; nothing to run."""
-
-
-@when(parsers.parse("the ClientApp at {hospital} starts"), target_fixture="slug")
-def client_app_at(hospital: str) -> str:
-    return hospital
-
-
-@then('every Flower component runs with "--insecure", and nothing else does')
-def every_flower_component_insecure(declared: dict[str, Any]) -> None:
+    """The demo admits any SuperNode: a gap, pinned so it is not mistaken for the
+    report's control (the SuperLink admits only the SuperNodes whose public key
+    the startup registered, over TLS). Pass: every Flower component runs with
+    --insecure, and nothing else does."""
     insecure = {
         name
-        for name, spec in declared["services"].items()
+        for name, spec in config()["services"].items()
         if "--insecure" in (spec.get("command") or [])
     }
     assert insecure == {"flower-superlink", "flower-server-app"} | {
@@ -430,23 +392,24 @@ def every_flower_component_insecure(declared: dict[str, Any]) -> None:
     }
 
 
-@then("it mounts only its hospital's cohort, read-only, and final models")
-def mounts_only_cohort_and_final_models(slug: str) -> None:
-    assert mounts(f"{slug}-flower-client-app") == {
+@pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
+def test_compose_gives_the_startups_code_only_the_cohort_and_final_models(
+    slug: str,
+) -> None:
+    """The ClientApp, the startup's code at each hospital (DF7, TB4), sees no
+    database, no key and no other party's folder, so what it sends leaves only
+    through DF9 and DF10. Pass: it mounts only its hospital's cohort,
+    read-only, and final models, and shares one internal network only with its
+    hospital's SuperNode."""
+    declared = config()
+    clientapp = f"{slug}-flower-client-app"
+    assert mounts(clientapp) == {
         f"/demo/hospitals/{slug}/cohort": (f"hospitals/{slug}/cohort", True),
         f"/demo/hospitals/{slug}/screening-models": (
             f"hospitals/{slug}/screening-models",
             False,
         ),
     }
-
-
-@then(
-    "it shares a network only with its hospital's SuperNode, "
-    "and that network is internal"
-)
-def only_its_supernode(declared: dict[str, Any], slug: str) -> None:
-    clientapp = f"{slug}-flower-client-app"
     assert set(service(clientapp)["networks"]) == {clientapp}
     assert declared["networks"][clientapp]["internal"] is True
     members = {
@@ -457,14 +420,16 @@ def only_its_supernode(declared: dict[str, Any], slug: str) -> None:
     assert members == {clientapp, f"{slug}-flower-supernode"}
 
 
-@then(parsers.parse('no service sets "{setting}"'))
-def no_service_sets(declared: dict[str, Any], setting: str) -> None:
-    with_setting = {
+def test_no_running_service_has_debug_on() -> None:
+    """Every web app runs gunicorn with DEBUG off; only the seed commands that
+    prepare runs set DJANGO_DEBUG, for themselves. Pass: no service sets
+    DJANGO_DEBUG."""
+    with_debug = {
         name
-        for name, spec in declared["services"].items()
-        if setting in (spec.get("environment") or {})
+        for name, spec in config()["services"].items()
+        if "DJANGO_DEBUG" in (spec.get("environment") or {})
     }
-    assert with_setting == set()
+    assert with_debug == set()
 
 
 def test_the_startups_web_server_outwaits_a_submission() -> None:

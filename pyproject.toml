@@ -94,7 +94,7 @@ empty_parameter_set_mark = "fail_at_collect"
 # Container-backed tests run only as the merge gate: pytest -m containers
 addopts = "-m 'not containers'"
 markers = [
-    "containers: needs a running Docker engine and builds the images (every test in tests/containers/)",
+    "containers: needs a running Docker engine (every test in tests/e2e/, and those marked elsewhere)",
     # The quick loop leaves these out: pytest -m "not containers and not subprocess"
     "subprocess: starts a process of its own (manage.py, uv, flwr), a second or more each",
 ]
