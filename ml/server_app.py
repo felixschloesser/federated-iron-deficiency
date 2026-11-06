@@ -1,4 +1,4 @@
-"""ServerApp for federated iron-deficiency classification."""
+"""ServerApp: aggregates the hospitals' training and sends the final model."""
 
 from datetime import UTC, datetime
 from pathlib import Path

@@ -71,7 +71,7 @@ def _members() -> list[tuple[str, str]]:
 def test_every_choice_crosses_the_wire_and_back(vocabulary: str, member: str) -> None:
     from web import vocabulary as words
     from web.messaging import messages_pb2
-    from web.messaging.choices import from_proto, to_proto
+    from web.messaging.convert import from_proto, to_proto
 
     choices = getattr(words, vocabulary)
     enum = getattr(messages_pb2, vocabulary)
@@ -84,7 +84,7 @@ def test_every_choice_crosses_the_wire_and_back(vocabulary: str, member: str) ->
 def test_none_and_unknown_numbers_are_no_choice(vocabulary: str) -> None:
     from web import vocabulary as words
     from web.messaging import messages_pb2
-    from web.messaging.choices import from_proto, to_proto
+    from web.messaging.convert import from_proto, to_proto
 
     choices = getattr(words, vocabulary)
     enum = getattr(messages_pb2, vocabulary)

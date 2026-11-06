@@ -126,7 +126,7 @@ def lab_sample(
     Participant.objects.create(
         seqn=seqn, cbc={var: 0.0 for var in CBC_VARS}, ferritin=10.0
     )
-    world["lab_order"] = LabOrder.objects.record(
+    world["lab_order"] = LabOrder.objects.receive(
         practice=make_practice(PRACTICE),
         details=LabOrderDetails(
             sample_id=str(seqn),

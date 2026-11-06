@@ -211,11 +211,12 @@ def suggests_ferritin(
 
 
 def screen(samples: pd.DataFrame, model: FinalModel, threshold: float) -> pd.DataFrame:
-    """Return each sample's ID and result: flagged, not flagged, or not screened."""
+    """Return each sample's screening result: ferritin suggested, ferritin not
+    suggested, or not screened."""
     probabilities = score(samples, model)
     result = pd.Series("not screened", index=samples.index)
     result[probabilities.index] = np.where(
-        probabilities >= threshold, "flagged", "not flagged"
+        probabilities >= threshold, "ferritin suggested", "ferritin not suggested"
     )
 
     # Only the sample ID and the decision leave: no score, no other input column.

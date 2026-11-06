@@ -22,7 +22,7 @@ CBC_VARS = [
     "LBDMONO",
 ]
 FEATURES = CBC_VARS + ["RIDAGEYR"]
-FERRITIN_THRESHOLD = 15.0
+FERRITIN_CUTOFF = 15.0
 # Who is screened: women of reproductive age (features/screening.feature).
 ELIGIBLE_SEX = "Female"
 ELIGIBLE_AGES = (18, 49)

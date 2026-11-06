@@ -10,7 +10,7 @@ import grpc
 from django.conf import settings
 
 from web.messaging import messages_pb2, messages_pb2_grpc
-from web.messaging.choices import from_proto, moment, timestamp, to_proto
+from web.messaging.convert import from_proto, moment, timestamp, to_proto
 from web.practice.models import Laboratory, LabReport, Order
 from web.vocabulary import RegisteredSex, Test
 
@@ -40,7 +40,7 @@ def _send(
 ) -> None:
     endpoint.SendLabOrder(
         messages_pb2.LabOrder(
-            practice=settings.PRACTICE_CERTIFICATE_NAME,
+            certificate_name=settings.PRACTICE_CERTIFICATE_NAME,
             sample_id=order.sample.sample_id,
             test=to_proto(Test(order.test), messages_pb2.Test),
             screened_indication=order.screened_indication,
@@ -98,7 +98,9 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
     with open_laboratory(laboratory) as endpoint:
         _send_pending(endpoint, laboratory, now=now)
         reports = endpoint.FetchNewLabReports(
-            messages_pb2.FetchLabReports(practice=settings.PRACTICE_CERTIFICATE_NAME),
+            messages_pb2.NewLabReportsRequest(
+                certificate_name=settings.PRACTICE_CERTIFICATE_NAME
+            ),
             timeout=TIMEOUT_SECONDS,
         ).reports
         stored = [
@@ -109,7 +111,8 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
         if stored:
             endpoint.AcknowledgeLabReports(
                 messages_pb2.Acknowledgement(
-                    practice=settings.PRACTICE_CERTIFICATE_NAME, report_ids=stored
+                    certificate_name=settings.PRACTICE_CERTIFICATE_NAME,
+                    report_ids=stored,
                 ),
                 timeout=TIMEOUT_SECONDS,
             )
