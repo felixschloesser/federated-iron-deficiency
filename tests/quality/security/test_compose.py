@@ -128,11 +128,15 @@ def test_each_service_mounts_only_its_own_partys_folder() -> None:
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_the_hospitals_own_apps_see_no_cohort_and_read_only_final_models(
+def test_the_hospitals_own_apps_write_the_cohort_and_read_only_final_models(
     slug: str,
 ) -> None:
+    """The laboratory director provides the training cohort from the web app
+    (features/hospital/training_cohort.feature), so it writes the cohort folder,
+    through the hospital's whole volume, unmasked."""
     name = f"{slug}-web"
-    assert set(service(name)["tmpfs"]) == {f"/demo/hospitals/{slug}/cohort"}
+    assert "tmpfs" not in service(name)
+    assert mounts(name)[f"/demo/hospitals/{slug}"] == (f"hospitals/{slug}", False)
     final_models = f"/demo/hospitals/{slug}/screening-models"
     assert mounts(name)[final_models] == (f"hospitals/{slug}/screening-models", True)
 

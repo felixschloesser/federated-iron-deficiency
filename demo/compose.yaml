@@ -56,7 +56,7 @@ x-supernode: &supernode
     flower-superlink: {condition: service_healthy}
 
 services:
-  # Out-of-band setup, not drawn in the DFDs: cohorts,
+  # Out-of-band setup, not drawn in the DFDs: lab records,
   # databases. The one container that sees every party's folder.
   prepare:
     <<: *web
@@ -74,7 +74,7 @@ services:
     command: [python, -m, demo.demo, prepare, --demo-dir, /demo]
     environment:
       DEMO_USER: *user
-      # Hugging Face may refuse unauthenticated downloads of the cohorts.
+      # Hugging Face may refuse unauthenticated downloads of the NHANES data.
       HF_TOKEN: ${HF_TOKEN:-}
       # Downloads stay on the host, so a reset fetches nothing twice.
       HF_HOME: /demo/huggingface
@@ -211,10 +211,9 @@ services:
     volumes:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/screening-models, read_only: true, volume: {subpath: screening-models}}
-    # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
+    # The laboratory director provides the training cohort here, so the web app
+    # writes the cohort folder (features/hospital/training_cohort.feature); it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
-    # Masked: the startup's data.
-    tmpfs: [/demo/hospitals/uz-leuven/cohort]
     networks:
       uz-leuven: {aliases: [uz-leuven-pages]}
       messaging: {aliases: [uz-leuven-messaging]}
@@ -270,10 +269,9 @@ services:
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/screening-models, read_only: true, volume: {subpath: screening-models}}
-    # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
+    # The laboratory director provides the training cohort here, so the web app
+    # writes the cohort folder (features/hospital/training_cohort.feature); it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
-    # Masked: the startup's data.
-    tmpfs: [/demo/hospitals/heilig-hart-leuven/cohort]
     networks:
       heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
       messaging: {aliases: [heilig-hart-leuven-messaging]}
@@ -329,10 +327,9 @@ services:
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/screening-models, read_only: true, volume: {subpath: screening-models}}
-    # Same organisation, but no need: the web app sees no cohort and no SuperNode key.
+    # The laboratory director provides the training cohort here, so the web app
+    # writes the cohort folder (features/hospital/training_cohort.feature); it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
-    # Masked: the startup's data.
-    tmpfs: [/demo/hospitals/az-diest/cohort]
     networks:
       az-diest: {aliases: [az-diest-pages]}
       messaging: {aliases: [az-diest-messaging]}
