@@ -505,3 +505,163 @@ def asked_to_stop(superlink: World, run_id: str) -> None:
 @then(parsers.parse('stopping is refused with code "{code}"'))
 def stopping_refused(world: World, code: str) -> None:
     assert world["error"].code == code
+
+
+@when(
+    parsers.parse(
+        'the data scientist transmits final model "{run_id}" to the hospitals'
+    )
+)
+def transmit(world: World, superlink: World, run_id: str) -> None:
+    from django.core.exceptions import ValidationError
+
+    from web.training.models import Transmission
+
+    superlink["answer"] = {"success": True, "run-id": "8"}
+    try:
+        world["transmission"] = Transmission.objects.transmit(
+            final_model=run_id, transmitted_by=world["data_scientist"], now=NOW
+        )
+    except ValidationError as error:
+        world["error"] = error
+
+
+@then(
+    parsers.parse(
+        'the SuperLink receives a run with run configuration "{key}" {value:d}'
+    )
+)
+def receives_run_with(superlink: World, key: str, value: int) -> None:
+    # A string: Flower's run IDs exceed TOML's integers.
+    assert run_configuration_sent(superlink)[key] == str(value)
+
+
+@then(
+    parsers.parse(
+        'the startup records that run "{run_id}" transmits final model "{final_model}",'
+        ' transmitted by "{name}"'
+    )
+)
+def records_transmission(
+    world: World, run_id: str, final_model: str, name: str
+) -> None:
+    from web.training.models import Transmission
+
+    transmission = Transmission.objects.get()
+    assert (transmission.run_id, transmission.final_model) == (run_id, final_model)
+    assert transmission.transmitted_by.username == name.lower().replace(" ", "-")
+    assert transmission.submitted_at == NOW
+
+
+@when(parsers.parse('the ServerApp reads final model "{run_id}" to transmit'))
+def server_app_reads(world: World, run_id: str) -> None:
+    from iron_deficiency.final_models import final_model_to_transmit
+
+    try:
+        world["to_send"] = final_model_to_transmit(
+            world["final_models_dir"], int(run_id)
+        )
+    except FileNotFoundError as error:
+        world["error"] = error
+
+
+@then(
+    parsers.parse(
+        "it transmits the weights, the AUROC across hospitals and run ID {run_id:d}"
+    )
+)
+def transmits_what(world: World, run_id: int) -> None:
+    to_send = world["to_send"]
+    assert to_send.state_dict is not None
+    assert to_send.federated == {"eval_auroc": 0.85}
+    assert to_send.run_id == run_id
+
+
+@then("it transmits no run configuration")
+def transmits_no_configuration(world: World) -> None:
+    assert world["to_send"].run_configuration == {}
+
+
+@then(
+    parsers.parse("transmitting is refused: there is no final model of run {run_id:d}")
+)
+def transmitting_refused(world: World, run_id: int) -> None:
+    assert str(world["error"]) == f"There is no final model of run {run_id}."
+
+
+@given(
+    parsers.parse(
+        'the data scientist transmitted final model "{final_model}" in run "{run_id}"'
+    )
+)
+def transmitted_before(world: World, final_model: str, run_id: str) -> None:
+    from web.training.models import Transmission
+
+    Transmission.objects.create(
+        final_model=final_model,
+        run_id=run_id,
+        transmitted_by=world["data_scientist"],
+        submitted_at=NOW,
+    )
+
+
+@given(parsers.parse('the SuperLink knows run "{run_id}" is "{status}"'))
+def superlink_knows_status(superlink: World, run_id: str, status: str) -> None:
+    superlink["runs"] = [flower_run(run_id, status)]
+
+
+def delivery_of(world: World, run_id: str) -> Any:
+    from web.training.final_models import deliveries, final_models
+    from web.training.models import Transmission
+    from web.training.runs import training_runs
+
+    kept = final_models(world["final_models_dir"])
+    return deliveries(kept, training_runs(), list(Transmission.objects.all()))[run_id]
+
+
+@then(parsers.parse('final model "{run_id}" shows "{shown}"'))
+def final_model_shows_delivery(
+    world: World, superlink: World, run_id: str, shown: str
+) -> None:
+    assert delivery_of(world, run_id).label == shown
+
+
+@then(
+    parsers.re(
+        r'final model "(?P<run_id>\d+)" (?P<offers>offers|does not offer) Transmit to hospitals'
+    )
+)
+def offers_send(world: World, superlink: World, run_id: str, offers: str) -> None:
+    assert delivery_of(world, run_id).offers_transmit is (offers == "offers")
+
+
+@when(
+    parsers.parse(
+        "{replied:d} of {connected:d} connected hospitals reply,"
+        " {errors:d} of them with an error"
+    )
+)
+def hospitals_reply(world: World, replied: int, connected: int, errors: int) -> None:
+    from iron_deficiency.final_models import transmission_failure
+
+    world["failure"] = transmission_failure(
+        connected=connected, replied=replied, errors=errors
+    )
+
+
+@then(parsers.parse('the transmission fails with "{why}"'))
+def transmission_fails(world: World, why: str) -> None:
+    assert world["failure"] == why
+
+
+@then("the transmission succeeds")
+def transmission_succeeds(world: World) -> None:
+    assert world["failure"] is None
+
+
+@pytest.mark.parametrize("status", FLOWER_STATUSES)
+def test_every_run_status_shows_a_delivery(status: str) -> None:
+    from web.training.final_models import Delivery
+    from web.training.runs import RunStatus
+
+    assert isinstance(Delivery.of_run(RunStatus(status)), Delivery)

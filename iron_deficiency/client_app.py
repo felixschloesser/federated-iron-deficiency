@@ -14,7 +14,7 @@ from iron_deficiency.dataset import load_federated_dataset
 from iron_deficiency.final_models import (
     DEFAULT_DEMO_DIR,
     hospital_final_models,
-    store_final_model,
+    receive_final_model,
 )
 from iron_deficiency.task import Net, dataset_size, load_data
 from iron_deficiency.task import test as test_fn
@@ -140,14 +140,15 @@ def final_models_path(context: Context) -> Path:
     return hospital_final_models(Path(demo_dir), partition_id)
 
 
-@app.query("deploy")
-def deploy(msg: Message, context: Context) -> Message:
-    """Store the final model, for the hospital to deploy or not (features/final_models.feature)."""
+@app.query("receive")
+def receive(msg: Message, context: Context) -> Message:
+    """Store a final model the data scientist transmitted, for the hospital to
+    deploy or not, under its training run's ID (features/final_models.feature)."""
 
     aggregate = msg.content.metric_records["federated"]
-    store_final_model(
+    receive_final_model(
         final_models_path(context),
-        run_id=context.run_id,
+        run_id=int(str(msg.content.config_records["final-model"]["run-id"])),
         state_dict=msg.content.array_records["arrays"].to_torch_state_dict(),
         cohort=load_cohort(context),
         federated={

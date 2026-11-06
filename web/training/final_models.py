@@ -3,6 +3,9 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import assert_never
+
+from django.db import models
 
 from iron_deficiency.screening import (
     FinalModel,
@@ -12,6 +15,8 @@ from iron_deficiency.screening import (
     to_bytes,
 )
 from web.training.forms import SubmitRunForm
+from web.training.models import Transmission
+from web.training.runs import RunStatus, TrainingRun
 
 
 @dataclass(frozen=True)
@@ -68,3 +73,75 @@ def for_sale(directory: Path | None, run_id: str) -> bytes | None:
     if model.state_dict is None:
         return None
     return to_bytes(FinalModel(state_dict=model.state_dict))
+
+
+class Delivery(models.TextChoices):
+    """Whether a final model reached the hospitals, from its latest transmission's
+    run status (features/training.feature)."""
+
+    NOT_TRANSMITTED = "not_transmitted", "Not transmitted"
+    TRANSMITTING = "transmitting", "Transmitting"
+    TRANSMITTED = "transmitted", "Transmitted"
+    NOT_EVERY_HOSPITAL = "not_every_hospital", "Not transmitted to every hospital"
+    UNKNOWN = "unknown", "Status unknown"
+
+    @classmethod
+    def of_run(cls, status: RunStatus | None) -> "Delivery":
+        """A transmission's delivery from its run's status; None for a status this
+        app does not know."""
+        match status:
+            case None:
+                return cls.UNKNOWN
+            case RunStatus.PENDING | RunStatus.STARTING | RunStatus.RUNNING:
+                return cls.TRANSMITTING
+            case RunStatus.COMPLETED:
+                return cls.TRANSMITTED
+            case RunStatus.FAILED | RunStatus.STOPPED:
+                return cls.NOT_EVERY_HOSPITAL
+            case _:
+                assert_never(status)
+
+    @property
+    def offers_transmit(self) -> bool:
+        """Whether Transmit is offered: not while a transmission is under way or
+        its status unknown; again after one completed, for a hospital that was not
+        connected (receiving is idempotent)."""
+        match self:
+            case (
+                Delivery.NOT_TRANSMITTED
+                | Delivery.TRANSMITTED
+                | Delivery.NOT_EVERY_HOSPITAL
+            ):
+                return True
+            case Delivery.TRANSMITTING | Delivery.UNKNOWN:
+                return False
+            case _:
+                assert_never(self)
+
+
+def deliveries(
+    kept: list[KeptFinalModel],
+    runs: list[TrainingRun] | None,
+    transmissions: list[Transmission],
+) -> dict[str, Delivery]:
+    """Each kept final model's delivery, from its latest transmission; runs is
+    None when the SuperLink did not answer, so a transmission's status is
+    unknown."""
+    latest = {
+        transmission.final_model: transmission
+        for transmission in sorted(
+            transmissions, key=lambda each: (each.submitted_at, each.pk)
+        )
+    }
+    statuses = {run.run_id: run for run in runs or []}
+    shown = {}
+    for model in kept:
+        transmission = latest.get(model.run_id)
+        if transmission is None:
+            shown[model.run_id] = Delivery.NOT_TRANSMITTED
+            continue
+        run = statuses.get(int(transmission.run_id)) if runs is not None else None
+        shown[model.run_id] = (
+            Delivery.UNKNOWN if run is None else Delivery.of_run(run.status)
+        )
+    return shown
