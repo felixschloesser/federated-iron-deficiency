@@ -12,7 +12,12 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def migrate(practice: Path, *target: str) -> None:
-    env = {**os.environ, "PRACTICE_DIR": str(practice), "DJANGO_DEBUG": "1"}
+    env = {
+        **os.environ,
+        "PARTY": "practice",
+        "DATA_DIR": str(practice),
+        "DJANGO_DEBUG": "1",
+    }
     env.pop("DATABASE_NAME", None)
     subprocess.run(
         [sys.executable, str(ROOT / "manage.py"), "migrate", *target, "-v0"],
@@ -53,7 +58,12 @@ def test_a_laboratory_folder_added_unique_is_removed_with_its_laboratories(
 def test_the_practice_names_a_hospital_holds_become_practices(tmp_path: Path) -> None:
     """A demo volume holds samples by practice name; 0003 makes each name a
     practice, its slug the certificate name, and keeps every sample."""
-    env = {**os.environ, "HOSPITAL_DIR": str(tmp_path), "DJANGO_DEBUG": "1"}
+    env = {
+        **os.environ,
+        "PARTY": "hospital",
+        "DATA_DIR": str(tmp_path),
+        "DJANGO_DEBUG": "1",
+    }
     env.pop("DATABASE_NAME", None)
 
     def migrate_hospital(*target: str) -> None:

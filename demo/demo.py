@@ -119,7 +119,7 @@ def prepare_web(
     folder: Path, party: str, seed_command: str, seeds: list[list[str]]
 ) -> None:
     """Migrate the party's database and seed its demo accounts, once per seed."""
-    env = {**os.environ, party: str(folder), "DJANGO_DEBUG": "1"}
+    env = {**os.environ, "PARTY": party, "DATA_DIR": str(folder), "DJANGO_DEBUG": "1"}
     subprocess.run(manage("migrate", "-v0"), env=env, check=True)
     for seed in seeds:
         # Quiet: the summary at startup names the accounts once.
@@ -154,7 +154,12 @@ def practice_arguments() -> list[list[str]]:
 
 def add_practices(hospital: Path) -> None:
     """Every practice, at the hospital, by its certificate name."""
-    env = {**os.environ, "HOSPITAL_DIR": str(hospital), "DJANGO_DEBUG": "1"}
+    env = {
+        **os.environ,
+        "PARTY": "hospital",
+        "DATA_DIR": str(hospital),
+        "DJANGO_DEBUG": "1",
+    }
     for arguments in practice_arguments():
         subprocess.run(
             manage("add_practice", *arguments),
@@ -166,7 +171,12 @@ def add_practices(hospital: Path) -> None:
 
 def add_laboratories(practice: Path, practice_cycle: str) -> None:
     """Every hospital's laboratory, at its lab-order endpoint (features/messaging.feature)."""
-    env = {**os.environ, "PRACTICE_DIR": str(practice), "DJANGO_DEBUG": "1"}
+    env = {
+        **os.environ,
+        "PARTY": "practice",
+        "DATA_DIR": str(practice),
+        "DJANGO_DEBUG": "1",
+    }
     for arguments in laboratory_arguments(practice_cycle):
         subprocess.run(
             manage("add_laboratory", *arguments),
@@ -245,7 +255,7 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
         for web in (
             (
                 hospital_dir(demo_dir, hospital),
-                "HOSPITAL_DIR",
+                "hospital",
                 "seed_hospital",
                 tube_seeds(nhanes),
                 HOSPITALS[cycle],
@@ -253,7 +263,7 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
             ),
             (
                 practice_dir(demo_dir, practice),
-                "PRACTICE_DIR",
+                "practice",
                 "seed_practice",
                 [seed_arguments(partition, nhanes)],
                 PRACTICES[cycle],
@@ -264,7 +274,7 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
     # The startup's web app seeds only its data scientist, once.
     webs.insert(
         0,
-        (startup_dir(demo_dir), "STARTUP_DIR", "seed_startup", [[]], "the startup", ""),
+        (startup_dir(demo_dir), "startup", "seed_startup", [[]], "the startup", ""),
     )
     statuses = {}
     # Every step's label as wide as the longest, so the bar does not jump.
@@ -273,9 +283,9 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
         for folder, party, seed_command, seeds, name, cycle in webs:
             bar.set_description_str(f"{'Preparing ' + name:<{width}}")
             prepare_web(folder, party, seed_command, seeds)
-            if party == "PRACTICE_DIR":
+            if party == "practice":
                 add_laboratories(folder, cycle)
-            if party == "HOSPITAL_DIR":
+            if party == "hospital":
                 add_practices(folder)
             bar.update()
         for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
@@ -289,7 +299,8 @@ def screening_status(demo_dir: Path, slug: str) -> str:
     """One hospital's one-line screening model state."""
     env = {
         **os.environ,
-        "HOSPITAL_DIR": str(hospital_dir(demo_dir, slug)),
+        "PARTY": "hospital",
+        "DATA_DIR": str(hospital_dir(demo_dir, slug)),
         "DJANGO_DEBUG": "1",
     }
     result = subprocess.run(

@@ -18,46 +18,34 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
 # One deployment per party: what it stores lives in its own folder (demo/README.md, features/quality/party_isolation.feature).
-HOSPITAL_DIR = (
-    Path(os.environ["HOSPITAL_DIR"]) if "HOSPITAL_DIR" in os.environ else None
-)
-PRACTICE_DIR = (
-    Path(os.environ["PRACTICE_DIR"]) if "PRACTICE_DIR" in os.environ else None
-)
-STARTUP_DIR = Path(os.environ["STARTUP_DIR"]) if "STARTUP_DIR" in os.environ else None
-if sum(folder is not None for folder in (HOSPITAL_DIR, PRACTICE_DIR, STARTUP_DIR)) > 1:
+# Without PARTY: a development checkout, serving every party's pages from one database.
+try:
+    PARTY: Party | None = Party(os.environ["PARTY"]) if "PARTY" in os.environ else None
+except ValueError:
     raise ImproperlyConfigured(
-        "Set one of HOSPITAL_DIR, PRACTICE_DIR and STARTUP_DIR, not more."
-    )
-PARTY_DIR = HOSPITAL_DIR or PRACTICE_DIR or STARTUP_DIR
-# None: a development checkout, serving every party's pages from one database.
-PARTY: Party | None = None
-# The hospital's screening models (features/final_models.feature); without HOSPITAL_DIR, an optional folder.
+        f"PARTY is one of {', '.join(party.value for party in Party)}."
+    ) from None
+if PARTY is not None and "DATA_DIR" not in os.environ:
+    raise ImproperlyConfigured("PARTY needs DATA_DIR, the folder for its data.")
+DATA_DIR = Path(os.environ["DATA_DIR"]) if PARTY is not None else None
+# The hospital's screening models (features/final_models.feature); in development, an optional folder.
 SCREENING_MODELS_DIR: Path | None = (
     Path(os.environ["SCREENING_MODELS_DIR"])
     if "SCREENING_MODELS_DIR" in os.environ
     else None
 )
-if HOSPITAL_DIR is not None:
-    PARTY = Party.HOSPITAL
-    SCREENING_MODELS_DIR = HOSPITAL_DIR / "screening-models"
-elif PRACTICE_DIR is not None:
-    PARTY = Party.GENERAL_PRACTITIONER
-# The startup's copy of every final model (features/training.feature); without
-# STARTUP_DIR, an optional folder.
+# The startup's copy of every final model (features/training.feature); in
+# development, an optional folder.
 FINAL_MODELS_DIR: Path | None = (
     Path(os.environ["FINAL_MODELS_DIR"]) if "FINAL_MODELS_DIR" in os.environ else None
 )
-if STARTUP_DIR is not None:
-    PARTY = Party.STARTUP
-    FINAL_MODELS_DIR = STARTUP_DIR / "final-models"
-# Shown in the title bar and header; never the screening's name.
-if PRACTICE_DIR:
-    PARTY_NAME = os.environ.get("PRACTICE_NAME", "Demo practice")
-elif STARTUP_DIR:
-    PARTY_NAME = os.environ.get("STARTUP_NAME", "Demo startup")
-else:
-    PARTY_NAME = os.environ.get("HOSPITAL_NAME", "Demo hospital")
+if DATA_DIR is not None and PARTY is Party.HOSPITAL:
+    SCREENING_MODELS_DIR = DATA_DIR / "screening-models"
+if DATA_DIR is not None and PARTY is Party.STARTUP:
+    FINAL_MODELS_DIR = DATA_DIR / "final-models"
+# Shown in the title bar and header; never the screening's name. A development
+# checkout shows the hospital's.
+PARTY_NAME = os.environ.get("PARTY_NAME") or (PARTY or Party.HOSPITAL).demo_name()
 # The name the hospitals issued this practice and know it by, which its app
 # sends in every message (glossary.toml, certificate name).
 PRACTICE_CERTIFICATE_NAME = os.environ.get("PRACTICE_CERTIFICATE_NAME", "demo-practice")
@@ -72,10 +60,9 @@ if (
     raise ImproperlyConfigured(
         f"PARTY_COLOUR {PARTY_COLOUR!r} has no Pico theme in {PICO_DIR}."
     )
-if PARTY_DIR is not None and "DATABASE_NAME" in os.environ:
+if DATA_DIR is not None and "DATABASE_NAME" in os.environ:
     raise ImproperlyConfigured(
-        "DATABASE_NAME cannot be set with HOSPITAL_DIR, PRACTICE_DIR or STARTUP_DIR:"
-        " the database lives in that folder."
+        "DATABASE_NAME cannot be set with DATA_DIR: the database lives in that folder."
     )
 
 
@@ -83,7 +70,7 @@ def _secret_key() -> str:
     """Return the key from the environment, else one kept per checkout."""
     if key := os.environ.get("DJANGO_SECRET_KEY"):
         return key
-    path = (PARTY_DIR or BASE_DIR) / ".secret_key"
+    path = (DATA_DIR or BASE_DIR) / ".secret_key"
     if not path.exists():
         path.write_text(get_random_secret_key())
         path.chmod(0o600)
@@ -147,8 +134,8 @@ DATABASE_NAME = os.environ.get("DATABASE_NAME", BASE_DIR.name)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": PARTY_DIR / "web.sqlite3"
-        if PARTY_DIR
+        "NAME": DATA_DIR / "web.sqlite3"
+        if DATA_DIR
         else BASE_DIR / f"{DATABASE_NAME}.sqlite3",
         # Two processes write this file (the web app, and messaging): take the write
         # lock at BEGIN, so the second waits instead of failing on its first write.
@@ -188,6 +175,6 @@ LOGOUT_REDIRECT_URL = "login"
 # Browsers share cookies between ports of one host, and the demo serves every
 # party from 127.0.0.1: without its own names, one party's login would replace
 # another's session and CSRF token (a 403 on its next form).
-if PARTY_DIR is not None:
-    SESSION_COOKIE_NAME = f"sessionid-{PARTY_DIR.name}"
-    CSRF_COOKIE_NAME = f"csrftoken-{PARTY_DIR.name}"
+if DATA_DIR is not None:
+    SESSION_COOKIE_NAME = f"sessionid-{DATA_DIR.name}"
+    CSRF_COOKIE_NAME = f"csrftoken-{DATA_DIR.name}"

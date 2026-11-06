@@ -32,8 +32,8 @@ def run_configuration(chosen: Mapping[str, int | float | str]) -> str:
     threshold: each hospital's laboratory director chooses one
     (features/deployment.feature)."""
     pairs = [f"{key}={value!r}" for key, value in chosen.items()]
-    if settings.STARTUP_DIR is not None:
-        pairs.append(f"demo-dir='{settings.STARTUP_DIR.parent}'")
+    if settings.DATA_DIR is not None:
+        pairs.append(f"demo-dir='{settings.DATA_DIR.parent}'")
     return " ".join(pairs)
 
 

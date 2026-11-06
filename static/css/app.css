@@ -324,3 +324,11 @@ fieldset {
     font-weight: 600;
   }
 }
+
+/* The header's current page: Pico marks it by a darker blue only, which colour
+   alone does not tell apart. */
+header nav a[aria-current="page"] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
