@@ -89,9 +89,15 @@ DJANGO_SETTINGS_MODULE = "web.settings"
 # The audit and red_first live in .claude/, out of readers' way; their tests import them.
 pythonpath = [".claude"]
 bdd_features_base_dir = "features/"
+# A parametrisation that finds nothing fails, never skips quietly.
+empty_parameter_set_mark = "fail_at_collect"
 # Container-backed tests run only as the merge gate: pytest -m containers
 addopts = "-m 'not containers'"
-markers = ["containers: needs a running Docker engine and builds the images"]
+markers = [
+    "containers: needs a running Docker engine and builds the images (every test in tests/containers/)",
+    # The quick loop leaves these out: pytest -m "not containers and not subprocess"
+    "subprocess: starts a process of its own (manage.py, uv, flwr), a second or more each",
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["audit", "demo", "ml", "red_first", "tests", "tools", "web"]

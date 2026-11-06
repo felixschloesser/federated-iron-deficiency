@@ -16,7 +16,7 @@ from web.practice.models import Patient
 from web.seeding import command as seeding
 from web.vocabulary import RegisteredSex
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.subprocess, pytest.mark.django_db]
 
 
 def seed(*args: str) -> None:

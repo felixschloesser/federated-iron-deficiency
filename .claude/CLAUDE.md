@@ -66,7 +66,7 @@ uv run --frozen python .claude/audit.py
 
 ## Tests
 
-- The requirements are the scenarios: `features/` for behaviour, `features/quality/` for quality attributes, each scenario ending in a true-or-false response measure. Container-backed steps live in `tests/demo/`, tagged `@containers`. Code never cites a requirement or section number (the audit fails on one); a docstring states the reason and may name the feature file.
+- The requirements are the scenarios: `features/<party>/` for each party's behaviour (bound in `tests/<party>/`, which imports no other party's code; the audit checks), `features/` for what crosses parties, `features/quality/` for quality attributes, each scenario ending in a true-or-false response measure. Container-backed steps live in `tests/containers/`, which marks them `containers`; a test that starts a process of its own is marked `subprocess`, so the quick loop `pytest -m "not containers and not subprocess"` leaves it out (a `-m` replaces the default one). Code never cites a requirement or section number (the audit fails on one); a docstring states the reason and may name the feature file.
 - Domain behaviour: scenarios (pytest-bdd) against model and manager methods, not views.
 - Views: Django test client, asserting status, redirect target, form error codes and `assertNumQueries` on index pages. No whole-page HTML snapshots, no sweeps rendering every page.
 - One migration per slice, committed with the slice.

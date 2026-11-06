@@ -21,8 +21,6 @@ from typing import Any
 import pytest
 from pytest_bdd import given, parsers, scenario, then, when
 
-pytestmark = pytest.mark.containers
-
 ROOT = Path(__file__).resolve().parents[2]
 HOSPITAL = "uz-leuven"
 
@@ -241,7 +239,7 @@ def bait() -> None:
 )
 def run_probe(compose: Compose, tmp_path: Path) -> dict[str, Any]:
     probe = tmp_path / "probe"
-    shutil.copytree(ROOT / "tests" / "demo" / "probe", probe)
+    shutil.copytree(ROOT / "tests" / "containers" / "probe", probe)
     output = flwr(
         compose,
         "-v",

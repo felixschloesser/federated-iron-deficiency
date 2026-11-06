@@ -46,7 +46,7 @@ class Net(nn.Module):
 
 
 # The thresholds a laboratory director chooses from: each hospital counts its
-# local validation at every one (features/deployment.feature).
+# local validation at every one (features/hospital/deployment.feature).
 THRESHOLDS = tuple(step / 20 for step in range(1, 20))
 
 # What torch.load raises on a file that is no model file, or none it loads safely.
