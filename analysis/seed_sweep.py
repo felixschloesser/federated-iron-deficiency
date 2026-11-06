@@ -10,13 +10,13 @@ from scipy import stats
 
 from analysis.evaluate_screening import evaluate
 from analysis.train_centralized import train_centralized
-from iron_deficiency.dataset import load_ferritin
-from iron_deficiency.final_models import (
+from ml.dataset import load_ferritin
+from ml.final_models import (
     DEFAULT_DEMO_DIR,
     hospital_final_models,
     latest_final_model,
 )
-from iron_deficiency.screening import COLUMNS, read
+from ml.screening import COLUMNS, read
 
 HOSPITALS = {0: "UZ Leuven", 1: "Heilig Hart Leuven", 2: "AZ Diest"}
 # Largest AUROC difference we would still call equivalent, fixed before running.

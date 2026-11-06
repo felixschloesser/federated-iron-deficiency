@@ -1,7 +1,7 @@
 Feature: Final models at each hospital
-  After each training run the ClientApp's deploy handler stores the final model
-  in the hospital's screening-models folder: a new file named after the Flower run
-  ID, never overwriting one, with the federated metrics the ServerApp sends,
+  When the data scientist transmits a final model, the ClientApp's receive
+  handler stores it in the hospital's screening-models folder: a new file named
+  after its training run's ID, never overwriting one, with the federated metrics the ServerApp sends,
   and its local validation on this hospital's validation split: a confusion
   matrix at each threshold the laboratory director may choose, and AUROC. The
   training run sets no threshold. Its metadata holds only this hospital's local validation and the
@@ -37,3 +37,19 @@ Feature: Final models at each hospital
     When the ClientApp stores the final model of run 11
     Then storing it fails
     And the hospital holds no final model
+
+  Scenario: A transmitted final model is stored under its training run's ID
+    When the ClientApp receives the final model of run 11
+    Then the hospital holds "11.pt"
+
+  Scenario: A final model transmitted again is kept as it was
+    Given the ClientApp received the final model of run 11
+    When the ClientApp receives the final model of run 11 again
+    Then receiving it succeeds
+    And "11.pt" is unchanged
+
+  Scenario: Other weights transmitted under a stored run's ID are refused
+    Given the ClientApp received the final model of run 11
+    When the ClientApp receives other weights as the final model of run 11
+    Then receiving it is refused
+    And "11.pt" is unchanged

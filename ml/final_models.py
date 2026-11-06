@@ -8,8 +8,8 @@ from pathlib import Path
 import pandas as pd
 import torch
 
-from iron_deficiency.dataset import CYCLES, HOSPITALS, hospital_slug
-from iron_deficiency.screening import (
+from ml.dataset import CYCLES, HOSPITALS, hospital_slug
+from ml.screening import (
     THRESHOLDS,
     FinalModel,
     final_model_path,
@@ -18,7 +18,7 @@ from iron_deficiency.screening import (
     standardization_tensor,
     write,
 )
-from iron_deficiency.task import Net, load_data, standardization, test
+from ml.task import Net, load_data, standardization, test
 
 # The run configuration that says how a model was trained; never the folder it
 # was kept in nor the W&B key, which the run configuration also carries.
@@ -109,6 +109,63 @@ def local_validation(
             "true_negatives": int((~suggested & ~deficient).sum()),
         }
     return matrices, float(metrics["auroc"])
+
+
+def final_model_to_transmit(directory: Path, run_id: int) -> FinalModel:
+    """What a transmission sends every hospital of the startup's kept final model:
+    its weights, the AUROC across hospitals and its run ID; never its run
+    configuration (features/training.feature)."""
+    path = final_model_path(directory, run_id)
+    kept = read(path) if path.is_file() else FinalModel()
+    if kept.state_dict is None:
+        raise FileNotFoundError(f"There is no final model of run {run_id}.")
+    return FinalModel(
+        state_dict=kept.state_dict, run_id=run_id, federated=kept.federated
+    )
+
+
+def transmission_failure(*, connected: int, replied: int, errors: int) -> str | None:
+    """Why a transmission did not reach every connected hospital, or None when
+    each acknowledged it. Flower leaves a missing reply out, not as an error."""
+    if connected == 0:
+        return "No hospital is connected."
+    if replied < connected:
+        return f"{replied} of {connected} connected hospitals replied."
+    if errors:
+        return f"{errors} of {connected} connected hospitals could not store it."
+    return None
+
+
+def receive_final_model(
+    directory: Path,
+    *,
+    run_id: int,
+    state_dict: dict[str, torch.Tensor],
+    cohort: pd.DataFrame,
+    federated: dict[str, float],
+    stored_at: datetime,
+) -> Path:
+    """Store a transmitted final model; one transmitted again is kept as it was.
+    Other weights under a stored run's ID are refused (features/final_models.feature)."""
+    path = final_model_path(directory, run_id)
+    if path.exists():
+        stored = read(path).state_dict
+        same = (
+            stored is not None
+            and stored.keys() == state_dict.keys()
+            and all(torch.equal(stored[name], state_dict[name]) for name in state_dict)
+        )
+        if not same:
+            raise FileExistsError(f"{path} holds other weights.")
+        return path
+    return store_final_model(
+        directory,
+        run_id=run_id,
+        state_dict=state_dict,
+        cohort=cohort,
+        federated=federated,
+        stored_at=stored_at,
+    )
 
 
 def store_final_model(

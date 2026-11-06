@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from web.lab.models import LabOrder, Practice
     from web.practice.models import Order, Patient, Sample
     from web.vocabulary import ClinicalIndication, Test
-from iron_deficiency.cohort import CBC_VARS, FEATURES
+from ml.cohort import CBC_VARS, FEATURES
 from web.vocabulary import RegisteredSex
 
 World = dict[str, Any]
@@ -64,7 +64,7 @@ def make_general_practitioner(name: str) -> "User":
 def make_patient(name: str, sex: "RegisteredSex", age: int) -> "Patient":
     """A patient whose sample ID is a new NHANES number; the hospital's analyser
     stand-in holds placeholder values for it and no ferritin."""
-    from iron_deficiency.cohort import CBC_VARS
+    from ml.cohort import CBC_VARS
     from web.nhanes.models import Participant
     from web.practice.models import Patient
 
@@ -204,11 +204,11 @@ def write_final_model(
     leave_out: tuple[str, ...] = (),
     n_features: int = len(FEATURES),
 ) -> "Path":
-    """A final model as the ClientApp stores it (iron_deficiency.final_models),
+    """A final model as the ClientApp stores it (ml.final_models),
     with `validation`, its confusion matrix at each threshold."""
     import torch
 
-    from iron_deficiency.task import Net
+    from ml.task import Net
 
     contents = {
         "state_dict": Net(n_features=n_features).state_dict(),

@@ -1,7 +1,6 @@
 """ServerApp for federated iron-deficiency classification."""
 
 from datetime import UTC, datetime
-from logging import WARNING
 from pathlib import Path
 
 import torch
@@ -15,15 +14,16 @@ from flwr.app import (
 )
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, Result
-from flwr.supercore import log
 
-from iron_deficiency.final_models import (
+from ml.final_models import (
     DEFAULT_DEMO_DIR,
+    final_model_to_transmit,
     keep_final_model,
     startup_final_models,
     training_parameters,
+    transmission_failure,
 )
-from iron_deficiency.task import Net
+from ml.task import Net
 
 # Create ServerApp
 app = ServerApp()
@@ -62,22 +62,68 @@ def _log_result_to_wandb(result: Result, api_key: str) -> None:
 
 @app.main()
 def main(grid: Grid, context: Context) -> None:
-    """Main entry point for the ServerApp."""
+    """A training run, or, with `transmit-final-model` set, the transmission of a
+    final model the startup kept to every hospital (features/training.feature)."""
+    demo_dir = Path(str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR)
+    # A string: Flower's run IDs exceed TOML's integers; empty for a training run.
+    transmit = str(context.run_config["transmit-final-model"])
+    if transmit:
+        transmit_final_model(grid, startup_final_models(demo_dir), int(transmit))
+    else:
+        train(grid, context, startup_final_models(demo_dir))
 
-    # Read run config
+
+def transmit_final_model(grid: Grid, directory: Path, run_id: int) -> None:
+    """Send the startup's kept final model to every connected hospital, and fail
+    the run unless each acknowledged storing it. A hospital not connected is not
+    asked; transmitting again reaches it."""
+    final_model = final_model_to_transmit(directory, run_id)
+    state_dict = final_model.state_dict
+    if state_dict is None:  # final_model_to_transmit refuses one without; for the type
+        raise FileNotFoundError(f"There is no final model of run {run_id}.")
+    node_ids = list(grid.get_node_ids())
+    # No timeout: Flower answers for a hospital that drops out with an error reply.
+    replies = list(
+        grid.send_and_receive(
+            [
+                Message(
+                    content=RecordDict(
+                        {
+                            "arrays": ArrayRecord(state_dict),
+                            "federated": MetricRecord(
+                                dict[str, int | float | list[int] | list[float]](
+                                    final_model.federated
+                                )
+                            ),
+                            "final-model": ConfigRecord({"run-id": str(run_id)}),
+                        }
+                    ),
+                    dst_node_id=node_id,
+                    message_type="query.receive",
+                )
+                for node_id in node_ids
+            ]
+        )
+    )
+    failure = transmission_failure(
+        connected=len(node_ids),
+        replied=len(replies),
+        errors=sum(reply.has_error() for reply in replies),
+    )
+    if failure is not None:
+        raise RuntimeError(f"Final model of run {run_id} not transmitted: {failure}")
+
+
+def train(grid: Grid, context: Context, directory: Path) -> None:
+    """Train with FedAvg and keep the final model at the startup (DS4); no hospital
+    stores it until the data scientist transmits it."""
     fraction_evaluate = float(context.run_config["fraction-evaluate"])
     num_rounds = int(context.run_config["num-server-rounds"])
     lr = float(context.run_config["learning-rate"])
 
-    # Load global model
     torch.manual_seed(int(context.run_config["model-seed"]))
-    global_model = Net()
-    arrays = ArrayRecord(global_model.state_dict())
-
-    # Initialize FedAvg strategy
+    arrays = ArrayRecord(Net().state_dict())
     strategy = FedAvg(fraction_evaluate=fraction_evaluate)
-
-    # Start strategy, run FedAvg for `num_rounds`
     result = strategy.start(
         grid=grid,
         initial_arrays=arrays,
@@ -85,20 +131,17 @@ def main(grid: Grid, context: Context) -> None:
         num_rounds=num_rounds,
     )
 
-    # Send the final model to every hospital, with only the federated aggregate
+    # Only the federated aggregate of the last round; no hospital's own metrics.
     last_round = max(result.evaluate_metrics_clientapp, default=None)
     federated = (
         result.evaluate_metrics_clientapp[last_round]
         if last_round is not None
         else MetricRecord()
     )
-
-    # The startup keeps every final model on its own server, one per run (DS4),
-    # with what it sends: the federated aggregate. No threshold: each hospital's
-    # laboratory director chooses one (features/deployment.feature).
-    demo_dir = str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR
+    # No threshold: each hospital's laboratory director chooses one
+    # (features/deployment.feature).
     keep_final_model(
-        startup_final_models(Path(demo_dir)),
+        directory,
         run_id=context.run_id,
         state_dict=result.arrays.to_torch_state_dict(),
         federated={
@@ -109,26 +152,6 @@ def main(grid: Grid, context: Context) -> None:
         run_configuration=training_parameters(context.run_config),
         stored_at=datetime.now(UTC),
     )
-
-    # Deploy the final model to every hospital for local screening
-    replies = grid.send_and_receive(
-        [
-            Message(
-                content=RecordDict(
-                    {
-                        "arrays": result.arrays,
-                        "federated": federated,
-                    }
-                ),
-                dst_node_id=node_id,
-                message_type="query.deploy",
-            )
-            for node_id in grid.get_node_ids()
-        ]
-    )
-    for reply in replies:
-        if reply.has_error():
-            log(WARNING, "Deployment failed on node %s", reply.metadata.src_node_id)
 
     # Log the strategy metrics only when a W&B API key has been configured.
     wandb_api_key = str(context.run_config.get("wandb-api-key", "")).strip()

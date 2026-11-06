@@ -2,8 +2,8 @@ Feature: Each party's software and data stay inside its trust boundary
   Quality attribute: privacy, as isolation. A deployment is the one party PARTY
   names (hospital, practice or startup) and reads only its folder, DATA_DIR; it
   installs, migrates and serves only its own party's apps. Code under
-  web/ imports from the training package only iron_deficiency.screening,
-  iron_deficiency.cohort and iron_deficiency.dataset (the audit checks that).
+  web/ imports from the training package only ml.screening,
+  ml.cohort and ml.dataset (the audit checks that).
   Each scenario's last step is its response measure, true or false.
 
   Scenario Outline: A party's database holds only its own party's tables

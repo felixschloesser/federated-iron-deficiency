@@ -13,8 +13,8 @@ from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains, assertNotContains, assertRedirects
 from pytest_django.fixtures import Settings
 
-from iron_deficiency.final_models import keep_final_model
-from iron_deficiency.task import Net
+from ml.final_models import keep_final_model
+from ml.task import Net
 from tests.conftest import make_data_scientist, make_laboratory_director
 from web.training.forms import SubmitRunForm
 
@@ -41,19 +41,20 @@ def test_final_models_page(
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     client.force_login(make_data_scientist("Data One"))
-    # Session, user with role.
-    with django_assert_num_queries(2):
+    # Session, user with role, transmissions.
+    with django_assert_num_queries(3):
         response = client.get(reverse("training:runs"))
-    assertContains(
-        response,
-        '<tr><td data-label="Stored">30 Oct 2026, 10:00</td><td data-label="Run">7</td>'
-        '<td data-label="AUROC across hospitals">0.86</td>'
-        '<td data-label="Run configuration">—</td>'
-        '<td data-label="Model sale"><a href="/training/runs/7/for-sale/" download'
-        ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
-        "</td></tr>",
-        html=True,
-    )
+    for cell in (
+        '<td data-label="Stored">30 Oct 2026, 10:00</td>',
+        '<td data-label="AUROC across hospitals">0.86</td>',
+        '<td data-label="Run configuration">—</td>',
+        (
+            '<td data-label="Model sale"><a href="/training/runs/7/for-sale/" download'
+            ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
+            "</td>"
+        ),
+    ):
+        assertContains(response, cell, html=True)
 
 
 def test_a_laboratory_director_is_sent_to_their_own_page(client: Client) -> None:
@@ -206,7 +207,7 @@ def test_a_run_without_an_answer_shows_no_server_paths(
 def test_a_final_model_downloads_for_sale(
     client: Client, final_models_dir: Path
 ) -> None:
-    from iron_deficiency.screening import from_bytes
+    from ml.screening import from_bytes
 
     response = client.get(reverse("training:for_sale", kwargs={"run_id": "7"}))
     assert response.status_code == 200
@@ -244,7 +245,7 @@ def test_each_final_model_links_to_its_sale(
 
 
 def test_every_offered_parameter_is_kept_with_the_final_model() -> None:
-    from iron_deficiency.final_models import TRAINING_PARAMETERS
+    from ml.final_models import TRAINING_PARAMETERS
 
     for name in SubmitRunForm.base_fields:
         assert name.replace("_", "-") in TRAINING_PARAMETERS
@@ -264,7 +265,7 @@ def test_only_a_run_in_progress_offers_stop(
     answering(monkeypatch, {}, {"success": True, "runs": [RUNNING, completed]})
     response = client.get(reverse("training:runs"))
     assertContains(response, 'action="/training/runs/7/stop/"')
-    assertContains(response, 'aria-label="Stop training run 7"')
+    assertContains(response, 'aria-label="Stop run 7"')
     assertNotContains(response, 'action="/training/runs/6/stop/"')
 
 
@@ -301,7 +302,8 @@ def test_without_the_superlink_the_page_offers_no_submission(
     assert response.context["submits"] is False
     assertNotContains(response, 'name="batch_size"')
     assertContains(
-        response, "Submitting and stopping runs come back when the SuperLink answers."
+        response,
+        "Submitting, stopping and transmitting come back when the SuperLink answers.",
     )
 
 
@@ -332,3 +334,46 @@ def test_a_file_not_named_after_a_run_is_no_final_model(
     (final_models_dir / "7.pt").rename(final_models_dir / "run123.pt")
     assert final_models(final_models_dir) == []
     assert screening_models(final_models_dir) == []
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_final_model_not_transmitted_offers_transmit(
+    client: Client, final_models_dir: Path
+) -> None:
+    response = client.get(reverse("training:runs"))
+    assertContains(response, '<td data-label="Hospitals">Not transmitted', html=False)
+    assertContains(response, 'action="/training/runs/7/transmit/"')
+    assertContains(
+        response, 'aria-label="Transmit final model of run 7 to the hospitals"'
+    )
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_transmitting_a_final_model_returns_with_its_run(
+    client: Client, monkeypatch: pytest.MonkeyPatch, final_models_dir: Path
+) -> None:
+    answering(monkeypatch, {"success": True, "run-id": "8"})
+    response = client.post(reverse("training:transmit", kwargs={"run_id": "7"}))
+    assertRedirects(response, reverse("training:runs"))
+    assert [str(message) for message in get_messages(response.wsgi_request)] == [
+        "Run 8 transmits final model of run 7 to every hospital connected now."
+    ]
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_run_that_transmits_a_final_model_says_so(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from web.training.models import Transmission
+
+    Transmission.objects.create(
+        final_model="7",
+        run_id="8",
+        transmitted_by=make_data_scientist("Data Two"),
+        submitted_at=datetime(2026, 10, 30, 9, 0, tzinfo=UTC),
+    )
+    answering(monkeypatch, {}, {"success": True, "runs": [{**RUNNING, "run-id": "8"}]})
+    response = client.get(reverse("training:runs"))
+    assertContains(
+        response, '<td data-label="Run">8 · transmits final model 7</td>', html=True
+    )

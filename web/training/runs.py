@@ -6,6 +6,7 @@ import json
 import logging
 import subprocess
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -25,7 +26,7 @@ LIST_TIMEOUT_SECONDS = 5
 CONNECTION = "demo"
 
 
-def run_configuration(chosen: dict[str, int | float]) -> str:
+def run_configuration(chosen: Mapping[str, int | float | str]) -> str:
     """The run configuration as `flwr run --run-config` takes it: what the data
     scientist chose and, in a deployment, the demo folder above the startup's. No
     threshold: each hospital's laboratory director chooses one
@@ -55,8 +56,9 @@ def flower(arguments: list[str], timeout: int) -> dict[str, Any]:
     return answer
 
 
-def submit_run(chosen: dict[str, int | float]) -> int:
-    """Submit one training run of this app, configured as chosen; return its run ID."""
+def submit_run(chosen: Mapping[str, int | float | str]) -> int:
+    """Submit one run of this app, configured as chosen (a training run, or one
+    that transmits a final model); return its run ID."""
     configuration = run_configuration(chosen)
     try:
         answer = flower(

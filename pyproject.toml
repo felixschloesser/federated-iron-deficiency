@@ -20,18 +20,18 @@ dependencies = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["iron_deficiency"]
+packages = ["ml"]
 
 [tool.flwr.app]
 publisher = "javier"
 fab-format-version = 1
 # Allowlist: the web app and docs in this repo must not reach the SuperNodes.
-fab-include = ["/iron_deficiency/**", "/README.md", "/LICENSE"]
+fab-include = ["/ml/**", "/README.md", "/LICENSE"]
 flwr-version-target = "1.40.0"
 
 [tool.flwr.app.components]
-serverapp = "iron_deficiency.server_app:app"
-clientapp = "iron_deficiency.client_app:app"
+serverapp = "ml.server_app:app"
+clientapp = "ml.client_app:app"
 
 [tool.flwr.app.config]
 num-server-rounds = 3
@@ -42,6 +42,7 @@ weight-decay = 0.001
 batch-size = 64
 model-seed = 42 # Initial weights and dropout; data splits stay fixed
 demo-dir = "" # Absolute folder for final models (demo/README.md); empty: ~/.cache/iron-deficiency
+transmit-final-model = "" # A training run when empty; else the run ID of the final model to transmit to every hospital (a string: run IDs exceed TOML's integers)
 wandb-api-key = "" # Pass at submit time: -c "wandb-api-key='$WANDB_API_KEY'"
 
 [dependency-groups]
@@ -90,7 +91,7 @@ addopts = "-m 'not containers'"
 markers = ["containers: needs a running Docker engine and builds the images"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["analysis", "demo", "iron_deficiency", "tests", "tools", "web"]
+known-first-party = ["analysis", "demo", "ml", "tests", "tools", "web"]
 
 # Torch on Linux from PyTorch's CPU index: the containers screen and train on
 # CPU, and PyPI's x86-64 wheel would pull several GB of CUDA libraries.

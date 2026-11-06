@@ -8,6 +8,12 @@ urlpatterns = [
     path("runs/<int:run_id>/stop/", views.StopRunView.as_view(), name="stop"),
     # slug: a run ID never holds a path separator (the file is <run_id>.pt).
     path(
+        "runs/<slug:run_id>/transmit/",
+        views.TransmitView.as_view(),
+        name="transmit",
+    ),
+    # slug: a run ID never holds a path separator (the file is <run_id>.pt).
+    path(
         "runs/<slug:run_id>/for-sale/",
         views.ForSaleView.as_view(),
         name="for_sale",
