@@ -276,7 +276,7 @@ def training_imports(root: Path) -> list[str]:
         who = " or ".join(f"the {party.value}'s" for party in readers)
         findings.append(
             f"{rel.as_posix()}:{line}: imports {module}, "
-            + (f"{who} code" if readers else "startup code")
+            + (f"{who} code" if readers else "the Flower app's code")
         )
     return findings
 
