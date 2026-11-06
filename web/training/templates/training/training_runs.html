@@ -9,7 +9,7 @@
 {% include "kit/form.html" with form=form submit_label="Submit training run" %}
 {% endif %}
 
-<h2>Training runs</h2>
+<h2>Runs</h2>
 {% if runs_unknown %}
 {% include "kit/alert.html" with level="warning" role="status" text=runs_unknown %}
 <p>Submitting, stopping and transmitting come back when the SuperLink answers.</p>
