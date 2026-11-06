@@ -48,10 +48,10 @@ def logged_in(client: Client, staff_member: User) -> Client:
 
 
 def analyse_url(lab_order: LabOrder) -> str:
-    return reverse("lab:run_analyser", kwargs={"pk": lab_order.pk})
+    return reverse("lab:analyse", kwargs={"pk": lab_order.pk})
 
 
-@pytest.mark.parametrize("page", ["lab:to_analyse", "lab:analysed"])
+@pytest.mark.parametrize("page", ["lab:orders", "lab:analysed"])
 def test_lab_index_queries(
     client: Client,
     staff_member: User,
@@ -69,14 +69,14 @@ def test_lab_pages_never_show_a_patient_name(
     client: Client, staff_member: User, lab_order: LabOrder
 ) -> None:
     logged_in(client, staff_member)
-    assertNotContains(client.get(reverse("lab:to_analyse")), "Test Patient 1")
+    assertNotContains(client.get(reverse("lab:orders")), "Test Patient 1")
     client.post(analyse_url(lab_order))
     assertNotContains(client.get(reverse("lab:analysed")), "Test Patient 1")
 
 
 def test_navigation_links_to_both_lab_pages(client: Client, staff_member: User) -> None:
-    response = logged_in(client, staff_member).get(reverse("lab:to_analyse"))
-    assertContains(response, f'href="{reverse("lab:to_analyse")}"')
+    response = logged_in(client, staff_member).get(reverse("lab:orders"))
+    assertContains(response, f'href="{reverse("lab:orders")}"')
     assertContains(response, f'href="{reverse("lab:analysed")}"')
 
 
@@ -84,7 +84,7 @@ def test_running_the_analyser(
     client: Client, staff_member: User, lab_order: LabOrder
 ) -> None:
     response = logged_in(client, staff_member).post(analyse_url(lab_order))
-    assert response["Location"] == reverse("lab:to_analyse")
+    assert response["Location"] == reverse("lab:orders")
     assertContains(
         client.get(response["Location"]),
         f"Sample {lab_order.sample.sample_id}: ferritin analysed, lab report released.",
@@ -102,7 +102,7 @@ def test_actions_are_post_only(
 
 def test_general_practitioner_is_sent_to_their_start_page(client: Client) -> None:
     client.force_login(make_general_practitioner("Dr. Demo A"))
-    response = client.get(reverse("lab:to_analyse"), follow=True)
+    response = client.get(reverse("lab:orders"), follow=True)
     assert response.redirect_chain == [(reverse("practice:patients"), 302)]
     assertContains(response, "That page is for laboratory staff.")
 
@@ -113,7 +113,7 @@ def test_laboratory_staff_are_sent_to_their_start_page(
     response = logged_in(client, staff_member).get(
         reverse("practice:patients"), follow=True
     )
-    assert response.redirect_chain == [(reverse("lab:to_analyse"), 302)]
+    assert response.redirect_chain == [(reverse("lab:orders"), 302)]
     assertContains(response, "That page is for general practitioners.")
 
 
@@ -169,7 +169,7 @@ def test_a_cbc_not_screened_for_eligibility_does_not_warn(
 def test_run_analyser_names_its_sample_for_assistive_technology(
     client: Client, staff_member: User, lab_order: LabOrder
 ) -> None:
-    response = logged_in(client, staff_member).get(reverse("lab:to_analyse"))
+    response = logged_in(client, staff_member).get(reverse("lab:orders"))
     sample_id = lab_order.sample.sample_id
     assertContains(response, f'aria-label="Run analyser for sample {sample_id}"')
     assertContains(response, f'<span class="sample-id">{sample_id}</span>')
@@ -178,7 +178,7 @@ def test_run_analyser_names_its_sample_for_assistive_technology(
 def test_to_analyse_shows_only_what_running_the_analyser_needs(
     client: Client, staff_member: User, lab_order: LabOrder
 ) -> None:
-    response = logged_in(client, staff_member).get(reverse("lab:to_analyse"))
+    response = logged_in(client, staff_member).get(reverse("lab:orders"))
     for heading in ("Sample ID", "Test", "Ordered"):
         assertContains(response, f'<th scope="col">{heading}</th>')
     for heading in (
@@ -201,7 +201,7 @@ def test_to_analyse_marks_a_stored_sample(
     # here the CBC whose lab report suggested ferritin at the practice.
     order = Order.objects.get(test=OrderedTest.FERRITIN)
     deliver(order.sample.orders.get(test=OrderedTest.CBC))
-    response = client.get(reverse("lab:to_analyse"))
+    response = client.get(reverse("lab:orders"))
     sample_id = lab_order.sample.sample_id
     assertContains(response, f"{sample_id}</span> · stored sample")
 
@@ -220,7 +220,7 @@ def test_an_action_button_is_plain_so_pico_adds_no_form_margin(
 ) -> None:
     # Pico's [type=submit] adds a bottom margin meant for a form's last button;
     # an action button submits by default and sits in a table cell or a row.
-    response = logged_in(client, staff_member).get(reverse("lab:to_analyse"))
+    response = logged_in(client, staff_member).get(reverse("lab:orders"))
     sample_id = lab_order.sample.sample_id
     assertContains(
         response,

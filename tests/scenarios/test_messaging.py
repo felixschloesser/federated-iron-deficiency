@@ -442,7 +442,7 @@ def new_order_url(client: Client, record: Patient) -> str:
     client.post(reverse("practice:collect_sample", kwargs={"patient": record.pk}))
     suggest_ferritin_on(record.samples.latest("pk"), NOW)
     return reverse(
-        "practice:new_order",
+        "practice:order",
         kwargs={
             "patient": record.pk,
             "sample": record.samples.latest("pk").pk,

@@ -21,6 +21,7 @@ from iron_deficiency.final_models import (
     DEFAULT_DEMO_DIR,
     keep_final_model,
     startup_final_models,
+    training_parameters,
 )
 from iron_deficiency.task import Net
 
@@ -105,6 +106,7 @@ def main(grid: Grid, context: Context) -> None:
             for name, value in federated.items()
             if isinstance(value, (int, float))
         },
+        run_configuration=training_parameters(context.run_config),
         stored_at=datetime.now(UTC),
     )
 

@@ -33,11 +33,11 @@ class Role(models.TextChoices):
             case Role.GENERAL_PRACTITIONER:
                 return reverse("practice:patients")
             case Role.LABORATORY_STAFF:
-                return reverse("lab:to_analyse")
+                return reverse("lab:orders")
             case Role.LABORATORY_DIRECTOR:
                 return reverse("deployment:models")
             case Role.DATA_SCIENTIST:
-                return reverse("training:final_models")
+                return reverse("training:runs")
             case _:
                 assert_never(self)
 
@@ -51,7 +51,7 @@ class Role(models.TextChoices):
                 ]
             case Role.LABORATORY_STAFF:
                 return [
-                    {"url": reverse("lab:to_analyse"), "label": "To analyse"},
+                    {"url": reverse("lab:orders"), "label": "To analyse"},
                     {"url": reverse("lab:analysed"), "label": "Analysed"},
                 ]
             case Role.LABORATORY_DIRECTOR:
@@ -59,9 +59,7 @@ class Role(models.TextChoices):
                     {"url": reverse("deployment:models"), "label": "Screening models"}
                 ]
             case Role.DATA_SCIENTIST:
-                return [
-                    {"url": reverse("training:final_models"), "label": "Final models"}
-                ]
+                return [{"url": reverse("training:runs"), "label": "Training runs"}]
             case _:
                 assert_never(self)
 

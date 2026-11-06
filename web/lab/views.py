@@ -59,4 +59,4 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
                 )
             else:
                 messages.success(request, f"{released}.")
-        return redirect("lab:to_analyse")
+        return redirect("lab:orders")

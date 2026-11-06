@@ -62,6 +62,8 @@ class FinalModel:
     # Local validation: the confusion matrix at each threshold, and AUROC.
     confusion_matrices: dict[float, dict[str, int]] = field(default_factory=dict)
     local_auroc: float | None = None
+    # The startup's copy only: the training parameters the run was configured with.
+    run_configuration: dict[str, int | float] = field(default_factory=dict)
 
     def problem(self) -> Problem | None:
         if self.state_dict is None:
@@ -113,6 +115,7 @@ def file_contents(model: FinalModel) -> dict[str, Any]:
         "federated": model.federated,
         "confusion_matrices": model.confusion_matrices,
         "local_auroc": model.local_auroc,
+        "run_configuration": model.run_configuration,
     }
     return {
         key: value
@@ -167,6 +170,7 @@ def from_bytes(data: bytes) -> FinalModel:
             for threshold, counts in contents.get("confusion_matrices", {}).items()
         },
         local_auroc=float(local_auroc) if local_auroc is not None else None,
+        run_configuration=dict(contents.get("run_configuration", {})),
     )
 
 

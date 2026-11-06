@@ -139,7 +139,7 @@ def test_laboratory_staff_are_sent_to_their_start_page(
 ) -> None:
     client.force_login(make_laboratory_staff_member("Lab One"))
     response = client.get(reverse("deployment:models"), follow=True)
-    assert response.redirect_chain == [(reverse("lab:to_analyse"), 302)]
+    assert response.redirect_chain == [(reverse("lab:orders"), 302)]
     assertContains(response, "That page is for laboratory directors.")
 
 

@@ -24,6 +24,7 @@ def keep(directory: Path, run_id: str, auroc: float, at: datetime) -> None:
         run_id=int(run_id),
         state_dict=Net().state_dict(),
         federated={"eval_auroc": auroc},
+        run_configuration={"num-server-rounds": 3, "batch-size": 64},
         stored_at=at,
     )
 
@@ -96,6 +97,8 @@ def superlink(monkeypatch: pytest.MonkeyPatch) -> World:
         # What `flwr ls` answers: the runs, as its JSON lists them.
         "runs": [],
         "listing": None,
+        # What `flwr stop` answers, when not that it stopped the run.
+        "stop_answer": None,
     }
 
     def run(command: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
@@ -104,6 +107,8 @@ def superlink(monkeypatch: pytest.MonkeyPatch) -> World:
         if state["hangs"]:
             raise subprocess.TimeoutExpired(command, kwargs.get("timeout") or 0)
         answer = state["answer"]
+        if command[1] == "stop":
+            answer = state["stop_answer"] or {"success": True, "run-id": command[2]}
         if command[1] == "ls":
             answer = state["listing"] or {"success": True, "runs": state["runs"]}
         return subprocess.CompletedProcess(command, 0, json.dumps(answer), "")
@@ -133,14 +138,7 @@ def waited_at_most(superlink: World, seconds: int) -> None:
 
 @when("the data scientist submits a training run")
 def submit(world: World, superlink: World) -> None:
-    from django.core.exceptions import ValidationError
-
-    from web.training.runs import submit_run
-
-    try:
-        world["run_id"] = submit_run()
-    except ValidationError as error:
-        world["error"] = error
+    submit_form(world, {})
 
 
 @then("the SuperLink receives a run without a screening threshold")
@@ -149,6 +147,150 @@ def superlink_receives(superlink: World) -> None:
     assert "run" in command
     # The key the ServerApp read the threshold from.
     assert not any("screening-threshold" in part for part in command)
+
+
+def submit_form(world: World, data: dict[str, str]) -> None:
+    """Submit through the form, as the page does: defaults for what is not given."""
+    from django.core.exceptions import ValidationError
+
+    from web.training.forms import SubmitRunForm
+    from web.training.runs import submit_run
+
+    form = SubmitRunForm({**SubmitRunForm.defaults(), **data})
+    world["form"] = form
+    if not form.is_valid():
+        return
+    try:
+        world["run_id"] = submit_run(form.run_configuration())
+    except ValidationError as error:
+        world["error"] = error
+
+
+def field_named(label: str) -> str:
+    """The form field a scenario names by its label."""
+    from web.training.forms import SubmitRunForm
+
+    return next(
+        name
+        for name, field in SubmitRunForm.base_fields.items()
+        if str(field.label).lower() == label
+    )
+
+
+@when("the data scientist submits a training run with:")
+def submit_with(world: World, superlink: World, datatable: list[list[str]]) -> None:
+    labels, values = datatable
+    submit_form(
+        world,
+        {
+            field_named(label): value
+            for label, value in zip(labels, values, strict=True)
+        },
+    )
+
+
+@when(
+    parsers.re(
+        r"the data scientist submits a training run with (?P<label>[a-z ]+)"
+        r" (?P<value>-?[0-9.]+)$"
+    )
+)
+def submit_one(world: World, superlink: World, label: str, value: str) -> None:
+    submit_form(world, {field_named(label): value})
+
+
+def run_configuration_sent(superlink: World) -> dict[str, Any]:
+    """The run configuration `flwr run` was given: space-separated TOML pairs, as
+    Flower reads them (importing Flower here warns, which -W error fails)."""
+    import tomllib
+
+    [command] = superlink["commands"]
+    pairs = command[command.index("--run-config") + 1].split()
+    return tomllib.loads("\n".join(pairs))
+
+
+@then("the SuperLink receives the run configuration:")
+def receives_configuration(superlink: World, datatable: list[list[str]]) -> None:
+    sent = run_configuration_sent(superlink)
+    for key, value in datatable[1:]:
+        assert str(sent[key]) == value, (key, sent)
+
+
+@then("the run configuration sets no fraction of hospitals evaluating and no W&B key")
+def sets_nothing_else(superlink: World) -> None:
+    sent = run_configuration_sent(superlink)
+    assert "fraction-evaluate" not in sent
+    assert "wandb-api-key" not in sent
+
+
+@then(
+    parsers.re(
+        r'the run configuration is refused on (?P<label>[a-z ]+) with code "(?P<code>.+)"'
+    )
+)
+def configuration_refused(world: World, label: str, code: str) -> None:
+    errors = world["form"].errors.as_data()
+    assert [error.code for error in errors[field_named(label)]] == [code]
+
+
+@then("the SuperLink receives no run")
+def receives_no_run(superlink: World) -> None:
+    assert not [command for command in superlink["commands"] if command[1] == "run"]
+
+
+@when(
+    parsers.parse(
+        'the ServerApp keeps the final model of run "{run_id}" trained with run'
+        " configuration:"
+    )
+)
+def server_app_keeps_configured(
+    world: World, run_id: str, datatable: list[list[str]]
+) -> None:
+    import tomllib
+
+    from iron_deficiency.final_models import keep_final_model, training_parameters
+    from iron_deficiency.task import Net
+
+    run_config = {
+        key: value
+        if key in ("demo-dir", "wandb-api-key")
+        else tomllib.loads(f"v = {value}")["v"]
+        for key, value in datatable[1:]
+    }
+    keep_final_model(
+        world["final_models_dir"],
+        run_id=int(run_id),
+        state_dict=Net().state_dict(),
+        federated={"eval_auroc": 0.86},
+        run_configuration=training_parameters(run_config),
+        stored_at=NOW,
+    )
+
+
+@then(parsers.parse('final model "{run_id}" shows run configuration "{shown}"'))
+def shows_configuration(world: World, run_id: str, shown: str) -> None:
+    from web.training.final_models import final_models
+
+    [model] = [
+        model
+        for model in final_models(world["final_models_dir"])
+        if model.run_id == run_id
+    ]
+    assert model.run_configuration_shown == shown
+
+
+@then(
+    parsers.parse(
+        'the startup\'s copy of final model "{run_id}" holds no W&B key and no folder'
+    )
+)
+def holds_no_secret(world: World, run_id: str) -> None:
+    from iron_deficiency.screening import final_model_path, read
+
+    kept = read(final_model_path(world["final_models_dir"], run_id))
+    assert "wandb-api-key" not in kept.run_configuration
+    assert "demo-dir" not in kept.run_configuration
 
 
 @then("the submission gives the run's ID")
@@ -180,8 +322,8 @@ def weights(world: World) -> None:
 
 
 @then(
-    "it holds no threshold, no standardization and no metrics: the buyer chooses"
-    " and standardizes on its own cohort"
+    "it holds no threshold, no standardization, no metrics and no run"
+    " configuration: the buyer chooses and standardizes on its own cohort"
 )
 def nothing_else(world: World) -> None:
     import io
@@ -327,3 +469,39 @@ def test_only_an_unfinished_run_is_in_progress(status: str) -> None:
     from web.training.runs import RunStatus
 
     assert RunStatus(status).in_progress == (not status.startswith("finished:"))
+
+
+@given(parsers.parse('the SuperLink knows run "{run_id}" is running'))
+def superlink_knows_running(superlink: World, run_id: str) -> None:
+    superlink["runs"] = [flower_run(run_id, "running")]
+
+
+@given("the SuperLink refuses to stop it")
+def superlink_refuses_stop(superlink: World) -> None:
+    superlink["stop_answer"] = {
+        "success": False,
+        "error-message": "Run 7 couldn't be stopped.",
+    }
+
+
+@when(parsers.parse('the data scientist stops training run "{run_id}"'))
+def stop(world: World, superlink: World, run_id: str) -> None:
+    from django.core.exceptions import ValidationError
+
+    from web.training.runs import stop_run
+
+    try:
+        stop_run(int(run_id))
+    except ValidationError as error:
+        world["error"] = error
+
+
+@then(parsers.parse('the SuperLink is asked to stop run "{run_id}"'))
+def asked_to_stop(superlink: World, run_id: str) -> None:
+    stops = [command for command in superlink["commands"] if command[1] == "stop"]
+    assert [command[2] for command in stops] == [run_id]
+
+
+@then(parsers.parse('stopping is refused with code "{code}"'))
+def stopping_refused(world: World, code: str) -> None:
+    assert world["error"].code == code

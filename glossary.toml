@@ -332,3 +332,43 @@ rejected = ["export", "share", "release"]
 source = "Flower CLI, `flwr ls`: \"Current status of the run (pending, starting, running, finished)\"; a finished run is completed, failed or stopped (Flower, `flwr.common.constant.SubStatus`)"
 why = "Where a training run is, in the data scientist's own tool's words: Pending, Starting, Running, Completed, Failed, Stopped"
 rejected = ["progress", "state", "in progress / done"]
+
+["run configuration"]
+source = "Flower CLI, `flwr run --run-config`; the app's `[tool.flwr.app.config]`; report DF4 \"App, run configuration\""
+why = "What the data scientist chooses when submitting, and what the startup keeps with each final model: only the training parameters, never the folder or the W&B key it also carries"
+rejected = ["settings", "hyperparameters (a developer word, and not all of it)", "options"]
+
+["rounds"]
+source = "Flower run configuration `num-server-rounds`; report \"In each of three FedAvg rounds\""
+why = "How many times every hospital trains the global model and returns its weights"
+rejected = ["iterations", "server rounds"]
+
+["local epochs"]
+source = "Flower run configuration `local-epochs`; report \"every hospital trains the global model for one epoch\""
+why = "How many passes over its own cohort each hospital makes per round"
+rejected = ["epochs (ambiguous across rounds)", "passes"]
+
+["learning rate"]
+source = "PyTorch `torch.optim.Adam(lr=…)`; run configuration `learning-rate`; report DF8 \"Global weights and learning rate each round\""
+why = "The optimiser's step size, which the ServerApp sends every hospital each round"
+rejected = ["lr", "step size"]
+
+["weight decay"]
+source = "PyTorch `torch.optim.Adam(weight_decay=…)`; run configuration `weight-decay`"
+why = "The optimiser's L2 penalty, as PyTorch names it"
+rejected = ["L2 penalty", "regularisation"]
+
+["batch size"]
+source = "PyTorch `DataLoader(batch_size=…)`; run configuration `batch-size`"
+why = "How many patients' records each training step averages over; the form keeps it at 32 or more, so no step is a single patient's"
+rejected = ["minibatch", "chunk size"]
+
+["seed"]
+source = "Run configuration `model-seed` (pyproject.toml: \"Initial weights and dropout; data splits stay fixed\")"
+why = "What makes a run's initial weights and dropout repeatable"
+rejected = ["random state", "model seed (the key, not the word)"]
+
+["stop"]
+source = "Flower CLI, `flwr stop`: \"Stop a Flower run\"; the run status Stopped"
+why = "What the data scientist does to a training run in progress they no longer want, so no hospital trains or sends weights for it any more"
+rejected = ["cancel", "abort", "kill"]

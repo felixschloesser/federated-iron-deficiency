@@ -1,4 +1,4 @@
-"""Views of the startup's training runs: who may, what the Final models page shows."""
+"""Views of the startup's training runs: who may, what the Training runs page shows."""
 
 import json
 import subprocess
@@ -16,6 +16,7 @@ from pytest_django.fixtures import Settings
 from iron_deficiency.final_models import keep_final_model
 from iron_deficiency.task import Net
 from tests.conftest import make_data_scientist, make_laboratory_director
+from web.training.forms import SubmitRunForm
 
 pytestmark = pytest.mark.django_db
 
@@ -42,11 +43,11 @@ def test_final_models_page(
     client.force_login(make_data_scientist("Data One"))
     # Session, user with role.
     with django_assert_num_queries(2):
-        response = client.get(reverse("training:final_models"))
+        response = client.get(reverse("training:runs"))
     assertContains(
         response,
-        "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.86</td>"
-        '<td><a href="/training/final-models/7/for-sale/" download'
+        "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.86</td><td>—</td>"
+        '<td><a href="/training/runs/7/for-sale/" download'
         ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
         "</td></tr>",
         html=True,
@@ -55,7 +56,7 @@ def test_final_models_page(
 
 def test_a_laboratory_director_is_sent_to_their_own_page(client: Client) -> None:
     client.force_login(make_laboratory_director("Director One"))
-    response = client.get(reverse("training:final_models"))
+    response = client.get(reverse("training:runs"))
     assertRedirects(response, reverse("deployment:models"))
 
 
@@ -98,14 +99,15 @@ def test_the_page_shows_each_training_runs_status(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answering(monkeypatch, {}, {"success": True, "runs": [RUNNING]})
-    response = client.get(reverse("training:final_models"))
-    assertContains(
-        response,
-        '<tr><td>7</td><td class="no-wrap"><strong>Running</strong></td>'
-        '<td class="no-wrap">30 Oct 2026, 15:02</td><td class="no-wrap">0:01:01</td>'
-        "<td>—</td></tr>",
-        html=True,
-    )
+    response = client.get(reverse("training:runs"))
+    for cell in (
+        "<td>7</td>",
+        '<td class="no-wrap"><strong>Running</strong></td>',
+        '<td class="no-wrap">30 Oct 2026, 15:02</td>',
+        '<td class="no-wrap">0:01:01</td>',
+        "<td>—</td>",
+    ):
+        assertContains(response, cell, html=True)
     assertContains(response, "reload the page")
 
 
@@ -118,11 +120,11 @@ def test_without_the_superlink_the_page_says_the_statuses_are_unknown(
         {},
         {"success": False, "error-message": "Connection to 127.0.0.1:9093 unavailable"},
     )
-    response = client.get(reverse("training:final_models"))
+    response = client.get(reverse("training:runs"))
     assertContains(response, "the training runs&#x27; statuses are unknown")
     assertNotContains(response, "127.0.0.1")
     # The final models still show.
-    assertContains(response, 'href="/training/final-models/7/for-sale/"')
+    assertContains(response, 'href="/training/runs/7/for-sale/"')
 
 
 @pytest.mark.usefixtures("data_scientist")
@@ -137,7 +139,7 @@ def test_a_submission_without_an_answer_points_to_the_training_runs(
         raise subprocess.TimeoutExpired(command, 20)
 
     monkeypatch.setattr(subprocess, "run", run)
-    response = client.post(reverse("training:final_models"))
+    response = client.post(reverse("training:runs"), SubmitRunForm.defaults())
     assertContains(response, "check the training runs below before submitting again")
 
 
@@ -151,8 +153,8 @@ def test_submitting_a_run_redirects_to_the_final_models(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answering(monkeypatch, {"success": True, "run-id": "7"})
-    response = client.post(reverse("training:final_models"))
-    assertRedirects(response, reverse("training:final_models"))
+    response = client.post(reverse("training:runs"), SubmitRunForm.defaults())
+    assertRedirects(response, reverse("training:runs"))
     assert [str(message) for message in get_messages(response.wsgi_request)] == [
         "Training run 7 submitted. Its final model appears here when the run finishes."
     ]
@@ -163,7 +165,7 @@ def test_a_refused_run_says_why(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answering(monkeypatch, {"success": False, "error-message": "unavailable"})
-    response = client.post(reverse("training:final_models"))
+    response = client.post(reverse("training:runs"), SubmitRunForm.defaults())
     assert response.status_code == 200
     errors = response.context["form"].errors.as_data()["__all__"]
     assert [error.code for error in errors] == ["superlink_refused"]
@@ -176,7 +178,9 @@ def test_a_deployment_tells_the_server_app_its_demo_folder(
     from web.training.runs import run_configuration
 
     settings.STARTUP_DIR = tmp_path / "startup"
-    assert run_configuration() == f"demo-dir='{tmp_path}'"
+    assert (
+        run_configuration({"batch-size": 64}) == f"batch-size=64 demo-dir='{tmp_path}'"
+    )
 
 
 @pytest.mark.usefixtures("data_scientist")
@@ -191,7 +195,7 @@ def test_a_run_without_an_answer_shows_no_server_paths(
         return subprocess.CompletedProcess(command, 1, "", "/srv/flwr-home/config.toml")
 
     monkeypatch.setattr(subprocess, "run", run)
-    response = client.post(reverse("training:final_models"))
+    response = client.post(reverse("training:runs"), SubmitRunForm.defaults())
     assertContains(response, "The SuperLink refused the run: it gave no answer")
     assertNotContains(response, "/srv/flwr-home")
 
@@ -230,8 +234,70 @@ def test_only_the_data_scientist_downloads_for_sale(
 def test_each_final_model_links_to_its_sale(
     client: Client, final_models_dir: Path
 ) -> None:
-    response = client.get(reverse("training:final_models"))
+    response = client.get(reverse("training:runs"))
     assertContains(
         response,
         f'href="{reverse("training:for_sale", kwargs={"run_id": "7"})}"',
+    )
+
+
+def test_every_offered_parameter_is_kept_with_the_final_model() -> None:
+    from iron_deficiency.final_models import TRAINING_PARAMETERS
+
+    for name in SubmitRunForm.base_fields:
+        assert name.replace("_", "-") in TRAINING_PARAMETERS
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_the_form_starts_at_the_apps_own_run_configuration(client: Client) -> None:
+    response = client.get(reverse("training:runs"))
+    assertContains(response, 'name="batch_size" value="64"')
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_only_a_run_in_progress_offers_stop(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    completed = {**RUNNING, "run-id": "6", "status": "finished:completed"}
+    answering(monkeypatch, {}, {"success": True, "runs": [RUNNING, completed]})
+    response = client.get(reverse("training:runs"))
+    assertContains(response, 'action="/training/runs/7/stop/"')
+    assertContains(response, 'aria-label="Stop training run 7"')
+    assertNotContains(response, 'action="/training/runs/6/stop/"')
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_stopping_a_run_returns_to_the_training_runs(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    answering(monkeypatch, {"success": True, "run-id": "7"})
+    response = client.post(reverse("training:stop", kwargs={"run_id": 7}))
+    assertRedirects(response, reverse("training:runs"))
+    assert [str(message) for message in get_messages(response.wsgi_request)] == [
+        "Training run 7 stopped."
+    ]
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_refused_stop_says_why(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    answering(monkeypatch, {"success": False, "error-message": "no such run"})
+    response = client.post(reverse("training:stop", kwargs={"run_id": 7}))
+    assertRedirects(response, reverse("training:runs"))
+    assert [str(message) for message in get_messages(response.wsgi_request)] == [
+        "The SuperLink did not stop training run 7: no such run"
+    ]
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_without_the_superlink_the_page_offers_no_submission(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    answering(monkeypatch, {}, {"success": False, "error-message": "unavailable"})
+    response = client.get(reverse("training:runs"))
+    assert response.context["submits"] is False
+    assertNotContains(response, 'name="batch_size"')
+    assertContains(
+        response, "Submitting and stopping runs come back when the SuperLink answers."
     )
