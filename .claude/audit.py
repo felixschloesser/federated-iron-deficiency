@@ -1,6 +1,6 @@
 """Repository audit: counts rule violations against a baseline that only goes down.
 
-Run `python tools/audit.py` as a commit gate; `--update` lowers the baseline
+Run `python .claude/audit.py` as a commit gate; `--update` lowers the baseline
 after a fix and refuses to raise it.
 """
 
@@ -17,8 +17,8 @@ from typing import assert_never
 from web.party import Party
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = Path("tools") / "audit_baseline.json"
-ALLOWLIST = Path("tools") / "audit_allowlist.toml"
+BASELINE = Path(".claude") / "audit_baseline.json"
+ALLOWLIST = Path(".claude") / "audit_allowlist.toml"
 GLOSSARY = Path("glossary.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
 BUILD_OUTPUT = {"staticfiles"}
