@@ -15,6 +15,7 @@ GENERATED = (
 )
 
 
+@pytest.mark.subprocess
 def test_generated_code_matches_the_proto(tmp_path: Path) -> None:
     subprocess.run(
         [

@@ -376,7 +376,7 @@ def test_each_project_runs_images_of_its_own() -> None:
 
 
 # Scenarios on compose.yaml as declared (features/quality/); the running
-# containers are in test_containers.py.
+# containers are in tests/containers/.
 
 
 @scenario(

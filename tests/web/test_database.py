@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 import pytest
 from django.db import connection
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = [pytest.mark.subprocess, pytest.mark.django_db(transaction=True)]
 
 # Long enough for the service to reach its write while the other process holds the lock.
 OTHER_COMMITS_AFTER_SECONDS = 1.0
