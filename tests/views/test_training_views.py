@@ -332,3 +332,25 @@ def test_a_file_not_named_after_a_run_is_no_final_model(
     (final_models_dir / "7.pt").rename(final_models_dir / "run123.pt")
     assert final_models(final_models_dir) == []
     assert screening_models(final_models_dir) == []
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_final_model_not_sent_offers_send(
+    client: Client, final_models_dir: Path
+) -> None:
+    response = client.get(reverse("training:runs"))
+    assertContains(response, '<td data-label="Hospitals">Not sent', html=False)
+    assertContains(response, 'action="/training/runs/7/send/"')
+    assertContains(response, 'aria-label="Send final model of run 7 to the hospitals"')
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_sending_a_final_model_returns_with_its_run(
+    client: Client, monkeypatch: pytest.MonkeyPatch, final_models_dir: Path
+) -> None:
+    answering(monkeypatch, {"success": True, "run-id": "8"})
+    response = client.post(reverse("training:send", kwargs={"run_id": "7"}))
+    assertRedirects(response, reverse("training:runs"))
+    assert [str(message) for message in get_messages(response.wsgi_request)] == [
+        "Run 8 sends final model of run 7 to every hospital."
+    ]

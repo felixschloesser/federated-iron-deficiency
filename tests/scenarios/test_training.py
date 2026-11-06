@@ -505,3 +505,119 @@ def asked_to_stop(superlink: World, run_id: str) -> None:
 @then(parsers.parse('stopping is refused with code "{code}"'))
 def stopping_refused(world: World, code: str) -> None:
     assert world["error"].code == code
+
+
+@when(parsers.parse('the data scientist sends final model "{run_id}" to the hospitals'))
+def send(world: World, superlink: World, run_id: str) -> None:
+    from django.core.exceptions import ValidationError
+
+    from web.training.models import Sending
+
+    superlink["answer"] = {"success": True, "run-id": "8"}
+    try:
+        world["sending"] = Sending.objects.send(
+            final_model=run_id, sent_by=world["data_scientist"], now=NOW
+        )
+    except ValidationError as error:
+        world["error"] = error
+
+
+@then(
+    parsers.parse(
+        'the SuperLink receives a run with run configuration "{key}" {value:d}'
+    )
+)
+def receives_run_with(superlink: World, key: str, value: int) -> None:
+    assert run_configuration_sent(superlink)[key] == value
+
+
+@then(
+    parsers.parse(
+        'the startup records that run "{run_id}" sends final model "{final_model}",'
+        ' sent by "{name}"'
+    )
+)
+def records_sending(world: World, run_id: str, final_model: str, name: str) -> None:
+    from web.training.models import Sending
+
+    sending = Sending.objects.get()
+    assert (sending.run_id, sending.final_model) == (run_id, final_model)
+    assert sending.sent_by.user.get_full_name() == name
+    assert sending.submitted_at == NOW
+
+
+@when(parsers.parse('the ServerApp reads final model "{run_id}" to send'))
+def server_app_reads(world: World, run_id: str) -> None:
+    from iron_deficiency.final_models import final_model_to_send
+
+    try:
+        world["to_send"] = final_model_to_send(world["final_models_dir"], int(run_id))
+    except FileNotFoundError as error:
+        world["error"] = error
+
+
+@then(
+    parsers.parse(
+        "it sends the weights, the AUROC across hospitals and run ID {run_id:d}"
+    )
+)
+def sends_what(world: World, run_id: int) -> None:
+    to_send = world["to_send"]
+    assert to_send.state_dict is not None
+    assert to_send.federated == {"eval_auroc": 0.85}
+    assert to_send.run_id == run_id
+
+
+@then("it sends no run configuration")
+def sends_no_configuration(world: World) -> None:
+    assert world["to_send"].run_configuration == {}
+
+
+@then(parsers.parse("sending is refused: there is no final model of run {run_id:d}"))
+def sending_refused(world: World, run_id: int) -> None:
+    assert str(world["error"]) == f"There is no final model of run {run_id}."
+
+
+@given(
+    parsers.parse(
+        'the data scientist sent final model "{final_model}" in run "{run_id}"'
+    )
+)
+def sent_before(world: World, final_model: str, run_id: str) -> None:
+    from web.training.models import Sending
+
+    Sending.objects.create(
+        final_model=final_model,
+        run_id=run_id,
+        sent_by=world["data_scientist"],
+        submitted_at=NOW,
+    )
+
+
+@given(parsers.parse('the SuperLink knows run "{run_id}" is "{status}"'))
+def superlink_knows_status(superlink: World, run_id: str, status: str) -> None:
+    superlink["runs"] = [flower_run(run_id, status)]
+
+
+def delivery_of(world: World, run_id: str) -> Any:
+    from web.training.final_models import deliveries, final_models
+    from web.training.runs import training_runs
+
+    kept = final_models(world["final_models_dir"])
+    return deliveries(kept, training_runs())[run_id]
+
+
+@then(parsers.parse('final model "{run_id}" shows "{shown}"'))
+def final_model_shows_delivery(
+    world: World, superlink: World, run_id: str, shown: str
+) -> None:
+    assert delivery_of(world, run_id).label == shown
+
+
+@then(
+    parsers.re(
+        r'final model "(?P<run_id>\d+)" (?P<offers>offers|does not offer) Send to hospitals'
+    )
+)
+def offers_send(world: World, superlink: World, run_id: str, offers: str) -> None:
+    assert delivery_of(world, run_id).offers_send is (offers == "offers")

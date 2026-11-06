@@ -130,3 +130,38 @@ Feature: The startup's training runs
       | state                  | code                   |
       | refuses to stop it     | superlink_refused_stop |
       | does not answer        | superlink_no_answer    |
+
+  Scenario: Sending a final model to every hospital is a run of its own
+    Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
+    When the data scientist sends final model "7" to the hospitals
+    Then the SuperLink receives a run with run configuration "send-final-model" 7
+    And the startup records that run "8" sends final model "7", sent by "Data One"
+
+  Scenario: What a sent final model holds
+    Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
+    When the ServerApp reads final model "7" to send
+    Then it sends the weights, the AUROC across hospitals and run ID 7
+    And it sends no run configuration
+
+  Scenario: No final model to send
+    When the ServerApp reads final model "9" to send
+    Then sending is refused: there is no final model of run 9
+
+  Scenario Outline: Each final model shows whether it reached the hospitals
+    Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
+    And the data scientist sent final model "7" in run "8"
+    And the SuperLink knows run "8" is "<status>"
+    Then final model "7" shows "<shown>"
+    And final model "7" <offers> Send to hospitals
+
+    Examples:
+      | status             | shown                               | offers         |
+      | running            | Sending                             | does not offer |
+      | finished:completed | Sent                                | does not offer |
+      | finished:failed    | Not sent: the send did not finish   | offers         |
+      | finished:stopped   | Not sent: the send did not finish   | offers         |
+
+  Scenario: A final model not sent yet
+    Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
+    Then final model "7" shows "Not sent"
+    And final model "7" offers Send to hospitals
