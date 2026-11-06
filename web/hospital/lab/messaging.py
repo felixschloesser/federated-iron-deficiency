@@ -8,8 +8,8 @@ import grpc
 from django.db import close_old_connections, models
 from django.utils import timezone
 
-from web.lab.forms import LabOrderForm
-from web.lab.models import LabOrder, LabOrderDetails, Practice
+from web.hospital.lab.forms import LabOrderForm
+from web.hospital.lab.models import LabOrder, LabOrderDetails, Practice
 from web.messaging import messages_pb2, messages_pb2_grpc
 from web.messaging.convert import from_proto, moment, timestamp, to_proto
 from web.vocabulary import RegisteredSex, Test

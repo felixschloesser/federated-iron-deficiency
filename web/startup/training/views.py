@@ -13,10 +13,14 @@ from django.views.generic import FormView, TemplateView
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.models import User
 from web.accounts.roles import Role
-from web.training.final_models import final_models, for_sale, transmission_statuses
-from web.training.forms import SubmitRunForm
-from web.training.models import Transmission
-from web.training.runs import TrainingRun, stop_run, submit_run, training_runs
+from web.startup.training.final_models import (
+    final_models,
+    for_sale,
+    transmission_statuses,
+)
+from web.startup.training.forms import SubmitRunForm
+from web.startup.training.models import Transmission
+from web.startup.training.runs import TrainingRun, stop_run, submit_run, training_runs
 
 
 class DataScientistRequiredMixin(RoleRequiredMixin):

@@ -9,8 +9,8 @@ from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from ml.cohort import CBC_VARS
 from tests.conftest import World, collect_and_order, deliver, suggest_ferritin_on
-from web.lab.models import LabOrder, Sample
-from web.nhanes.models import FERRITIN, Participant
+from web.hospital.lab.models import LabOrder, Sample
+from web.hospital.nhanes.models import FERRITIN, Participant
 from web.practice.models import Patient
 from web.vocabulary import ClinicalIndication
 from web.vocabulary import Test as OrderedTest
@@ -94,7 +94,7 @@ def an_analysed_sample(world: World, test: str, patient: str) -> None:
     parsers.parse('the analyser stand-in has no values for the sample of "{patient}"')
 )
 def no_tube(world: World, patient: str) -> None:
-    from web.nhanes.models import Participant
+    from web.hospital.nhanes.models import Participant
 
     seqn = int(world["patients"][patient].nhanes_number)
     Participant.objects.filter(seqn=seqn).delete()

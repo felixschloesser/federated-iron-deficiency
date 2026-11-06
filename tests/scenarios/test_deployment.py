@@ -128,7 +128,7 @@ def also_at(
 
 
 def deploy(world: World, run_id: str, threshold: float) -> None:
-    from web.deployment.models import Deployment
+    from web.hospital.deployment.models import Deployment
 
     try:
         Deployment.objects.deploy(
@@ -231,7 +231,7 @@ def staff_tries(
 
 def deployed(world: World) -> tuple[str, float] | None:
     """The run ID and threshold of the model that screens now, if one can."""
-    from web.deployment.models import Deployment, Screener
+    from web.hospital.deployment.models import Deployment, Screener
 
     screener = Deployment.objects.screener(world["screening_models_dir"])
     if not isinstance(screener, Screener):
@@ -245,7 +245,7 @@ def deployed_run(world: World) -> str | None:
 
 
 def no_usable_model(world: World) -> object:
-    from web.deployment.models import Deployment, Screener
+    from web.hospital.deployment.models import Deployment, Screener
 
     deployed = Deployment.objects.screener(world["screening_models_dir"])
     return None if isinstance(deployed, Screener) else deployed
@@ -253,14 +253,14 @@ def no_usable_model(world: World) -> object:
 
 @then("there is no deployed model")
 def no_deployed_model(world: World) -> None:
-    from web.deployment.models import NoUsableModel
+    from web.hospital.deployment.models import NoUsableModel
 
     assert no_usable_model(world) is NoUsableModel.NO_DEPLOYED_MODEL
 
 
 @then(parsers.parse('screening models "{first}" and "{second}" can be deployed'))
 def can_be_deployed(world: World, first: str, second: str) -> None:
-    from web.deployment.model_files import screening_models
+    from web.hospital.deployment.model_files import screening_models
 
     listed = {
         model.run_id: model for model in screening_models(world["screening_models_dir"])
@@ -281,7 +281,7 @@ def is_deployed(world: World, run_id: str, threshold: float) -> None:
     )
 )
 def records_validation(world: World, sensitivity: str, specificity: str) -> None:
-    from web.deployment.models import Deployment
+    from web.hospital.deployment.models import Deployment
 
     latest = Deployment.objects.latest("deployed_at", "pk")
     counts = latest.screening_model.local_validation
@@ -293,7 +293,7 @@ def records_validation(world: World, sensitivity: str, specificity: str) -> None
 
 @then(parsers.re(r"the deployment history lists (?P<entries>.+)$"))
 def history(world: World, entries: str) -> None:
-    from web.deployment.models import Deployment
+    from web.hospital.deployment.models import Deployment
 
     listed = [
         f'"{deployment.screening_model.run_id}" at {deployment.screening_model.threshold:g}'
@@ -327,7 +327,7 @@ def shows_validation(
     npv: str,
     auroc: str,
 ) -> None:
-    from web.deployment.model_files import screening_models
+    from web.hospital.deployment.model_files import screening_models
 
     (model,) = [
         m for m in screening_models(world["screening_models_dir"]) if m.run_id == run_id
@@ -349,7 +349,7 @@ def shows_validation(
     )
 )
 def cannot_be_deployed(world: World, run_id: str, code: str) -> None:
-    from web.deployment.model_files import screening_models
+    from web.hospital.deployment.model_files import screening_models
 
     (model,) = [
         m for m in screening_models(world["screening_models_dir"]) if m.run_id == run_id
@@ -383,7 +383,7 @@ def page_says_changed(world: World) -> None:
 def test_every_problem_of_a_file_is_a_reason_it_cannot_be_deployed(
     problem: Problem,
 ) -> None:
-    from web.deployment.model_files import CannotDeploy
+    from web.hospital.deployment.model_files import CannotDeploy
 
     # The reason code is what the scenarios and the refusal's error code name.
     assert CannotDeploy.because(problem).value == problem.value
@@ -395,7 +395,7 @@ def test_the_database_refuses_a_threshold_outside_zero_and_one(
 ) -> None:
     from django.db import IntegrityError, transaction
 
-    from web.deployment.models import ScreeningModel
+    from web.hospital.deployment.models import ScreeningModel
 
     screening_model = ScreeningModel(run_id="1", sha256="0" * 64, threshold=threshold)
     with pytest.raises(ValidationError) as refused:

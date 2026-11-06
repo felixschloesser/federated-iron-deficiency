@@ -23,10 +23,10 @@ from tests.conftest import (
     suggest_ferritin_on,
 )
 from web.accounts.models import User
-from web.lab.messaging import serve
-from web.lab.models import LabOrder, Practice, Sample
+from web.hospital.lab.messaging import serve
+from web.hospital.lab.models import LabOrder, Practice, Sample
+from web.hospital.nhanes.models import Participant
 from web.messaging import messages_pb2, messages_pb2_grpc
-from web.nhanes.models import Participant
 from web.practice import messaging
 from web.practice.models import (
     Laboratory,
@@ -208,7 +208,7 @@ def released(world: World, name: str, patient: str) -> None:
     )
 )
 def released_suggested(world: World, name: str, patient: str) -> None:
-    from web.lab.models import ScreeningResult
+    from web.hospital.lab.models import ScreeningResult
 
     order(world, patient, OrderedTest.CBC, "unexplained fatigue")
     messaging.send_pending_lab_orders(world["laboratory"], now=NOW)
@@ -665,7 +665,7 @@ def test_add_laboratory_adds_it_then_changes_its_address() -> None:
 def test_add_practice_adds_it_then_changes_its_name() -> None:
     """The hospital registers each practice it works with by the certificate name
     it issued (glossary.toml); the name shown can change, the key cannot."""
-    from web.lab.models import Practice
+    from web.hospital.lab.models import Practice
 
     call_command("add_practice", "de-ceder", "Huisartsenpraktijk De Ceder")
     call_command("add_practice", "de-ceder", "Groepspraktijk De Ceder")

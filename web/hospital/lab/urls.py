@@ -1,6 +1,6 @@
 from django.urls import path
 
-from web.lab import views
+from web.hospital.lab import views
 
 app_name = "lab"
 urlpatterns = [

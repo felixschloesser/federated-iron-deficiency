@@ -11,7 +11,7 @@ from ml.cohort import CBC_VARS
 from tests.conftest import PEOPLE, nhanes_rows
 from web.accounts.models import User
 from web.accounts.roles import Role, role_of
-from web.nhanes.models import Participant
+from web.hospital.nhanes.models import Participant
 from web.practice.models import Patient
 from web.seeding import command as seeding
 from web.vocabulary import RegisteredSex
@@ -132,7 +132,7 @@ def test_eligible_women_without_ferritin_are_never_seeded(seeded: None) -> None:
 
 
 def test_a_made_up_ferritin_is_reported_under_its_own_name() -> None:
-    from web.nhanes.models import MADE_UP_FERRITIN
+    from web.hospital.nhanes.models import MADE_UP_FERRITIN
     from web.vocabulary import RESULT_NAMES, Test
 
     participant = Participant(seqn=1, cbc={}, ferritin=None, made_up_ferritin=60.0)
