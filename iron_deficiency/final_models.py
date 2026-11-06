@@ -1,6 +1,7 @@
 """Final models as each hospital stores them, and the startup's own copy: one
 file per training run."""
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -18,6 +19,18 @@ from iron_deficiency.screening import (
 )
 from iron_deficiency.task import Net, load_data, standardization, test
 
+# The run configuration that says how a model was trained; never the folder it
+# was kept in nor the W&B key, which the run configuration also carries.
+TRAINING_PARAMETERS = (
+    "num-server-rounds",
+    "fraction-evaluate",
+    "local-epochs",
+    "learning-rate",
+    "weight-decay",
+    "batch-size",
+    "model-seed",
+)
+
 # Where final models live when no demo directory is configured.
 DEFAULT_DEMO_DIR = Path.home() / ".cache" / "iron-deficiency"
 
@@ -33,6 +46,15 @@ def startup_final_models(demo_dir: Path) -> Path:
     return demo_dir / "startup" / "final-models"
 
 
+def training_parameters(run_config: Mapping[str, object]) -> dict[str, int | float]:
+    """The training parameters of a run configuration, and nothing else of it."""
+    return {
+        key: value
+        for key, value in run_config.items()
+        if key in TRAINING_PARAMETERS and isinstance(value, (int, float))
+    }
+
+
 def keep_final_model(
     directory: Path,
     *,
@@ -40,6 +62,7 @@ def keep_final_model(
     state_dict: dict[str, torch.Tensor],
     federated: dict[str, float],
     stored_at: datetime,
+    run_configuration: dict[str, int | float] | None = None,
 ) -> Path:
     """Keep the startup's copy of a training run's final model (DS4): what every
     hospital was sent, without any hospital's standardization or validation."""
@@ -51,6 +74,7 @@ def keep_final_model(
             run_id=run_id,
             stored_at=stored_at,
             federated=federated,
+            run_configuration=run_configuration or {},
         ),
     )
     return path

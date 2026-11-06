@@ -16,6 +16,7 @@ from pytest_django.fixtures import Settings
 from iron_deficiency.final_models import keep_final_model
 from iron_deficiency.task import Net
 from tests.conftest import make_data_scientist, make_laboratory_director
+from web.training.forms import SubmitRunForm
 
 pytestmark = pytest.mark.django_db
 
@@ -45,7 +46,7 @@ def test_final_models_page(
         response = client.get(reverse("training:runs"))
     assertContains(
         response,
-        "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.86</td>"
+        "<tr><td>30 Oct 2026, 10:00</td><td>7</td><td>0.86</td><td>—</td>"
         '<td><a href="/training/runs/7/for-sale/" download'
         ' aria-label="Download final model of run 7 for sale">Download for sale</a>'
         "</td></tr>",
@@ -137,7 +138,7 @@ def test_a_submission_without_an_answer_points_to_the_training_runs(
         raise subprocess.TimeoutExpired(command, 20)
 
     monkeypatch.setattr(subprocess, "run", run)
-    response = client.post(reverse("training:runs"))
+    response = client.post(reverse("training:runs"), SubmitRunForm.defaults())
     assertContains(response, "check the training runs below before submitting again")
 
 
@@ -151,7 +152,7 @@ def test_submitting_a_run_redirects_to_the_final_models(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answering(monkeypatch, {"success": True, "run-id": "7"})
-    response = client.post(reverse("training:runs"))
+    response = client.post(reverse("training:runs"), SubmitRunForm.defaults())
     assertRedirects(response, reverse("training:runs"))
     assert [str(message) for message in get_messages(response.wsgi_request)] == [
         "Training run 7 submitted. Its final model appears here when the run finishes."
@@ -163,7 +164,7 @@ def test_a_refused_run_says_why(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answering(monkeypatch, {"success": False, "error-message": "unavailable"})
-    response = client.post(reverse("training:runs"))
+    response = client.post(reverse("training:runs"), SubmitRunForm.defaults())
     assert response.status_code == 200
     errors = response.context["form"].errors.as_data()["__all__"]
     assert [error.code for error in errors] == ["superlink_refused"]
@@ -176,7 +177,9 @@ def test_a_deployment_tells_the_server_app_its_demo_folder(
     from web.training.runs import run_configuration
 
     settings.STARTUP_DIR = tmp_path / "startup"
-    assert run_configuration() == f"demo-dir='{tmp_path}'"
+    assert (
+        run_configuration({"batch-size": 64}) == f"batch-size=64 demo-dir='{tmp_path}'"
+    )
 
 
 @pytest.mark.usefixtures("data_scientist")
@@ -191,7 +194,7 @@ def test_a_run_without_an_answer_shows_no_server_paths(
         return subprocess.CompletedProcess(command, 1, "", "/srv/flwr-home/config.toml")
 
     monkeypatch.setattr(subprocess, "run", run)
-    response = client.post(reverse("training:runs"))
+    response = client.post(reverse("training:runs"), SubmitRunForm.defaults())
     assertContains(response, "The SuperLink refused the run: it gave no answer")
     assertNotContains(response, "/srv/flwr-home")
 
@@ -235,3 +238,16 @@ def test_each_final_model_links_to_its_sale(
         response,
         f'href="{reverse("training:for_sale", kwargs={"run_id": "7"})}"',
     )
+
+
+def test_every_offered_parameter_is_kept_with_the_final_model() -> None:
+    from iron_deficiency.final_models import TRAINING_PARAMETERS
+
+    for name in SubmitRunForm.base_fields:
+        assert name.replace("_", "-") in TRAINING_PARAMETERS
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_the_form_starts_at_the_apps_own_run_configuration(client: Client) -> None:
+    response = client.get(reverse("training:runs"))
+    assertContains(response, 'name="batch_size" value="64"')

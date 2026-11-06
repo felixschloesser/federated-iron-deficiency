@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from iron_deficiency.screening import FinalModel, final_model_path, from_bytes, to_bytes
+from web.training.forms import SubmitRunForm
 
 
 @dataclass(frozen=True)
@@ -14,6 +15,17 @@ class KeptFinalModel:
     run_id: str
     stored_at: datetime | None
     federated_auroc: float | None
+    run_configuration: dict[str, int | float]
+
+    @property
+    def run_configuration_shown(self) -> str | None:
+        """The parameters the data scientist chose, in the form's words and order."""
+        shown = [
+            f"{field.label} {self.run_configuration[key]}"
+            for name, field in SubmitRunForm.base_fields.items()
+            if (key := name.replace("_", "-")) in self.run_configuration
+        ]
+        return ", ".join(shown) or None
 
 
 def final_models(directory: Path | None) -> list[KeptFinalModel]:
@@ -28,6 +40,7 @@ def final_models(directory: Path | None) -> list[KeptFinalModel]:
                 run_id=path.stem,
                 stored_at=model.stored_at,
                 federated_auroc=model.federated.get("eval_auroc"),
+                run_configuration=model.run_configuration,
             )
         )
     return sorted(

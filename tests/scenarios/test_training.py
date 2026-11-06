@@ -24,6 +24,7 @@ def keep(directory: Path, run_id: str, auroc: float, at: datetime) -> None:
         run_id=int(run_id),
         state_dict=Net().state_dict(),
         federated={"eval_auroc": auroc},
+        run_configuration={"num-server-rounds": 3, "batch-size": 64},
         stored_at=at,
     )
 
@@ -133,14 +134,7 @@ def waited_at_most(superlink: World, seconds: int) -> None:
 
 @when("the data scientist submits a training run")
 def submit(world: World, superlink: World) -> None:
-    from django.core.exceptions import ValidationError
-
-    from web.training.runs import submit_run
-
-    try:
-        world["run_id"] = submit_run()
-    except ValidationError as error:
-        world["error"] = error
+    submit_form(world, {})
 
 
 @then("the SuperLink receives a run without a screening threshold")

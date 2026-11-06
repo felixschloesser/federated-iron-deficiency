@@ -40,9 +40,12 @@ class TrainingRunsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
             "checked_at": timezone.now(),
         }
 
+    def get_initial(self) -> dict[str, Any]:
+        return SubmitRunForm.defaults()
+
     def form_valid(self, form: SubmitRunForm) -> HttpResponse:
         try:
-            run_id = submit_run()
+            run_id = submit_run(form.run_configuration())
         except ValidationError as error:
             form.add_error(None, error)
             return self.form_invalid(form)
