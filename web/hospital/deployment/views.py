@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
+from ml.training_cohort import TrainingCohortUnavailable
 from web.accounts.mixins import RoleRequiredMixin
 from web.accounts.roles import Role
 from web.hospital.deployment.fetching import fetch_final_models, unreachable
@@ -62,6 +63,11 @@ class FetchFinalModelsView(LaboratoryDirectorRequiredMixin, View):
             raise Http404("This hospital knows no startup to fetch from.")
         try:
             stored = fetch_final_models(now=timezone.now())
+        except TrainingCohortUnavailable:
+            messages.error(
+                request,
+                "Provide the training cohort first: final models are validated on it.",
+            )
         except grpc.RpcError as error:
             messages.error(
                 request,

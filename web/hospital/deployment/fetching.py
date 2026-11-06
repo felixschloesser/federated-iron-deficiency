@@ -13,7 +13,11 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 from ml.final_model import from_bytes
-from ml.training_cohort import read_training_cohort
+from ml.training_cohort import (
+    TrainingCohortUnavailable,
+    read_training_cohort,
+    snapshots,
+)
 from ml.validation import receive_final_model
 from web.messaging import messages_pb2, messages_pb2_grpc
 
@@ -32,8 +36,9 @@ def fetch_final_models(*, now: datetime) -> list[str]:
     """Fetch the released final models this hospital has not stored, validate
     each on the training cohort its laboratory director provided, store it, then
     acknowledge them; the run IDs stored. One the hospital holds other weights
-    for is never overwritten, nor acknowledged. Raises grpc.RpcError when the
-    startup cannot be reached or refuses."""
+    for is never overwritten, nor acknowledged. Raises TrainingCohortUnavailable,
+    before asking the startup, when no training cohort was provided, and
+    grpc.RpcError when the startup cannot be reached or refuses."""
     address, directory = settings.STARTUP_ADDRESS, settings.SCREENING_MODELS_DIR
     cohort_dir = settings.TRAINING_COHORT_DIR
     certificate_name = settings.HOSPITAL_CERTIFICATE_NAME
@@ -42,6 +47,8 @@ def fetch_final_models(*, now: datetime) -> list[str]:
             "Fetching needs STARTUP_ADDRESS, the screening models' folder and the"
             " training cohort's."
         )
+    if not snapshots(cohort_dir):
+        raise TrainingCohortUnavailable("No training cohort to validate on.")
     with grpc.insecure_channel(address) as channel:
         startup = messages_pb2_grpc.FinalModelsStub(channel)
         offered = startup.FetchNewFinalModels(
