@@ -288,3 +288,16 @@ def test_a_refused_stop_says_why(
     assert [str(message) for message in get_messages(response.wsgi_request)] == [
         "The SuperLink did not stop training run 7: no such run"
     ]
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_without_the_superlink_the_page_offers_no_submission(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    answering(monkeypatch, {}, {"success": False, "error-message": "unavailable"})
+    response = client.get(reverse("training:runs"))
+    assert response.context["submits"] is False
+    assertNotContains(response, 'name="batch_size"')
+    assertContains(
+        response, "Submitting and stopping runs come back when the SuperLink answers."
+    )
