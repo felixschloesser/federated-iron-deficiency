@@ -35,9 +35,9 @@ def test_each_image_brings_only_its_partys_dfd_stores(party: str) -> None:
     """Docker copies the folders a party's image makes under /data into its fresh
     volume: only the party's own stores."""
     dockerfile = (ROOT / "demo" / f"{party}.Dockerfile").read_text()
-    (made,) = re.findall(r"RUN mkdir -p ([^&]+)&&", dockerfile)
-    folders = {path.removeprefix("/data").strip("/") for path in made.split()}
-    assert folders - {""} <= PARTY_FOLDERS[party]
+    made = " ".join(re.findall(r"^RUN mkdir -p (.+)$", dockerfile, re.MULTILINE))
+    folders = {path.removeprefix("/data/") for path in made.split()}
+    assert folders <= PARTY_FOLDERS[party]
 
 
 @pytest.mark.parametrize("party", ["hospital", "practice", "startup"])

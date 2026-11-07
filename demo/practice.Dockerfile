@@ -2,19 +2,16 @@
 # only the web dependency group, so no PyTorch, Flower or W&B, and only its own
 # Django apps and the shared ones (tests/quality/security/test_running_containers.py).
 FROM python:3.13-slim
-RUN pip install --no-cache-dir uv \
-    && useradd --create-home app
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/
+RUN useradd --create-home app && install -d -o app /app /data /opt/venv
 WORKDIR /app
-RUN chown app /app
-# The party's folder and its layout: Docker copies them, owned by app, into a
-# fresh volume mounted here, before any of its subfolders is mounted.
-RUN mkdir -p /data && chown -R app /data
 USER app
-ENV UV_PROJECT_ENVIRONMENT=/home/app/venv PATH=/home/app/venv/bin:$PATH
-# compose runs the image as the demo user (DEMO_USER), who may have no home here.
-ENV HOME=/tmp
+# HOME: compose runs the image as the demo user (DEMO_USER), who may have no home here.
+# Bytecode compiled once here, not by every new container.
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv PATH=/opt/venv/bin:$PATH HOME=/tmp \
+    UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY --chown=app pyproject.toml uv.lock /app/
-RUN uv sync --frozen --only-group web
+RUN --mount=type=cache,target=/tmp/.cache/uv,uid=1000,gid=1000 uv sync --locked --only-group web
 COPY --chown=app manage.py /app/
 COPY --chown=app ml/__init__.py ml/cohort.py /app/ml/
 COPY --chown=app web/__init__.py /app/web/
