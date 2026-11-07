@@ -14,8 +14,8 @@ from typing import Any
 
 import pytest
 
-from demo.topology import COLOURS, PRACTICES
-from ml.dataset import CYCLES, HOSPITALS, hospital_slug
+from demo.topology import COLOURS, HOSPITALS, PRACTICES, hospital_slug
+from ml.dataset import CYCLES
 
 ROOT = Path(__file__).resolve().parents[3]
 HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]

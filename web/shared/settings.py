@@ -26,18 +26,18 @@ DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 ROLES: list[Role] = []
 # The party's own folder (data_dir()).
 DATA_DIR: Path | None = None
-# The hospital's screening models (features/final_models.feature).
+# The hospital's screening models.
 SCREENING_MODELS_DIR: Path | None = None
-# The startup's copy of every final model (features/startup/training.feature).
+# The startup's copy of every final model.
 FINAL_MODELS_DIR: Path | None = None
 # The training cohort the laboratory director provides, which the startup's
-# code at the hospital reads (features/hospital/training_cohort.feature).
+# code at the hospital reads.
 TRAINING_COHORT_DIR: Path | None = None
 # The name the hospitals issued this practice and know it by, which its app
 # sends in every message (glossary.toml, certificate name).
 PRACTICE_CERTIFICATE_NAME = ""
 # The startup's final-models endpoint and the name the startup issued this
-# hospital (features/hospital/fetch.feature); without the endpoint, no fetching.
+# hospital; without the endpoint, no fetching.
 STARTUP_ADDRESS: str | None = None
 HOSPITAL_CERTIFICATE_NAME = ""
 # Shown in the title bar and header; never the screening's name.

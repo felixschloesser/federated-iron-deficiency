@@ -27,7 +27,7 @@ class ScreeningResult(models.TextChoices):
 class NotScreened(models.TextChoices):
     """Why a CBC was not screened (features/hospital/screening.feature): the patient is not eligible, never which
     fact excluded them, or there is no usable deployed model
-    (web.hospital.deployment.models.NoUsableModel), which lab staff act on (features/hospital/screening.feature)."""
+    (web.hospital.deployment.models.NoUsableModel), which lab staff act on."""
 
     NOT_ELIGIBLE = "not_eligible", "not eligible"
     NO_DEPLOYED_MODEL = "no_deployed_model", "no screening model deployed"
@@ -60,8 +60,7 @@ class NotScreened(models.TextChoices):
 class PracticeManager(models.Manager["Practice"]):
     @transaction.atomic
     def add(self, *, certificate_name: str, name: str) -> Practice:
-        """Register a practice the hospital works with, or change its name
-        (features/hospital/lab_orders.feature)."""
+        """Register a practice the hospital works with, or change its name."""
         practice, _ = self.update_or_create(
             certificate_name=certificate_name, defaults={"name": name}
         )
@@ -86,7 +85,7 @@ class Practice(models.Model):
 
 class Sample(models.Model):
     """A sample, known by the sample ID on its label and the practice that sent it
-    (features/hospital/lab.feature, features/hospital/lab_orders.feature): two practices may use the same sample ID. It arrives with its lab
+    (features/hospital/lab.feature): two practices may use the same sample ID. It arrives with its lab
     order; a later test on it is measured on the stored sample."""
 
     practice = models.ForeignKey(
@@ -111,7 +110,7 @@ class LabOrderDetails:
 
     sample_id: str
     test: Test
-    # Whether the indication is a screened one (features/hospital/screening.feature); never which indication.
+    # Whether the indication is a screened one; never which indication.
     screened_indication: bool
     registered_sex: RegisteredSex
     age: int
@@ -127,7 +126,7 @@ class TestRequestManager(models.Manager["TestRequest"]):
 
     def to_analyse(self) -> models.QuerySet[WithAnnotations[TestRequest, StoredSample]]:
         """Tests the analyser has not run yet. A sample arrives with its lab order; it
-        is a stored sample once another test on it has been analysed (features/hospital/lab.feature)."""
+        is a stored sample once another test on it has been analysed."""
         analysed_on_same_sample = TestRequest.objects.filter(
             sample=OuterRef("sample"), analysed_at__isnull=False
         )
@@ -147,7 +146,7 @@ class TestRequestManager(models.Manager["TestRequest"]):
         )
 
     def reports_to_send(self, practice: Practice) -> models.QuerySet[TestRequest]:
-        """`practice`'s analysed test requests it has not acknowledged yet (features/hospital/lab_orders.feature)."""
+        """`practice`'s analysed test requests it has not acknowledged yet."""
         return (
             self.filter(
                 sample__practice=practice,
@@ -161,8 +160,7 @@ class TestRequestManager(models.Manager["TestRequest"]):
     @transaction.atomic
     def receive(self, *, practice: Practice, details: LabOrderDetails) -> TestRequest:
         """Receive a lab order (DF23) from `practice` as a test request, once,
-        however often it arrives
-        (features/hospital/lab_orders.feature)."""
+        however often it arrives."""
         sample, _ = Sample.objects.get_or_create(
             practice=practice, sample_id=details.sample_id
         )
@@ -197,25 +195,25 @@ class TestRequest(models.Model):
         Sample, on_delete=models.PROTECT, related_name="test_requests"
     )
     test = models.CharField(max_length=8, choices=Test.choices)
-    # Whether the general practitioner's indication is a screened one (features/hospital/screening.feature);
+    # Whether the general practitioner's indication is a screened one;
     # the laboratory never learns which indication.
     screened_indication = models.BooleanField(default=False)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
-    # No general practitioner: the sample's practice says who ordered (features/practice/access.feature).
+    # No general practitioner: the sample's practice says who ordered.
     ordered_at = models.DateTimeField()
     # Absent until the analyser has run.
     analysed_at = models.DateTimeField(null=True, blank=True)
     results = models.JSONField(null=True, blank=True)
-    # Absent for ferritin, which is never screened (features/hospital/lab.feature), and until analysed.
+    # Absent for ferritin, which is never screened, and until analysed.
     screening_result = models.CharField(
         max_length=22, choices=ScreeningResult.choices, null=True, blank=True
     )
-    # Present only when not screened (features/hospital/screening.feature); no score is ever stored (features/hospital/screening.feature).
+    # Present only when not screened; no score is ever stored.
     not_screened_reason = models.CharField(
         max_length=22, choices=NotScreened.choices, null=True, blank=True
     )
-    # The screening model that screened this CBC (features/hospital/screening.feature); absent when not screened.
+    # The screening model that screened this CBC; absent when not screened.
     screened_by = models.ForeignKey(
         ScreeningModel,
         on_delete=models.PROTECT,
@@ -241,7 +239,7 @@ class TestRequest(models.Model):
     def not_eligible(self) -> NotScreened | None:
         """NOT_ELIGIBLE if the screening excludes the CBC: an indication not screened, a
         registered sex other than female, or an age outside the trained range.
-        Which of them is never recorded: nobody acts on it (features/hospital/screening.feature)."""
+        Which of them is never recorded: nobody acts on it."""
         eligible = (
             self.screened_indication
             and self.registered_sex == RegisteredSex.of_nhanes(ELIGIBLE_SEX)
@@ -251,13 +249,13 @@ class TestRequest(models.Model):
 
     @property
     def ferritin_suggested(self) -> bool:
-        """All the lab report says of screening (features/practice/reports.feature)."""
+        """All the lab report says of screening."""
         return self.screening_result == ScreeningResult.FERRITIN_SUGGESTED
 
     @transaction.atomic
     def run_analyser(self, *, directory: Path | None, now: datetime) -> TestRequest:
-        """Record what the analyser measures on the stored sample for the test (features/hospital/lab.feature), screen a CBC with the deployed model in `directory`, and so release its
-        lab report at once (features/hospital/screening.feature): the report goes out with the analysis, never before."""
+        """Record what the analyser measures on the stored sample for the test, screen a CBC with the deployed model in `directory`, and so release its
+        lab report at once: the report goes out with the analysis, never before."""
         # Read again under the write lock: this copy may predate another analysis.
         self.refresh_from_db(fields=["analysed_at"])
         if self.analysed_at is not None:
@@ -286,7 +284,7 @@ class TestRequest(models.Model):
 
     def _screen(self, directory: Path | None) -> None:
         """Set an analysed CBC's screening result: the model's decision, or not
-        screened with the first reason (features/hospital/screening.feature). Nothing else of it is kept (features/hospital/screening.feature)."""
+        screened with the first reason. Nothing else of it is kept."""
         reason = self.not_eligible()
         if reason is None:
             deployed = Deployment.objects.screener(directory)

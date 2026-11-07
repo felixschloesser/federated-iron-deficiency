@@ -27,7 +27,7 @@ type FromPractice = (
 def practice_of(request: FromPractice, context: grpc.ServicerContext) -> Practice:
     """The calling practice, by the certificate name it sends; a message without
     one, or from a practice the hospital does not know, is refused before anything
-    is read or recorded (features/hospital/lab_orders.feature). With the report's mutual TLS
+    is read or recorded. With the report's mutual TLS
     the name would come from the connection, context.peer_identities()."""
     if not request.certificate_name:
         context.abort(grpc.StatusCode.INVALID_ARGUMENT, "practice_required")

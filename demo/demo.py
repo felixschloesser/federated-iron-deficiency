@@ -31,8 +31,8 @@ from demo.seeding.accounts import (
     LABORATORY_STAFF,
     PASSWORD,
 )
-from demo.topology import PATIENTS, PRACTICES, PROVIDED
-from ml.dataset import CYCLES, HOSPITALS, hospital_slug
+from demo.topology import HOSPITALS, PATIENTS, PRACTICES, PROVIDED, hospital_slug
+from ml.dataset import CYCLES
 
 ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API on this one address, the
@@ -136,7 +136,7 @@ def seed_arguments(partition: int, nhanes: Path) -> list[str]:
 
 def tube_seeds(nhanes: Path) -> list[list[str]]:
     """Every practice's participants, for a hospital's analyser stand-in: any
-    practice may send it a sample (features/practice/ordering.feature)."""
+    practice may send it a sample."""
     return [seed_arguments(partition, nhanes) for partition, _ in hospitals()]
 
 
@@ -163,7 +163,7 @@ def prepare_web(folder: Path, party: str, seeds: list[list[str]]) -> None:
 def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
     """add_laboratory's arguments for every hospital's laboratory; the practice's
     paired hospital's is its primary laboratory, so by default lab orders follow
-    the hospitals' sizes (features/practice/ordering.feature)."""
+    the hospitals' sizes."""
     return [
         [
             HOSPITALS[cycle],
@@ -177,7 +177,7 @@ def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
 def practice_arguments() -> list[list[str]]:
     """add_practice's arguments for every practice, its certificate name its
     folder name: every hospital knows them all, as every practice may send it a
-    sample (features/practice/ordering.feature)."""
+    sample."""
     return [
         [slug, PRACTICES[cycle]]
         for (_, slug), cycle in zip(practices(), CYCLES, strict=True)
@@ -203,7 +203,7 @@ def add_practices(hospital: Path) -> None:
 
 def hospital_arguments() -> list[list[str]]:
     """add_hospital's arguments for every hospital: the certificate name the
-    startup issues it (its folder's name) and its name (features/startup/release.feature)."""
+    startup issues it (its folder's name) and its name."""
     return [
         [slug, HOSPITALS[cycle]]
         for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True)
@@ -246,7 +246,7 @@ def seed_lab_records(hospital: Path, arguments: list[str]) -> None:
 
 
 def add_laboratories(practice: Path, practice_cycle: str) -> None:
-    """Every hospital's laboratory, at its lab-order endpoint (features/practice/ordering.feature)."""
+    """Every hospital's laboratory, at its lab-order endpoint."""
     env = {
         **os.environ,
         "DJANGO_SETTINGS_MODULE": "web.practice.settings",
@@ -279,7 +279,7 @@ def prepare_flower(demo_dir: Path) -> None:
 def prepare(demo_dir: Path) -> None:
     """Create what is missing: Flower's connection, each hospital's lab
     records, the NHANES data."""
-    from ml.dataset import load_ferritin, load_lab_records, load_new_samples
+    from ml.dataset import new_cycle_ferritin, new_cycle_participants, participants
 
     prepare_flower(demo_dir)
     for (_, slug), (_, practice_slug), cycle in zip(
@@ -301,7 +301,7 @@ def prepare(demo_dir: Path) -> None:
         (hospital / "cohort").mkdir(exist_ok=True)
         if not lab_records_csv(demo_dir, slug).exists():
             lab_records_csv(demo_dir, slug).parent.mkdir(parents=True, exist_ok=True)
-            from_hub(partial(load_lab_records, cycle)).to_csv(
+            from_hub(partial(participants, cycle)).to_csv(
                 lab_records_csv(demo_dir, slug), index=False
             )
         # Folders prepared before the cycle stayed with prepare held a copy.
@@ -312,8 +312,8 @@ def prepare(demo_dir: Path) -> None:
     if not nhanes_csv(demo_dir).exists():
         nhanes_csv(demo_dir).parent.mkdir(parents=True, exist_ok=True)
         nhanes = from_hub(
-            lambda: load_new_samples().merge(
-                load_ferritin(), on="sample_id", how="left"
+            lambda: new_cycle_participants().merge(
+                new_cycle_ferritin(), on="sample_id", how="left"
             )
         )
         nhanes.to_csv(nhanes_csv(demo_dir), index=False)

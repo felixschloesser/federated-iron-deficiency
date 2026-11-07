@@ -58,6 +58,7 @@ uv run --frozen python .claude/audit.py
 - **No capability without a path to it.** Every writing model or manager method is reachable from a view; every view from the URLconf and a link or form on a page.
 - **POST-redirect-GET.** Every mutation is a POST that redirects on success. GET never mutates.
 - Code rules: no bare `assert` outside tests; no `except Exception` without re-raise; no single-letter names; functions ≤100 lines, ≤5 parameters.
+- Outside `tests/`, a module or class docstring may name its feature file, once; functions, methods and comments do not.
 
 ## Templates
 

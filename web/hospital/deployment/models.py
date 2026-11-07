@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
 from ml.final_model import FinalModel, final_model_path, from_bytes
-from ml.inference import suggests_ferritin
+from ml.inference import probability
 from web.hospital.deployment.model_files import (
     model_name,
     screening_model_file,
@@ -68,7 +68,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         self, *, run_id: str, threshold: float, directory: Path | None, now: datetime
     ) -> Deployment:
         """Make a screening model in the hospital's folder the deployed model, at a
-        threshold its local validation holds, from `now` (features/hospital/deployment.feature)."""
+        threshold its local validation holds, from `now`."""
         path = None if directory is None else final_model_path(directory, run_id)
         if path is None or not path.is_file():
             raise ValidationError(
@@ -109,7 +109,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         return self.create(screening_model=screening_model, deployed_at=now)
 
     def screener(self, directory: Path | None) -> Screener | NoUsableModel:
-        """The deployed model ready to screen, or why there is none (features/hospital/screening.feature)."""
+        """The deployed model ready to screen, or why there is none."""
         latest = (
             self.select_related("screening_model")
             .order_by("-deployed_at", "-pk")
@@ -148,6 +148,6 @@ class Screener:
     final_model: FinalModel
 
     def suggests_ferritin(self, cbc: Mapping[str, float], age: int) -> bool:
-        return suggests_ferritin(
-            cbc, age, self.final_model, self.screening_model.threshold
-        )
+        """Whether the deployed model scores the CBC at or above the threshold the
+        laboratory director deployed it at."""
+        return probability(self.final_model, cbc, age) >= self.screening_model.threshold

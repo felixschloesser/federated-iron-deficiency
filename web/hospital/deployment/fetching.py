@@ -1,7 +1,6 @@
 """A final model enters the hospital only when its laboratory director fetches
 new final models: the hospital's own code asks the startup's final-models
-endpoint, validates each final model on the hospital's validation split,
-stores it and acknowledges it (web/shared/messaging/messages.proto,
+endpoint, stores each with its local validation (model_files.py) and acknowledges it (web/shared/messaging/messages.proto,
 features/hospital/fetch.feature). The startup's code at the hospital writes
 nothing here."""
 
@@ -16,9 +15,9 @@ from ml.final_model import from_bytes
 from ml.training_cohort import (
     TrainingCohortUnavailable,
     read_training_cohort,
-    snapshots,
+    training_cohorts,
 )
-from ml.validation import receive_final_model
+from web.hospital.deployment.model_files import store_fetched
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
 
 TIMEOUT_SECONDS = 30
@@ -47,7 +46,7 @@ def fetch_final_models(*, now: datetime) -> list[str]:
             "Fetching needs STARTUP_ADDRESS, the screening models' folder and the"
             " training cohort's."
         )
-    if not snapshots(cohort_dir):
+    if not training_cohorts(cohort_dir):
         raise TrainingCohortUnavailable("No training cohort to validate on.")
     with grpc.insecure_channel(address) as channel:
         startup = messages_pb2_grpc.FinalModelsStub(channel)
@@ -64,7 +63,7 @@ def fetch_final_models(*, now: datetime) -> list[str]:
             if cohort is None:
                 _, cohort = read_training_cohort(cohort_dir, None)
             try:
-                receive_final_model(
+                store_fetched(
                     directory,
                     run_id=int(model.run_id),
                     state_dict=state_dict,

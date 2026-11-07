@@ -1,5 +1,5 @@
 """Scenarios: final models as each hospital stores them
-(features/final_models.feature); and reading one back."""
+(features/hospital/final_models.feature); and reading one back."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,17 +10,19 @@ import pytest
 import torch
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from ml.cohort import FEATURES
+from ml.cohort import CBC_VARS, FEATURES
 from ml.final_model import Net, Problem, read
-from ml.inference import score
-from ml.validation import store_final_model
+from ml.inference import probability
 from tests.conftest import World
+from web.hospital.deployment.model_files import store_fetched, store_screening_model
 
 STORED_AT = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
 FEDERATED = {"eval_auroc": 0.85, "eval_loss": 0.41}
+# Files only; declared like every party's scenario module.
+pytestmark = pytest.mark.django_db
 
 
-scenarios("final_models.feature")
+scenarios("hospital/final_models.feature")
 
 
 @pytest.fixture
@@ -33,7 +35,7 @@ def cohort() -> pd.DataFrame:
 
 def store(directory: Path, cohort: pd.DataFrame, run_id: int) -> Path:
     torch.manual_seed(run_id)
-    return store_final_model(
+    return store_screening_model(
         directory,
         run_id=run_id,
         state_dict=Net().state_dict(),
@@ -154,7 +156,7 @@ def local_validation(hospital: World) -> None:
             "false_positives",
             "true_negatives",
         }
-        # The validation split is 16% of the cohort (task.load_data).
+        # The validation split is 16% of the cohort (ml.validation.load_data).
         assert sum(matrix.values()) == 32
     # A higher threshold suggests ferritin for no more women.
     suggested = [
@@ -180,14 +182,9 @@ def only_aggregate(hospital: World) -> None:
 def test_a_final_model_screens_like_a_deployment(
     tmp_path: Path, cohort: pd.DataFrame
 ) -> None:
-    path = store(tmp_path, cohort, run_id=11)
-    samples = (
-        cohort[FEATURES]
-        .rename(columns={"RIDAGEYR": "age"})
-        .assign(sex="Female", age=30)
-    )
-    probabilities = score(samples, read(path))
-    assert len(probabilities) == len(samples)
+    final_model = read(store(tmp_path, cohort, run_id=11))
+    cbc = {var: float(cohort[var].iloc[0]) for var in CBC_VARS}
+    assert 0.0 <= probability(final_model, cbc, age=30) <= 1.0
 
 
 def test_a_stored_final_model_reads_back_whole(
@@ -208,11 +205,9 @@ def test_a_file_that_is_no_model_reads_as_unreadable(tmp_path: Path) -> None:
 
 
 def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
-    """The weights seeded by run_id, received as the final model of as_run."""
-    from ml.validation import receive_final_model
-
+    """The weights seeded by run_id, fetched as the final model of as_run."""
     torch.manual_seed(run_id)
-    return receive_final_model(
+    return store_fetched(
         hospital["folder"],
         run_id=run_id if as_run is None else as_run,
         state_dict=Net().state_dict(),

@@ -1,6 +1,6 @@
 """The training cohort as files: the hospital writes it when its laboratory
 director provides it, the startup's code at the hospital (the ClientApp) reads
-it (features/hospital/training_cohort.feature, features/training_cohort_in_runs.feature).
+it (features/hospital/training_cohort.feature).
 
 A folder holds at most one training cohort, in a folder named after its
 SHA-256; none once withdrawn. Flower is not imported here, so the hospital's
@@ -23,7 +23,7 @@ def sha256(rows: pd.DataFrame) -> str:
     return hashlib.sha256(rows.to_csv(index=False).encode()).hexdigest()
 
 
-def snapshots(directory: Path) -> list[Path]:
+def training_cohorts(directory: Path) -> list[Path]:
     """The training cohorts in `directory`; a dot folder is one still being written."""
     if not directory.is_dir():
         return []
@@ -52,7 +52,7 @@ def write_training_cohort(rows: pd.DataFrame, directory: Path) -> str:
 
 def remove_training_cohort(directory: Path, keep: str | None = None) -> None:
     """Remove every training cohort in `directory` but `keep`."""
-    for path in snapshots(directory):
+    for path in training_cohorts(directory):
         if path.name != keep:
             shutil.rmtree(path)
 
@@ -63,7 +63,7 @@ def read_training_cohort(
     """The training cohort in `directory` and its SHA-256. `noted` is the one a
     run read in an earlier round: a run trains on one training cohort, so a
     withdrawn or replaced one fails the round instead."""
-    found = snapshots(directory)
+    found = training_cohorts(directory)
     if not found:
         raise TrainingCohortUnavailable(
             "This hospital has no training cohort: its laboratory director has"
@@ -76,5 +76,5 @@ def read_training_cohort(
         )
     from datasets import load_from_disk
 
-    (snapshot,) = found
-    return snapshot.name, load_from_disk(str(snapshot)).to_pandas()
+    (training_cohort,) = found
+    return training_cohort.name, load_from_disk(str(training_cohort)).to_pandas()

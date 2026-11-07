@@ -70,10 +70,10 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             )
             .order_by("-collected_at", "-pk")
         )
-        # Blood is collected first; tests are ordered on a sample afterwards (features/practice/ordering.feature).
+        # Blood is collected first; tests are ordered on a sample afterwards.
         collect = reverse("practice:collect_sample", kwargs={"patient": patient.pk})
         laboratories = Laboratory.objects.count()
-        # Several laboratories: the choice comes first, on its own page (features/practice/ordering.feature).
+        # Several laboratories: the choice comes first, on its own page.
         collect_action = {"url": collect, "label": "Collect sample"}
         # Where a doctor waits for a lab report, so they need not go to Orders.
         check_action = {
@@ -83,7 +83,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             "label": "Check for reports",
         }
         # Each sample with the tests on it, in the order they were placed, so a
-        # ferritin ordered beside a suggestion shows right under it (features/practice/reports.feature, features/practice/ordering.feature).
+        # ferritin ordered beside a suggestion shows right under it.
         # Only the newest opens; the others summarise their tests and whether a
         # lab report in them suggests ferritin.
         return {

@@ -14,8 +14,8 @@ HF_DATASET = "gracemyu/nhanes-merged"
 HF_REVISION = "2069b6643803fdf1a110b3c632dfc0fe3bb0b08d"
 HF_DATA_FILE = "merged_deduped.parquet"
 
-# One NHANES cycle per hospital, keyed by the cycle's first survey year:
-# UZ Leuven (large), Heilig Hart Leuven (medium), AZ Diest (small).
+# One NHANES cycle per hospital (demo/topology.py names them), keyed by the
+# cycle's first survey year: a large, a medium and a small hospital.
 CYCLES = {
     "2005-2006": 2005,
     "2015-2016": 2015,
@@ -24,22 +24,9 @@ CYCLES = {
 # The cycles are similar in size, so the medium and small hospitals keep a
 # fixed sample, giving roughly a 5:2:1 size ratio.
 CYCLE_FRACTIONS = {"2015-2016": 0.5, "2017-2018": 0.25}
-# Each cycle's hospital, named as in the report.
-HOSPITALS = {
-    "2005-2006": "UZ Leuven",
-    "2015-2016": "Heilig Hart Leuven",
-    "2017-2018": "AZ Diest",
-}
-
-
-def hospital_slug(name: str) -> str:
-    """The hospital's folder name under the demo directory (demo/README.md)."""
-    return name.lower().replace(" ", "-")
-
-
 # No hospital trains on the latest cycle, 2021–2023, so it stands in for new
 # routine blood counts (all sexes and ages) screened after training.
-NEW_SAMPLES_YEAR = 2021
+NEW_CYCLE_YEAR = 2021
 
 # Merged columns are named `{source_table}_{variable}` in lowercase.
 HF_COLUMNS = {
@@ -52,25 +39,41 @@ HF_COLUMNS = {
 }
 
 
-def build_cohort(dataset_dict: datasets.DatasetDict) -> datasets.DatasetDict:
-    """Reduce the merged NHANES table to the notebook cohort of each cycle."""
-    merged = dataset_dict["train"].to_pandas().rename(columns=HF_COLUMNS)
-    cohort = merged[
-        merged["YEAR"].isin(CYCLES.values())
-        & eligible(merged["RIAGENDR"], merged["RIDAGEYR"])
-    ]
+def in_cohort(participants: pd.DataFrame) -> "pd.Series[bool]":
+    """Who of a cycle's participants the cohort holds: eligible, with every
+    feature and a ferritin."""
+    return eligible(participants["RIAGENDR"], participants["RIDAGEYR"]) & participants[
+        FEATURES + ["LBXFER"]
+    ].notna().all(axis=1)
+
+
+def hospital_share(participants: pd.DataFrame, cycle: str) -> pd.DataFrame:
+    """The hospital's fixed sample of its cycle's participants, in SEQN order.
+    The one draw both the simulation's cohort and the hospital's past lab
+    records take, so a training cohort provided from those holds the rows a
+    simulation trains on."""
     # SEQN order matches the CDC files and increases across cycles.
-    cohort = cohort.dropna(subset=FEATURES + ["LBXFER"]).sort_values("SEQN")
-    cohort = cohort.assign(
-        iron_deficient=(cohort["LBXFER"] < FERRITIN_CUTOFF).astype(int),
-        cycle=cohort["YEAR"].map({year: name for name, year in CYCLES.items()}),
+    return (
+        participants.sort_values("SEQN")
+        .sample(frac=CYCLE_FRACTIONS.get(cycle, 1.0), random_state=0)
+        .sort_values("SEQN")
     )
+
+
+def build_cohort(dataset_dict: datasets.DatasetDict) -> datasets.DatasetDict:
+    """Reduce the merged NHANES table to the cohort of each cycle."""
+    merged = dataset_dict["train"].to_pandas().rename(columns=HF_COLUMNS)
     cohort = pd.concat(
         [
-            group.sample(frac=CYCLE_FRACTIONS.get(str(cycle), 1.0), random_state=0)
-            for cycle, group in cohort.groupby("cycle")
+            hospital_share(
+                merged[(merged["YEAR"] == year) & in_cohort(merged)], cycle
+            ).assign(cycle=cycle)
+            for cycle, year in sorted(CYCLES.items())
         ]
     ).sort_values("SEQN")
+    cohort = cohort.assign(
+        iron_deficient=(cohort["LBXFER"] < FERRITIN_CUTOFF).astype(int)
+    )
     columns = FEATURES + ["iron_deficient", "cycle"]
     return datasets.DatasetDict(
         {"train": datasets.Dataset.from_pandas(cohort[columns], preserve_index=False)}
@@ -106,26 +109,16 @@ def _load_cycle(year: int) -> pd.DataFrame:
     return merged[merged["YEAR"] == year]
 
 
-def _load_new_cycle() -> pd.DataFrame:
-    """Return every participant of the 2021–2023 cycle, which no hospital trains on."""
-    return _load_cycle(NEW_SAMPLES_YEAR)
-
-
-def load_lab_records(cycle: str) -> pd.DataFrame:
-    """Return the past lab records (DS1) of `cycle`'s hospital: each participant
-    with a complete CBC and an age, with ferritin where NHANES measured it, in
-    NHANES order. The hospital's sample of its cycle, drawn as build_cohort
-    draws it, so the training cohort its laboratory director provides holds
-    the rows a simulation trains on."""
-    records = _load_cycle(CYCLES[cycle]).dropna(subset=FEATURES).sort_values("SEQN")
-    in_cohort = (
-        eligible(records["RIAGENDR"], records["RIDAGEYR"]) & records["LBXFER"].notna()
-    )
-    fraction = CYCLE_FRACTIONS.get(cycle, 1.0)
+def participants(cycle: str) -> pd.DataFrame:
+    """The hospital's share of `cycle`'s participants with every feature, with
+    ferritin where NHANES measured it, in SEQN order: what the demo seeds as
+    the hospital's past lab records (DS1)."""
+    measured = _load_cycle(CYCLES[cycle]).dropna(subset=FEATURES)
+    cohort = in_cohort(measured)
     sampled = pd.concat(
         [
-            records[in_cohort].sample(frac=fraction, random_state=0),
-            records[~in_cohort].sample(frac=fraction, random_state=0),
+            hospital_share(measured[cohort], cycle),
+            hospital_share(measured[~cohort], cycle),
         ]
     ).sort_values("SEQN")
     return pd.DataFrame(
@@ -138,9 +131,10 @@ def load_lab_records(cycle: str) -> pd.DataFrame:
     )
 
 
-def load_new_samples() -> pd.DataFrame:
-    """Return the 2021–2023 cycle as a lab export of new blood counts."""
-    samples = _load_new_cycle().dropna(subset=CBC_VARS + ["RIDAGEYR"])
+def new_cycle_participants() -> pd.DataFrame:
+    """The 2021–2023 participants with a complete CBC and an age: what the demo
+    seeds as new blood counts."""
+    samples = _load_cycle(NEW_CYCLE_YEAR).dropna(subset=CBC_VARS + ["RIDAGEYR"])
     # The NHANES respondent number stands in for the lab's sample ID.
     return pd.DataFrame(
         {
@@ -152,20 +146,21 @@ def load_new_samples() -> pd.DataFrame:
     )
 
 
-def load_ferritin() -> pd.DataFrame:
-    """Return the ferritin results of the new samples, keyed by sample ID.
-
-    Kept apart from load_new_samples: the screening never sees ferritin.
-    """
-    ferritin = _load_new_cycle()[["SEQN", "LBXFER"]]
+def new_cycle_ferritin() -> pd.DataFrame:
+    """The 2021–2023 participants' ferritin, keyed by sample ID. Kept apart from
+    new_cycle_participants: the screening never sees ferritin."""
+    ferritin = _load_cycle(NEW_CYCLE_YEAR)[["SEQN", "LBXFER"]]
     return ferritin.rename(columns={"SEQN": "sample_id"})
 
 
 if __name__ == "__main__":
     import argparse
 
+    from ml.training_cohort import write_training_cohort
+
     parser = argparse.ArgumentParser(
-        description="Save one cohort partition per cycle and new samples to screen."
+        description="Save each cycle's cohort as the training cohort a SuperNode's"
+        " data-path reads."
     )
     parser.add_argument("--out-dir", type=Path, default=Path("demo_data"))
     args = parser.parse_args()
@@ -175,10 +170,8 @@ if __name__ == "__main__":
     if not isinstance(partitioner, NaturalIdPartitioner):
         raise TypeError("The cohort must be partitioned by cycle")
     for partition_id in range(len(CYCLES)):
-        partition = fds.load_partition(partition_id)
+        rows = fds.load_partition(partition_id).to_pandas()
+        # Known only once a partition is loaded.
         cycle = partitioner.partition_id_to_natural_id[partition_id]
-        partition.save_to_disk(args.out_dir / cycle)
+        write_training_cohort(rows[FEATURES + ["iron_deficient"]], args.out_dir / cycle)
         print(f"Saved partition {partition_id} ({cycle}) to {args.out_dir / cycle}")
-
-    load_new_samples().to_csv(args.out_dir / "new_samples.csv", index=False)
-    print(f"Saved new samples to screen to {args.out_dir / 'new_samples.csv'}")

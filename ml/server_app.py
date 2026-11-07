@@ -21,7 +21,6 @@ from ml.training import (
     training_parameters,
 )
 
-# Create ServerApp
 app = ServerApp()
 
 
@@ -59,12 +58,12 @@ def _log_result_to_wandb(result: Result, api_key: str) -> None:
 @app.main()
 def main(grid: Grid, context: Context) -> None:
     """A training run: the startup keeps its final model, which recipient
-    hospitals fetch once released (features/startup/training.feature)."""
+    hospitals fetch once released."""
     demo_dir = Path(str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR)
-    train(grid, context, startup_final_models(demo_dir))
+    training_run(grid, context, startup_final_models(demo_dir))
 
 
-def train(grid: Grid, context: Context, directory: Path) -> None:
+def training_run(grid: Grid, context: Context, directory: Path) -> None:
     """Train with FedAvg and keep the final model at the startup (DS4); no hospital
     stores it until the data scientist releases it and the hospital fetches it."""
     fraction_evaluate = float(context.run_config["fraction-evaluate"])
@@ -88,8 +87,7 @@ def train(grid: Grid, context: Context, directory: Path) -> None:
         if last_round is not None
         else MetricRecord()
     )
-    # No threshold: each hospital's laboratory director chooses one
-    # (features/hospital/deployment.feature).
+    # No threshold: each hospital's laboratory director chooses one.
     keep_final_model(
         directory,
         run_id=context.run_id,
