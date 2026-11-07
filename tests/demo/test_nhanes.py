@@ -8,9 +8,7 @@ import pytest
 
 import ml.dataset
 from demo import nhanes
-from demo.topology import HOSPITALS, PATIENTS, PRACTICES, hospital_slug, nhanes_pairs
 from ml.cohort import CBC_VARS
-from ml.dataset import CYCLES
 
 PEOPLE = [
     ("Female", 30, 8.0),
@@ -38,22 +36,13 @@ def participants_2021_2023() -> pd.DataFrame:
     )
 
 
-# The demo's pairs, as compose passes them (demo/topology.py).
+# Pairs as compose passes them (demo/compose.yaml checks its own, in
+# tests/quality/security/test_compose.py).
 PAIRS = [
-    nhanes.Pair(
-        cycle,
-        hospital_slug(HOSPITALS[cycle]),
-        hospital_slug(PRACTICES[cycle]),
-        PATIENTS[cycle],
-    )
-    for cycle in CYCLES
+    nhanes.Pair("2005-2006", "uz-leuven", "huisartsenpraktijk-de-akker", 40),
+    nhanes.Pair("2015-2016", "heilig-hart-leuven", "huisartsenpraktijk-de-berk", 24),
+    nhanes.Pair("2017-2018", "az-diest", "huisartsenpraktijk-de-ceder", 12),
 ]
-
-
-def test_compose_passes_every_pair() -> None:
-    arguments = [part.strip().strip('"') for part in nhanes_pairs().split(",")]
-    pairs = [arguments[index + 1 : index + 5] for index in range(0, len(arguments), 5)]
-    assert [nhanes.Pair(c, h, p, int(n)) for c, h, p, n in pairs] == PAIRS
 
 
 def lab_records(cycle: str) -> pd.DataFrame:
@@ -64,9 +53,8 @@ def test_each_party_gets_only_its_own_extracts() -> None:
     files = nhanes.extracts(PAIRS, lab_records, participants_2021_2023())
     assert sorted(files) == sorted(nhanes.expected(PAIRS))
     patients = {}
-    for cycle in CYCLES:
-        hospital = hospital_slug(HOSPITALS[cycle])
-        practice = hospital_slug(PRACTICES[cycle])
+    for pair in PAIRS:
+        hospital, practice, cycle = pair.hospital, pair.practice, pair.cycle
         assert {path.name for path in files if path.parent.name == hospital} == {
             "lab-records.csv",
             "participants.csv",
@@ -76,11 +64,11 @@ def test_each_party_gets_only_its_own_extracts() -> None:
         }
         assert files[Path(hospital, "lab-records.csv")]["cycle"].tolist() == [cycle]
         patients[practice] = files[Path(practice, "patients.csv")]
-        assert len(patients[practice]) == PATIENTS[cycle]
+        assert len(patients[practice]) == pair.patients
     # Each hospital's analyser holds a tube for every practice's patients.
     every = set().union(*(set(rows["sample_id"]) for rows in patients.values()))
-    for cycle in CYCLES:
-        held = files[Path(hospital_slug(HOSPITALS[cycle]), "participants.csv")]
+    for pair in PAIRS:
+        held = files[Path(pair.hospital, "participants.csv")]
         assert set(held["sample_id"]) == every
 
 
