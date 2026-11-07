@@ -224,10 +224,14 @@ def database_refuses(world: World) -> None:
 def ordered_before(
     world: World, general_practitioner: str, patient: str, indication: str
 ) -> None:
-    world["patients"][patient].samples.latest("pk").place_order(
-        test=OrderedTest.CBC,
-        indication=indication_named(indication),
-        now=NOW,
+    world["ordered"] = (
+        world["patients"][patient]
+        .samples.latest("pk")
+        .place_order(
+            test=OrderedTest.CBC,
+            indication=indication_named(indication),
+            now=NOW,
+        )
     )
 
 
@@ -312,3 +316,37 @@ def both_primary(world: World) -> None:
 @then(parsers.parse('the collection is refused with code "{code}" on field "{field}"'))
 def collection_refused(world: World, code: str, field: str) -> None:
     assert [error.code for error in world["error"].error_dict[field]] == [code]
+
+
+@when(parsers.parse('the laboratory rejects its lab order because "{reason}"'))
+def reject(world: World, reason: str) -> None:
+    world["ordered"].reject(reason=reason, now=NOW)
+
+
+@then(parsers.parse('the order records the reason for rejection "{reason}"'))
+def records_rejection(world: World, reason: str) -> None:
+    order = Order.objects.get(pk=world["ordered"].pk)
+    assert (order.rejected_at, order.reason_for_rejection) == (NOW, reason)
+
+
+@then("the order is not among the lab orders to send")
+def not_to_send(world: World) -> None:
+    assert world["ordered"] not in Order.objects.not_sent()
+
+
+@when("an order is written straight to the database as rejected without a reason")
+def write_rejected_without_reason(world: World) -> None:
+    sample = world["sample"]
+    try:
+        with transaction.atomic():
+            Order.objects.create(
+                sample=sample,
+                test=OrderedTest.CBC,
+                indication=ClinicalIndication.UNEXPLAINED_FATIGUE,
+                registered_sex=sample.patient.registered_sex,
+                age=sample.patient.age,
+                ordered_at=NOW,
+                rejected_at=NOW,
+            )
+    except IntegrityError as error:
+        world["integrity_error"] = error
