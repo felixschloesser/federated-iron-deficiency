@@ -101,6 +101,10 @@ markers = [
     "subprocess: starts a process of its own (manage.py, uv, flwr), a second or more each",
 ]
 
+[tool.ruff]
+# protoc's output (web/shared/messaging/__init__.py): generated, not ours to style.
+extend-exclude = ["*_pb2.py", "*_pb2.pyi", "*_pb2_grpc.py", "*_pb2_grpc.pyi"]
+
 [tool.ruff.lint.isort]
 known-first-party = [
     "audit",
@@ -108,7 +112,6 @@ known-first-party = [
     "ml",
     "red_first",
     "tests",
-    "tools",
     "web",
 ]
 

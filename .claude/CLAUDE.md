@@ -28,7 +28,7 @@ uv run --frozen python .claude/audit.py
 - Run every gate through `uv run --frozen`, never with a stale `.venv`. Plain pytest runs the tests outside the party folders without Django settings, then each party's (a folder named after the party, anywhere under `tests/`) in a pytest of its own under `--ds=web.<party>.settings` (`conftest.py`). With `DJANGO_SETTINGS_MODULE` set in the shell, it runs only that party's tests: unset it.
 - Merge gate: `uv run --frozen pytest -W error -m containers` must also exit 0 when a branch touches what the images or containers are made of, or the tests that run them: compose, Docker files, `.dockerignore`, `web/shared/settings.py`, `web/<party>/settings.py`, `demo/`, `ml/`, `pyproject.toml`, `uv.lock`, `tests/compose_project.py` or a test marked `containers`. Other branches merge without it.
 
-- Zero warnings. Never suppress one (`# noqa`, `# type: ignore`, `filterwarnings`); fix the root cause. If the fix is genuinely unclear, stop and report with a recommendation.
+- Zero warnings. Never suppress one (`# noqa`, `# type: ignore`, `filterwarnings`); fix the root cause. Generated code (protoc's `*_pb2*`) is excluded from ruff instead: excluded, not suppressed; regenerate it, never patch it. If the fix is genuinely unclear, stop and report with a recommendation.
 - `.claude/audit.py` fails on any finding.
 - Under machine load, rerun a timed-out test once and report it.
 

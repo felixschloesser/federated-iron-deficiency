@@ -8,26 +8,28 @@ asks, the practice or the hospital, and names itself by its certificate name in
 every message; the demo leaves out the report's mutual TLS.
 """
 
-import builtins as _builtins
-import typing as _typing
 from collections import abc as _abc
-from typing import Never as _Never
-
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+import builtins as _builtins
+import sys
+import typing as _typing
+
+if sys.version_info >= (3, 11):
+    from typing import TypeAlias as _TypeAlias, Never as _Never
+else:
+    from typing_extensions import TypeAlias as _TypeAlias, Never as _Never
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class _Test:
     ValueType = _typing.NewType("ValueType", _builtins.int)
-    type V = ValueType  # noqa: Y015
+    V: _TypeAlias = ValueType  # noqa: Y015
 
-class _TestEnumTypeWrapper(
-    _enum_type_wrapper._EnumTypeWrapper[_Test.ValueType], _builtins.type
-):
+class _TestEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_Test.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     TEST_UNSPECIFIED: _Test.ValueType  # 0
     TEST_CBC: _Test.ValueType  # 1
@@ -41,15 +43,13 @@ class Test(_Test, metaclass=_TestEnumTypeWrapper):
 TEST_UNSPECIFIED: Test.ValueType  # 0
 TEST_CBC: Test.ValueType  # 1
 TEST_FERRITIN: Test.ValueType  # 2
-type Global___Test = Test  # noqa: Y015
+Global___Test: _TypeAlias = Test  # noqa: Y015
 
 class _RegisteredSex:
     ValueType = _typing.NewType("ValueType", _builtins.int)
-    type V = ValueType  # noqa: Y015
+    V: _TypeAlias = ValueType  # noqa: Y015
 
-class _RegisteredSexEnumTypeWrapper(
-    _enum_type_wrapper._EnumTypeWrapper[_RegisteredSex.ValueType], _builtins.type
-):
+class _RegisteredSexEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_RegisteredSex.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     REGISTERED_SEX_UNSPECIFIED: _RegisteredSex.ValueType  # 0
     REGISTERED_SEX_FEMALE: _RegisteredSex.ValueType  # 1
@@ -60,7 +60,7 @@ class RegisteredSex(_RegisteredSex, metaclass=_RegisteredSexEnumTypeWrapper): ..
 REGISTERED_SEX_UNSPECIFIED: RegisteredSex.ValueType  # 0
 REGISTERED_SEX_FEMALE: RegisteredSex.ValueType  # 1
 REGISTERED_SEX_MALE: RegisteredSex.ValueType  # 2
-type Global___RegisteredSex = RegisteredSex  # noqa: Y015
+Global___RegisteredSex: _TypeAlias = RegisteredSex  # noqa: Y015
 
 @_typing.final
 class LabOrder(_message.Message):
@@ -82,10 +82,10 @@ class LabOrder(_message.Message):
     certificate_name: _builtins.str
     """the sending practice's (features/hospital/lab_orders.feature)"""
     sample_id: _builtins.str
-    test: Test.ValueType
+    test: Global___Test.ValueType
     screened_indication: _builtins.bool
     """false when absent: never screened by mistake"""
-    registered_sex: RegisteredSex.ValueType
+    registered_sex: Global___RegisteredSex.ValueType
     age: _builtins.int
     @_builtins.property
     def ordered_at(self) -> _timestamp_pb2.Timestamp: ...
@@ -94,34 +94,19 @@ class LabOrder(_message.Message):
         *,
         certificate_name: _builtins.str = ...,
         sample_id: _builtins.str = ...,
-        test: Test.ValueType = ...,
+        test: Global___Test.ValueType = ...,
         screened_indication: _builtins.bool = ...,
-        registered_sex: RegisteredSex.ValueType = ...,
+        registered_sex: Global___RegisteredSex.ValueType = ...,
         age: _builtins.int = ...,
         ordered_at: _timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    type _HasFieldArgType = _typing.Literal["ordered_at", b"ordered_at"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["ordered_at", b"ordered_at"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _typing.Literal[
-        "age",
-        b"age",
-        "certificate_name",
-        b"certificate_name",
-        "ordered_at",
-        b"ordered_at",
-        "registered_sex",
-        b"registered_sex",
-        "sample_id",
-        b"sample_id",
-        "screened_indication",
-        b"screened_indication",
-        "test",
-        b"test",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["age", b"age", "certificate_name", b"certificate_name", "ordered_at", b"ordered_at", "registered_sex", b"registered_sex", "sample_id", b"sample_id", "screened_indication", b"screened_indication", "test", b"test"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___LabOrder = LabOrder  # noqa: Y015
+Global___LabOrder: _TypeAlias = LabOrder  # noqa: Y015
 
 @_typing.final
 class LabReport(_message.Message):
@@ -145,9 +130,9 @@ class LabReport(_message.Message):
             key: _builtins.str = ...,
             value: _builtins.float = ...,
         ) -> None: ...
-        type _HasFieldArgType = _Never  # noqa: Y015
+        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
         def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        type _ClearFieldArgType = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
         def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
         def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -159,7 +144,7 @@ class LabReport(_message.Message):
     FERRITIN_SUGGESTED_FIELD_NUMBER: _builtins.int
     report_id: _builtins.str
     sample_id: _builtins.str
-    test: Test.ValueType
+    test: Global___Test.ValueType
     ferritin_suggested: _builtins.bool
     """false when absent: never a false suggestion"""
     @_builtins.property
@@ -171,31 +156,18 @@ class LabReport(_message.Message):
         *,
         report_id: _builtins.str = ...,
         sample_id: _builtins.str = ...,
-        test: Test.ValueType = ...,
+        test: Global___Test.ValueType = ...,
         results: _abc.Mapping[_builtins.str, _builtins.float] | None = ...,
         released_at: _timestamp_pb2.Timestamp | None = ...,
         ferritin_suggested: _builtins.bool = ...,
     ) -> None: ...
-    type _HasFieldArgType = _typing.Literal["released_at", b"released_at"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["released_at", b"released_at"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _typing.Literal[
-        "ferritin_suggested",
-        b"ferritin_suggested",
-        "released_at",
-        b"released_at",
-        "report_id",
-        b"report_id",
-        "results",
-        b"results",
-        "sample_id",
-        b"sample_id",
-        "test",
-        b"test",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["ferritin_suggested", b"ferritin_suggested", "released_at", b"released_at", "report_id", b"report_id", "results", b"results", "sample_id", b"sample_id", "test", b"test"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___LabReport = LabReport  # noqa: Y015
+Global___LabReport: _TypeAlias = LabReport  # noqa: Y015
 
 @_typing.final
 class Received(_message.Message):
@@ -204,13 +176,13 @@ class Received(_message.Message):
     def __init__(
         self,
     ) -> None: ...
-    type _HasFieldArgType = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _Never  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___Received = Received  # noqa: Y015
+Global___Received: _TypeAlias = Received  # noqa: Y015
 
 @_typing.final
 class NewLabReportsRequest(_message.Message):
@@ -224,13 +196,13 @@ class NewLabReportsRequest(_message.Message):
         *,
         certificate_name: _builtins.str = ...,
     ) -> None: ...
-    type _HasFieldArgType = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _typing.Literal["certificate_name", b"certificate_name"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["certificate_name", b"certificate_name"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___NewLabReportsRequest = NewLabReportsRequest  # noqa: Y015
+Global___NewLabReportsRequest: _TypeAlias = NewLabReportsRequest  # noqa: Y015
 
 @_typing.final
 class LabReports(_message.Message):
@@ -238,21 +210,19 @@ class LabReports(_message.Message):
 
     REPORTS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def reports(
-        self,
-    ) -> _containers.RepeatedCompositeFieldContainer[Global___LabReport]: ...
+    def reports(self) -> _containers.RepeatedCompositeFieldContainer[Global___LabReport]: ...
     def __init__(
         self,
         *,
         reports: _abc.Iterable[Global___LabReport] | None = ...,
     ) -> None: ...
-    type _HasFieldArgType = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _typing.Literal["reports", b"reports"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["reports", b"reports"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___LabReports = LabReports  # noqa: Y015
+Global___LabReports: _TypeAlias = LabReports  # noqa: Y015
 
 @_typing.final
 class Acknowledgement(_message.Message):
@@ -270,15 +240,13 @@ class Acknowledgement(_message.Message):
         certificate_name: _builtins.str = ...,
         report_ids: _abc.Iterable[_builtins.str] | None = ...,
     ) -> None: ...
-    type _HasFieldArgType = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _typing.Literal[
-        "certificate_name", b"certificate_name", "report_ids", b"report_ids"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["certificate_name", b"certificate_name", "report_ids", b"report_ids"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___Acknowledgement = Acknowledgement  # noqa: Y015
+Global___Acknowledgement: _TypeAlias = Acknowledgement  # noqa: Y015
 
 @_typing.final
 class FinalModel(_message.Message):
@@ -304,9 +272,9 @@ class FinalModel(_message.Message):
             key: _builtins.str = ...,
             value: _builtins.float = ...,
         ) -> None: ...
-        type _HasFieldArgType = _Never  # noqa: Y015
+        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
         def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        type _ClearFieldArgType = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
         def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
         def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -324,15 +292,13 @@ class FinalModel(_message.Message):
         weights: _builtins.bytes = ...,
         federated: _abc.Mapping[_builtins.str, _builtins.float] | None = ...,
     ) -> None: ...
-    type _HasFieldArgType = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _typing.Literal[
-        "federated", b"federated", "run_id", b"run_id", "weights", b"weights"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["federated", b"federated", "run_id", b"run_id", "weights", b"weights"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___FinalModel = FinalModel  # noqa: Y015
+Global___FinalModel: _TypeAlias = FinalModel  # noqa: Y015
 
 @_typing.final
 class NewFinalModelsRequest(_message.Message):
@@ -346,13 +312,13 @@ class NewFinalModelsRequest(_message.Message):
         *,
         certificate_name: _builtins.str = ...,
     ) -> None: ...
-    type _HasFieldArgType = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _typing.Literal["certificate_name", b"certificate_name"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["certificate_name", b"certificate_name"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___NewFinalModelsRequest = NewFinalModelsRequest  # noqa: Y015
+Global___NewFinalModelsRequest: _TypeAlias = NewFinalModelsRequest  # noqa: Y015
 
 @_typing.final
 class NewFinalModels(_message.Message):
@@ -360,21 +326,19 @@ class NewFinalModels(_message.Message):
 
     FINAL_MODELS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def final_models(
-        self,
-    ) -> _containers.RepeatedCompositeFieldContainer[Global___FinalModel]: ...
+    def final_models(self) -> _containers.RepeatedCompositeFieldContainer[Global___FinalModel]: ...
     def __init__(
         self,
         *,
         final_models: _abc.Iterable[Global___FinalModel] | None = ...,
     ) -> None: ...
-    type _HasFieldArgType = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _typing.Literal["final_models", b"final_models"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["final_models", b"final_models"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___NewFinalModels = NewFinalModels  # noqa: Y015
+Global___NewFinalModels: _TypeAlias = NewFinalModels  # noqa: Y015
 
 @_typing.final
 class FinalModelAcknowledgement(_message.Message):
@@ -394,12 +358,10 @@ class FinalModelAcknowledgement(_message.Message):
         certificate_name: _builtins.str = ...,
         run_ids: _abc.Iterable[_builtins.str] | None = ...,
     ) -> None: ...
-    type _HasFieldArgType = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    type _ClearFieldArgType = _typing.Literal[
-        "certificate_name", b"certificate_name", "run_ids", b"run_ids"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["certificate_name", b"certificate_name", "run_ids", b"run_ids"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-type Global___FinalModelAcknowledgement = FinalModelAcknowledgement  # noqa: Y015
+Global___FinalModelAcknowledgement: _TypeAlias = FinalModelAcknowledgement  # noqa: Y015
