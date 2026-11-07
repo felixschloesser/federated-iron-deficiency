@@ -169,16 +169,49 @@ def test_helpers_are_not_views(tmp_path: Path) -> None:
     assert counts(tree(tmp_path, {"web/practice/views.py": code}))["get_mutation"] == 0
 
 
-def test_unsourced_glossary_term(tmp_path: Path) -> None:
+def test_glossary_term_without_meaning_or_source(tmp_path: Path) -> None:
     glossary = (
-        '[order]\nsource = "Report, DF1"\nwhy = "Report\'s word"\nrejected = ["request"]\n'
-        '[read]\nsource = "unsourced"\nwhy = "x"\nrejected = []\n'
-        '[seen]\nwhy = "no source at all"\nrejected = []\n'
+        '[order]\nmeaning = "What the GP asks for"\nsource = "Report, DF1"\n'
+        '[read]\nmeaning = "x"\nsource = "unsourced"\n'
+        '[seen]\nmeaning = "no source at all"\n'
+        '[kept]\nsource = "Report, DF2"\n'
     )
     root = tree(tmp_path, {"glossary.toml": glossary})
-    assert audit.run(root)["glossary_sources"] == [
+    assert audit.run(root)["glossary_entries"] == [
         "glossary.toml: term 'read' has no source",
         "glossary.toml: term 'seen' has no source",
+        "glossary.toml: term 'kept' has no meaning",
+    ]
+
+
+def test_glossary_record_names_only_glossary_terms(tmp_path: Path) -> None:
+    glossary = '[order]\nmeaning = "What the GP asks for"\nsource = "Report, DF1"\n'
+    record = '[order]\nrejected = ["request"]\n[gone]\nrejected = []\n'
+    root = tree(
+        tmp_path, {"glossary.toml": glossary, ".claude/glossary_record.toml": record}
+    )
+    assert audit.run(root)["glossary_entries"] == [
+        ".claude/glossary_record.toml: term 'gone' is not in glossary.toml"
+    ]
+
+
+def test_feature_files_are_named_once_per_module_or_class_docstring(
+    tmp_path: Path,
+) -> None:
+    code = (
+        '"""Orders (features/a.feature, features/b.feature)."""\n\n\n'
+        "class Order:\n"
+        '    """One order (features/a.feature)."""\n\n'
+        "    def place(self) -> None:\n"
+        '        """Place it (features/a.feature)."""\n'
+        "        # Once (features/a.feature).\n"
+    )
+    test = '"""Steps (features/a.feature)."""\n\n\ndef test_x() -> None:\n    """features/a.feature"""\n'
+    root = tree(tmp_path, {"web/practice/models.py": code, "tests/test_x.py": test})
+    assert audit.run(root)["feature_citations"] == [
+        "web/practice/models.py:1: a second feature file in one docstring",
+        "web/practice/models.py:8: feature file named outside a module or class docstring",
+        "web/practice/models.py:9: feature file named outside a module or class docstring",
     ]
 
 
