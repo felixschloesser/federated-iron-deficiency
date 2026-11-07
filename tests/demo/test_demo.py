@@ -216,3 +216,35 @@ def test_two_hospitals_provide_their_training_cohort_at_start(tmp_path: Path) ->
         "heilig-hart-leuven": True,
         "az-diest": False,
     }
+
+
+def _database(folder: Path, migrations: list[tuple[str, str]]) -> Path:
+    import sqlite3
+
+    path = folder / "web.sqlite3"
+    database = sqlite3.connect(path)
+    with database:
+        database.execute("CREATE TABLE django_migrations (app TEXT, name TEXT)")
+        database.executemany("INSERT INTO django_migrations VALUES (?, ?)", migrations)
+    database.close()
+    return path
+
+
+def test_a_database_from_before_a_migration_reset_is_set_aside(tmp_path: Path) -> None:
+    """A demo volume's database that records migrations the code no longer has
+    cannot migrate: prepare renames it aside, keeping it, and starts afresh."""
+    from demo.demo import set_aside_stale_database
+
+    path = _database(tmp_path, [("lab", "0001_initial"), ("lab", "0002_gone")])
+    assert set_aside_stale_database(tmp_path) == tmp_path / "web.sqlite3.before-reset"
+    assert not path.exists()
+    assert (tmp_path / "web.sqlite3.before-reset").exists()
+
+
+def test_a_current_database_is_kept(tmp_path: Path) -> None:
+    from demo.demo import set_aside_stale_database
+
+    path = _database(tmp_path, [("lab", "0001_initial"), ("admin", "0001_initial")])
+    assert set_aside_stale_database(tmp_path) is None
+    assert path.exists()
+    assert set_aside_stale_database(tmp_path / "none") is None
