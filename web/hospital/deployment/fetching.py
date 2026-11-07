@@ -1,6 +1,7 @@
 """A final model enters the hospital only when its laboratory director fetches
 new final models: the hospital's own code asks the startup's final-models
-endpoint, stores each with its local validation (model_files.py) and acknowledges it (web/shared/messaging/messages.proto,
+endpoint, saying which final models it holds, and stores each with its local
+validation (model_files.py) (web/shared/messaging/messages.proto,
 features/hospital/fetch.feature). The startup's code at the hospital writes
 nothing here."""
 
@@ -10,9 +11,8 @@ import grpc
 import pandas as pd
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from google.protobuf.empty_pb2 import Empty
 
-from ml.final_model import from_bytes
+from ml.final_model import final_model_paths, from_bytes
 from ml.training_cohort import (
     TrainingCohortUnavailable,
     read_training_cohort,
@@ -34,10 +34,10 @@ def unreachable(error: grpc.RpcError) -> bool:
 
 
 def fetch_final_models(*, now: datetime) -> list[int]:
-    """Fetch the released final models this hospital has not stored, validate
-    each on the training cohort its laboratory director provided, store it, then
-    acknowledge them; the run IDs stored. One the hospital holds other weights
-    for is never overwritten, nor acknowledged. Raises TrainingCohortUnavailable,
+    """Fetch the released final models this hospital does not hold, telling the
+    startup which it holds, validate each on the training cohort its laboratory
+    director provided and store it; the run IDs stored. One the hospital holds
+    other weights for is never overwritten. Raises TrainingCohortUnavailable,
     before asking the startup, when no training cohort was provided, and
     grpc.RpcError when the startup cannot be reached or refuses."""
     address, directory = settings.STARTUP_ADDRESS, settings.SCREENING_MODELS_DIR
@@ -52,8 +52,11 @@ def fetch_final_models(*, now: datetime) -> list[int]:
         raise TrainingCohortUnavailable("No training cohort to validate on.")
     with grpc.insecure_channel(address) as channel:
         startup = messages_pb2_grpc.FinalModelsStub(channel)
+        held = [int(path.stem) for path in final_model_paths(directory)]
         offered = startup.FetchNewFinalModels(
-            Empty(), timeout=TIMEOUT_SECONDS, metadata=metadata
+            messages_pb2.NewFinalModelsRequest(held_run_ids=held),
+            timeout=TIMEOUT_SECONDS,
+            metadata=metadata,
         ).final_models
         cohort: pd.DataFrame | None = None
         stored = []
@@ -75,10 +78,4 @@ def fetch_final_models(*, now: datetime) -> list[int]:
             except FileExistsError:
                 continue
             stored.append(model.run_id)
-        if stored:
-            startup.AcknowledgeFinalModels(
-                messages_pb2.FinalModelAcknowledgement(run_ids=stored),
-                timeout=TIMEOUT_SECONDS,
-                metadata=metadata,
-            )
     return stored

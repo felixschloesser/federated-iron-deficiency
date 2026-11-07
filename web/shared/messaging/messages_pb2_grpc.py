@@ -195,13 +195,8 @@ class FinalModelsStub:
         """
         self.FetchNewFinalModels = channel.unary_unary(
                 '/messaging.v1.FinalModels/FetchNewFinalModels',
-                request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                request_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModelsRequest.SerializeToString,
                 response_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModels.FromString,
-                _registered_method=True)
-        self.AcknowledgeFinalModels = channel.unary_unary(
-                '/messaging.v1.FinalModels/AcknowledgeFinalModels',
-                request_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.FinalModelAcknowledgement.SerializeToString,
-                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 _registered_method=True)
 
 
@@ -214,24 +209,13 @@ class FinalModelsServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def AcknowledgeFinalModels(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
 
 def add_FinalModelsServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'FetchNewFinalModels': grpc.unary_unary_rpc_method_handler(
                     servicer.FetchNewFinalModels,
-                    request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                    request_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModelsRequest.FromString,
                     response_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModels.SerializeToString,
-            ),
-            'AcknowledgeFinalModels': grpc.unary_unary_rpc_method_handler(
-                    servicer.AcknowledgeFinalModels,
-                    request_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.FinalModelAcknowledgement.FromString,
-                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -259,35 +243,8 @@ class FinalModels:
             request,
             target,
             '/messaging.v1.FinalModels/FetchNewFinalModels',
-            google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+            web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModelsRequest.SerializeToString,
             web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModels.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def AcknowledgeFinalModels(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/messaging.v1.FinalModels/AcknowledgeFinalModels',
-            web_dot_shared_dot_messaging_dot_messages__pb2.FinalModelAcknowledgement.SerializeToString,
-            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options,
             channel_credentials,
             insecure,

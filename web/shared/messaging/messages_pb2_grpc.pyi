@@ -79,28 +79,19 @@ class FinalModelsStub:
     def __new__(cls, channel: _grpc.Channel) -> _Self: ...
     @_typing.overload
     def __new__(cls, channel: _aio.Channel) -> FinalModelsAsyncStub: ...
-    FetchNewFinalModels: _grpc.UnaryUnaryMultiCallable[_empty_pb2.Empty, _messages_pb2.NewFinalModels]
-    AcknowledgeFinalModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.FinalModelAcknowledgement, _empty_pb2.Empty]
+    FetchNewFinalModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.NewFinalModelsRequest, _messages_pb2.NewFinalModels]
 
 @_typing.type_check_only
 class FinalModelsAsyncStub(FinalModelsStub):
     def __init__(self, channel: _aio.Channel) -> None: ...
-    FetchNewFinalModels: _aio.UnaryUnaryMultiCallable[_empty_pb2.Empty, _messages_pb2.NewFinalModels]  # type: ignore[assignment]
-    AcknowledgeFinalModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.FinalModelAcknowledgement, _empty_pb2.Empty]  # type: ignore[assignment]
+    FetchNewFinalModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.NewFinalModelsRequest, _messages_pb2.NewFinalModels]  # type: ignore[assignment]
 
 class FinalModelsServicer(metaclass=_abc_1.ABCMeta):
     @_abc_1.abstractmethod
     def FetchNewFinalModels(
         self,
-        request: _empty_pb2.Empty,
+        request: _messages_pb2.NewFinalModelsRequest,
         context: _ServicerContext,
     ) -> _typing.Union[_messages_pb2.NewFinalModels, _abc.Awaitable[_messages_pb2.NewFinalModels]]: ...
-
-    @_abc_1.abstractmethod
-    def AcknowledgeFinalModels(
-        self,
-        request: _messages_pb2.FinalModelAcknowledgement,
-        context: _ServicerContext,
-    ) -> _typing.Union[_empty_pb2.Empty, _abc.Awaitable[_empty_pb2.Empty]]: ...
 
 def add_FinalModelsServicer_to_server(servicer: FinalModelsServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...

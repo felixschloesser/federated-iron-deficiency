@@ -283,23 +283,25 @@ class NewFinalModels(_message.Message):
 Global___NewFinalModels: _TypeAlias = NewFinalModels  # noqa: Y015
 
 @_typing.final
-class FinalModelAcknowledgement(_message.Message):
+class NewFinalModelsRequest(_message.Message):
+    """What the hospital holds, so the startup sends only the rest: a final model
+    it failed to store is sent again, one it holds other weights for is not.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
-    RUN_IDS_FIELD_NUMBER: _builtins.int
+    HELD_RUN_IDS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def run_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]:
-        """the final models it stored"""
-
+    def held_run_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]: ...
     def __init__(
         self,
         *,
-        run_ids: _abc.Iterable[_builtins.int] | None = ...,
+        held_run_ids: _abc.Iterable[_builtins.int] | None = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["run_ids", b"run_ids"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["held_run_ids", b"held_run_ids"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-Global___FinalModelAcknowledgement: _TypeAlias = FinalModelAcknowledgement  # noqa: Y015
+Global___NewFinalModelsRequest: _TypeAlias = NewFinalModelsRequest  # noqa: Y015
