@@ -72,7 +72,9 @@ startup's Flower app with PyTorch, CPU only), then runs these steps in order:
 `--abort-on-container-failure` stops every party when one fails, so a broken
 setup never looks half alive. Ctrl-C stops them all.
 
-Later starts reuse what `prepare` made and are quick.
+Later starts reuse what `prepare` made and are quick. Volumes made before
+the migrations were reset to one per app (7 November 2026) no longer migrate:
+run `docker compose down -v` once, and the next `up` prepares them again.
 
 The demo has no TLS, SuperNode authentication or mutual TLS: every connection
 is plaintext and the SuperLink admits any node. The report describes these
