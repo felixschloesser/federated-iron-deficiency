@@ -1,8 +1,7 @@
-# A hospital's or the startup's web app (PARTY=hospital or startup): its own
-# Django apps and the shared ones, and the training package it reads or screens
-# with. No other party's apps (tests/quality/security/test_running_containers.py).
+# A hospital's web app: its own Django apps and the shared ones, and the
+# training package it validates and screens with. No other party's apps
+# (tests/quality/security/test_running_containers.py).
 FROM python:3.13-slim
-ARG PARTY
 RUN pip install --no-cache-dir uv \
     && useradd --create-home app
 WORKDIR /app
@@ -19,5 +18,5 @@ COPY --chown=app README.md LICENSE manage.py /app/
 COPY --chown=app ml/ /app/ml/
 COPY --chown=app web/__init__.py /app/web/
 COPY --chown=app web/shared/ /app/web/shared/
-COPY --chown=app web/${PARTY}/ /app/web/${PARTY}/
+COPY --chown=app web/hospital/ /app/web/hospital/
 RUN uv sync --frozen --no-dev --group web --no-install-package ray
