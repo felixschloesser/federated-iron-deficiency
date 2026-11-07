@@ -74,8 +74,24 @@ def test_models_page(
     )
     # One row per threshold, each with its radio button and four measures.
     for threshold, cells in (
-        ("0.4", ("9 of 10 (90%)", "30 of 42 (71%)", "9 of 21 (43%)", "30 of 31 (97%)")),
-        ("0.5", ("7 of 10 (70%)", "37 of 42 (88%)", "7 of 12 (58%)", "37 of 40 (92%)")),
+        (
+            "0.4",
+            (
+                "9 of 10 (90%; 95% CI 60–98%)",
+                "30 of 42 (71%; 95% CI 56–83%)",
+                "9 of 21 (43%; 95% CI 24–63%)",
+                "30 of 31 (97%; 95% CI 84–99%)",
+            ),
+        ),
+        (
+            "0.5",
+            (
+                "7 of 10 (70%; 95% CI 40–89%)",
+                "37 of 42 (88%; 95% CI 75–95%)",
+                "7 of 12 (58%; 95% CI 32–81%)",
+                "37 of 40 (92%; 95% CI 80–97%)",
+            ),
+        ),
     ):
         assertContains(
             response, f'name="threshold" value="{threshold}" required', count=1

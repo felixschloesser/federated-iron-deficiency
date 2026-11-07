@@ -8,7 +8,7 @@
 {% endif %}
 
 <p>Each screening model from a training run, newest first, checked on this hospital's own past patients at each threshold. Choose the threshold to deploy it at: a lower one suggests ferritin for more women, finding more who are iron deficient and testing more who are not.</p>
-<p><small>Sensitivity: iron-deficient women it suggests ferritin for. Specificity: women without iron deficiency it suggests none for. Positive predictive value: ferritin suggestions for iron-deficient women. Negative predictive value: women without a suggestion who are not iron deficient.</small></p>
+<p><small>Sensitivity: iron-deficient women it suggests ferritin for. Specificity: women without iron deficiency it suggests none for. Positive predictive value: ferritin suggestions for iron-deficient women. Negative predictive value: women without a suggestion who are not iron deficient. 95% CI: the range each share would likely fall in on other past patients like these; few past patients give a wide one.</small></p>
 {% for model in screening_models %}
 <article>
   <header class="card-header">
@@ -34,10 +34,10 @@
           {% for row in model.local_validation %}
           <tr>
             <th scope="row"><label><input type="radio" name="threshold" value="{{ row.threshold }}" required{% if deployed and model.run_id == deployed.run_id and row.threshold == deployed.threshold %} checked{% endif %}> {{ row.threshold|floatformat:2 }}</label></th>
-            {% with ratio=row.sensitivity %}<td data-label="Sensitivity">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
-            {% with ratio=row.specificity %}<td data-label="Specificity">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
-            {% with ratio=row.positive_predictive_value %}<td data-label="Positive predictive value">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
-            {% with ratio=row.negative_predictive_value %}<td data-label="Negative predictive value">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}){% endif %}</td>{% endwith %}
+            {% with ratio=row.sensitivity %}<td data-label="Sensitivity">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; 95% CI {{ ratio.interval }}){% endif %}</td>{% endwith %}
+            {% with ratio=row.specificity %}<td data-label="Specificity">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; 95% CI {{ ratio.interval }}){% endif %}</td>{% endwith %}
+            {% with ratio=row.positive_predictive_value %}<td data-label="Positive predictive value">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; 95% CI {{ ratio.interval }}){% endif %}</td>{% endwith %}
+            {% with ratio=row.negative_predictive_value %}<td data-label="Negative predictive value">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; 95% CI {{ ratio.interval }}){% endif %}</td>{% endwith %}
           </tr>
           {% endfor %}
         </tbody>

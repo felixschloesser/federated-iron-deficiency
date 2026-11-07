@@ -294,6 +294,15 @@ rejected = [
     "true positive rate",
 ]
 
+["95% confidence interval"]
+source = "WHO ferritin guideline (who2020), PDF p. 38: \"95% confidence interval [CI]: 0.914–1.263\""
+why = "Beside each sensitivity, specificity and predictive value: the range its share would likely fall in on other past patients like these, so the laboratory director sees how little 13 iron-deficient women pin a measure down. Shown as \"95% CI 40–89%\""
+rejected = [
+    "uncertainty (WHO LQMS's word for measurement uncertainty)",
+    "margin of error",
+    "error bars",
+]
+
 ["specificity"]
 source = "WHO LQMS 3-3, p. 40: test methods are \"evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)\""
 why = "Women without iron deficiency whom it does not suggest ferritin for"
