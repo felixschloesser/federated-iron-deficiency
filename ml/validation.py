@@ -144,10 +144,12 @@ def evaluate(net: nn.Module, dataloader: Loader) -> Evaluation:
 
 
 def _held_out(state_dict: dict[str, torch.Tensor], cohort: pd.DataFrame) -> Evaluation:
-    """The weights on the cohort's validation split."""
+    """The weights on the cohort's test split: a run reports its validation
+    split each round and its final model is chosen by that, so only the test
+    split is unseen."""
     net = Net()
     net.load_state_dict(state_dict)
-    return evaluate(net, load_data(cohort).validation)
+    return evaluate(net, load_data(cohort).test)
 
 
 def confusion_matrices(
@@ -155,8 +157,8 @@ def confusion_matrices(
     cohort: pd.DataFrame,
     thresholds: Iterable[float],
 ) -> dict[float, dict[str, int]]:
-    """The weights' confusion matrix at each threshold, on the cohort's
-    validation split: a row is positive at a probability at or above it."""
+    """The weights' confusion matrix at each threshold, on the cohort's test
+    split: a row is positive at a probability at or above it."""
     evaluation = _held_out(state_dict, cohort)
     actual = evaluation.labels == 1
     matrices = {}
@@ -172,5 +174,5 @@ def confusion_matrices(
 
 
 def auroc(state_dict: dict[str, torch.Tensor], cohort: pd.DataFrame) -> float:
-    """The weights' AUROC on the cohort's validation split."""
+    """The weights' AUROC on the cohort's test split."""
     return _held_out(state_dict, cohort).auroc

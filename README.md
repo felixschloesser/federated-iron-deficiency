@@ -44,7 +44,7 @@ and three Belgian hospitals.
   code at a hospital writes nothing there. The hospital's own web app stores it
   as a new file named after the training run ID in its screening-models
   folder, with its own standardization and a local validation on
-  its validation split: the confusion matrix at each threshold from 0.05 to
+  its test split, which no training run saw or was chosen on: the confusion matrix at each threshold from 0.05 to
   0.95 in steps of 0.05, and AUROC (`hospital/deployment/model_files.py`). A
   hospital decides itself which final model to deploy, and at which threshold. The startup keeps a copy of every final
   model in `<demo-dir>/startup/final-models/`, so the assessment can cover how
