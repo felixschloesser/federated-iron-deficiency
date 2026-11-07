@@ -8,7 +8,7 @@
   {% for order in sample.orders.all %}
   <article>
     <h3>{{ order.get_test_display|capfirst }}{% if order.indication %} ({{ order.get_indication_display|lower }}){% endif %}</h3>
-    <p>{% if order.report %}<ins>Lab report released {{ order.report.released_at|date:"j M Y, H:i" }}</ins>{% elif order.sent_at %}<mark>Awaiting lab report</mark>{% else %}<mark>Lab order not sent yet</mark>{% endif %} · Ordered {{ order.ordered_at|date:"j M Y, H:i" }}{% if order.sent_at and not order.report and fetches_reports %}<br><small>Check for reports to fetch it.</small>{% endif %}</p>
+    <p>{% if order.report %}<ins>Lab report released {{ order.report.released_at|date:"j M Y, H:i" }}</ins>{% elif order.reason_for_rejection %}<mark>Lab order rejected: {{ order.reason_for_rejection }}</mark><br><small>Collect a new sample to order again.</small>{% elif order.sent_at %}<mark>Awaiting lab report</mark>{% else %}<mark>Lab order not sent yet</mark>{% endif %} · Ordered {{ order.ordered_at|date:"j M Y, H:i" }}{% if order.sent_at and not order.report and fetches_reports %}<br><small>Check for reports to fetch it.</small>{% endif %}</p>
     {% if order.report %}
     {% if order.report.comment %}<p><strong>{{ order.report.comment }}</strong></p>{% endif %}
     {% if order.report.note %}<p>{{ order.report.note }}</p>{% endif %}

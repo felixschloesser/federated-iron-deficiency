@@ -225,3 +225,7 @@ rejected = ["random state", "model seed (the key, not the word)"]
 
 ["stop"]
 rejected = ["cancel", "abort", "kill"]
+
+["rejection"]
+decided = "2026-11-07"
+rejected = ["refused (the app's copy until then; no source)", "rejected sample (WHO's phrase; the sample is never examined)", "invalid", "failed", "error"]

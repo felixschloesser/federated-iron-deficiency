@@ -272,4 +272,11 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
                     if messaging.unreachable(error)
                     else f"{laboratory} refused the lab order. Tell the administrator.",
                 )
+            placed.refresh_from_db(fields=["reason_for_rejection"])
+            if placed.reason_for_rejection is not None:
+                messages.error(
+                    self.request,
+                    f"{laboratory} rejected the lab order:"
+                    f" {placed.reason_for_rejection}",
+                )
         return super().form_valid(form)
