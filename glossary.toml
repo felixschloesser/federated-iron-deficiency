@@ -135,7 +135,7 @@ rejected = [
 
 ["start of pregnancy"]
 source = "Domus Medica, *Aanvraag van laboratoriumtests door huisartsen*, key messages, Huisarts Nu 2012;41(4), S9: \"Bepaal Hb, RBC en Hct … bij Hb <9,5 g/100 ml … ferritinebepaling\""
-why = "Not screened: pregnancy has its own Hb rule, and the cohort was not checked for pregnancy"
+why = "Not screened: pregnancy has its own Hb rule; a past CBC ordered for it stays out of the training cohort, so the model learns only from CBCs like those it screens"
 rejected = ["pregnancy check"]
 
 ["chronic kidney disease follow-up"]
