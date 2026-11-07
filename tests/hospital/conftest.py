@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from ml.cohort import FEATURES
 from tests.conftest import make_user
+from tests.django_settings import _test_settings
 from web.vocabulary import RegisteredSex
 
 if TYPE_CHECKING:
@@ -17,6 +18,9 @@ if TYPE_CHECKING:
     from web.hospital.lab.models import Practice, TestRequest
     from web.hospital.nhanes.models import Participant
     from web.vocabulary import Test
+
+# The settings every test of this party runs with (tests/django_settings.py).
+__all__ = ["_test_settings"]
 
 
 def make_laboratory_staff_member(name: str) -> "User":

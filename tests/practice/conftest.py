@@ -11,6 +11,7 @@ import pytest
 from pytest_bdd import given, parsers
 
 from tests.conftest import World, make_user
+from tests.django_settings import _test_settings
 from tests.practice.fake_laboratory import FakeLaboratory
 from web.messaging import messages_pb2_grpc
 
@@ -20,6 +21,9 @@ if TYPE_CHECKING:
     from web.accounts.models import User
     from web.practice.models import Order, Patient, Sample
     from web.vocabulary import ClinicalIndication, RegisteredSex, Test
+
+# The settings every test of this party runs with (tests/django_settings.py).
+__all__ = ["_test_settings"]
 
 
 def make_general_practitioner(name: str) -> "User":

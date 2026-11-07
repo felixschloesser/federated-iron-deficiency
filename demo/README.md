@@ -169,7 +169,14 @@ names and insist on HTTPS: clear it for those sites.
 ## Without Docker
 
 Each party installs only its own apps: a hospital's database has no table
-for patients, a practice's none for lab orders, analyser values or final
-models. A development checkout (no `PARTY`) serves
-every party from one database; seed it with
-`DJANGO_DEBUG=1 uv run python manage.py seed_hospital` and `seed_practice`.
+for patients, a practice's none for test requests, analyser values or final
+models. Without Docker, run each party as its own web app, each on a port of its
+own; its data goes to `.data/<party>/` in the checkout:
+
+    export DJANGO_DEBUG=1
+    DJANGO_SETTINGS_MODULE=web.settings.hospital uv run python manage.py migrate
+    DJANGO_SETTINGS_MODULE=web.settings.hospital uv run python manage.py seed_hospital
+    DJANGO_SETTINGS_MODULE=web.settings.hospital uv run python manage.py runserver 8001
+    DJANGO_SETTINGS_MODULE=web.settings.practice uv run python manage.py migrate
+    DJANGO_SETTINGS_MODULE=web.settings.practice uv run python manage.py seed_practice
+    DJANGO_SETTINGS_MODULE=web.settings.practice uv run python manage.py runserver 8002

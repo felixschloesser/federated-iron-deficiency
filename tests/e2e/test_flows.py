@@ -109,7 +109,7 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
     # As prepare does: the practice's own image serves it, without the seeding.
     as_practice = [
         *seeding,
-        *("-e", "PARTY=practice"),
+        *("-e", "DJANGO_SETTINGS_MODULE=web.settings.practice"),
         *("-e", f"DATA_DIR=/demo/practices/{APP_PRACTICE}"),
     ]
     compose(*as_practice, "prepare", *manage, "migrate", "-v0")

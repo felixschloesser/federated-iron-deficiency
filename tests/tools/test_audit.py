@@ -13,8 +13,14 @@ CSRF_EXEMPT = "csrf" + "_exempt"
 SAFE = "|sa" + "fe"
 
 
+# Each party's settings module: where the audit learns which parties there are.
+PARTY_SETTINGS = {
+    f"web/settings/{party}.py": "" for party in ("hospital", "practice", "startup")
+}
+
+
 def tree(root: Path, files: dict[str, str]) -> Path:
-    for name, text in files.items():
+    for name, text in {**PARTY_SETTINGS, **files}.items():
         (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_text(text)
     return root
@@ -257,4 +263,55 @@ def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
         "web/seeding/command.py:2: imports ml.inference, the hospital's code",
         "web/seeding/command.py:3: imports ml.final_model, the hospital's or the startup's code",
         "web/startup/training/views.py:2: imports ml.inference, the hospital's code",
+    ]
+
+
+ROLES = (
+    "class Role(TextChoices):\n"
+    '    GENERAL_PRACTITIONER = "gp", "gp"\n'
+    '    LABORATORY_STAFF = "staff", "staff"\n'
+)
+
+
+def test_each_party_installs_its_own_apps_and_no_other_partys(tmp_path: Path) -> None:
+    root = tree(
+        tmp_path,
+        {
+            "web/accounts/roles.py": ROLES,
+            "web/practice/apps.py": "",
+            "web/hospital/lab/apps.py": "",
+            "web/hospital/deployment/apps.py": "",
+            "web/settings/hospital.py": 'INSTALLED_APPS = [*SHARED_APPS, "web.hospital.lab"]\n'
+            "ROLES = [Role.LABORATORY_STAFF]\n",
+            "web/settings/practice.py": 'INSTALLED_APPS = ["web.practice", "web.hospital.lab"]\n'
+            "ROLES = [Role.GENERAL_PRACTITIONER]\n",
+        },
+    )
+    assert audit.run(root)["party_settings"] == [
+        "web/settings/hospital.py: does not install web.hospital.deployment",
+        "web/settings/practice.py: installs web.hospital.lab, the hospital's",
+    ]
+
+
+def test_every_role_logs_in_to_exactly_one_party(tmp_path: Path) -> None:
+    root = tree(
+        tmp_path,
+        {
+            "web/accounts/roles.py": ROLES,
+            "web/settings/hospital.py": "ROLES = [Role.GENERAL_PRACTITIONER]\n",
+            "web/settings/practice.py": "ROLES = [Role.GENERAL_PRACTITIONER]\n",
+        },
+    )
+    assert audit.run(root)["party_settings"] == [
+        "web/accounts/roles.py: Role.GENERAL_PRACTITIONER logs in to hospital and practice",
+        "web/accounts/roles.py: Role.LABORATORY_STAFF logs in to no party",
+    ]
+
+
+def test_a_partys_roles_are_no_listed_members(tmp_path: Path) -> None:
+    """A party's settings write out its roles; party_settings checks them."""
+    code = "ROLES = [Role.LABORATORY_STAFF, Role.LABORATORY_DIRECTOR]\n"
+    root = tree(tmp_path, {"web/settings/hospital.py": code, "web/x.py": code})
+    assert audit.run(root)["listed_members"] == [
+        "web/x.py:1: members of Role listed; derive with match"
     ]

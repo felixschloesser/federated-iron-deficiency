@@ -161,7 +161,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://startup-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('startup-final-models', 8442)).close()"]
     environment:
-      PARTY: startup
+      DJANGO_SETTINGS_MODULE: web.settings.startup
       DATA_DIR: /demo/startup
       FLWR_HOME: /demo/startup/flwr-home
     volumes:
@@ -218,7 +218,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://uz-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('uz-leuven-messaging', 8441)).close()"]
     environment:
-      PARTY: hospital
+      DJANGO_SETTINGS_MODULE: web.settings.hospital
       DATA_DIR: /demo/hospitals/uz-leuven
       PARTY_NAME: UZ Leuven
       PARTY_COLOUR: jade
@@ -282,7 +282,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://heilig-hart-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('heilig-hart-leuven-messaging', 8441)).close()"]
     environment:
-      PARTY: hospital
+      DJANGO_SETTINGS_MODULE: web.settings.hospital
       DATA_DIR: /demo/hospitals/heilig-hart-leuven
       PARTY_NAME: Heilig Hart Leuven
       PARTY_COLOUR: pumpkin
@@ -346,7 +346,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://az-diest-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('az-diest-messaging', 8441)).close()"]
     environment:
-      PARTY: hospital
+      DJANGO_SETTINGS_MODULE: web.settings.hospital
       DATA_DIR: /demo/hospitals/az-diest
       PARTY_NAME: AZ Diest
       PARTY_COLOUR: violet
@@ -376,7 +376,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      PARTY: practice
+      DJANGO_SETTINGS_MODULE: web.settings.practice
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PARTY_NAME: Huisartsenpraktijk De Akker
       PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-akker
@@ -392,7 +392,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      PARTY: practice
+      DJANGO_SETTINGS_MODULE: web.settings.practice
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PARTY_NAME: Huisartsenpraktijk De Berk
       PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-berk
@@ -408,7 +408,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      PARTY: practice
+      DJANGO_SETTINGS_MODULE: web.settings.practice
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PARTY_NAME: Huisartsenpraktijk De Ceder
       PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-ceder
