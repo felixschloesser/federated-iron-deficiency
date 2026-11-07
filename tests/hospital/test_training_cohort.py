@@ -172,6 +172,37 @@ def summary(count: int, deficient: int) -> None:
 
 @then(
     parsers.parse(
+        "providing would leave out {count:d} eligible past patients without a CRP"
+        " result"
+    )
+)
+def left_out(count: int) -> None:
+    from web.hospital.cohort.models import LabRecord
+
+    assert LabRecord.objects.summary().without_crp == count
+
+
+@given(
+    parsers.parse(
+        "lab records of {count:d} eligible past patients with inflammation and"
+        " ferritin {ferritin:d}"
+    )
+)
+def inflamed_records(count: int, ferritin: int) -> None:
+    make_lab_records(count, crp=12.0, ferritin=float(ferritin))
+
+
+@given(
+    parsers.parse(
+        "lab records of {count:d} eligible past patients without a CRP result"
+    )
+)
+def records_without_crp(count: int) -> None:
+    make_lab_records(count, crp=None)
+
+
+@then(
+    parsers.parse(
         "the startup's code at this hospital finds {count:d} rows of the 13 CBC"
         " values, age and the label, and nothing else"
     )
@@ -181,6 +212,18 @@ def finds_rows(cohort_dir: Path, count: int) -> None:
     assert rows is not None
     assert list(rows.columns) == [*FEATURES, "iron_deficient"]
     assert len(rows) == count
+
+
+@then(
+    parsers.parse(
+        "the startup's code at this hospital finds {count:d} rows, {deficient:d} of"
+        " them labelled iron deficient"
+    )
+)
+def finds_labels(cohort_dir: Path, count: int, deficient: int) -> None:
+    rows = found_cohort(cohort_dir)
+    assert rows is not None
+    assert (len(rows), int(rows["iron_deficient"].sum())) == (count, deficient)
 
 
 @then("the startup's code at this hospital finds no training cohort")

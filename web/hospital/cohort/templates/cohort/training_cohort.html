@@ -3,7 +3,7 @@
 {% block content %}
 {% include "includes/index_header.html" with title="Training cohort" subtitle="To the startup's code at this hospital" %}
 
-<p>The startup's code at this hospital trains its screening model on the training cohort, and only once you provide it. Providing extracts it from the lab records: eligible past patients with a complete CBC and a ferritin result, each as the {{ cbc_values }} CBC values, age and whether ferritin was below the cutoff. No name, patient number or date leaves the lab records. Withdrawing it ends this hospital's part in a training run from its next round.</p>
+<p>The startup's code at this hospital trains its screening model on the training cohort, and only once you provide it. Providing extracts it from the lab records: eligible past patients with a complete CBC, a ferritin and a CRP result, each as the {{ cbc_values }} CBC values, age and whether iron deficient: ferritin below 15&nbsp;ng/mL, or below 70&nbsp;ng/mL with inflammation (CRP above 5&nbsp;mg/L). Ferritin and CRP themselves stay in the lab records. No name, patient number or date leaves the lab records. Withdrawing it ends this hospital's part in a training run from its next round.</p>
 
 <h2>Now</h2>
 {% if provided %}
@@ -15,7 +15,7 @@
 {% endif %}
 
 <h2>From the lab records</h2>
-<p>Providing now would hold {{ summary.past_patients }} past patients, {{ summary.iron_deficient }} of them iron deficient.</p>
+<p>Providing now would hold {{ summary.past_patients }} past patients, {{ summary.iron_deficient }} of them iron deficient.{% if summary.without_crp %} It leaves out {{ summary.without_crp }} eligible past patients without a CRP result.{% endif %}</p>
 {% include "includes/action_button.html" with url=provide_url label="Provide the training cohort" %}
 
 <h2>Decisions</h2>

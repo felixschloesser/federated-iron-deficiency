@@ -2,8 +2,9 @@ Feature: Providing the training cohort
   The startup's code at this hospital (its ClientApp) trains on the training
   cohort, and only once the laboratory director has provided it. Providing
   extracts it from the laboratory's lab records: eligible past patients with a
-  complete CBC ordered for a screened indication and a ferritin result, as the 13 CBC values, age and whether
-  ferritin was below the cutoff; nothing else. Before deciding, the director
+  complete CBC ordered for a screened indication, a ferritin and a CRP result,
+  as the 13 CBC values, age and whether iron deficient (WHO: ferritin below 15
+  ng/mL, or below 70 ng/mL with inflammation, CRP above 5 mg/L); nothing else. Before deciding, the director
   sees how many past patients it holds, never their records. The director may
   withdraw it at any time; the startup's code then finds none. Each decision
   is recorded with who made it, when, and the cohort's SHA-256.
@@ -22,6 +23,19 @@ Feature: Providing the training cohort
   Scenario: A CBC ordered at the start of pregnancy stays out of the training cohort
     Given lab records of 5 eligible past patients whose CBC was ordered at the start of pregnancy
     Then providing would hold 120 past patients, 20 of them iron deficient
+
+  Scenario: With inflammation, ferritin below 70 counts as iron deficient
+    Given lab records of 4 eligible past patients with inflammation and ferritin 40
+    When the laboratory director provides the training cohort
+    Then the startup's code at this hospital finds 124 rows, 24 of them labelled iron deficient
+    And providing would hold 124 past patients, 24 of them iron deficient
+
+  Scenario: A past patient without a CRP result stays out, and is counted
+    Given lab records of 3 eligible past patients without a CRP result
+    When the laboratory director provides the training cohort
+    Then the startup's code at this hospital finds 120 rows of the 13 CBC values, age and the label, and nothing else
+    And providing would hold 120 past patients, 20 of them iron deficient
+    And providing would leave out 3 eligible past patients without a CRP result
 
   Scenario: Providing the training cohort
     When the laboratory director provides the training cohort

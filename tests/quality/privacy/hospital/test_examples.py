@@ -42,7 +42,15 @@ from web.hospital.lab.models import Sample, TestRequest
         (Sample, {"id", "practice", "sample_id"}),
         (
             LabRecord,
-            {"id", "registered_sex", "age", "cbc", "ferritin", "clinical_indication"},
+            {
+                "id",
+                "registered_sex",
+                "age",
+                "cbc",
+                "ferritin",
+                "crp",
+                "clinical_indication",
+            },
         ),
     ],
 )

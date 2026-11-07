@@ -118,6 +118,8 @@ def make_lab_records(
     age: int = 30,
     with_ferritin: bool = True,
     indication: ClinicalIndication = ClinicalIndication.SUSPECTED_ANAEMIA,
+    crp: float | None = 1.0,
+    ferritin: float | None = None,
 ) -> None:
     """`count` past patients' lab records, the first `iron_deficient` with ferritin
     below the cutoff; each CBC differs, so each record does."""
@@ -130,10 +132,15 @@ def make_lab_records(
             registered_sex=sex,
             age=age,
             cbc=dict.fromkeys(CBC_VARS, float(start + number)),
-            ferritin=(8.0 if number < iron_deficient else 40.0)
+            ferritin=(
+                ferritin
+                if ferritin is not None
+                else (8.0 if number < iron_deficient else 40.0)
+            )
             if with_ferritin
             else None,
             clinical_indication=indication,
+            crp=crp,
         )
         for number in range(count)
     )
