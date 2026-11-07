@@ -188,7 +188,16 @@ def test_the_startups_web_app_reaches_the_superlink_and_not_its_state(
     SuperLink's state is the SuperLink's alone. Pass: from the web app's
     container the SuperLink answers and its state folder is empty."""
     sight = probe(compose, "startup-web", STARTUP_SIGHT)
-    assert sight == {"superlink": "open", "state": []}
+    expected = {"superlink": "open", "state": []}
+    # This test has failed now and then with no trace of why: when it fails,
+    # say what the SuperLink was doing.
+    evidence = (
+        ""
+        if sight == expected
+        else compose("ps", "--all").stdout
+        + compose("logs", "--tail", "40", "flower-superlink").stdout
+    )
+    assert sight == expected, evidence
 
 
 # The parties whose web apps no test here starts: their own networks must not exist.
