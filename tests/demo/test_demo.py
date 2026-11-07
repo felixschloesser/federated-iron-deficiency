@@ -125,7 +125,7 @@ def test_the_summary_names_the_http_port_when_it_is_not_80() -> None:
 # from prepare alone.
 PARTY_FOLDERS = {
     "startup": {
-        "superlink",  # DS3
+        "superlink",  # the SuperLink's own state, no DFD store
         "final-models",  # DS4
         "flwr-home",
         "shared.sqlite3",  # the data scientist's account
@@ -134,7 +134,7 @@ PARTY_FOLDERS = {
     "hospitals": {
         "cohort",  # DS2
         "screening-models",  # DS5
-        "shared.sqlite3",  # DS6, DS8
+        "shared.sqlite3",  # DS1, DS6, DS8, DS9
         ".secret_key",
     },
     "practices": {

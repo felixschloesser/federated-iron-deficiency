@@ -23,13 +23,13 @@ not a process of the report's DFDs:
 | DFD element | Where it runs |
 |---|---|
 | DS1 Lab records | each hospital's NHANES cycle, which `prepare` seeds into its database |
-| P1 Cohort extraction | *Provide the training cohort* on `<hospital>-web`, by its laboratory director; *Withdraw* takes it back |
-| P2 SuperNode, ClientApp | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
-| P3 SuperLink | `flower-superlink` |
-| P4 ServerApp | `flower-server-app` |
-| P12 Final-models endpoint | `startup-web`, a second server beside its pages, on the `final-models` network only the hospitals' web apps join |
-| P6 Model deployment, P8 Messaging endpoint, P9 Lab analysis, P10 Screening | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis, and its messaging endpoint, each server on its own network |
-| P7 Practice app | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
+| P1 Extract training cohort | *Provide the training cohort* on `<hospital>-web`, by its laboratory director; *Withdraw* takes it back |
+| P2 Train locally | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
+| P3 Relay messages | `flower-superlink` |
+| P4 Average weights (FedAvg) | `flower-server-app` |
+| P5 Release final models | `startup-web`: its pages, where the data scientist releases, and a second server beside them, on the `final-models` network only the hospitals' web apps join |
+| P6 Validate and deploy model, P8 Receive lab orders, P9 Analyse samples, P10 Screen CBC, P12 Send lab reports | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis, and its messaging endpoint, each server on its own network |
+| P7 Order tests, P11 Show lab reports | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
 | E1 Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models (DS4) and submits a training run; or `train`, run by hand |
 
 One container has no DFD element: `proxy`, which stands for the network

@@ -30,7 +30,7 @@ scenarios("hospital/fetch.feature")
 
 
 def offered(run_id: str, seed: int) -> messages_pb2.FinalModel:
-    """A released final model as the startup's endpoint sends it (DF37)."""
+    """A released final model as the startup's endpoint sends it (DF33)."""
     torch.manual_seed(seed)
     return messages_pb2.FinalModel(
         run_id=run_id,
