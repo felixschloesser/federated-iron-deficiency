@@ -410,14 +410,14 @@ def test_the_database_refuses_a_threshold_outside_zero_and_one(
 
 @given(parsers.parse("a measure of {part:d} of {whole:d}"), target_fixture="measure")
 def measure(part: int, whole: int) -> object:
-    from hospital.deployment.model_files import Ratio
+    from web.hospital.deployment.model_files import Ratio
 
     return Ratio(part, whole)
 
 
 @then(parsers.parse("it reads {percent}, with a 95% confidence interval of {interval}"))
 def reads_with_interval(measure: object, percent: str, interval: str) -> None:
-    from hospital.deployment.model_files import Ratio
+    from web.hospital.deployment.model_files import Ratio
 
     assert isinstance(measure, Ratio)
     assert measure.percent == (None if percent == "none" else percent)
