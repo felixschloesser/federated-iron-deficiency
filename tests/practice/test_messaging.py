@@ -1,7 +1,7 @@
-"""Scenarios: the general practitioner's app sending lab orders and fetching lab
-reports over gRPC (features/practice/messaging.feature), and its pages and
-commands that do. The hospital is the stand-in tests/practice/fake_laboratory.py:
-no hospital code, no hospital database."""
+"""The general practitioner's app sending lab orders and fetching lab reports
+over gRPC, and its pages and commands that do. The hospital is the stand-in
+tests/practice/fake_laboratory.py: no hospital code, no hospital database; the
+real endpoint is held to the same messages by tests/hospital/test_messaging.py."""
 
 from datetime import UTC, datetime
 
@@ -10,7 +10,6 @@ import pytest
 from django.core.management import call_command
 from django.test import Client
 from django.urls import reverse
-from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
 
@@ -20,7 +19,6 @@ from shared.accounts.models import User
 from shared.messaging import messages_pb2
 from shared.vocabulary import ClinicalIndication, RegisteredSex
 from shared.vocabulary import Test as OrderedTest
-from tests.conftest import World
 from tests.practice.conftest import (
     Running,
     collect_and_order,
@@ -34,210 +32,119 @@ NOW = datetime(2026, 10, 30, 10, 0, tzinfo=UTC)
 # The stand-in serves from its own threads; the app's database stays in the test.
 pytestmark = pytest.mark.django_db
 
-scenarios("practice/messaging.feature")
-
 
 def latest_sample_id(patient: Patient) -> str:
     """The sample ID of the patient's latest sample."""
     return patient.samples.latest("pk").sample_id
 
 
-def stand_in(world: World) -> FakeLaboratory:
-    laboratory: FakeLaboratory = world["stand_in"]
-    return laboratory
-
-
-@given(parsers.parse('hospital "{name}"'))
-def hospital_ready(world: World, fake_laboratory: Running, name: str) -> None:
-    world["stand_in"] = fake_laboratory.laboratory
-    world["hospital"] = fake_laboratory.address
-
-
-@given(
-    parsers.parse(
-        'general practitioner "{name}" of practice "{practice}",'
-        ' working with "{hospital_name}"'
-    )
-)
-def general_practitioner(
-    world: World, settings: Settings, name: str, practice: str, hospital_name: str
-) -> None:
-    world["general_practitioners"][name] = make_general_practitioner(name)
-    settings.PARTY_NAME = practice
-    # The practice works with the hospital's laboratory.
-    world["laboratory"] = Laboratory.objects.create(
-        name=hospital_name, address=world["hospital"]
-    )
-
-
-@given(
-    parsers.parse('"{name}" issued the practice certificate name "{certificate_name}"')
-)
-def issued_certificate_name(
-    settings: Settings, name: str, certificate_name: str
-) -> None:
-    settings.PRACTICE_CERTIFICATE_NAME = certificate_name
-
-
-@given(
-    parsers.parse(
-        'patient "{patient}" of "{owner}", registered sex {sex}, aged {age:d}'
-    )
-)
-def patient(world: World, patient: str, owner: str, sex: str, age: int) -> None:
-    world["patients"][patient] = make_patient(patient, RegisteredSex(sex), age)
-
-
-def order(
-    world: World, patient: str, test: OrderedTest, indication: str | None
-) -> Order:
-    choice = (
-        {choice.label.lower(): choice for choice in ClinicalIndication}[indication]
-        if indication
-        else None
-    )
-    placed: Order = collect_and_order(
-        patient=world["patients"][patient], test=test, indication=choice, now=NOW
-    )
-    world["order"] = placed
-    return placed
-
-
-@when(
-    parsers.re(
-        r'"(?P<owner>[^"]+)" orders a CBC for "(?P<patient>[^"]+)"'
-        r" with indication (?P<indication>.+)$"
-    )
-)
-def orders_cbc(world: World, owner: str, patient: str, indication: str) -> None:
-    order(world, patient, OrderedTest.CBC, indication)
-    messaging.send_pending_lab_orders(world["laboratory"], now=NOW)
-
-
-@then(parsers.parse('"{name}" received a lab order for the sample of "{patient}"'))
-def received_lab_order(world: World, name: str, patient: str) -> None:
-    sample_id = latest_sample_id(world["patients"][patient])
-    assert [sent.sample_id for sent in stand_in(world).lab_orders] == [sample_id]
-
-
-@then(
-    parsers.parse(
-        "the lab order holds sample ID, test, whether its indication is screened,"
-        ' registered sex and age, from certificate name "{certificate_name}"'
-    )
-)
-def lab_order_holds(world: World, certificate_name: str) -> None:
-    (sent,) = stand_in(world).lab_orders
-    placed = world["order"]
-    assert sent.sample_id == placed.sample.sample_id
-    assert sent.test == messages_pb2.TEST_CBC
-    assert (
-        sent.screened_indication is ClinicalIndication(placed.indication).is_screened()
-    )
-    assert sent.registered_sex == messages_pb2.REGISTERED_SEX_FEMALE
-    assert sent.age == placed.age
-    assert sent.ordered_at.ToDatetime(tzinfo=UTC) == placed.ordered_at
-    # The practice by the certificate name the hospital issued; no general practitioner.
-    assert sent.certificate_name == certificate_name
-
-
-@then(parsers.parse("the lab order says its indication is {screened}"))
-def says_screened(world: World, screened: str) -> None:
-    (sent,) = stand_in(world).lab_orders
-    assert sent.screened_indication is (screened == "screened")
-
-
-@given(parsers.parse('"{name}" released a lab report for the sample of "{patient}"'))
-def released(world: World, name: str, patient: str) -> None:
-    placed = order(world, patient, OrderedTest.FERRITIN, None)
-    world["report_id"] = stand_in(world).release(
-        placed.sample.sample_id, messages_pb2.TEST_FERRITIN, NOW
-    )
-
-
-@given(
-    parsers.parse(
-        '"{name}" released a CBC lab report with ferritin suggested'
-        ' for the sample of "{patient}"'
-    )
-)
-def released_suggested(world: World, name: str, patient: str) -> None:
-    placed = order(world, patient, OrderedTest.CBC, "unexplained fatigue")
-    world["report_id"] = stand_in(world).release(
-        placed.sample.sample_id,
-        messages_pb2.TEST_CBC,
-        NOW,
-        ferritin_suggested=True,
-    )
-
-
-@given(
-    parsers.parse('"{name}" released a lab report for a sample "{owner}" never ordered')
-)
-def released_unknown(world: World, name: str, owner: str) -> None:
-    world["stranger_id"] = stand_in(world).release(
-        "999999-1", messages_pb2.TEST_FERRITIN, NOW
-    )
-
-
-@when("the general practitioner's app checks for lab reports")
-@given("the general practitioner's app checked for lab reports")
-def checks(world: World) -> None:
-    messaging.check_for_lab_reports(world["laboratory"], now=NOW)
-
-
-@then(parsers.parse('"{owner}" has the lab report of "{patient}"'))
-def has_lab_report(world: World, owner: str, patient: str) -> None:
-    assert LabReport.objects.filter(
-        order=world["order"], order__sample__patient=world["patients"][patient]
-    ).exists()
-
-
-@then(parsers.parse('"{owner}" has one lab report of "{patient}"'))
-def has_one_lab_report(world: World, owner: str, patient: str) -> None:
-    # The ferritin's; the CBC's lab report that suggested it came with the setup.
-    reports = LabReport.objects.filter(
-        order__sample__patient=world["patients"][patient],
-        order__test=OrderedTest.FERRITIN,
-    )
-    assert reports.count() == 1
-
-
-@then(
-    parsers.parse('the lab report of "{patient}" has ferritin suggested at "{owner}"')
-)
-def has_ferritin_suggested(world: World, patient: str, owner: str) -> None:
-    report = LabReport.objects.get(order=world["order"])
-    assert report.ferritin_suggested is True
-
-
-@then(parsers.parse('the lab report of "{patient}" is no longer new at "{name}"'))
-def no_longer_new(world: World, patient: str, name: str) -> None:
-    assert world["report_id"] in stand_in(world).acknowledged
-
-
-@then(
-    parsers.parse(
-        'the lab report for the sample never ordered is still new at "{name}"'
-    )
-)
-def stranger_still_new(world: World, name: str) -> None:
-    assert world["stranger_id"] not in stand_in(world).acknowledged
-
-
-# The general practitioner's app in use: its views and command talk to the endpoint.
-
-
 @pytest.fixture
 def practice(settings: Settings, fake_laboratory: Running) -> Laboratory:
-    """Practice "De Ceder", working with the laboratory "AZ Diest"."""
+    """Practice "De Ceder", certificate name "de-ceder", working with the
+    laboratory "AZ Diest"."""
     settings.PARTY_NAME = "De Ceder"
+    settings.PRACTICE_CERTIFICATE_NAME = "de-ceder"
     return Laboratory.objects.create(name="AZ Diest", address=fake_laboratory.address)
 
 
 @pytest.fixture
 def owner() -> User:
     return make_general_practitioner("Dr. Demo A")
+
+
+# The app against the endpoint: its messages, sent and fetched.
+
+
+def send_cbc(laboratory: Laboratory, indication: ClinicalIndication) -> Order:
+    """Order a CBC for a new patient and send the pending lab orders."""
+    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
+    placed = collect_and_order(
+        patient=record, test=OrderedTest.CBC, indication=indication, now=NOW
+    )
+    messaging.send_pending_lab_orders(laboratory, now=NOW)
+    return placed
+
+
+def test_a_placed_order_reaches_the_hospital_as_its_lab_order(
+    practice: Laboratory, fake_laboratory: Running
+) -> None:
+    placed = send_cbc(practice, ClinicalIndication.UNEXPLAINED_FATIGUE)
+    (sent,) = fake_laboratory.laboratory.lab_orders
+    assert sent.sample_id == placed.sample.sample_id
+    assert sent.test == messages_pb2.TEST_CBC
+    assert sent.screened_indication is True
+    assert sent.registered_sex == messages_pb2.REGISTERED_SEX_FEMALE
+    assert sent.age == 32
+    assert sent.ordered_at.ToDatetime(tzinfo=UTC) == NOW
+    # The practice by the certificate name the hospital issued; no general practitioner.
+    assert sent.certificate_name == "de-ceder"
+
+
+@pytest.mark.parametrize("indication", list(ClinicalIndication))
+def test_the_lab_order_says_only_whether_the_indication_is_screened(
+    practice: Laboratory, fake_laboratory: Running, indication: ClinicalIndication
+) -> None:
+    """Of the indication the laboratory learns one yes or no, the one the
+    practice decides (features/hospital/screening.feature)."""
+    send_cbc(practice, indication)
+    (sent,) = fake_laboratory.laboratory.lab_orders
+    assert sent.screened_indication is indication.is_screened()
+
+
+def released_ferritin(
+    laboratory: FakeLaboratory, *, ferritin_suggested: bool = False
+) -> tuple[Order, str]:
+    """A patient's ferritin order, analysed and released at the hospital; the
+    order and the lab report's ID."""
+    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
+    placed = collect_and_order(
+        patient=record, test=OrderedTest.FERRITIN, indication=None, now=NOW
+    )
+    report_id = laboratory.release(
+        placed.sample.sample_id,
+        messages_pb2.TEST_FERRITIN,
+        NOW,
+        ferritin_suggested=ferritin_suggested,
+    )
+    return placed, report_id
+
+
+def test_checking_fetches_a_lab_report_and_acknowledges_it(
+    practice: Laboratory, fake_laboratory: Running
+) -> None:
+    placed, report_id = released_ferritin(
+        fake_laboratory.laboratory, ferritin_suggested=True
+    )
+    assert messaging.check_for_lab_reports(practice, now=NOW) == 1
+    assert LabReport.objects.get(order=placed).ferritin_suggested is True
+    assert report_id in fake_laboratory.laboratory.acknowledged
+
+
+def test_a_lab_report_is_fetched_once(
+    practice: Laboratory, fake_laboratory: Running
+) -> None:
+    placed, report_id = released_ferritin(fake_laboratory.laboratory)
+    messaging.check_for_lab_reports(practice, now=NOW)
+    # The stand-in forgets the acknowledgement: the app still stores it once.
+    fake_laboratory.laboratory.acknowledged.discard(report_id)
+    messaging.check_for_lab_reports(practice, now=NOW)
+    assert LabReport.objects.filter(order=placed).count() == 1
+
+
+def test_a_lab_report_the_app_cannot_match_does_not_block_the_others(
+    practice: Laboratory, fake_laboratory: Running
+) -> None:
+    placed, report_id = released_ferritin(fake_laboratory.laboratory)
+    stranger = fake_laboratory.laboratory.release(
+        "999999-1", messages_pb2.TEST_FERRITIN, NOW
+    )
+    assert messaging.check_for_lab_reports(practice, now=NOW) == 1
+    assert LabReport.objects.filter(order=placed).exists()
+    assert report_id in fake_laboratory.laboratory.acknowledged
+    assert stranger not in fake_laboratory.laboratory.acknowledged
+
+
+# The general practitioner's app in use: its views and command talk to the endpoint.
 
 
 def new_order_url(client: Client, record: Patient) -> str:
@@ -299,20 +206,10 @@ def test_a_hospital_refusing_a_lab_order_is_not_called_unreachable(
     assertNotContains(response, "INVALID_ARGUMENT")
 
 
-def released_ferritin(laboratory: FakeLaboratory) -> Patient:
-    """A patient whose ferritin the hospital has analysed and released."""
-    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
-    placed = collect_and_order(
-        patient=record, test=OrderedTest.FERRITIN, indication=None, now=NOW
-    )
-    laboratory.release(placed.sample.sample_id, messages_pb2.TEST_FERRITIN, NOW)
-    return record
-
-
 def test_check_for_reports_fetches_them(
     client: Client, practice: Laboratory, owner: User, fake_laboratory: Running
 ) -> None:
-    record = released_ferritin(fake_laboratory.laboratory)
+    record = released_ferritin(fake_laboratory.laboratory)[0].sample.patient
     client.force_login(owner)
     response = client.post(reverse("practice:check_for_reports"))
     assert response["Location"] == reverse("practice:orders")
@@ -324,7 +221,7 @@ def test_check_for_reports_fetches_them(
 def test_check_for_reports_on_a_patients_page_returns_to_it(
     client: Client, practice: Laboratory, owner: User, fake_laboratory: Running
 ) -> None:
-    record = released_ferritin(fake_laboratory.laboratory)
+    record = released_ferritin(fake_laboratory.laboratory)[0].sample.patient
     client.force_login(owner)
     page = reverse("practice:patient", kwargs={"pk": record.pk})
     check = reverse("practice:patient_check_for_reports", kwargs={"patient": record.pk})

@@ -1,7 +1,7 @@
 Feature: The startup releases final models; recipient hospitals fetch them
   A final model leaves the startup only after its data scientist released it,
   and only when a recipient hospital fetches it from the startup's
-  final-models endpoint (P12, DF37, DF38). The startup knows each recipient
+  final-models endpoint (P5, DF33). The startup knows each recipient
   hospital by the certificate name it issued; any hospital it registers is
   one, whether or not it trained. Each scenario's last step is its response
   measure, true or false.

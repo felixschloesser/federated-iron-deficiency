@@ -65,7 +65,7 @@ def final_models(directory: Path | None) -> list[KeptFinalModel]:
 def released_final_model(
     directory: Path | None, run_id: str
 ) -> messages_pb2.FinalModel | None:
-    """A released final model as a recipient hospital fetches it (DF37): its
+    """A released final model as a recipient hospital fetches it (DF33): its
     weights only, in the final model file format, the AUROC across hospitals and
     the other averaged validation metrics, and its run ID; never its run
     configuration. None for a run the startup kept no readable model of."""

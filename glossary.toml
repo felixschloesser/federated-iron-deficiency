@@ -150,7 +150,7 @@ rejected = []
 
 ["screened indication"]
 source = "Report, Data table: \"the three screened indications\""
-why = "All the lab order says of the clinical indication: whether it is one the screening covers (features/hospital/screening.feature, features/hospital/messaging.feature), never which"
+why = "All the lab order says of the clinical indication: whether it is one the screening covers (features/hospital/screening.feature), never which"
 rejected = [
     "screen requested (the general practitioner requests nothing)",
     "eligible (also sex and age)",
@@ -190,12 +190,12 @@ why = "When the general practitioner's practice takes the blood; recorded on the
 rejected = ["drawn", "taken", "venipuncture"]
 
 ["analysed"]
-source = "Report, P1 \"Lab analysis\""
+source = "Report, P9 \"Analyse samples\""
 why = "The report's process name"
 rejected = ["examined", "tested"]
 
 ["screening"]
-source = "Report, P7"
+source = "Report, P10 \"Screen CBC\""
 why = "The report's process name"
 rejected = ["scoring", "classification"]
 
@@ -218,12 +218,12 @@ rejected = [
 ]
 
 ["final model"]
-source = "Report, DS4, DF8 \"final model, threshold\""
+source = "Report, DS4 \"Startup's final models\", DS5 \"Final models\""
 why = "What one training run sends to every hospital; stored there with its run ID and local validation"
 rejected = ["release", "model version"]
 
 ["screening model"]
-source = "Built from the report's words: P10 *Screening* and \"the model\" (Use case)"
+source = "Built from the report's words: P10 *Screen CBC* and \"the model\" (Use case)"
 why = "Named after its purpose at the hospital: a model that can screen this hospital's CBCs. What the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. A final model becomes a screening model when it reaches the hospital, into its `screening-models/` folder"
 rejected = [
     "model (too generic; Django's `Model`)",
@@ -243,7 +243,7 @@ rejected = [
 ]
 
 ["deployed model"]
-source = "Report, DF29, DF30 \"deployed final model\""
+source = "Report, DF30 \"Deployed final model\""
 why = "The screening model this hospital deployed last; the only one that screens"
 rejected = ["active release", "fingerprint"]
 
@@ -318,12 +318,12 @@ why = "The report's word. The laboratory director chooses it when deploying, fro
 rejected = ["cutoff (reserved for ferritin's 15 ng/mL)"]
 
 ["messaging"]
-source = "Report, P8 \"Messaging endpoint\""
+source = "Report, P8 \"Receive lab orders\" and P12 \"Send lab reports\", the messages between practice and hospital (DF23, DF25)"
 why = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (shared/messaging/, serve_messages)"
 rejected = ["API", "integration"]
 
 ["release"]
-source = "Report, federated version: \"The data scientist then releases a final model\" (DF32, DF36)"
+source = "Report, federated version: the data scientist sees the final models \"and releases one\" (P5, DF15, DF32)"
 why = "The data scientist's act that lets recipient hospitals fetch a final model; nothing leaves the startup before it"
 rejected = [
     "transmit (the startup no longer sends: a hospital fetches)",
@@ -333,7 +333,7 @@ rejected = [
 ]
 
 ["fetch"]
-source = "Report, DF37, DF38: \"a recipient hospital's laboratory director fetches it\"; as a practice fetches new lab reports (FetchNewLabReports)"
+source = "Report, P5, DF33: \"a recipient hospital's laboratory director fetches it\"; as a practice fetches new lab reports (FetchNewLabReports)"
 why = "The hospital's explicit request: a final model enters a hospital only when its laboratory director fetches new final models, through the hospital's own web app"
 rejected = ["pull", "download", "receive (nothing is pushed: the hospital asks)"]
 

@@ -74,9 +74,8 @@ seen["sent_to"] = laboratory in page
 lab.log_in("staff")
 _, to_analyse = lab.get("/lab/test-requests/")
 analyse = re.search(r'action="(/lab/test-requests/\d+/analyse/)"', to_analyse)[1]
-lab.post(analyse, to_analyse)
-_, analysed = lab.get("/lab/test-requests/analysed/")
-seen["analysed"] = "not screened" in analysed.lower()
+_, page = lab.post(analyse, to_analyse)
+seen["analysed"] = "CBC analysed" in page
 
 _, page = doctor.get(patient)
 back, page = doctor.post(f"{patient}check-for-reports/", page)

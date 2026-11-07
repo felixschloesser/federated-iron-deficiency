@@ -185,7 +185,7 @@ def test_the_startups_web_app_reaches_the_superlink_and_not_its_state(
     compose: Compose, superlink: None
 ) -> None:
     """The startup's web app submits training runs to the SuperLink; the
-    SuperLink's state (DS3) is the SuperLink's alone. Pass: from the web app's
+    SuperLink's state is the SuperLink's alone. Pass: from the web app's
     container the SuperLink answers and its state folder is empty."""
     sight = probe(compose, "startup-web", STARTUP_SIGHT)
     assert sight == {"superlink": "open", "state": []}
