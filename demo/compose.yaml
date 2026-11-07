@@ -9,10 +9,11 @@
 #   docker compose down -v          # start over; .demo/ on the host stays
 #
 # Browsers reach http://<party>.localhost through the proxy, the only
-# published port. Networks: startup (TB2), startup-web (the startup's web app and the proxy), <hospital> (TB1), <hospital>-flower-client-app (TB4,
+# published port. Networks: startup (TB2), startup-web (the startup's web app
+# and the proxy), <hospital> (TB1), <hospital>-flower-client-app (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
-# messaging crosses TB3-TB1 (DF23, DF25): every practice reaches every hospital's
-# endpoint there, by the alias <hospital>-messaging.
+# messaging crosses TB3-TB1 (DF23, DF25): every practice reaches every
+# hospital's endpoint there, by the alias <hospital>-messaging.
 #
 # The parties: three hospitals, each with the general practitioner's practice
 # whose primary laboratory it is (the practices are fictional). Each party's
@@ -46,11 +47,34 @@ x-health: &health
 # One image per party's web app, each with only that party's apps and the
 # shared ones, and its start (demo/party.py): its folder at /data, its NHANES
 # extract read-only at /nhanes.
+#
+# A hospital's web app: one container, two servers, each on a name only one
+# network knows: the proxy reaches the pages, the practices only the lab-order
+# endpoint (tests/quality/security/test_running_containers.py). Either one
+# stopping stops the container, and compose restarts it. Ready when both
+# answer, the pages under a name ALLOWED_HOSTS knows. The laboratory director
+# provides the training cohort and fetches final models here, so the web app
+# writes the cohort folder and screening-models, through the hospital's whole
+# volume; it holds no SuperNode key. DEBUG off; plain HTTP, as the demo leaves
+# out the report's TLS (tests/quality/security/test_compose.py).
 x-hospital-web: &hospital-web
   image: ${COMPOSE_PROJECT_NAME}-hospital-web
   user: *user
+  restart: unless-stopped
   depends_on:
     nhanes-download: {condition: service_completed_successfully}
+
+# What every hospital's web app is told alike.
+x-hospital-environment: &hospital-environment
+  DJANGO_SETTINGS_MODULE: web.hospital.settings
+  DATA_DIR: /data
+  # Every practice, by the certificate name its app sends.
+  DEMO_REGISTER: |
+    add_practice huisartsenpraktijk-de-akker 'Huisartsenpraktijk De Akker'
+    add_practice huisartsenpraktijk-de-berk 'Huisartsenpraktijk De Berk'
+    add_practice huisartsenpraktijk-de-ceder 'Huisartsenpraktijk De Ceder'
+  # The startup's final-models endpoint.
+  STARTUP_ADDRESS: startup-final-models:8442
 
 x-startup-web: &startup-web
   image: ${COMPOSE_PROJECT_NAME}-startup-web
@@ -62,11 +86,24 @@ x-practice-web: &practice-web
   user: *user
   depends_on:
     nhanes-download: {condition: service_completed_successfully}
+  command: [gunicorn, web.shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+  healthcheck:
+    <<: *health
+    test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
+
+x-practice-environment: &practice-environment
+  DJANGO_SETTINGS_MODULE: web.practice.settings
+  DATA_DIR: /data
 
 x-superexec: &superexec
   image: ${COMPOSE_PROJECT_NAME}-superexec
   user: *user
 
+# Each hospital's SuperNode, and its ClientApp: the startup's code at the
+# hospital (TB4), with only the cohort, read-only, so it writes nothing at the
+# hospital, and a network that reaches nothing but its SuperNode
+# (tests/quality/security/test_running_containers.py). The cohort folder is the
+# hospital's, whose web app brings it.
 x-supernode: &supernode
   image: flwr/supernode:1.40.0
   user: *user
@@ -76,7 +113,6 @@ x-supernode: &supernode
     flower-superlink: {condition: service_healthy}
 
 services:
-  # databases. The one container that sees every party's folder.
   # The one container that reaches the internet: it writes the public NHANES
   # extracts each party seeds from, one folder per party, on the host, and sees
   # no party's volume (demo/nhanes.py). Once they exist it is done in a second.
@@ -161,7 +197,8 @@ services:
   # training runs and releases final models. One container, two servers, each on
   # a name only one network knows: the proxy reaches the pages, the hospitals'
   # web apps only the final-models endpoint (P5).
-  # On startup to reach the SuperLink, which so neither the proxy nor a hospital reaches.
+  # On the startup network to reach the SuperLink, which neither the proxy nor
+  # a hospital reaches.
   startup-web:
     <<: *startup-web
     build: {context: .., dockerfile: demo/startup.Dockerfile}
@@ -210,12 +247,8 @@ services:
       - --node-config=data-path='/demo/hospitals/uz-leuven/cohort'
     networks: [model-updates, uz-leuven-flower-client-app]
 
-  # The startup's code at the hospital (TB4): only the cohort, read-only, so it
-  # writes nothing at the hospital, and a network that reaches nothing but its
-  # SuperNode (tests/quality/security/test_running_containers.py).
   uz-leuven-flower-client-app:
     <<: *superexec
-    # Its cohort folder is the hospital's, whose web app brings it.
     depends_on:
       uz-leuven-flower-supernode: {condition: service_started}
       uz-leuven-web: {condition: service_healthy}
@@ -227,9 +260,6 @@ services:
   uz-leuven-web:
     <<: *hospital-web
     build: {context: .., dockerfile: demo/hospital.Dockerfile}
-    # One container, two servers, each on a name only one network knows: the
-    # proxy reaches the pages, the practice only the lab-order endpoint (tests/quality/security/test_running_containers.py).
-    # Either one stopping stops the container, and compose restarts it.
     command:
       - bash
       - -c
@@ -239,36 +269,21 @@ services:
         python manage.py serve_messages uz-leuven-messaging:8441 &
         wait -n
         exit 1
-    restart: unless-stopped
-    # Ready when both servers answer, each on its own network's name; the pages
-    # under a name ALLOWED_HOSTS knows.
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://uz-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('uz-leuven-messaging', 8441)).close()"]
     environment:
-      DJANGO_SETTINGS_MODULE: web.hospital.settings
-      DATA_DIR: /data
+      <<: *hospital-environment
       DEMO_ADDRESS: http://uz-leuven.localhost:${DEMO_HTTP_PORT:-80}
       # Its laboratory director provided the training cohort at start.
       DEMO_PROVIDE: "1"
-      # Every practice, by the certificate name its app sends.
-      DEMO_REGISTER: |
-        add_practice huisartsenpraktijk-de-akker 'Huisartsenpraktijk De Akker'
-        add_practice huisartsenpraktijk-de-berk 'Huisartsenpraktijk De Berk'
-        add_practice huisartsenpraktijk-de-ceder 'Huisartsenpraktijk De Ceder'
       PARTY_NAME: UZ Leuven
       PARTY_COLOUR: jade
-      # The startup's final-models endpoint, and the name the startup issued this
-      # hospital.
-      STARTUP_ADDRESS: startup-final-models:8442
+      # The name the startup issued this hospital.
       HOSPITAL_CERTIFICATE_NAME: uz-leuven
     volumes:
       - {type: volume, source: uz-leuven, target: /data}
       - ../.demo/nhanes/uz-leuven:/nhanes:ro
-    # The laboratory director provides the training cohort and fetches final
-    # models here, so the web app writes the cohort folder and screening-models,
-    # through the hospital's whole volume; it holds no SuperNode key.
-    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       uz-leuven: {aliases: [uz-leuven-pages]}
       messaging: {aliases: [uz-leuven-messaging]}
@@ -286,12 +301,8 @@ services:
       - --node-config=data-path='/demo/hospitals/heilig-hart-leuven/cohort'
     networks: [model-updates, heilig-hart-leuven-flower-client-app]
 
-  # The startup's code at the hospital (TB4): only the cohort, read-only, so it
-  # writes nothing at the hospital, and a network that reaches nothing but its
-  # SuperNode (tests/quality/security/test_running_containers.py).
   heilig-hart-leuven-flower-client-app:
     <<: *superexec
-    # Its cohort folder is the hospital's, whose web app brings it.
     depends_on:
       heilig-hart-leuven-flower-supernode: {condition: service_started}
       heilig-hart-leuven-web: {condition: service_healthy}
@@ -302,9 +313,6 @@ services:
 
   heilig-hart-leuven-web:
     <<: *hospital-web
-    # One container, two servers, each on a name only one network knows: the
-    # proxy reaches the pages, the practice only the lab-order endpoint (tests/quality/security/test_running_containers.py).
-    # Either one stopping stops the container, and compose restarts it.
     command:
       - bash
       - -c
@@ -314,36 +322,21 @@ services:
         python manage.py serve_messages heilig-hart-leuven-messaging:8441 &
         wait -n
         exit 1
-    restart: unless-stopped
-    # Ready when both servers answer, each on its own network's name; the pages
-    # under a name ALLOWED_HOSTS knows.
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://heilig-hart-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('heilig-hart-leuven-messaging', 8441)).close()"]
     environment:
-      DJANGO_SETTINGS_MODULE: web.hospital.settings
-      DATA_DIR: /data
+      <<: *hospital-environment
       DEMO_ADDRESS: http://heilig-hart-leuven.localhost:${DEMO_HTTP_PORT:-80}
       # Its laboratory director provided the training cohort at start.
       DEMO_PROVIDE: "1"
-      # Every practice, by the certificate name its app sends.
-      DEMO_REGISTER: |
-        add_practice huisartsenpraktijk-de-akker 'Huisartsenpraktijk De Akker'
-        add_practice huisartsenpraktijk-de-berk 'Huisartsenpraktijk De Berk'
-        add_practice huisartsenpraktijk-de-ceder 'Huisartsenpraktijk De Ceder'
       PARTY_NAME: Heilig Hart Leuven
       PARTY_COLOUR: pumpkin
-      # The startup's final-models endpoint, and the name the startup issued this
-      # hospital.
-      STARTUP_ADDRESS: startup-final-models:8442
+      # The name the startup issued this hospital.
       HOSPITAL_CERTIFICATE_NAME: heilig-hart-leuven
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /data}
       - ../.demo/nhanes/heilig-hart-leuven:/nhanes:ro
-    # The laboratory director provides the training cohort and fetches final
-    # models here, so the web app writes the cohort folder and screening-models,
-    # through the hospital's whole volume; it holds no SuperNode key.
-    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
       messaging: {aliases: [heilig-hart-leuven-messaging]}
@@ -361,12 +354,8 @@ services:
       - --node-config=data-path='/demo/hospitals/az-diest/cohort'
     networks: [model-updates, az-diest-flower-client-app]
 
-  # The startup's code at the hospital (TB4): only the cohort, read-only, so it
-  # writes nothing at the hospital, and a network that reaches nothing but its
-  # SuperNode (tests/quality/security/test_running_containers.py).
   az-diest-flower-client-app:
     <<: *superexec
-    # Its cohort folder is the hospital's, whose web app brings it.
     depends_on:
       az-diest-flower-supernode: {condition: service_started}
       az-diest-web: {condition: service_healthy}
@@ -377,9 +366,6 @@ services:
 
   az-diest-web:
     <<: *hospital-web
-    # One container, two servers, each on a name only one network knows: the
-    # proxy reaches the pages, the practice only the lab-order endpoint (tests/quality/security/test_running_containers.py).
-    # Either one stopping stops the container, and compose restarts it.
     command:
       - bash
       - -c
@@ -389,34 +375,19 @@ services:
         python manage.py serve_messages az-diest-messaging:8441 &
         wait -n
         exit 1
-    restart: unless-stopped
-    # Ready when both servers answer, each on its own network's name; the pages
-    # under a name ALLOWED_HOSTS knows.
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://az-diest-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('az-diest-messaging', 8441)).close()"]
     environment:
-      DJANGO_SETTINGS_MODULE: web.hospital.settings
-      DATA_DIR: /data
+      <<: *hospital-environment
       DEMO_ADDRESS: http://az-diest.localhost:${DEMO_HTTP_PORT:-80}
-      # Every practice, by the certificate name its app sends.
-      DEMO_REGISTER: |
-        add_practice huisartsenpraktijk-de-akker 'Huisartsenpraktijk De Akker'
-        add_practice huisartsenpraktijk-de-berk 'Huisartsenpraktijk De Berk'
-        add_practice huisartsenpraktijk-de-ceder 'Huisartsenpraktijk De Ceder'
       PARTY_NAME: AZ Diest
       PARTY_COLOUR: violet
-      # The startup's final-models endpoint, and the name the startup issued this
-      # hospital.
-      STARTUP_ADDRESS: startup-final-models:8442
+      # The name the startup issued this hospital.
       HOSPITAL_CERTIFICATE_NAME: az-diest
     volumes:
       - {type: volume, source: az-diest, target: /data}
       - ../.demo/nhanes/az-diest:/nhanes:ro
-    # The laboratory director provides the training cohort and fetches final
-    # models here, so the web app writes the cohort folder and screening-models,
-    # through the hospital's whole volume; it holds no SuperNode key.
-    # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       az-diest: {aliases: [az-diest-pages]}
       messaging: {aliases: [az-diest-messaging]}
@@ -427,13 +398,8 @@ services:
   huisartsenpraktijk-de-akker-web:
     <<: *practice-web
     build: {context: .., dockerfile: demo/practice.Dockerfile}
-    command: [gunicorn, web.shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
-    healthcheck:
-      <<: *health
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      DJANGO_SETTINGS_MODULE: web.practice.settings
-      DATA_DIR: /data
+      <<: *practice-environment
       DEMO_ADDRESS: http://huisartsenpraktijk-de-akker.localhost:${DEMO_HTTP_PORT:-80}
       # Every hospital's laboratory; its paired hospital's is the primary one.
       DEMO_REGISTER: |
@@ -450,13 +416,8 @@ services:
 
   huisartsenpraktijk-de-berk-web:
     <<: *practice-web
-    command: [gunicorn, web.shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
-    healthcheck:
-      <<: *health
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      DJANGO_SETTINGS_MODULE: web.practice.settings
-      DATA_DIR: /data
+      <<: *practice-environment
       DEMO_ADDRESS: http://huisartsenpraktijk-de-berk.localhost:${DEMO_HTTP_PORT:-80}
       # Every hospital's laboratory; its paired hospital's is the primary one.
       DEMO_REGISTER: |
@@ -473,13 +434,8 @@ services:
 
   huisartsenpraktijk-de-ceder-web:
     <<: *practice-web
-    command: [gunicorn, web.shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
-    healthcheck:
-      <<: *health
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      DJANGO_SETTINGS_MODULE: web.practice.settings
-      DATA_DIR: /data
+      <<: *practice-environment
       DEMO_ADDRESS: http://huisartsenpraktijk-de-ceder.localhost:${DEMO_HTTP_PORT:-80}
       # Every hospital's laboratory; its paired hospital's is the primary one.
       DEMO_REGISTER: |
