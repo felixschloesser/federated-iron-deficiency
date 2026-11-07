@@ -7,7 +7,7 @@
 # decision" marks a word the team chose where neither has one.
 
 ["general practitioner"]
-meaning = "The report's orderer and reader of the lab report; spelled out everywhere in the app. A practice, and so its app, has exactly one"
+meaning = "The doctor at a practice who orders tests for patients and reads their lab reports. A practice, and so its app, has exactly one"
 source = "Report, Stakeholders table (\"GP\", spelled out); one per practice: project decision"
 
 ["laboratory"]
@@ -19,7 +19,7 @@ meaning = "The laboratory a practice sends its samples to unless the general pra
 source = "Project decision (\"primary lab\"); stands for the report's single laboratory, \"Federated version\": the practice \"sends its hospital's laboratory lab orders\""
 
 ["laboratory staff"]
-meaning = "Run the analyser; one record per person (`Role.LABORATORY_STAFF`)"
+meaning = "The hospital's people who run the analyser on the test requests; one account each (`Role.LABORATORY_STAFF`)"
 source = "WHO LQMS, the handbook's word for the people who work in the laboratory (44 uses; e.g. ch. 5, Sample management)"
 
 ["analyser"]
@@ -27,11 +27,11 @@ meaning = "The instrument that measures a sample for a test; an external system 
 source = "Report, P9 \"Analyse samples\": \"laboratory staff run the analyser\"; DF36 \"Results: the analyser's values for each test request\""
 
 ["patient"]
-meaning = "The report's word"
+meaning = "A person the general practitioner orders a test for; known by name only at the practice"
 source = "Report, Use case"
 
 ["practice"]
-meaning = "Who orders at the hospital: a general practitioner's practice, through its app, with one general practitioner (features/practice/access.feature). The lab holds each sample by its practice"
+meaning = "A general practitioner's practice, which orders tests at the hospital through its app; it has one general practitioner. The laboratory holds each sample by the practice that sent it"
 source = "Report, \"Federated version\": \"Each GP practice runs its own app\"; \"Design choices and assumptions\", DF24: \"Lab orders, with the sending practice\""
 
 ["certificate name"]
@@ -55,15 +55,15 @@ meaning = "The laboratory's word for what it analyses and screens: one test on a
 source = "WHO LQMS: \"test requests\" are a laboratory input; \"the test request must be complete\" (12 uses); UZ Leuven's laboratory forms are aanvraagformulieren, request forms"
 
 ["test"]
-meaning = "Order picks one: CBC or ferritin"
+meaning = "What an order asks the laboratory to measure: a CBC or ferritin"
 source = "Report, Use case \"ferritin test\""
 
 ["CBC (complete blood count)"]
-meaning = "The report's word for the routine test"
+meaning = "The routine blood test the hospital screens: 13 values such as haemoglobin and red cell size"
 source = "Report, Use case"
 
 ["clinical indication"]
-meaning = "The report's word; decides screening (features/hospital/screening.feature). One of the six below, in the guidelines' words"
+meaning = "Why the general practitioner orders a CBC, one of the six below in the guidelines' words; it decides whether the CBC is screened, and never leaves the practice"
 source = "Report, Data table"
 
 ["suspected anaemia"]
@@ -87,7 +87,7 @@ meaning = "Not screened: monitoring a known disease, whose anaemia has another c
 source = "WOREL, *Aanvraag van laboratoriumtests (deel 1)*, 2026, p. 42: \"Bepaal minstens jaarlijks het hemoglobinegehalte … om te screenen op renale anemie\""
 
 ["other"]
-meaning = "Not screened"
+meaning = "Not screened: any reason not listed above"
 source = "Project decision: the guidelines are organised by indication and name no catch-all"
 
 ["screened indication"]
@@ -99,11 +99,11 @@ meaning = "The not-screened reason when the screening excludes a CBC (an indicat
 source = "Built from the report's Use case: the screening applies to one group, women aged 18–49 with a screened indication (features/hospital/screening.feature)"
 
 ["registered sex"]
-meaning = "Distinguishes the record from the person (report, Information at risk)"
+meaning = "The sex in the patient's record, which may differ from the person's; the screening covers women"
 source = "Report, Data table"
 
 ["sample ID"]
-meaning = "The report's link between lab order, results and lab report; on the sample's label. In the demo the patient's NHANES number and the sample's number for that patient, e.g. 135318-2"
+meaning = "The number on a sample's label that links its lab order, results and lab report. In the demo the patient's NHANES number and the sample's number for that patient, e.g. 135318-2"
 source = "Report, DF23 and Data table"
 
 ["stored sample"]
@@ -119,11 +119,11 @@ meaning = "When the general practitioner's practice takes the blood; recorded on
 source = "WHO LQMS 5-3, p. 64: \"the health care provider may collect a sample in a clinic setting\"; 5-4, p. 66, register field \"date and time of collection\""
 
 ["analysed"]
-meaning = "The report's process name"
+meaning = "A test request the analyser has measured; its results are recorded"
 source = "Report, P9 \"Analyse samples\""
 
 ["screening"]
-meaning = "The report's process name"
+meaning = "Running the deployed screening model on an analysed CBC to decide whether to suggest ferritin to the general practitioner"
 source = "Report, P10 \"Screen CBC\""
 
 ["inference"]
@@ -135,15 +135,15 @@ meaning = "What screening records per CBC: one of the three below, with the reas
 source = "Report, DF31 \"screening result\", P10"
 
 ["ferritin suggested / ferritin not suggested / not screened"]
-meaning = "Names the action for the general practitioner; avoids the lab meaning of *flag*"
+meaning = "The three screening results: the model suggests ferritin, it does not, or the CBC was not screened (not eligible, or no usable deployed model)"
 source = "Report, Use case \"a comment to the lab report suggesting ferritin\"; \"not screened\" from Federated version"
 
 ["final model"]
-meaning = "What one training run sends to every hospital; stored there with its run ID and local validation"
+meaning = "The model one training run ends with, kept at the startup with its run ID; hospitals fetch it once the data scientist releases it, and validate it on their own test split"
 source = "Report, DS4 \"Startup's final models\", DS5 \"Final models\""
 
 ["screening model"]
-meaning = "Named after its purpose at the hospital: a model that can screen this hospital's CBCs. What the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. A final model becomes a screening model when it reaches the hospital, into its `screening-models/` folder"
+meaning = "A final model as the hospital holds it, in its `screening-models/` folder: what the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail"
 source = "Built from the report's words: P10 *Screen CBC* and \"the model\" (Use case)"
 
 ["deploy"]
@@ -155,7 +155,7 @@ meaning = "The screening model this hospital deployed last; the only one that sc
 source = "Report, DF30 \"Deployed final model\""
 
 ["laboratory director"]
-meaning = "Decides which screening model screens patients; one per hospital (features/hospital/deployment.feature), as WHO's singular has it"
+meaning = "The person who decides which screening model screens a hospital's patients, and who provides its training cohort; one per hospital"
 source = "WHO LQMS ch. 2, p. 21: the director assesses \"all potential risks … including services to patients\" (20 uses)"
 
 ["lab record"]
@@ -203,7 +203,7 @@ meaning = "Women without a suggestion who were not iron deficient: what a silent
 source = "WHO LQMS 3-3, p. 40: test methods are \"evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)\""
 
 ["threshold"]
-meaning = "The report's word. The laboratory director chooses it when deploying, from local validation; a training run sets none, and a model sold carries none"
+meaning = "The score above which the deployed model suggests ferritin; the laboratory director chooses it when deploying, from local validation. A final model carries none"
 source = "Report, Design choices"
 
 ["messaging"]
@@ -223,19 +223,19 @@ meaning = "A hospital the startup registers (`add_hospital`) and issues a certif
 source = "Report, federated version: \"Any hospital the startup registers is a recipient, whether or not it trained\""
 
 ["lab report"]
-meaning = "The report's word"
+meaning = "What the hospital returns to the practice for one test: the results and whether ferritin is suggested"
 source = "Report, DF25"
 
 ["comment"]
-meaning = "Both sources. The only comment is the suggestion: \"Ferritin suggested by the hospital's screening of this CBC. Likely iron deficiency; not a diagnosis.\" (\"likely iron deficient\": report, Use case)"
+meaning = "The text beside a suggestion on the lab report, the only comment there is: \"Ferritin suggested by the hospital's screening of this CBC. Likely iron deficiency; not a diagnosis.\""
 source = "Report, Use case; WHO report contents \"applicable comments\" (p. 193)"
 
 ["CBC value names and units, e.g. *Hemoglobin*, g/dL"]
-meaning = "The values are NHANES's own, in its units; no conversion"
+meaning = "How the app names and measures each CBC value: NHANES's own names, in its units, with no conversion"
 source = "NHANES 2021–2023 CBC_L codebook, SAS labels (https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2021/DataFiles/CBC_L.htm)"
 
 ["Ferritin, ng/mL"]
-meaning = "As above"
+meaning = "The ferritin result, NHANES's name and unit"
 source = "NHANES 2021–2023 FERTIN_L codebook (https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2021/DataFiles/FERTIN_L.htm)"
 
 ["inflammation"]
@@ -247,23 +247,23 @@ meaning = "The lab result that says whether a past patient had inflammation; it 
 source = "WHO ferritin guideline (who2020), PDF p. 29: \"C-reactive protein (CRP)\"; NHANES HSCRP codebooks (LBXHSCRP, mg/L)"
 
 ["Ferritin (made up for the demo), ng/mL"]
-meaning = "Tells the general practitioner the value is not a measurement; kept apart from ferritin so it never feeds a suggestion or a label"
+meaning = "A ferritin value invented for the demo where NHANES has none, so the general practitioner sees it is no measurement; it never feeds a suggestion or a label"
 source = "Project decision: NHANES has no ferritin for men and women outside 12–49"
 
 ["Flower container (`flower-` prefix)"]
-meaning = "Marks the compose services that are Flower's components, apart from each party's own apps; Flower's own names, as words: `flower-superlink`, `flower-server-app`, `<hospital>-flower-supernode`, `<hospital>-flower-client-app` (and its TB4 network)"
+meaning = "A compose service that is one of Flower's components rather than a party's own app: `flower-superlink`, `flower-server-app`, `<hospital>-flower-supernode`, `<hospital>-flower-client-app`"
 source = "Flower documentation, *Flower Architecture*: SuperLink, ServerApp, SuperNode, ClientApp"
 
 ["startup"]
-meaning = "The report's party that trains the model; its web app shows the final models it keeps (DS4)"
+meaning = "The company that trains the model with the hospitals and keeps the final models (DS4); its data scientist submits training runs and releases final models"
 source = "Report, Stakeholders table: the startup \"Runs the SuperLink and ServerApp, writes the ClientApp and configures runs\""
 
 ["data scientist"]
-meaning = "The startup's one person in the report's DFD; the role of its web app (`Role.DATA_SCIENTIST`)"
+meaning = "The startup's one person: submits training runs and releases final models (`Role.DATA_SCIENTIST`)"
 source = "Report, training DFD, E1 \"Data scientist\"; \"its data scientist submits the app, which is based on @ironapp, and follows the run's logs (DF4, DF5)\""
 
 ["training run"]
-meaning = "One federated training of the model, from the startup's submission to the final model it sends every hospital"
+meaning = "One federated training of the model, from the data scientist's submission to the final model the startup keeps"
 source = "Report, DS4 \"Startup's final models\", one per run; DF13 \"Final model weights, per run\"; Flower documentation, `flwr run`"
 
 ["submit"]
@@ -291,7 +291,7 @@ meaning = "The optimiser's step size, which the ServerApp sends every hospital e
 source = "PyTorch `torch.optim.Adam(lr=…)`; run configuration `learning-rate`; report DF8 \"Global weights and learning rate each round\""
 
 ["weight decay"]
-meaning = "The optimiser's L2 penalty, as PyTorch names it"
+meaning = "The optimiser's L2 penalty on the weights, which keeps them small"
 source = "PyTorch `torch.optim.Adam(weight_decay=…)`; run configuration `weight-decay`"
 
 ["batch size"]
@@ -303,5 +303,5 @@ meaning = "What makes a run's initial weights and dropout repeatable"
 source = "Run configuration `model-seed` (pyproject.toml: \"Initial weights and dropout; data splits stay fixed\")"
 
 ["stop"]
-meaning = "What the data scientist does to a training run in progress they no longer want, so no hospital trains or sends weights for it any more"
+meaning = "What the data scientist does to a training run in progress they no longer want, so no hospital trains for it any more"
 source = "Flower CLI, `flwr stop`: \"Stop a Flower run\"; the run status Stopped"
