@@ -155,6 +155,11 @@ class Sample(models.Model):
         return ", ".join(order.get_test_display() for order in self.orders.all())
 
     @property
+    def lab_order_rejected(self) -> bool:
+        """Whether the laboratory rejected a lab order on this sample."""
+        return any(order.rejected_at is not None for order in self.orders.all())
+
+    @property
     def ferritin_suggested(self) -> bool:
         """Whether a lab report on this sample suggests ferritin."""
         return any(
