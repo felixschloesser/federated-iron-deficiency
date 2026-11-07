@@ -1,13 +1,17 @@
 """NHANES cohort construction from the merged NHANES dataset on Hugging Face."""
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import datasets
 import pandas as pd
-from flwr_datasets import FederatedDataset
-from flwr_datasets.partitioner import NaturalIdPartitioner
 
 from ml.cohort import CBC_VARS, FEATURES, eligible, iron_deficient
+
+# The simulation's libraries, imported where it loads its data: the demo's
+# extracts need only pandas (demo/nhanes-download.Dockerfile).
+if TYPE_CHECKING:
+    import datasets
+    from flwr_datasets import FederatedDataset
 
 # NHANES merged into one row per participant and cycle, pinned to a fixed revision.
 HF_DATASET = "gracemyu/nhanes-merged"
@@ -78,8 +82,10 @@ def hospital_share(participants: pd.DataFrame, cycle: str) -> pd.DataFrame:
     )
 
 
-def build_cohort(dataset_dict: datasets.DatasetDict) -> datasets.DatasetDict:
+def build_cohort(dataset_dict: "datasets.DatasetDict") -> "datasets.DatasetDict":
     """Reduce the merged NHANES table to the cohort of each cycle."""
+    import datasets
+
     merged = _renamed(dataset_dict["train"].to_pandas())
     cohort = pd.concat(
         [
@@ -98,8 +104,11 @@ def build_cohort(dataset_dict: datasets.DatasetDict) -> datasets.DatasetDict:
     )
 
 
-def load_federated_dataset() -> FederatedDataset:
+def load_federated_dataset() -> "FederatedDataset":
     """Return the cohort partitioned by cycle; partition IDs follow `CYCLES` order."""
+    from flwr_datasets import FederatedDataset
+    from flwr_datasets.partitioner import NaturalIdPartitioner
+
     return FederatedDataset(
         dataset=HF_DATASET,
         revision=HF_REVISION,
@@ -112,16 +121,14 @@ def load_federated_dataset() -> FederatedDataset:
 
 
 def _load_cycle(year: int) -> pd.DataFrame:
-    """Return every participant of the cycle starting in `year`."""
-    merged = _renamed(
-        datasets.load_dataset(
-            HF_DATASET,
-            revision=HF_REVISION,
-            data_files=HF_DATA_FILE,
-            columns=list(HF_COLUMNS),
-            split="train",
-        ).to_pandas()
+    """Return every participant of the cycle starting in `year`, from the pinned
+    file (cached by huggingface_hub, so read from the network once)."""
+    from huggingface_hub import hf_hub_download
+
+    path = hf_hub_download(
+        HF_DATASET, HF_DATA_FILE, repo_type="dataset", revision=HF_REVISION
     )
+    merged = _renamed(pd.read_parquet(path, columns=list(HF_COLUMNS)))
     return merged[merged["YEAR"] == year]
 
 
@@ -174,6 +181,8 @@ def new_cycle_ferritin_and_crp() -> pd.DataFrame:
 
 if __name__ == "__main__":
     import argparse
+
+    from flwr_datasets.partitioner import NaturalIdPartitioner
 
     from ml.training_cohort import write_training_cohort
 

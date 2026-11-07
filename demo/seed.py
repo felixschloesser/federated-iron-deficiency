@@ -1,6 +1,7 @@
 """Seed one party's web app for the demo, inside that party's Django:
 
     python -m demo.seed hospital|practice [--seed N] [--nhanes CSV] [--patients N]
+    python -m demo.seed hospital|practice --rows CSV   # nhanes-download's extract
     python -m demo.seed startup
     python -m demo.seed lab-records --csv CSV [--provide]   # the hospital's
 
@@ -43,7 +44,14 @@ def parser() -> argparse.ArgumentParser:
         default=participants.PATIENTS,
         help="how many participants; the practice and its hospital need the same",
     )
-    arguments.add_argument("--csv", type=Path, help="lab-records: prepare's CSV")
+    arguments.add_argument(
+        "--rows",
+        type=Path,
+        help="the chosen participants, as nhanes-download wrote them (demo/nhanes.py)",
+    )
+    arguments.add_argument(
+        "--csv", type=Path, help="lab-records: nhanes-download's CSV"
+    )
     arguments.add_argument(
         "--provide",
         action="store_true",
@@ -53,6 +61,11 @@ def parser() -> argparse.ArgumentParser:
 
 
 def chosen_rows(options: argparse.Namespace) -> list[dict[object, object]]:
+    if options.rows is not None:
+        extract: list[dict[object, object]] = pd.read_csv(options.rows).to_dict(
+            "records"
+        )
+        return extract
     nhanes = (
         pd.read_csv(options.nhanes) if options.nhanes else participants.load_nhanes()
     )

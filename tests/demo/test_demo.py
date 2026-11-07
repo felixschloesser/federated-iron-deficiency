@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -46,28 +44,6 @@ def test_the_next_step_follows_the_hospitals_state() -> None:
     assert "Next: deploy a screening model as director" in summary(trained)
     deployed = dict.fromkeys(STATUSES, "Screening model of … deployed (1 in all)")
     assert "Next:" not in summary(deployed)
-
-
-def test_each_practice_and_its_hospital_seed_the_same_number_of_patients() -> None:
-    from demo.demo import seed_arguments
-    from demo.topology import PATIENTS
-
-    assert [PATIENTS[cycle] for cycle in PATIENTS] == [40, 24, 12]
-    for partition, cycle in enumerate(PATIENTS):
-        arguments = seed_arguments(partition, Path("nhanes.csv"))
-        assert arguments[arguments.index("--patients") + 1] == str(PATIENTS[cycle])
-
-
-def test_every_hospital_has_a_tube_for_every_practices_patients() -> None:
-    """Any practice may send a sample to any hospital (features/practice/ordering.feature), so every hospital's
-    analyser stand-in seeds every practice's participants."""
-    from demo.demo import seed_arguments, tube_seeds
-    from demo.topology import PATIENTS
-
-    nhanes = Path("nhanes.csv")
-    assert tube_seeds(nhanes) == [
-        seed_arguments(partition, nhanes) for partition in range(len(PATIENTS))
-    ]
 
 
 def test_every_hospital_knows_every_practice_by_its_folder_name() -> None:
@@ -146,33 +122,9 @@ PARTY_FOLDERS = {
 }
 
 
-def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import pandas as pd
+def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(tmp_path: Path) -> None:
+    from demo.demo import hospitals, practices, prepare
 
-    import ml.dataset
-    from demo.demo import hospitals, lab_records_csv, nhanes_csv, practices, prepare
-    from ml.cohort import CBC_VARS
-
-    samples = pd.DataFrame(
-        {"sample_id": [1], "sex": ["Female"], "age": [30]}
-        | {var: [1.0] for var in CBC_VARS}
-    )
-    ferritin = pd.DataFrame({"sample_id": [1], "LBXFER": [20.0], "CRP": [1.0]})
-    records = pd.DataFrame(
-        {
-            "sex": ["Female"],
-            "age": [30],
-            "LBXFER": [20.0],
-            "CRP": [1.0],
-            "pregnant": [False],
-        }
-        | {var: [1.0] for var in CBC_VARS}
-    )
-    monkeypatch.setattr(ml.dataset, "participants", lambda cycle: records)
-    monkeypatch.setattr(ml.dataset, "new_cycle_participants", lambda: samples)
-    monkeypatch.setattr(ml.dataset, "new_cycle_ferritin_and_crp", lambda: ferritin)
     # A folder prepared before the participants stayed with prepare.
     stale = [tmp_path / "hospitals" / hospitals()[0][1]]
     stale += [tmp_path / "practices" / practices()[0][1]]
@@ -191,14 +143,10 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
     for folder, kind in folders:
         held = {entry.name for entry in folder.iterdir()}
         assert held <= PARTY_FOLDERS[kind], (folder.name, held - PARTY_FOLDERS[kind])
-    # The seed commands still get the cycle, from where only prepare looks.
-    assert nhanes_csv(tmp_path).is_file()
     assert (stale[0] / "screening-models" / "7.pt").read_text() == "model"
-    # Each hospital's lab records (DS1) for its seed command, beside the
-    # downloads; its cohort folder empty until its laboratory director provides
+    # Each hospital's cohort folder empty until its laboratory director provides
     # one (features/hospital/training_cohort.feature).
     for _, slug in hospitals():
-        assert lab_records_csv(tmp_path, slug).is_file()
         assert list((tmp_path / "hospitals" / slug / "cohort").iterdir()) == []
 
 

@@ -7,6 +7,7 @@ import pytest
 from pytest_django.fixtures import Settings
 
 from demo.seed import main
+from demo.seeding import names
 from demo.seeding import participants as seeding
 from tests.conftest import PEOPLE, nhanes_rows
 from web.practice.models import Patient
@@ -81,15 +82,15 @@ def test_patients_get_fictional_flemish_names_matching_their_sex(seeded: None) -
     for patient in Patient.objects.all():
         first, last = patient.name.split(" ", 1)
         sex = RegisteredSex(patient.registered_sex)
-        assert first in seeding.first_names(sex), patient.name
-        assert last in seeding.SURNAMES, patient.name
+        assert first in names.first_names(sex), patient.name
+        assert last in names.SURNAMES, patient.name
     assert Patient.objects.values("name").distinct().count() > 1
 
 
 def test_a_patients_name_is_the_same_on_every_seed() -> None:
     female = RegisteredSex.FEMALE
-    assert seeding.patient_name(135318, female) == seeding.patient_name(135318, female)
-    assert seeding.patient_name(135318, female) != seeding.patient_name(135319, female)
+    assert names.patient_name(135318, female) == names.patient_name(135318, female)
+    assert names.patient_name(135318, female) != names.patient_name(135319, female)
 
 
 def test_the_number_of_patients_is_a_parameter(development: None) -> None:

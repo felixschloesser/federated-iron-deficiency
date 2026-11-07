@@ -32,7 +32,14 @@ PROJECT: dict[Compose, str] = {}
 # One file for every worktree: their container runs share one Docker engine.
 LOCK = Path(tempfile.gettempdir()) / "iron-deficiency-containers.lock"
 # The images compose.yaml builds.
-IMAGES = ("prepare", "hospital-web", "startup-web", "practice-web", "superexec")
+IMAGES = (
+    "nhanes-download",
+    "prepare",
+    "hospital-web",
+    "startup-web",
+    "practice-web",
+    "superexec",
+)
 # Each project's images built so far: a test run builds each once.
 BUILT: dict[str, set[str]] = {}
 
@@ -142,7 +149,7 @@ def compose_folder(compose: Compose) -> Path:
     services = json.loads(compose("config", "--format", "json").stdout)["services"]
     (downloads,) = [
         Path(volume["source"])
-        for volume in services["prepare"]["volumes"]
+        for volume in services["nhanes-download"]["volumes"]
         if volume["target"] == "/demo/huggingface"
     ]
     folder = downloads.parent.parent

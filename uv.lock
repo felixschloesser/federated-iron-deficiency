@@ -1311,6 +1311,11 @@ dev = [
     { name = "types-grpcio" },
     { name = "types-tqdm" },
 ]
+nhanes = [
+    { name = "huggingface-hub" },
+    { name = "pandas" },
+    { name = "pyarrow" },
+]
 web = [
     { name = "django" },
     { name = "django-stubs-ext" },
@@ -1348,6 +1353,11 @@ dev = [
     { name = "tqdm", specifier = ">=4.70.1" },
     { name = "types-grpcio", specifier = ">=1.85.0.20261028" },
     { name = "types-tqdm", specifier = ">=4.67" },
+]
+nhanes = [
+    { name = "huggingface-hub" },
+    { name = "pandas", specifier = ">=2.2.0" },
+    { name = "pyarrow" },
 ]
 web = [
     { name = "django", specifier = ">=5.2,<6" },

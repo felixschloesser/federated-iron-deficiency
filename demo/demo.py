@@ -18,9 +18,6 @@ import shutil
 import sqlite3
 import subprocess
 import sys
-import time
-from collections.abc import Callable
-from functools import partial
 from pathlib import Path
 
 from tqdm import tqdm
@@ -32,7 +29,7 @@ from demo.seeding.accounts import (
     LABORATORY_STAFF,
     PASSWORD,
 )
-from demo.topology import HOSPITALS, PATIENTS, PRACTICES, PROVIDED, hospital_slug
+from demo.topology import HOSPITALS, PRACTICES, PROVIDED, hospital_slug
 from ml.dataset import CYCLES
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,16 +63,10 @@ def messaging_host(slug: str) -> str:
     return f"{slug}-messaging"
 
 
-def nhanes_csv(demo_dir: Path) -> Path:
-    """The NHANES cycle the seed commands pick participants from: beside the
-    downloads it comes from, which only prepare mounts, never in a party's folder."""
-    return demo_dir / "huggingface" / "nhanes-2021-2023.csv"
-
-
-def lab_records_csv(demo_dir: Path, slug: str) -> Path:
-    """A hospital's past lab records (DS1), for its seed command; beside the
-    downloads, as nhanes_csv, never in the hospital's folder."""
-    return demo_dir / "huggingface" / f"lab-records-{slug}.csv"
+def nhanes_extract(demo_dir: Path, party: str, name: str) -> Path:
+    """One of a party's public NHANES extracts, as nhanes-download wrote it
+    (demo/nhanes.py): never in the party's own folder."""
+    return demo_dir / "nhanes" / party / name
 
 
 def lab_record_arguments(demo_dir: Path) -> dict[str, list[str]]:
@@ -84,7 +75,7 @@ def lab_record_arguments(demo_dir: Path) -> dict[str, list[str]]:
     return {
         slug: [
             "--csv",
-            str(lab_records_csv(demo_dir, slug)),
+            str(nhanes_extract(demo_dir, slug, "lab-records.csv")),
             *(["--provide"] if PROVIDED[cycle] else []),
         ]
         for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True)
@@ -106,39 +97,6 @@ def manage(*args: str) -> list[str]:
 def seed_demo(target: str, *args: str) -> list[str]:
     """python -m demo.seed, from the project, so it finds the demo package."""
     return [sys.executable, "-m", "demo.seed", target, *args]
-
-
-def from_hub[T](load: Callable[[], T], attempts: int = 4) -> T:
-    """Load from the Hugging Face Hub, waiting out a refusal (unauthenticated limits)."""
-    for attempt in range(1, attempts):
-        try:
-            return load()
-        except (ValueError, ConnectionError):
-            print(
-                f"Hugging Face refused; retrying in {15 * attempt} s", file=sys.stderr
-            )
-            time.sleep(15 * attempt)
-    return load()
-
-
-def seed_arguments(partition: int, nhanes: Path) -> list[str]:
-    """One practice's participants: one seed and one number of patients per
-    partition, sized like its paired hospital."""
-    patients = PATIENTS[list(CYCLES)[partition]]
-    return [
-        "--seed",
-        str(partition),
-        "--nhanes",
-        str(nhanes),
-        "--patients",
-        str(patients),
-    ]
-
-
-def tube_seeds(nhanes: Path) -> list[list[str]]:
-    """Every practice's participants, for a hospital's analyser stand-in: any
-    practice may send it a sample."""
-    return [seed_arguments(partition, nhanes) for partition, _ in hospitals()]
 
 
 def set_aside_stale_database(folder: Path) -> Path | None:
@@ -312,14 +270,8 @@ def prepare_flower(demo_dir: Path) -> None:
 
 
 def prepare(demo_dir: Path) -> None:
-    """Create what is missing: Flower's connection, each hospital's lab
-    records, the NHANES data."""
-    from ml.dataset import (
-        new_cycle_ferritin_and_crp,
-        new_cycle_participants,
-        participants,
-    )
-
+    """Create what is missing in the parties' folders: Flower's connection, each
+    hospital's cohort and screening-models folders."""
     prepare_flower(demo_dir)
     for (_, slug), (_, practice_slug), cycle in zip(
         hospitals(), practices(), CYCLES, strict=True
@@ -338,49 +290,38 @@ def prepare(demo_dir: Path) -> None:
         if (hospital / "cohort" / "state.json").exists():
             shutil.rmtree(hospital / "cohort")
         (hospital / "cohort").mkdir(exist_ok=True)
-        if not lab_records_csv(demo_dir, slug).exists():
-            lab_records_csv(demo_dir, slug).parent.mkdir(parents=True, exist_ok=True)
-            from_hub(partial(participants, cycle)).to_csv(
-                lab_records_csv(demo_dir, slug), index=False
-            )
         # Folders prepared before the cycle stayed with prepare held a copy.
         for folder in (hospital, practice):
             (folder / "nhanes.csv").unlink(missing_ok=True)
-    # The same NHANES 2021-2023 participants: the practices' patients and the
-    # hospitals' analyser stand-in.
-    if not nhanes_csv(demo_dir).exists():
-        nhanes_csv(demo_dir).parent.mkdir(parents=True, exist_ok=True)
-        nhanes = from_hub(
-            lambda: new_cycle_participants().merge(
-                new_cycle_ferritin_and_crp(), on="sample_id", how="left"
-            )
-        )
-        nhanes.to_csv(nhanes_csv(demo_dir), index=False)
 
 
 def prepare_webs(demo_dir: Path) -> dict[str, str]:
     """Migrate and seed every party's web database, then ask each hospital for
     its screening model state, by folder name; a bar shows the slow steps."""
-    nhanes = nhanes_csv(demo_dir)
     # A hospital's analyser stand-in holds every practice's tubes; a practice
-    # seeds only its own patients.
+    # seeds only its own patients (demo/nhanes.py).
     webs = [
         web
-        for (partition, hospital), (_, practice), cycle in zip(
+        for (_, hospital), (_, practice), cycle in zip(
             hospitals(), practices(), CYCLES, strict=True
         )
         for web in (
             (
                 hospital_dir(demo_dir, hospital),
                 "hospital",
-                tube_seeds(nhanes),
+                [
+                    [
+                        "--rows",
+                        str(nhanes_extract(demo_dir, hospital, "participants.csv")),
+                    ]
+                ],
                 HOSPITALS[cycle],
                 cycle,
             ),
             (
                 practice_dir(demo_dir, practice),
                 "practice",
-                [seed_arguments(partition, nhanes)],
+                [["--rows", str(nhanes_extract(demo_dir, practice, "patients.csv"))]],
                 PRACTICES[cycle],
                 cycle,
             ),

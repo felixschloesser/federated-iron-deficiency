@@ -28,10 +28,11 @@ STARTUP_SERVICES = {
     "train",
     "startup-web",
 }
-# Out-of-band setup (report, assumptions): the one service that sees every party.
-SETUP_SERVICES = {"prepare"}
-# What a reset keeps, on the host: the downloads.
-HOST_FOLDERS = {"huggingface"}
+# Out-of-band setup (report, assumptions): prepare sees every party's folder;
+# nhanes-download, the one service that reaches the internet, sees none.
+SETUP_SERVICES = {"prepare", "nhanes-download"}
+# What a reset keeps, on the host: the downloads and the extracts made from them.
+HOST_FOLDERS = {"huggingface", "nhanes"}
 # Between the browser and the parties, like the internet: it sees only names.
 NETWORK_SERVICES = {"proxy"}
 
@@ -120,6 +121,8 @@ def test_every_web_app_names_its_party_and_its_folder() -> None:
 
 def test_one_service_per_process_of_each_party() -> None:
     assert set(config()["services"]) == STARTUP_SERVICES | NETWORK_SERVICES | {
+        "nhanes-download"
+    } | {
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
         for role in ("flower-supernode", "flower-client-app", "web")
@@ -131,7 +134,11 @@ def test_each_service_mounts_only_its_own_partys_folder() -> None:
     parties += [volume_folder(slug) for slug in PRACTICE_SLUGS]
     assert mounts("prepare") == {
         **{f"/demo/{folder}": (folder, False) for folder in parties},
-        **{f"/demo/{name}": (f"bind:.demo/{name}", False) for name in HOST_FOLDERS},
+        "/demo/nhanes": ("bind:.demo/nhanes", True),
+    }
+    # The public NHANES data only: no party's folder.
+    assert mounts("nhanes-download") == {
+        f"/demo/{name}": (f"bind:.demo/{name}", False) for name in HOST_FOLDERS
     }
     for name in set(config()["services"]) - SETUP_SERVICES - NETWORK_SERVICES:
         folder = party_folder(name)
@@ -326,10 +333,29 @@ def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
         for source, _ in mounts(name).values()
         if source.startswith("bind:")
     }
-    assert binds == {("prepare", f"bind:.demo/{name}") for name in HOST_FOLDERS} | {
-        ("proxy", "bind:demo/proxy.conf")
+    assert binds == {
+        ("nhanes-download", f"bind:.demo/{name}") for name in HOST_FOLDERS
+    } | {("prepare", "bind:.demo/nhanes"), ("proxy", "bind:demo/proxy.conf")}
+    assert service("nhanes-download")["environment"]["HF_HOME"] == "/demo/huggingface"
+
+
+def test_only_nhanes_download_reaches_the_internet() -> None:
+    """Threat: a party's data leaving through a container that reaches the
+    internet. Pass: nhanes-download, which sees no party's folder, is the only
+    service on the one network that is not internal, and prepare is on none."""
+    networks = config()["networks"]
+    outside = {name for name, spec in networks.items() if not spec.get("internal")}
+    on_outside = {
+        name
+        for name, spec in config()["services"].items()
+        if outside & set(spec.get("networks") or {})
     }
-    assert service("prepare")["environment"]["HF_HOME"] == "/demo/huggingface"
+    assert "setup" in outside
+    reaching = {
+        name for name in on_outside if "setup" in config()["services"][name]["networks"]
+    }
+    assert reaching == {"nhanes-download"}
+    assert service("prepare")["network_mode"] == "none"
 
 
 @pytest.mark.parametrize(
@@ -338,16 +364,22 @@ def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
 def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -> None:
     # A fresh volume belongs to root, and on Linux a bind mount keeps numeric
     # IDs: every container writes as one user, by default the first account of
-    # most Linux machines. Only prepare starts as root, to hand them over.
+    # most Linux machines. Only the setup services start as root, to hand them
+    # over.
     services = config(demo_user)["services"]
-    users = {spec.get("user") for name, spec in services.items() if name != "prepare"}
+    users = {
+        spec.get("user")
+        for name, spec in services.items()
+        if name not in SETUP_SERVICES
+    }
     assert users == {user}
-    prepare = services["prepare"]
-    assert prepare["user"] == "root"
-    assert prepare["environment"]["DEMO_USER"] == user
-    script = prepare["entrypoint"][-2]
-    assert "chown" in script
-    assert "exec setpriv" in script
+    for name in SETUP_SERVICES:
+        setup = services[name]
+        assert setup["user"] == "root"
+        assert setup["environment"]["DEMO_USER"] == user
+        script = setup["entrypoint"][-2]
+        assert "chown" in script
+        assert "exec setpriv" in script
 
 
 @pytest.mark.parametrize(
@@ -394,6 +426,7 @@ def test_each_project_runs_images_of_its_own() -> None:
         if not spec["image"].startswith(("flwr/", "nginx:"))
     }
     assert built == {
+        "some-project-nhanes-download",
         "some-project-prepare",
         "some-project-hospital-web",
         "some-project-startup-web",
