@@ -16,7 +16,7 @@ from django.db.models import Count, Q
 from ml.cohort import CBC_VARS, ELIGIBLE_AGES, ELIGIBLE_SEX, FEATURES, FERRITIN_CUTOFF
 from ml.training_cohort import remove_training_cohort, sha256, write_training_cohort
 from web.shared.accounts.models import User
-from web.shared.vocabulary import RegisteredSex
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 
 # Below these the startup's code cannot train or validate on the cohort, and
 # each past patient weighs more in what the model learns.
@@ -35,10 +35,13 @@ class Summary:
 class LabRecordQuerySet(models.QuerySet["LabRecord"]):
     def eligible(self) -> LabRecordQuerySet:
         """Past patients the training cohort holds: eligible, with a complete CBC
-        and a ferritin result; in the order the laboratory recorded them."""
+        ordered for a screened indication and a ferritin result; in the order
+        the laboratory recorded them. The model learns only from CBCs like
+        those it screens, so none at the start of pregnancy."""
         return self.filter(
             registered_sex=RegisteredSex.of_nhanes(ELIGIBLE_SEX),
             age__range=ELIGIBLE_AGES,
+            clinical_indication__in=ClinicalIndication.screened(),
             ferritin__isnull=False,
             cbc__has_keys=CBC_VARS,
         ).order_by("pk")
@@ -73,6 +76,10 @@ class LabRecord(models.Model):
     cbc = models.JSONField()
     # Absent when no ferritin was measured.
     ferritin = models.FloatField(null=True, blank=True)
+    # Why the CBC was ordered; absent on a record from before orders said.
+    clinical_indication = models.CharField(
+        max_length=19, choices=ClinicalIndication.choices, null=True, blank=True
+    )
 
     objects = LabRecordQuerySet.as_manager()
 

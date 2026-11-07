@@ -65,6 +65,18 @@ def records_without_ferritin(count: int) -> None:
 
 @given(
     parsers.parse(
+        "lab records of {count:d} eligible past patients whose CBC was ordered at"
+        " the start of pregnancy"
+    )
+)
+def records_at_start_of_pregnancy(count: int) -> None:
+    from web.shared.vocabulary import ClinicalIndication
+
+    make_lab_records(count, indication=ClinicalIndication.START_OF_PREGNANCY)
+
+
+@given(
+    parsers.parse(
         "lab records of {count:d} more eligible past patients, none of them iron"
         " deficient"
     )

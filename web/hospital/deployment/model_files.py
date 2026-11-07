@@ -4,6 +4,7 @@ laboratory director sees of each, and why one cannot be deployed
 (features/hospital/deployment.feature)."""
 
 import hashlib
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -73,6 +74,27 @@ class Ratio:
     def percent(self) -> str | None:
         """The share as a whole percentage; None when there is no whole."""
         return f"{self.part / self.whole:.0%}" if self.whole else None
+
+    @property
+    def interval(self) -> str | None:
+        """The share's 95% confidence interval in whole percentages, 40–89%;
+        None when there is no whole."""
+        if not self.whole:
+            return None
+        # Wilson's score interval: unlike share ± 1.96 standard errors, it stays
+        # within 0–100% and does not shrink to nothing at 0 of 10 or 10 of 10.
+        z_squared = 1.96**2
+        share = self.part / self.whole
+        centre = (share + z_squared / (2 * self.whole)) / (1 + z_squared / self.whole)
+        half = (
+            math.sqrt(
+                share * (1 - share) / self.whole + z_squared / (4 * self.whole**2)
+            )
+            * 1.96
+            / (1 + z_squared / self.whole)
+        )
+        lower, upper = max(centre - half, 0.0), min(centre + half, 1.0)
+        return f"{lower * 100:.0f}–{upper * 100:.0f}%"
 
 
 @dataclass(frozen=True)

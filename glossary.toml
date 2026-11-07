@@ -135,7 +135,7 @@ rejected = [
 
 ["start of pregnancy"]
 source = "Domus Medica, *Aanvraag van laboratoriumtests door huisartsen*, key messages, Huisarts Nu 2012;41(4), S9: \"Bepaal Hb, RBC en Hct … bij Hb <9,5 g/100 ml … ferritinebepaling\""
-why = "Not screened: pregnancy has its own Hb rule, and the cohort was not checked for pregnancy"
+why = "Not screened: pregnancy has its own Hb rule; a past CBC ordered for it stays out of the training cohort, so the model learns only from CBCs like those it screens"
 rejected = ["pregnancy check"]
 
 ["chronic kidney disease follow-up"]
@@ -292,6 +292,15 @@ why = "Iron-deficient women of the local validation whom the screening model sug
 rejected = [
     "recall (machine learning, not a laboratory word)",
     "true positive rate",
+]
+
+["95% confidence interval"]
+source = "WHO ferritin guideline (who2020), PDF p. 38: \"95% confidence interval [CI]: 0.914–1.263\""
+why = "Beside each sensitivity, specificity and predictive value: the range its share would likely fall in on other past patients like these, so the laboratory director sees how little 13 iron-deficient women pin a measure down. Shown as \"95% CI 40–89%\""
+rejected = [
+    "uncertainty (WHO LQMS's word for measurement uncertainty)",
+    "margin of error",
+    "error bars",
 ]
 
 ["specificity"]

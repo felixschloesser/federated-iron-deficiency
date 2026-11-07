@@ -2,7 +2,7 @@ Feature: Providing the training cohort
   The startup's code at this hospital (its ClientApp) trains on the training
   cohort, and only once the laboratory director has provided it. Providing
   extracts it from the laboratory's lab records: eligible past patients with a
-  complete CBC and a ferritin result, as the 13 CBC values, age and whether
+  complete CBC ordered for a screened indication and a ferritin result, as the 13 CBC values, age and whether
   ferritin was below the cutoff; nothing else. Before deciding, the director
   sees how many past patients it holds, never their records. The director may
   withdraw it at any time; the startup's code then finds none. Each decision
@@ -18,6 +18,10 @@ Feature: Providing the training cohort
   Scenario: Before providing, the director sees how many past patients it would hold
     Then no training cohort is provided
     And providing would hold 120 past patients, 20 of them iron deficient
+
+  Scenario: A CBC ordered at the start of pregnancy stays out of the training cohort
+    Given lab records of 5 eligible past patients whose CBC was ordered at the start of pregnancy
+    Then providing would hold 120 past patients, 20 of them iron deficient
 
   Scenario: Providing the training cohort
     When the laboratory director provides the training cohort

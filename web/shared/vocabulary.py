@@ -83,6 +83,11 @@ class ClinicalIndication(models.TextChoices):
             case _:
                 assert_never(self)
 
+    @classmethod
+    def screened(cls) -> list["ClinicalIndication"]:
+        """Every indication whose CBC is screened."""
+        return [indication for indication in cls if indication.is_screened()]
+
 
 @dataclass(frozen=True)
 class ResultName:

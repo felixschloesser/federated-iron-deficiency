@@ -34,17 +34,26 @@ HF_COLUMNS = {
     "year": "YEAR",
     "demo_riagendr": "RIAGENDR",
     "demo_ridageyr": "RIDAGEYR",
+    "demo_ridexprg": "RIDEXPRG",
     **{f"cbc_{var.lower()}": var for var in CBC_VARS},
     "fertin_lbxfer": "LBXFER",
 }
 
 
+def pregnant(participants: pd.DataFrame) -> "pd.Series[bool]":
+    """Who was pregnant at the exam; NHANES labels a positive answer "Yes, …"."""
+    return participants["RIDEXPRG"].fillna("").str.startswith("Yes")
+
+
 def in_cohort(participants: pd.DataFrame) -> "pd.Series[bool]":
-    """Who of a cycle's participants the cohort holds: eligible, with every
-    feature and a ferritin."""
-    return eligible(participants["RIAGENDR"], participants["RIDAGEYR"]) & participants[
-        FEATURES + ["LBXFER"]
-    ].notna().all(axis=1)
+    """Who of a cycle's participants the cohort holds: eligible, not pregnant
+    (a CBC at the start of pregnancy is not screened), with every feature and
+    a ferritin."""
+    return (
+        eligible(participants["RIAGENDR"], participants["RIDAGEYR"])
+        & ~pregnant(participants)
+        & participants[FEATURES + ["LBXFER"]].notna().all(axis=1)
+    )
 
 
 def hospital_share(participants: pd.DataFrame, cycle: str) -> pd.DataFrame:
@@ -127,6 +136,7 @@ def participants(cycle: str) -> pd.DataFrame:
             "age": sampled["RIDAGEYR"].astype(int),
             **{var: sampled[var] for var in CBC_VARS},
             "LBXFER": sampled["LBXFER"],
+            "pregnant": pregnant(sampled),
         }
     )
 
