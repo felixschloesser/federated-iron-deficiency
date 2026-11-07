@@ -394,7 +394,9 @@ def test_each_project_runs_images_of_its_own() -> None:
         if not spec["image"].startswith(("flwr/", "nginx:"))
     }
     assert built == {
-        "some-project-web",
+        "some-project-prepare",
+        "some-project-hospital-web",
+        "some-project-startup-web",
         "some-project-practice-web",
         "some-project-superexec",
     }

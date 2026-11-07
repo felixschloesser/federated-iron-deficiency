@@ -102,7 +102,13 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
     seed = ["--seed", "0", "--nhanes", "/tmp/nhanes.csv"]
     manage = ["python", "manage.py"]
     demo_seed = ["python", "-m", "demo.seed"]
-    compose(*seeding, *nhanes, hospital_app, *demo_seed, "hospital", *seed)
+    # Seeding is prepare's: no party's image holds the demo's code.
+    as_hospital = [
+        *seeding,
+        *("-e", "DJANGO_SETTINGS_MODULE=web.hospital.settings"),
+        *("-e", f"DATA_DIR=/demo/hospitals/{APP_HOSPITAL}"),
+    ]
+    compose(*as_hospital, *nhanes, "prepare", *demo_seed, "hospital", *seed)
     # As prepare does: the hospital knows the practice by its folder name.
     known = ["add_practice", APP_PRACTICE, "Huisartsenpraktijk De Ceder"]
     compose(*seeding, hospital_app, *manage, *known)
@@ -296,9 +302,12 @@ def stored_at(compose: Compose, hospital: str) -> dict[str, str]:
 def release(compose: Compose, journey: dict[str, Any]) -> None:
     seeding = ["run", "--rm", "--no-deps", "-e", "DJANGO_DEBUG=1", "startup-web"]
     manage = ["python", "manage.py"]
-    demo_seed = ["python", "-m", "demo.seed"]
     compose(*seeding, *manage, "migrate", "-v0")
-    compose(*seeding, *demo_seed, "startup")
+    # Seeding is prepare's: no party's image holds the demo's code.
+    as_startup = ["run", "--rm", "--no-deps", "-e", "DJANGO_DEBUG=1"]
+    as_startup += ["-e", "DJANGO_SETTINGS_MODULE=web.startup.settings"]
+    as_startup += ["-e", "DATA_DIR=/demo/startup", "prepare"]
+    compose(*as_startup, "python", "-m", "demo.seed", "startup")
     compose(*seeding, *manage, "add_hospital", APP_HOSPITAL, "AZ Diest")
     up(compose, "startup-web")
     release_one = RELEASE.format(run_id=journey["training"])
