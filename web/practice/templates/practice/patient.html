@@ -1,7 +1,7 @@
-{% extends "kit/base.html" %}
+{% extends "includes/base.html" %}
 {% block title %}{{ patient.name }}{% endblock %}
 {% block content %}
-{% include "kit/index_header.html" with title=patient.name subtitle=subtitle actions=actions post_actions=post_actions %}
+{% include "includes/index_header.html" with title=patient.name subtitle=subtitle actions=actions post_actions=post_actions %}
 {% for sample in samples %}
 <details{% if forloop.first %} open{% endif %}>
   <summary><h2>Sample <span class="sample-id">{{ sample.sample_id }}</span>, collected {{ sample.collected_at|date:"j M Y, H:i" }}{% if sample.laboratory %}, for {{ sample.laboratory }}{% endif %}</h2>{% if not forloop.first %}<small>{{ sample.tests_display|default:"No tests ordered yet" }}{% if sample.ferritin_suggested %} · Ferritin suggested{% endif %}</small>{% endif %}</summary>

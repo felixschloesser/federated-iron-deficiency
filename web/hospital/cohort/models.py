@@ -13,7 +13,16 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Count, Q
 
-from ml.cohort import CBC_VARS, ELIGIBLE_AGES, ELIGIBLE_SEX, FEATURES, FERRITIN_CUTOFF
+from ml.cohort import (
+    CBC_VARS,
+    ELIGIBLE_AGES,
+    ELIGIBLE_SEX,
+    FEATURES,
+    FERRITIN_CUTOFF,
+    INFLAMED_FERRITIN_CUTOFF,
+    INFLAMMATION_CRP,
+    iron_deficient,
+)
 from ml.training_cohort import remove_training_cohort, sha256, write_training_cohort
 from web.shared.accounts.models import User
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
@@ -30,14 +39,19 @@ class Summary:
 
     past_patients: int
     iron_deficient: int
+    # Eligible but for a CRP result, which the label needs: left out.
+    without_crp: int
 
 
 class LabRecordQuerySet(models.QuerySet["LabRecord"]):
     def eligible(self) -> LabRecordQuerySet:
         """Past patients the training cohort holds: eligible, with a complete CBC
-        ordered for a screened indication and a ferritin result; in the order
-        the laboratory recorded them. The model learns only from CBCs like
+        ordered for a screened indication, a ferritin and a CRP result; in the
+        order the laboratory recorded them. The model learns only from CBCs like
         those it screens, so none at the start of pregnancy."""
+        return self._eligible_but_for_crp().filter(crp__isnull=False)
+
+    def _eligible_but_for_crp(self) -> LabRecordQuerySet:
         return self.filter(
             registered_sex=RegisteredSex.of_nhanes(ELIGIBLE_SEX),
             age__range=ELIGIBLE_AGES,
@@ -47,23 +61,38 @@ class LabRecordQuerySet(models.QuerySet["LabRecord"]):
         ).order_by("pk")
 
     def summary(self) -> Summary:
-        counts = self.eligible().aggregate(
-            past_patients=Count("pk"),
-            iron_deficient=Count("pk", filter=Q(ferritin__lt=FERRITIN_CUTOFF)),
+        with_crp = Q(crp__isnull=False)
+        # ml.cohort.iron_deficient, as the database counts it.
+        deficient = Q(ferritin__lt=FERRITIN_CUTOFF) | Q(
+            crp__gt=INFLAMMATION_CRP, ferritin__lt=INFLAMED_FERRITIN_CUTOFF
         )
-        return Summary(counts["past_patients"], counts["iron_deficient"])
+        counts = self._eligible_but_for_crp().aggregate(
+            past_patients=Count("pk", filter=with_crp),
+            iron_deficient=Count("pk", filter=with_crp & deficient),
+            without_crp=Count("pk", filter=~with_crp),
+        )
+        return Summary(
+            counts["past_patients"], counts["iron_deficient"], counts["without_crp"]
+        )
 
     def training_cohort(self) -> pd.DataFrame:
         """The eligible past patients as the startup's code trains on them: the 13
-        CBC values, age and whether ferritin was below the cutoff; nothing else."""
-        rows = [
-            [*(record.cbc[var] for var in CBC_VARS), float(record.age)]
-            + [int(record.ferritin is not None and record.ferritin < FERRITIN_CUTOFF)]
-            for record in self.eligible().only("cbc", "age", "ferritin")
-        ]
-        return pd.DataFrame(rows, columns=[*FEATURES, "iron_deficient"]).astype(
-            dict.fromkeys(FEATURES, "float64")
+        CBC values, age and whether iron deficient; nothing else. Ferritin and
+        CRP only make the label; neither leaves."""
+        records = self.eligible().only("cbc", "age", "ferritin", "crp")
+        rows = pd.DataFrame(
+            [
+                [*(record.cbc[var] for var in CBC_VARS), float(record.age)]
+                for record in records
+            ],
+            columns=FEATURES,
+            dtype="float64",
         )
+        label = iron_deficient(
+            pd.Series([record.ferritin for record in records], dtype="float64"),
+            pd.Series([record.crp for record in records], dtype="float64"),
+        )
+        return rows.assign(iron_deficient=label.astype(int).to_numpy())
 
 
 class LabRecord(models.Model):
@@ -76,6 +105,8 @@ class LabRecord(models.Model):
     cbc = models.JSONField()
     # Absent when no ferritin was measured.
     ferritin = models.FloatField(null=True, blank=True)
+    # C-reactive protein, mg/L; absent when none was measured.
+    crp = models.FloatField(null=True, blank=True)
     # Why the CBC was ordered; absent on a record from before orders said.
     clinical_indication = models.CharField(
         max_length=19, choices=ClinicalIndication.choices, null=True, blank=True

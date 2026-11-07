@@ -117,6 +117,7 @@ def seed_lab_records(csv: Path, provide: bool) -> str:
                         if not pd.isna(row[var])
                     },
                     ferritin=None if pd.isna(row["LBXFER"]) else float(row["LBXFER"]),
+                    crp=None if pd.isna(row["CRP"]) else float(row["CRP"]),
                     clinical_indication=indication(bool(row["pregnant"]), number),
                 )
                 for number, row in enumerate(pd.read_csv(csv).to_dict("records"))

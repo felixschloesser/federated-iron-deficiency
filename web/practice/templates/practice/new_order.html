@@ -1,7 +1,7 @@
-{% extends "kit/base.html" %}
+{% extends "includes/base.html" %}
 {% block title %}Order {{ test.label }} for {{ patient.name }}{% endblock %}
 {% block content %}
-{% include "kit/index_header.html" with title="Order "|add:test.label|add:" for "|add:patient.name %}
+{% include "includes/index_header.html" with title="Order "|add:test.label|add:" for "|add:patient.name %}
 <p>On sample {{ sample.sample_id }}, collected {{ sample.collected_at|date:"j M Y, H:i" }}.</p>
-{% include "kit/form.html" with form=form submit_label="Place order" %}
+{% include "includes/form.html" with form=form submit_label="Place order" %}
 {% endblock %}

@@ -3,7 +3,8 @@
 This [Flower](https://flower.ai/) app trains a
 [PyTorch](https://pytorch.org/) binary classifier to identify iron deficiency
 from routine complete blood count measurements and age. Iron deficiency is
-defined as ferritin below 15 ng/mL.
+ferritin below 15 ng/mL, or below 70 ng/mL with inflammation (CRP above
+5 mg/L), as the WHO ferritin guideline (2020) defines it for adults.
 
 The federation has three clients, standing in for a large, a medium, and a
 small hospital. Each holds a different
@@ -13,6 +14,25 @@ hospitals. Each client trains on its own locally standardized data.
 
 After training, the startup keeps the final model. Once its data scientist
 releases it, each hospital fetches it and screens new blood counts with it.
+
+## Layout
+
+- `web/`: the three parties' web apps, each a Django project of its own
+  (`DJANGO_SETTINGS_MODULE=web.<party>.settings`):
+  - `web/hospital/`: the laboratory, its training cohort, the screening models
+    it deploys, and its analyser stand-in;
+  - `web/practice/`: the general practitioner's patients, samples and orders;
+  - `web/startup/`: training runs and the final models the data scientist
+    releases;
+  - `web/shared/`: what all three use: accounts, the gRPC messages between them
+    (`web/shared/messaging/messages.proto`), the page templates and stylesheet.
+- `ml/`: the Flower app: the ServerApp at the startup, the ClientApp at each
+  hospital, and the model.
+- `demo/`: the whole scenario in containers (`demo/README.md`).
+- `features/`: the requirements as Gherkin scenarios, one folder per party, the
+  ones crossing parties at the top.
+- `tests/`: the scenarios' steps and the other tests (see Tests below).
+- `glossary.toml`: the domain's words, what each means and where it comes from.
 
 ## Changes from `@javier/iron-deficiency`
 
@@ -137,8 +157,21 @@ app: see `demo/README.md`.
 ## Tests
 
 ```shell
-uv run pytest
+uv run pytest                                          # every test but the container ones
+uv run pytest -m "not containers and not subprocess"   # the quick loop
+uv run pytest -m containers                            # against the running demo (Docker)
+uv run pytest --ds=web.hospital.settings tests/hospital/test_lab.py   # one party's file
 ```
+
+Each party's tests run under its own settings: a folder named after the party,
+anywhere under `tests/`, holds them (`tests/hospital/`,
+`tests/quality/privacy/hospital/`). Plain `uv run pytest` runs each party's in
+turn; naming a party's file needs its `--ds`.
+
+- `tests/<party>/`: each party's scenarios and views.
+- `tests/e2e/`: flows through the running demo.
+- `tests/quality/security/` and `tests/quality/privacy/`: one test per threat;
+  the privacy folder's `conftest.py` says how to write one.
 
 ## Weights & Biases
 

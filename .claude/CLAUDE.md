@@ -35,7 +35,7 @@ uv run --frozen python .claude/audit.py
 ## Vocabulary first
 
 - Before any scenario that introduces or renames a domain concept: a term table (term | source | why chosen | rejected terms). A term without a source stops the draft; report it.
-- Glossary entries (`glossary.toml`, one table per term with `source`, `why` and `rejected`) change in the same commit as the code, each with its source; the audit fails on a term without one. Model, form, template and copy use the glossary's words; the domain experts' words win over developer words.
+- Glossary entries (`glossary.toml`, one table per term with `meaning` and `source`, for readers) change in the same commit as the code; the words a term replaced and the date the team decided it go in `.claude/glossary_record.toml` (`rejected`, `decided`). The audit fails on a term without a meaning or source, and on a record term not in the glossary. Model, form, template and copy use the glossary's words; the domain experts' words win over developer words.
 
 ## Red first
 
@@ -55,11 +55,11 @@ uv run --frozen python .claude/audit.py
 - **No capability without a path to it.** Every writing model or manager method is reachable from a view; every view from the URLconf and a link or form on a page.
 - **POST-redirect-GET.** Every mutation is a POST that redirects on success. GET never mutates.
 - Code rules: no bare `assert` outside tests; no `except Exception` without re-raise; no single-letter names; functions ≤100 lines, ≤5 parameters.
-- Outside `tests/`, a module or class docstring may name its feature file, once; functions, methods and comments do not.
+- Outside `tests/`, a module or class docstring may name its feature file, once; functions, methods and comments do not (the audit checks).
 
 ## Templates
 
-- Pages are built only from the shared kit (`web/shared/templates/kit/`: base layout, index header, action row, archive/restore with the refusal beside the action, form layout, error summary). A missing piece goes into the kit, not the page.
+- Pages are built only from the shared includes (`web/shared/templates/includes/`: base layout, index header, action row, archive/restore with the refusal beside the action, form layout, error summary). A missing piece goes into includes/, not the page.
 - Only CSS classes defined in the vendored stylesheet or `web/shared/static/css/`. The audit checks `class="…"` in the templates.
 - Conditional controls (show only when the recorded facts make them applicable) are decided in the view or a query function and tested there, not by rendering.
 - In tests, `string_if_invalid` fails the test; a missing variable never renders blank.
