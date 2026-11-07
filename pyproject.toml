@@ -83,7 +83,7 @@ default-groups = ["dev", "web"]
 [tool.mypy]
 # .claude holds the audit, a commit gate kept out of readers' way.
 mypy_path = "typings:.claude"
-# Runtime output of demo/demo.py (gitignored), holding unpacked copies of the app.
+# The demo's folder on the host (gitignored): downloads and NHANES extracts.
 exclude = ["^\\.demo/"]
 plugins = ["mypy_django_plugin.main"]
 

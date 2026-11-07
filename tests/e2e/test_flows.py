@@ -6,7 +6,6 @@ Every test here needs a Docker engine (tests/e2e/conftest.py)."""
 
 import json
 import time
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -16,9 +15,11 @@ from tests.compose_project import (
     APP_HOSPITAL,
     APP_PRACTICE,
     HOSPITAL,
+    SECOND_HOSPITAL,
     Compose,
     build,
     flwr,
+    in_party,
     online_nodes,
     probe,
     synthetic_cohort,
@@ -86,42 +87,14 @@ print(json.dumps(seen))
 
 
 def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
-    compose: Compose, hospital_app: str, proxy: None, tmp_path: Path
+    compose: Compose, hospital_app: str, proxy: None
 ) -> None:
     build(compose, "practice-web")
     from demo.seeding.accounts import PASSWORD
-    from tests.conftest import nhanes_rows
 
-    # The same participants at both parties, from a small NHANES file, so no
-    # download: what prepare does for the demo, for one hospital and its practice.
-    csv = tmp_path / "nhanes.csv"
-    nhanes_rows().to_csv(csv, index=False)
+    # Each party sets itself up from its own NHANES extract, the same
+    # participants at both (tests/compose_project.py), as in the demo.
     practice = f"{APP_PRACTICE}-web"
-    seeding = ["run", "--rm", "--no-deps", "-e", "DJANGO_DEBUG=1"]
-    nhanes = ["-v", f"{csv}:/tmp/nhanes.csv:ro"]
-    seed = ["--seed", "0", "--nhanes", "/tmp/nhanes.csv"]
-    manage = ["python", "manage.py"]
-    demo_seed = ["python", "-m", "demo.seed"]
-    # Seeding is prepare's: no party's image holds the demo's code.
-    as_hospital = [
-        *seeding,
-        *("-e", "DJANGO_SETTINGS_MODULE=web.hospital.settings"),
-        *("-e", f"DATA_DIR=/demo/hospitals/{APP_HOSPITAL}"),
-    ]
-    compose(*as_hospital, *nhanes, "prepare", *demo_seed, "hospital", *seed)
-    # As prepare does: the hospital knows the practice by its folder name.
-    known = ["add_practice", APP_PRACTICE, "Huisartsenpraktijk De Ceder"]
-    compose(*seeding, hospital_app, *manage, *known)
-    # As prepare does: the practice's own image serves it, without the seeding.
-    as_practice = [
-        *seeding,
-        *("-e", "DJANGO_SETTINGS_MODULE=web.practice.settings"),
-        *("-e", f"DATA_DIR=/demo/practices/{APP_PRACTICE}"),
-    ]
-    compose(*as_practice, "prepare", *manage, "migrate", "-v0")
-    compose(*as_practice, *nhanes, "prepare", *demo_seed, "practice", *seed)
-    address = f"{APP_HOSPITAL}-messaging:8441"
-    compose(*as_practice, "prepare", *manage, "add_laboratory", "AZ Diest", address)
     up(compose, practice)
     seen = probe(
         compose,
@@ -198,18 +171,25 @@ def flower_run(compose: Compose, configuration: str) -> str:
     return run_id
 
 
-def folders(compose: Compose) -> dict[str, Any]:
-    """What the startup and UZ Leuven hold: each file's name and SHA-256."""
-    script = (
+def held(folder: str) -> str:
+    """Python printing the final models in `folder`: each file's name and SHA-256."""
+    return (
         "import hashlib, json; from pathlib import Path;"
-        " held = lambda folder: {path.name: hashlib.sha256(path.read_bytes()).hexdigest()"
-        " for path in sorted(Path(folder).glob('*.pt'))};"
-        " print(json.dumps({'startup': held('/demo/startup/final-models'),"
-        f" 'hospital': held('/demo/hospitals/{HOSPITAL}/screening-models')}}))"
+        " print(json.dumps({path.name: hashlib.sha256(path.read_bytes()).hexdigest()"
+        f" for path in sorted(Path({folder!r}).glob('*.pt'))}}))"
     )
-    result = compose("run", "--rm", "--no-deps", "prepare", "python", "-c", script)
-    held: dict[str, Any] = json.loads(result.stdout.strip().splitlines()[-1])
-    return held
+
+
+def folders(compose: Compose) -> dict[str, Any]:
+    """What the startup and UZ Leuven hold, each seen in its own web app."""
+    return {
+        "startup": json.loads(
+            in_party(compose, "startup-web", held("/data/final-models"))
+        ),
+        "hospital": json.loads(
+            in_party(compose, f"{HOSPITAL}-web", held("/data/screening-models"))
+        ),
+    }
 
 
 @pytest.fixture
@@ -217,24 +197,14 @@ def journey() -> dict[str, Any]:
     return {}
 
 
-# FedAvg trains only with at least two hospitals available.
-SECOND_HOSPITAL = "heilig-hart-leuven"
-
-
 @given(
     "Heilig Hart Leuven's SuperNode and ClientApp too, as FedAvg trains only with"
     " two hospitals"
 )
 def second_hospital(compose: Compose) -> None:
-    compose(
-        "run",
-        "--rm",
-        "--no-deps",
-        "prepare",
-        "python",
-        "-c",
-        "from pathlib import Path" + synthetic_cohort(SECOND_HOSPITAL),
-    )
+    up(compose, f"{SECOND_HOSPITAL}-web")
+    cohort = "from pathlib import Path" + synthetic_cohort(SECOND_HOSPITAL)
+    in_party(compose, f"{SECOND_HOSPITAL}-web", cohort)
     compose(
         "up",
         "--detach",
@@ -261,9 +231,9 @@ def kept_not_stored(compose: Compose, journey: dict[str, Any]) -> None:
     assert held["hospital"] == {}, held
 
 
-# As prepare does for the demo: the startup's web app, migrated, with its data
-# scientist, knowing AZ Diest as a recipient hospital by its folder's name. AZ
-# Diest never trained here: any hospital the startup registers may fetch.
+# The startup's web app set itself up as it started: its data scientist, and
+# every hospital a recipient by its folder's name. AZ Diest never trained here:
+# any hospital the startup registers may fetch.
 RELEASE = """
 from django.utils import timezone
 from web.shared.accounts.models import User
@@ -287,34 +257,22 @@ print(json.dumps(fetch_final_models(now=timezone.now())))
 
 def stored_at(compose: Compose, hospital: str) -> dict[str, str]:
     """The final models a hospital stored: each file's name and SHA-256."""
-    script = (
-        "import hashlib, json; from pathlib import Path;"
-        f" folder = Path('/demo/hospitals/{hospital}/screening-models');"
-        " print(json.dumps({path.name: hashlib.sha256(path.read_bytes()).hexdigest()"
-        " for path in sorted(folder.glob('*.pt'))}))"
+    stored: dict[str, str] = json.loads(
+        in_party(compose, f"{hospital}-web", held("/data/screening-models"))
     )
-    result = compose("run", "--rm", "--no-deps", "prepare", "python", "-c", script)
-    held: dict[str, str] = json.loads(result.stdout.strip().splitlines()[-1])
-    return held
+    return stored
 
 
 @when("the data scientist releases that final model")
 def release(compose: Compose, journey: dict[str, Any]) -> None:
-    seeding = ["run", "--rm", "--no-deps", "-e", "DJANGO_DEBUG=1", "startup-web"]
-    manage = ["python", "manage.py"]
-    compose(*seeding, *manage, "migrate", "-v0")
-    # Seeding is prepare's: no party's image holds the demo's code.
-    as_startup = ["run", "--rm", "--no-deps", "-e", "DJANGO_DEBUG=1"]
-    as_startup += ["-e", "DJANGO_SETTINGS_MODULE=web.startup.settings"]
-    as_startup += ["-e", "DATA_DIR=/demo/startup", "prepare"]
-    compose(*as_startup, "python", "-m", "demo.seed", "startup")
-    compose(*seeding, *manage, "add_hospital", APP_HOSPITAL, "AZ Diest")
-    up(compose, "startup-web")
     release_one = RELEASE.format(run_id=journey["training"])
-    compose(*seeding, *manage, "shell", "-c", release_one)
-    # AZ Diest's own cohort, to validate on, as prepare saves every hospital's.
+    compose(
+        "exec", "-T", "startup-web", "python", "manage.py", "shell", "-c", release_one
+    )
+    # AZ Diest's own cohort, to validate on, in its own web app.
+    up(compose, f"{APP_HOSPITAL}-web")
     cohort = "from pathlib import Path" + synthetic_cohort(APP_HOSPITAL)
-    compose("run", "--rm", "--no-deps", "prepare", "python", "-c", cohort)
+    in_party(compose, f"{APP_HOSPITAL}-web", cohort)
 
 
 @then("AZ Diest stores none yet")
@@ -326,9 +284,8 @@ def none_yet(compose: Compose) -> None:
 def hospital_fetches(compose: Compose, journey: dict[str, Any]) -> None:
     journey["before"] = stored_at(compose, APP_HOSPITAL)
     result = compose(
-        "run",
-        "--rm",
-        "--no-deps",
+        "exec",
+        "-T",
         f"{APP_HOSPITAL}-web",
         "python",
         "manage.py",
@@ -347,14 +304,13 @@ def stored(compose: Compose, journey: dict[str, Any]) -> None:
     assert journey["fetched"] == [journey["training"]]
     held = stored_at(compose, APP_HOSPITAL)
     assert list(held) == [f"{journey['training']}.pt"], held
-    path = f"/demo/hospitals/{APP_HOSPITAL}/screening-models/{journey['training']}.pt"
+    path = f"/data/screening-models/{journey['training']}.pt"
     script = (
         "from pathlib import Path; from ml.final_model import read;"
         f" model = read(Path({path!r}));"
         " print(model.problem() is None and bool(model.confusion_matrices))"
     )
-    result = compose("run", "--rm", "--no-deps", "prepare", "python", "-c", script)
-    assert result.stdout.strip().splitlines()[-1] == "True"
+    assert in_party(compose, f"{APP_HOSPITAL}-web", script) == "True"
 
 
 @then("it fetches none and AZ Diest's copy is unchanged")
