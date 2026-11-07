@@ -64,7 +64,7 @@ Global___RegisteredSex: _TypeAlias = RegisteredSex  # noqa: Y015
 
 @_typing.final
 class LabOrder(_message.Message):
-    """DF23. No patient name, no blood values, no clinical indication (tests/tools/test_messages.py): the
+    """DF23. No patient name, no blood values, no clinical indication (tests/quality/privacy/test_messages.py): the
     tube's values are measured at the hospital, and of the indication the
     laboratory needs only whether it is screened (features/hospital/screening.feature). The hospital's form still
     checks every field.
@@ -110,7 +110,7 @@ Global___LabOrder: _TypeAlias = LabOrder  # noqa: Y015
 
 @_typing.final
 class LabReport(_message.Message):
-    """DF25. Results and one bit of screening (features/practice/reports.feature, tests/tools/test_messages.py): no score, and nothing that
+    """DF25. Results and one bit of screening (features/practice/reports.feature, tests/quality/privacy/test_messages.py): no score, and nothing that
     tells ferritin not suggested from not screened.
     """
 

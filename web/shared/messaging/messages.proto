@@ -23,37 +23,29 @@ enum RegisteredSex {
   REGISTERED_SEX_MALE = 2;
 }
 
-// DF23. No patient name, no blood values, no clinical indication (tests/tools/test_messages.py): the
+// DF23. No patient name, no blood values, no clinical indication (tests/quality/privacy/test_messages.py): the
 // tube's values are measured at the hospital, and of the indication the
 // laboratory needs only whether it is screened (features/hospital/screening.feature). The hospital's form still
 // checks every field.
 message LabOrder {
-  reserved 2, 3, 4, 7;              // were strings: test, indication, sex, ordered_at
-  reserved 9;                       // was the clinical indication itself
-  reserved "indication";
-  reserved 6;                       // was the general practitioner's name: the
-  reserved "general_practitioner";  // certificate_name says who ordered (features/practice/access.feature)
-  string certificate_name = 13;     // the sending practice's (features/hospital/lab_orders.feature)
-  string sample_id = 1;
-  Test test = 8;
-  bool screened_indication = 12;    // false when absent: never screened by mistake
-  RegisteredSex registered_sex = 10;
-  uint32 age = 5;
-  google.protobuf.Timestamp ordered_at = 11;
+  string certificate_name = 1;      // the sending practice's (features/hospital/lab_orders.feature)
+  string sample_id = 2;
+  Test test = 3;
+  bool screened_indication = 4;     // false when absent: never screened by mistake
+  RegisteredSex registered_sex = 5;
+  uint32 age = 6;
+  google.protobuf.Timestamp ordered_at = 7;
 }
 
-// DF25. Results and one bit of screening (features/practice/reports.feature, tests/tools/test_messages.py): no score, and nothing that
+// DF25. Results and one bit of screening (features/practice/reports.feature, tests/quality/privacy/test_messages.py): no score, and nothing that
 // tells ferritin not suggested from not screened.
 message LabReport {
-  reserved 3, 6;                    // were strings: test, released_at
-  reserved 5;                       // was the free-text comment
-  reserved "comment";
   string report_id = 1;
   string sample_id = 2;
-  Test test = 8;
+  Test test = 3;
   map<string, double> results = 4;
-  google.protobuf.Timestamp released_at = 9;
-  bool ferritin_suggested = 7;      // false when absent: never a false suggestion
+  google.protobuf.Timestamp released_at = 5;
+  bool ferritin_suggested = 6;      // false when absent: never a false suggestion
 }
 
 message Received {}
@@ -67,8 +59,8 @@ message LabReports {
 }
 
 message Acknowledgement {
-  string certificate_name = 2;      // the sending practice's
-  repeated string report_ids = 1;
+  string certificate_name = 1;      // the sending practice's
+  repeated string report_ids = 2;
 }
 
 service Laboratory {
