@@ -6,6 +6,7 @@ hospital of each training cycle (HOSPITALS).
 """
 
 import argparse
+import shlex
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -69,8 +70,9 @@ def fill(template: str, **values: str) -> str:
 HEAD = """\
 # The demo (demo/README.md): one container per service, one network per
 # trust boundary of the report's DFDs, and one per crossing, and one volume
-# per party: every container mounts only its own party's parts of it, at the
-# path prepare wrote them to. Only prepare also mounts .demo/ on the host.
+# per party: every container mounts only its own party's parts of it. Each
+# party's web app sets itself up when it starts (demo/party.py), from its own
+# NHANES extract, which nhanes-download writes to .demo/ on the host.
 #
 #   docker compose up --build --abort-on-container-failure
 #   docker compose run --rm train
@@ -84,13 +86,17 @@ HEAD = """\
 
 name: iron-deficiency
 
-# Each image is built once, by the first service that names it (prepare,
-# startup-web, the first hospital,
-# flower-server-app, the first practice); every other service uses it as built.
-# Every container runs as one user, so the volumes and, on Linux, where a bind
-# mount keeps numeric IDs, .demo/ never mix the images' own users (49999, 1000).
-# Set DEMO_USER=$(id -u):$(id -g) in .env if your account is not 1000:1000.
-x-user: &user "${DEMO_USER:-1000:1000}"
+# Each image is built once, by the first service that names it
+# (nhanes-download, startup-web, the first hospital, flower-server-app, the
+# first practice); every other service uses it as built.
+# Every container that touches a party's volume runs as our images' app user,
+# who owns the folders each image brings: Docker copies them into a fresh
+# volume, so no container needs root to hand a volume over.
+x-user: &user "1000:1000"
+# nhanes-download writes to .demo/ on the host, where, on Linux, a bind mount
+# keeps numeric IDs: set DEMO_USER=$(id -u):$(id -g) in .env if your account is
+# not 1000:1000.
+x-demo-user: &demo-user "${DEMO_USER:-1000:1000}"
 
 # Checked every 2 s while a service starts, so `up --wait` is quick; once it
 # is healthy, every 5 minutes: each check starts a process in the container.
@@ -100,29 +106,24 @@ x-health: &health
   interval: 5m
 
 # One image per party's web app, each with only that party's apps and the
-# shared ones; prepare's holds everything, to set up every party.
-x-prepare: &prepare
-  image: ${COMPOSE_PROJECT_NAME}-prepare
-  user: *user
-
+# shared ones, and its start (demo/party.py): its folder at /data, its NHANES
+# extract read-only at /nhanes.
 x-hospital-web: &hospital-web
   image: ${COMPOSE_PROJECT_NAME}-hospital-web
   user: *user
   depends_on:
-    prepare: {condition: service_completed_successfully}
+    nhanes-download: {condition: service_completed_successfully}
 
 x-startup-web: &startup-web
   image: ${COMPOSE_PROJECT_NAME}-startup-web
   user: *user
-  depends_on:
-    prepare: {condition: service_completed_successfully}
 
 # A practice's web app: Django and gRPC only, no training package dependencies.
 x-practice-web: &practice-web
   image: ${COMPOSE_PROJECT_NAME}-practice-web
   user: *user
   depends_on:
-    prepare: {condition: service_completed_successfully}
+    nhanes-download: {condition: service_completed_successfully}
 
 x-superexec: &superexec
   image: ${COMPOSE_PROJECT_NAME}-superexec
@@ -137,7 +138,6 @@ x-supernode: &supernode
     flower-superlink: {condition: service_healthy}
 
 services:
-  # Out-of-band setup, not drawn in the DFDs: lab records,
   # databases. The one container that sees every party's folder.
   # The one container that reaches the internet: it writes the public NHANES
   # extracts each party seeds from, one folder per party, on the host, and sees
@@ -157,7 +157,7 @@ services:
     # Each hospital and its practice: cycle, folder names, patients (demo.toml).
     command: [python, -m, demo.nhanes, --out-dir, /demo/nhanes, NHANES_PAIRS]
     environment:
-      DEMO_USER: *user
+      DEMO_USER: *demo-user
       # Hugging Face may refuse unauthenticated downloads of the NHANES data.
       HF_TOKEN: ${HF_TOKEN:-}
       # Downloads and extracts stay on the host, so `down -v` fetches nothing again.
@@ -166,34 +166,9 @@ services:
       - ../.demo/huggingface:/demo/huggingface
       - ../.demo/nhanes:/demo/nhanes
     networks: [setup]
-
-  prepare:
-    <<: *prepare
-    build: {context: .., dockerfile: demo/prepare.Dockerfile}
-    depends_on:
-      nhanes-download: {condition: service_completed_successfully}
-    # A fresh volume belongs to root: hand each to the demo user, then drop to it.
-    user: root
-    entrypoint:
-      - bash
-      - -c
-      - |
-        chown "$$DEMO_USER" /demo/startup /demo/hospitals/* /demo/practices/*
-        exec setpriv --reuid="$${DEMO_USER%%:*}" --regid="$${DEMO_USER##*:}" --clear-groups "$$@"
-      - prepare
-    command: [python, -m, demo.demo, prepare, --demo-dir, /demo]
-    environment:
-      DEMO_USER: *user
-      # Only for the summary's addresses.
-      DEMO_HTTP_PORT: ${DEMO_HTTP_PORT:-80}
-    volumes:
-      - {type: volume, source: startup, target: /demo/startup}
 """
 
 MIDDLE = """\
-      # nhanes-download's extracts, read-only; prepare reaches no network.
-      - ../.demo/nhanes:/demo/nhanes:ro
-    network_mode: none
 
   # TB2, the startup.
   flower-superlink:
@@ -201,8 +176,9 @@ MIDDLE = """\
     user: *user
     environment:
       FLWR_HOME: /tmp/flwr
+    # Its folder is the startup's, whose web app brings it (demo/startup.Dockerfile).
     depends_on:
-      prepare: {condition: service_completed_successfully}
+      startup-web: {condition: service_healthy}
     command:
       - --host=0.0.0.0
       - --port=9092
@@ -236,7 +212,10 @@ MIDDLE = """\
     profiles: [train]
     depends_on:
       flower-superlink: {condition: service_healthy}
+    # Not the web app's start (demo/party.py): the data scientist's command line.
+    entrypoint: []
     command: [flwr, run, /app, demo, --run-config, "demo-dir='/demo'", --stream]
+    # The startup's web app writes flwr-home/config.toml when it starts.
     environment:
       FLWR_HOME: /demo/startup/flwr-home
     volumes:
@@ -266,13 +245,16 @@ MIDDLE = """\
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://startup-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('startup-final-models', 8442)).close()"]
     environment:
       DJANGO_SETTINGS_MODULE: web.startup.settings
-      DATA_DIR: /demo/startup
-      FLWR_HOME: /demo/startup/flwr-home
-    volumes:
-      - {type: volume, source: startup, target: /demo/startup}
-      - {type: volume, source: startup, target: /demo/startup/final-models, read_only: true, volume: {subpath: final-models}}
+      DATA_DIR: /data
+      FLWR_HOME: /data/flwr-home
+      DEMO_ADDRESS: http://startup.localhost:${DEMO_HTTP_PORT:-80}
+      # Every hospital, as a recipient of released final models.
+      DEMO_REGISTER: |
+STARTUP_REGISTER    volumes:
+      - {type: volume, source: startup, target: /data}
+      - {type: volume, source: startup, target: /data/final-models, read_only: true, volume: {subpath: final-models}}
     # Masked: the SuperLink's state is the SuperLink's alone.
-    tmpfs: [/demo/startup/superlink]
+    tmpfs: [/data/superlink]
     networks:
       startup: {}
       startup-web: {aliases: [startup-pages]}
@@ -298,7 +280,10 @@ HOSPITAL = """\
   # SuperNode (tests/quality/security/test_running_containers.py).
   {slug}-flower-client-app:
     <<: *superexec
-    depends_on: [{slug}-flower-supernode]
+    # Its cohort folder is the hospital's, whose web app brings it.
+    depends_on:
+      {slug}-flower-supernode: {condition: service_started}
+      {slug}-web: {condition: service_healthy}
     command: [--runtime-api-address={slug}-flower-supernode:9094, --insecure]
     volumes:
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}/cohort, read_only: true, volume: {subpath: cohort}}
@@ -326,15 +311,19 @@ HOSPITAL = """\
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://{slug}-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('{slug}-messaging', 8441)).close()"]
     environment:
       DJANGO_SETTINGS_MODULE: web.hospital.settings
-      DATA_DIR: /demo/hospitals/{slug}
-      PARTY_NAME: {name}
+      DATA_DIR: /data
+      DEMO_ADDRESS: http://{slug}.localhost:${DEMO_HTTP_PORT:-80}
+{provide}      # Every practice, by the certificate name its app sends.
+      DEMO_REGISTER: |
+{register}      PARTY_NAME: {name}
       PARTY_COLOUR: {colour}
       # The startup's final-models endpoint, and the name the startup issued this
       # hospital.
       STARTUP_ADDRESS: startup-final-models:8442
       HOSPITAL_CERTIFICATE_NAME: {slug}
     volumes:
-      - {type: volume, source: {slug}, target: /demo/hospitals/{slug}}
+      - {type: volume, source: {slug}, target: /data}
+      - ../.demo/nhanes/{slug}:/nhanes:ro
     # The laboratory director provides the training cohort and fetches final
     # models here, so the web app writes the cohort folder and screening-models,
     # through the hospital's whole volume; it holds no SuperNode key.
@@ -360,12 +349,16 @@ PRACTICE = """\
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
       DJANGO_SETTINGS_MODULE: web.practice.settings
-      DATA_DIR: /demo/practices/{slug}
-      PARTY_NAME: {name}
+      DATA_DIR: /data
+      DEMO_ADDRESS: http://{slug}.localhost:${DEMO_HTTP_PORT:-80}
+      # Every hospital's laboratory; its paired hospital's is the primary one.
+      DEMO_REGISTER: |
+{register}      PARTY_NAME: {name}
       PRACTICE_CERTIFICATE_NAME: {slug}
       PARTY_COLOUR: {colour}
     volumes:
-      - {type: volume, source: {slug}, target: /demo/practices/{slug}}
+      - {type: volume, source: {slug}, target: /data}
+      - ../.demo/nhanes/{slug}:/nhanes:ro
     networks: [{slug}, messaging]
 
 """
@@ -380,7 +373,7 @@ PROXY = """\
     image: nginx:1.28-alpine
     user: *user
     depends_on:
-      prepare: {condition: service_completed_successfully}
+      nhanes-download: {condition: service_completed_successfully}
     ports: ["127.0.0.1:${DEMO_HTTP_PORT:-80}:8080"]
     volumes: ["./proxy.conf:/etc/nginx/nginx.conf:ro"]
     healthcheck:
@@ -454,26 +447,90 @@ def nhanes_pairs() -> str:
     )
 
 
+PROVIDE = """\
+      # Its laboratory director provided the training cohort at start.
+      DEMO_PROVIDE: "1"
+"""
+
+
+def register(commands: list[list[str]]) -> str:
+    """DEMO_REGISTER's lines (demo/party.py), indented for its block."""
+    return "".join(
+        "        " + " ".join(shlex.quote(part) for part in command) + "\n"
+        for command in commands
+    )
+
+
+def cycle_of(slug: str) -> str:
+    """The cycle of the hospital or practice with this folder name."""
+    (cycle,) = [
+        cycle
+        for cycle in CYCLES
+        if slug in (hospital_slug(HOSPITALS[cycle]), hospital_slug(PRACTICES[cycle]))
+    ]
+    return cycle
+
+
+def known_practices() -> list[list[str]]:
+    """Every practice, at each hospital, by its certificate name (its folder name):
+    any practice may send a sample to any hospital."""
+    return [
+        ["add_practice", hospital_slug(PRACTICES[cycle]), PRACTICES[cycle]]
+        for cycle in CYCLES
+    ]
+
+
+def laboratories(practice_cycle: str) -> list[list[str]]:
+    """Every hospital's laboratory, at a practice; its paired hospital's is its
+    primary one, so by default lab orders follow the hospitals' sizes."""
+    return [
+        [
+            "add_laboratory",
+            HOSPITALS[cycle],
+            f"{hospital_slug(HOSPITALS[cycle])}-messaging:8441",
+            *(["--primary"] if cycle == practice_cycle else []),
+        ]
+        for cycle in CYCLES
+    ]
+
+
+def recipients() -> list[list[str]]:
+    """Every hospital, at the startup, by the certificate name it issues it."""
+    return [
+        ["add_hospital", hospital_slug(HOSPITALS[cycle]), HOSPITALS[cycle]]
+        for cycle in CYCLES
+    ]
+
+
 def compose() -> str:
     hospital_slugs = [slug for _, slug, _ in hospitals()]
     practice_slugs = [slug for _, slug, _ in practices()]
-    folders = [("hospitals", slug) for slug in hospital_slugs]
-    folders += [("practices", slug) for slug in practice_slugs]
     text = GENERATED + HEAD.replace("NHANES_PAIRS", nhanes_pairs())
-    text += "".join(
-        f"      - {{type: volume, source: {slug}, target: /demo/{kind}/{slug}}}\n"
-        for kind, slug in folders
-    )
-    text += MIDDLE
+    text += MIDDLE.replace("STARTUP_REGISTER", register(recipients()))
     for index, (name, slug, colour) in enumerate(hospitals()):
         # The first hospital builds the image the others use as built.
         build = HOSPITAL_BUILD if index == 0 else ""
-        text += fill(HOSPITAL, name=name, slug=slug, colour=colour, build=build)
+        text += fill(
+            HOSPITAL,
+            name=name,
+            slug=slug,
+            colour=colour,
+            build=build,
+            provide=PROVIDE if PROVIDED[cycle_of(slug)] else "",
+            register=register(known_practices()),
+        )
     text += PRACTICE_INTRO
     for index, (name, slug, colour) in enumerate(practices()):
         # The first practice builds the image the others use as built.
         build = PRACTICE_BUILD if index == 0 else ""
-        text += fill(PRACTICE, name=name, slug=slug, colour=colour, build=build)
+        text += fill(
+            PRACTICE,
+            name=name,
+            slug=slug,
+            colour=colour,
+            build=build,
+            register=register(laboratories(cycle_of(slug))),
+        )
     text += PROXY
     text += (
         "    networks:\n      [startup-web, " + ", ".join(hospital_slugs) + ",\n       "

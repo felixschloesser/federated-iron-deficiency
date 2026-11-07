@@ -14,10 +14,8 @@ import sys
 from pathlib import Path
 
 import django
-import pandas as pd
 from django.conf import settings
 
-from demo.seeding import participants
 from demo.seeding.accounts import PASSWORD
 
 # Whose settings each target runs in.
@@ -41,7 +39,7 @@ def parser() -> argparse.ArgumentParser:
     arguments.add_argument(
         "--patients",
         type=int,
-        default=participants.PATIENTS,
+        default=None,
         help="how many participants; the practice and its hospital need the same",
     )
     arguments.add_argument(
@@ -62,14 +60,20 @@ def parser() -> argparse.ArgumentParser:
 
 def chosen_rows(options: argparse.Namespace) -> list[dict[object, object]]:
     if options.rows is not None:
-        extract: list[dict[object, object]] = pd.read_csv(options.rows).to_dict(
-            "records"
-        )
+        from demo.seeding.parties import read_rows
+
+        extract: list[dict[object, object]] = read_rows(options.rows)
         return extract
+    # Choosing them needs pandas, which only a developer's checkout has.
+    import pandas as pd
+
+    from demo.seeding import participants
+
     nhanes = (
         pd.read_csv(options.nhanes) if options.nhanes else participants.load_nhanes()
     )
-    chosen = participants.choose(nhanes, seed=options.seed, patients=options.patients)
+    patients = options.patients or participants.PATIENTS
+    chosen = participants.choose(nhanes, seed=options.seed, patients=patients)
     rows: list[dict[object, object]] = participants.with_made_up_ferritin(
         chosen, nhanes
     ).to_dict("records")

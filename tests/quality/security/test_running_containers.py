@@ -177,7 +177,7 @@ try:
     superlink = "open"
 except OSError as error:
     superlink = type(error).__name__
-print(json.dumps({"superlink": superlink, "state": os.listdir("/demo/startup/superlink")}))
+print(json.dumps({"superlink": superlink, "state": os.listdir("/data/superlink")}))
 """
 
 
@@ -202,12 +202,9 @@ def test_the_startups_web_app_reaches_the_superlink_and_not_its_state(
 
 
 # The parties whose web apps no test here starts: their own networks must not exist.
-NOT_UNDER_TEST = {
-    HOSPITAL,
-    "heilig-hart-leuven",
-    "huisartsenpraktijk-de-akker",
-    "huisartsenpraktijk-de-berk",
-}
+# The hospitals that train start their web apps too: each ClientApp's cohort
+# folder is its hospital's, which the hospital's web app brings.
+NOT_UNDER_TEST = {"huisartsenpraktijk-de-akker", "huisartsenpraktijk-de-berk"}
 
 
 def test_the_project_creates_no_network_of_a_party_not_under_test(
@@ -253,6 +250,6 @@ def test_a_partys_image_holds_only_its_own_django_apps(
     """Each party runs only its own code: its image holds its own Django apps and
     the shared ones, never another party's. Pass: in a container of the party's
     web app, of web.hospital, web.practice and web.startup only its own
-    imports. (superlink: prepare's folders, which the startup's web app mounts.)"""
+    imports. (superlink: the folder its image brings, masked in the running container.)"""
     build(compose, f"{party}-web")
     assert probe(compose, service, PACKAGES) == [party]

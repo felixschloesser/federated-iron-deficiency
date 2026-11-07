@@ -1,4 +1,4 @@
-"""The demo's seeded accounts: demo/seeding/parties.py creates them, demo/demo.py
+"""The demo's seeded accounts: demo/seeding/parties.py creates them, demo/seed.py
 names them. No Django imports, so the launcher may import this outside any party."""
 
 PASSWORD = "demo-pass-2026"
