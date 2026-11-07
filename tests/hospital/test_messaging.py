@@ -92,6 +92,26 @@ def test_a_lab_order_without_a_test_is_refused(
     assert not TestRequest.objects.exists()
 
 
+def test_a_lab_order_without_an_age_is_refused(
+    endpoint: messages_pb2_grpc.LaboratoryStub,
+) -> None:
+    """No age is not age 0: the hospital refuses it rather than screen a newborn."""
+    order = lab_order()
+    order.ClearField("age")
+    refused = refusal(endpoint.SendLabOrder, order)
+    assert refused.code() == grpc.StatusCode.INVALID_ARGUMENT
+    assert '"age"' in (refused.details() or "")
+    assert not TestRequest.objects.exists()
+
+
+def test_a_lab_order_for_a_newborn_is_recorded(
+    endpoint: messages_pb2_grpc.LaboratoryStub,
+) -> None:
+    """Age 0, sent, is an age."""
+    endpoint.SendLabOrder(lab_order(age=0), timeout=10, metadata=DE_CEDER)
+    assert TestRequest.objects.get().age == 0
+
+
 # Every call of the service, from its descriptor, so a new one is covered too.
 CALLS = list(messages_pb2.DESCRIPTOR.services_by_name["Laboratory"].methods)
 
@@ -152,7 +172,7 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
     (report,) = endpoint.FetchNewLabReports(
         Empty(), timeout=10, metadata=DE_CEDER
     ).reports
-    assert (report.report_id, report.sample_id) == (str(test_request.pk), "1-1")
+    assert (report.report_id, report.sample_id) == (test_request.pk, "1-1")
     assert report.test == messages_pb2.TEST_CBC
     assert report.ferritin_suggested is True
     assert report.released_at.ToDatetime(tzinfo=UTC) == NOW

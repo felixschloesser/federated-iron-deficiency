@@ -86,6 +86,7 @@ class LabOrder(_message.Message):
     """false when absent: never screened by mistake"""
     registered_sex: Global___RegisteredSex.ValueType
     age: _builtins.int
+    """absent is no age, never age 0: refused"""
     @_builtins.property
     def ordered_at(self) -> _timestamp_pb2.Timestamp: ...
     def __init__(
@@ -95,14 +96,16 @@ class LabOrder(_message.Message):
         test: Global___Test.ValueType = ...,
         screened_indication: _builtins.bool = ...,
         registered_sex: Global___RegisteredSex.ValueType = ...,
-        age: _builtins.int = ...,
+        age: _builtins.int | None = ...,
         ordered_at: _timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["ordered_at", b"ordered_at"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_age", b"_age", "age", b"age", "ordered_at", b"ordered_at"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["age", b"age", "ordered_at", b"ordered_at", "registered_sex", b"registered_sex", "sample_id", b"sample_id", "screened_indication", b"screened_indication", "test", b"test"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_age", b"_age", "age", b"age", "ordered_at", b"ordered_at", "registered_sex", b"registered_sex", "sample_id", b"sample_id", "screened_indication", b"screened_indication", "test", b"test"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    def WhichOneof(self, oneof_group: _Never) -> None: ...
+    _WhichOneofReturnType__age: _TypeAlias = _typing.Literal["age"]  # noqa: Y015
+    _WhichOneofArgType__age: _TypeAlias = _typing.Literal["_age", b"_age"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__age) -> _WhichOneofReturnType__age | None: ...
 
 Global___LabOrder: _TypeAlias = LabOrder  # noqa: Y015
 
@@ -140,7 +143,7 @@ class LabReport(_message.Message):
     RESULTS_FIELD_NUMBER: _builtins.int
     RELEASED_AT_FIELD_NUMBER: _builtins.int
     FERRITIN_SUGGESTED_FIELD_NUMBER: _builtins.int
-    report_id: _builtins.str
+    report_id: _builtins.int
     sample_id: _builtins.str
     test: Global___Test.ValueType
     ferritin_suggested: _builtins.bool
@@ -152,7 +155,7 @@ class LabReport(_message.Message):
     def __init__(
         self,
         *,
-        report_id: _builtins.str = ...,
+        report_id: _builtins.int = ...,
         sample_id: _builtins.str = ...,
         test: Global___Test.ValueType = ...,
         results: _abc.Mapping[_builtins.str, _builtins.float] | None = ...,
@@ -193,11 +196,11 @@ class Acknowledgement(_message.Message):
 
     REPORT_IDS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def report_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
+    def report_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]: ...
     def __init__(
         self,
         *,
-        report_ids: _abc.Iterable[_builtins.str] | None = ...,
+        report_ids: _abc.Iterable[_builtins.int] | None = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
@@ -240,14 +243,14 @@ class FinalModel(_message.Message):
     RUN_ID_FIELD_NUMBER: _builtins.int
     WEIGHTS_FIELD_NUMBER: _builtins.int
     FEDERATED_FIELD_NUMBER: _builtins.int
-    run_id: _builtins.str
+    run_id: _builtins.int
     weights: _builtins.bytes
     @_builtins.property
     def federated(self) -> _containers.ScalarMap[_builtins.str, _builtins.float]: ...
     def __init__(
         self,
         *,
-        run_id: _builtins.str = ...,
+        run_id: _builtins.int = ...,
         weights: _builtins.bytes = ...,
         federated: _abc.Mapping[_builtins.str, _builtins.float] | None = ...,
     ) -> None: ...
@@ -285,13 +288,13 @@ class FinalModelAcknowledgement(_message.Message):
 
     RUN_IDS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def run_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+    def run_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]:
         """the final models it stored"""
 
     def __init__(
         self,
         *,
-        run_ids: _abc.Iterable[_builtins.str] | None = ...,
+        run_ids: _abc.Iterable[_builtins.int] | None = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...

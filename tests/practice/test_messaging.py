@@ -103,7 +103,7 @@ def test_the_lab_order_says_only_whether_the_indication_is_screened(
 
 def released_ferritin(
     laboratory: FakeLaboratory, *, ferritin_suggested: bool = False
-) -> tuple[Order, str]:
+) -> tuple[Order, int]:
     """A patient's ferritin order, analysed and released at the hospital; the
     order and the lab report's ID."""
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)

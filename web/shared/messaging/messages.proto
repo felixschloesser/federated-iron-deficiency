@@ -35,14 +35,14 @@ message LabOrder {
   Test test = 2;
   bool screened_indication = 3;     // false when absent: never screened by mistake
   RegisteredSex registered_sex = 4;
-  uint32 age = 5;
+  optional uint32 age = 5;          // absent is no age, never age 0: refused
   google.protobuf.Timestamp ordered_at = 6;
 }
 
 // DF25. Results and one bit of screening (features/practice/reports.feature, tests/quality/privacy/test_messages.py): no score, and nothing that
 // tells ferritin not suggested from not screened.
 message LabReport {
-  string report_id = 1;
+  uint64 report_id = 1;
   string sample_id = 2;
   Test test = 3;
   map<string, double> results = 4;
@@ -55,7 +55,7 @@ message LabReports {
 }
 
 message Acknowledgement {
-  repeated string report_ids = 1;
+  repeated uint64 report_ids = 1;
 }
 
 service Laboratory {
@@ -69,7 +69,7 @@ service Laboratory {
 // other averaged validation metrics, and its training run's ID; never its run
 // configuration.
 message FinalModel {
-  string run_id = 1;
+  uint64 run_id = 1;
   bytes weights = 2;
   map<string, double> federated = 3;
 }
@@ -79,7 +79,7 @@ message NewFinalModels {
 }
 
 message FinalModelAcknowledgement {
-  repeated string run_ids = 1;      // the final models it stored
+  repeated uint64 run_ids = 1;      // the final models it stored
 }
 
 service FinalModels {

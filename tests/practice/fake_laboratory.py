@@ -22,8 +22,8 @@ def named(context: grpc.ServicerContext) -> str | None:
 @dataclass
 class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
     lab_orders: list[messages_pb2.LabOrder] = field(default_factory=list)
-    reports: dict[str, messages_pb2.LabReport] = field(default_factory=dict)
-    acknowledged: set[str] = field(default_factory=set)
+    reports: dict[int, messages_pb2.LabReport] = field(default_factory=dict)
+    acknowledged: set[int] = field(default_factory=set)
     # The slug each call named its party by, in order.
     callers: list[str | None] = field(default_factory=list)
     # A status the endpoint answers every lab order with instead of recording it.
@@ -36,9 +36,9 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
         released_at: datetime,
         *,
         ferritin_suggested: bool = False,
-    ) -> str:
+    ) -> int:
         """A lab report the hospital releases on a sample; its report ID."""
-        report_id = str(len(self.reports) + 1)
+        report_id = len(self.reports) + 1
         self.reports[report_id] = messages_pb2.LabReport(
             report_id=report_id,
             sample_id=sample_id,

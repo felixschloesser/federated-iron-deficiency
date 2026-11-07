@@ -76,7 +76,7 @@ def released_final_model(
     if model.state_dict is None:
         return None
     return messages_pb2.FinalModel(
-        run_id=run_id,
+        run_id=int(run_id),
         weights=to_bytes(FinalModel(state_dict=model.state_dict)),
         federated=model.federated,
     )

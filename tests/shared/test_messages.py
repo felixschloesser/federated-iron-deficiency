@@ -87,3 +87,29 @@ def test_none_and_unknown_numbers_are_no_choice(vocabulary: str) -> None:
     assert from_proto(99, enum, choices) is None
     # One proto value per member and UNSPECIFIED: nothing the vocabulary lacks.
     assert len(enum.DESCRIPTOR.values) == len(choices) + 1
+
+
+def test_the_contract_tells_a_missing_age_from_age_0() -> None:
+    """A lab order without an age is refused, so the wire must say it is absent."""
+    from web.shared.messaging import messages_pb2
+
+    assert messages_pb2.LabOrder.DESCRIPTOR.fields_by_name["age"].has_presence
+
+
+@pytest.mark.parametrize(
+    ("message", "field"),
+    [
+        ("LabReport", "report_id"),
+        ("Acknowledgement", "report_ids"),
+        ("FinalModel", "run_id"),
+        ("FinalModelAcknowledgement", "run_ids"),
+    ],
+)
+def test_ids_are_unsigned_integers(message: str, field: str) -> None:
+    """An ID is a number on the wire, so a malformed one cannot be sent at all."""
+    from google.protobuf.descriptor import FieldDescriptor
+
+    from web.shared.messaging import messages_pb2
+
+    descriptor = getattr(messages_pb2, message).DESCRIPTOR.fields_by_name[field]
+    assert descriptor.type == FieldDescriptor.TYPE_UINT64
