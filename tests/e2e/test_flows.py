@@ -109,7 +109,7 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
     # As prepare does: the practice's own image serves it, without the seeding.
     as_practice = [
         *seeding,
-        *("-e", "DJANGO_SETTINGS_MODULE=practice.settings"),
+        *("-e", "DJANGO_SETTINGS_MODULE=web.practice.settings"),
         *("-e", f"DATA_DIR=/demo/practices/{APP_PRACTICE}"),
     ]
     compose(*as_practice, "prepare", *manage, "migrate", "-v0")
@@ -260,8 +260,8 @@ def kept_not_stored(compose: Compose, journey: dict[str, Any]) -> None:
 # Diest never trained here: any hospital the startup registers may fetch.
 RELEASE = """
 from django.utils import timezone
-from shared.accounts.models import User
-from startup.training.models import Release
+from web.shared.accounts.models import User
+from web.startup.training.models import Release
 Release.objects.release(
     final_model_run_id={run_id!r},
     released_by=User.objects.get(username="data-scientist"),
@@ -274,7 +274,7 @@ Release.objects.release(
 FETCH_FINAL_MODELS = """
 import json
 from django.utils import timezone
-from hospital.deployment.fetching import fetch_final_models
+from web.hospital.deployment.fetching import fetch_final_models
 print(json.dumps(fetch_final_models(now=timezone.now())))
 """
 

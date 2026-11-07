@@ -4,8 +4,8 @@ import pytest
 from pytest_django.fixtures import Settings
 
 from demo.seed import main
-from shared.accounts.models import User
-from shared.accounts.roles import Role, role_of
+from web.shared.accounts.models import User
+from web.shared.accounts.roles import Role, role_of
 
 pytestmark = pytest.mark.django_db
 

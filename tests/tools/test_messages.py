@@ -1,4 +1,4 @@
-"""The committed gRPC code matches messages.proto (shared/messaging/messages.proto)."""
+"""The committed gRPC code matches messages.proto (web/shared/messaging/messages.proto)."""
 
 import subprocess
 import sys
@@ -26,7 +26,7 @@ def test_generated_code_matches_the_proto(tmp_path: Path) -> None:
         ],
         check=True,
     )
-    committed = ROOT / "shared" / "messaging"
+    committed = ROOT / "web" / "shared" / "messaging"
     for name in GENERATED:
         assert (tmp_path / name).read_text() == (committed / name).read_text(), name
 
@@ -45,8 +45,8 @@ def test_the_contract_types_choices_and_times(
     message: str, field: str, kind: str
 ) -> None:
     """Choices are proto enums and times Timestamps, so the contract itself says
-    what a field may hold (shared/messaging/messages.proto)."""
-    from shared.messaging import messages_pb2
+    what a field may hold (web/shared/messaging/messages.proto)."""
+    from web.shared.messaging import messages_pb2
 
     descriptor = getattr(messages_pb2, message).DESCRIPTOR.fields_by_name[field]
     typed = descriptor.enum_type or descriptor.message_type
@@ -59,7 +59,7 @@ VOCABULARIES = ("Test", "RegisteredSex")
 
 
 def _members() -> list[tuple[str, str]]:
-    from shared import vocabulary
+    from web.shared import vocabulary
 
     return [
         (name, member.name)
@@ -70,9 +70,9 @@ def _members() -> list[tuple[str, str]]:
 
 @pytest.mark.parametrize(("vocabulary", "member"), _members())
 def test_every_choice_crosses_the_wire_and_back(vocabulary: str, member: str) -> None:
-    from shared import vocabulary as words
-    from shared.messaging import messages_pb2
-    from shared.messaging.convert import from_proto, to_proto
+    from web.shared import vocabulary as words
+    from web.shared.messaging import messages_pb2
+    from web.shared.messaging.convert import from_proto, to_proto
 
     choices = getattr(words, vocabulary)
     enum = getattr(messages_pb2, vocabulary)
@@ -83,9 +83,9 @@ def test_every_choice_crosses_the_wire_and_back(vocabulary: str, member: str) ->
 
 @pytest.mark.parametrize("vocabulary", VOCABULARIES)
 def test_none_and_unknown_numbers_are_no_choice(vocabulary: str) -> None:
-    from shared import vocabulary as words
-    from shared.messaging import messages_pb2
-    from shared.messaging.convert import from_proto, to_proto
+    from web.shared import vocabulary as words
+    from web.shared.messaging import messages_pb2
+    from web.shared.messaging.convert import from_proto, to_proto
 
     choices = getattr(words, vocabulary)
     enum = getattr(messages_pb2, vocabulary)
@@ -100,7 +100,7 @@ def test_a_lab_order_says_whether_its_indication_is_screened_and_nothing_more() 
     """The laboratory needs the indication only to decide whether to screen (features/hospital/screening.feature): one yes or no, never which indication, pregnancy included."""
     from google.protobuf.descriptor import FieldDescriptor
 
-    from shared.messaging import messages_pb2
+    from web.shared.messaging import messages_pb2
 
     fields = messages_pb2.LabOrder.DESCRIPTOR.fields_by_name
     assert fields["screened_indication"].type == FieldDescriptor.TYPE_BOOL
@@ -144,7 +144,7 @@ def test_a_message_between_practice_and_hospital_carries_only_these_fields(
 ) -> None:
     """What crosses from the practice to the hospital and back (DF23, DF25):
     a new field fails this until it is added here on purpose."""
-    from shared.messaging import messages_pb2
+    from web.shared.messaging import messages_pb2
 
     descriptor = getattr(messages_pb2, message).DESCRIPTOR
     assert {field.name for field in descriptor.fields} == fields

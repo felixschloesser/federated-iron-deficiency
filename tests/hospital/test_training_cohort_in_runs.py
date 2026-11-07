@@ -27,7 +27,7 @@ def cohort_dir(tmp_path: Path) -> Path:
 
 @given("a hospital whose laboratory director provided the training cohort")
 def provided(world: World, db: None, cohort_dir: Path) -> None:
-    from hospital.cohort.models import TrainingCohort
+    from web.hospital.cohort.models import TrainingCohort
 
     world["director"] = make_laboratory_director("Director One")
     make_lab_records(120, iron_deficient=20)
@@ -75,7 +75,7 @@ def next_round(world: World, cohort_dir: Path) -> None:
 
 @given("the laboratory director withdrew the training cohort")
 def withdrew(world: World, cohort_dir: Path) -> None:
-    from hospital.cohort.models import TrainingCohort
+    from web.hospital.cohort.models import TrainingCohort
 
     TrainingCohort.objects.withdraw(directory=cohort_dir, by=world["director"], now=NOW)
 
@@ -85,7 +85,7 @@ def withdrew(world: World, cohort_dir: Path) -> None:
     " arrived"
 )
 def provided_new(world: World, cohort_dir: Path) -> None:
-    from hospital.cohort.models import TrainingCohort
+    from web.hospital.cohort.models import TrainingCohort
 
     make_lab_records(5)
     TrainingCohort.objects.provide(directory=cohort_dir, by=world["director"], now=NOW)
@@ -93,7 +93,7 @@ def provided_new(world: World, cohort_dir: Path) -> None:
 
 @then("it reads the provided training cohort's rows")
 def reads_provided(world: World) -> None:
-    from hospital.cohort.models import TrainingCohort
+    from web.hospital.cohort.models import TrainingCohort
 
     provided = TrainingCohort.objects.provided()
     assert provided is not None

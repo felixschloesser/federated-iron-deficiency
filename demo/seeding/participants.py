@@ -11,7 +11,7 @@ import pandas as pd
 
 from ml.cohort import ELIGIBLE_SEX, FERRITIN_CUTOFF, eligible
 from ml.dataset import load_ferritin, load_new_samples
-from shared.vocabulary import RegisteredSex
+from web.shared.vocabulary import RegisteredSex
 
 # Patients per practice unless --patients says otherwise; the groups share them.
 PATIENTS = 12

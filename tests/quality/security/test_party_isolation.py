@@ -1,9 +1,9 @@
 """Each party's software and data stay inside its trust boundary.
 
 Quality attribute: isolation of the parties. A web app is the one party its
-settings module names (hospital.settings, .practice or .startup) and reads
+settings module names (web.hospital.settings, .practice or .startup) and reads
 only its folder, DATA_DIR; it installs, migrates and serves only its own
-party's apps. Code under shared/
+party's apps. Code under web/
 imports from the training package only ml.cohort and ml.dataset; the
 hospital's also ml.final_model, ml.inference, ml.training_cohort, to write
 the training cohort its laboratory director provides, and ml.validation, to
@@ -46,7 +46,7 @@ def settings_of(party: str, env: dict[str, str]) -> subprocess.CompletedProcess[
         [sys.executable, "-c", code],
         check=False,
         cwd=ROOT,
-        env={**BASE_ENV, "DJANGO_SETTINGS_MODULE": f"{party}.settings", **env},
+        env={**BASE_ENV, "DJANGO_SETTINGS_MODULE": f"web.{party}.settings", **env},
         capture_output=True,
         text=True,
     )
@@ -87,7 +87,7 @@ def seed(party: str, env: dict[str, str], nhanes: Path) -> None:
         cwd=ROOT,
         env={
             **BASE_ENV,
-            "DJANGO_SETTINGS_MODULE": f"{party}.settings",
+            "DJANGO_SETTINGS_MODULE": f"web.{party}.settings",
             "DJANGO_DEBUG": "1",
             **env,
         },
@@ -102,7 +102,7 @@ def run_manage(party: str, env: dict[str, str], *args: str) -> None:
         cwd=ROOT,
         env={
             **BASE_ENV,
-            "DJANGO_SETTINGS_MODULE": f"{party}.settings",
+            "DJANGO_SETTINGS_MODULE": f"web.{party}.settings",
             "DJANGO_DEBUG": "1",
             **env,
         },
@@ -152,8 +152,8 @@ def test_a_partys_database_holds_only_its_own_partys_tables(
 SMOKE = """
 from django.test import Client
 from django.urls import reverse
-from shared.accounts.models import User
-from shared.accounts.roles import Role, role_of
+from web.shared.accounts.models import User
+from web.shared.accounts.roles import Role, role_of
 
 for user in User.objects.order_by("username"):
     role = role_of(user)
@@ -163,7 +163,7 @@ for user in User.objects.order_by("username"):
     client.force_login(user)
     urls = [link["url"] for link in role.nav_links()]
     if role is Role.GENERAL_PRACTITIONER:
-        from practice.models import Patient
+        from web.practice.models import Patient
 
         patient = Patient.objects.first()
         urls.append(reverse("practice:patient", kwargs={"pk": patient.pk}))
@@ -199,7 +199,7 @@ def test_every_page_of_a_party_loads_in_its_own_web_app(
         cwd=ROOT,
         env={
             **BASE_ENV,
-            "DJANGO_SETTINGS_MODULE": f"{party}.settings",
+            "DJANGO_SETTINGS_MODULE": f"web.{party}.settings",
             "DJANGO_ALLOWED_HOSTS": "testserver",
             **env,
         },
@@ -225,7 +225,7 @@ def setting(party: str, name: str, env: dict[str, str]) -> str:
         [sys.executable, "-c", code],
         check=True,
         cwd=ROOT,
-        env={**BASE_ENV, "DJANGO_SETTINGS_MODULE": f"{party}.settings", **env},
+        env={**BASE_ENV, "DJANGO_SETTINGS_MODULE": f"web.{party}.settings", **env},
         capture_output=True,
         text=True,
     ).stdout.strip()

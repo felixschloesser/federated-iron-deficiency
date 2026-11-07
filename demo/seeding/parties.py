@@ -21,9 +21,9 @@ from demo.seeding.accounts import (
 )
 from demo.seeding.participants import patient_name
 from ml.cohort import CBC_VARS
-from shared.accounts.models import User
-from shared.accounts.roles import Role
-from shared.vocabulary import RegisteredSex
+from web.shared.accounts.models import User
+from web.shared.accounts.roles import Role
+from web.shared.vocabulary import RegisteredSex
 
 Rows = list[dict[Hashable, Any]]
 
@@ -42,7 +42,7 @@ def user(username: str, role: Role | None) -> User:
 def seed_hospital(rows: Rows) -> list[str]:
     """The hospital's laboratory staff and director, and what its analyser's
     stand-in measures for each chosen participant."""
-    from hospital.analyser.models import Participant
+    from web.hospital.analyser.models import Participant
 
     user(LABORATORY_STAFF, Role.LABORATORY_STAFF)
     user(LABORATORY_DIRECTOR, Role.LABORATORY_DIRECTOR)
@@ -64,7 +64,7 @@ def seed_hospital(rows: Rows) -> list[str]:
 def seed_practice(rows: Rows) -> list[str]:
     """The practice's general practitioner, and a patient for each chosen
     participant, whose samples start with its number."""
-    from practice.models import Patient
+    from web.practice.models import Patient
 
     user(GENERAL_PRACTITIONER, Role.GENERAL_PRACTITIONER)
     for row in rows:
@@ -94,7 +94,7 @@ def seed_lab_records(csv: Path, provide: bool) -> str:
     """The hospital's lab records (DS1), once, from a CSV prepare wrote
     (ml.dataset.load_lab_records); with `provide`, the laboratory director then
     provides the training cohort, as on the Training cohort page."""
-    from hospital.cohort.models import LabRecord, TrainingCohort
+    from web.hospital.cohort.models import LabRecord, TrainingCohort
 
     with transaction.atomic():
         if not LabRecord.objects.exists():

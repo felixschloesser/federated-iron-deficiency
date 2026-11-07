@@ -144,7 +144,7 @@ def prepare_web(folder: Path, party: str, seeds: list[list[str]]) -> None:
     """Migrate the party's database and seed its demo accounts, once per seed."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": f"{party}.settings",
+        "DJANGO_SETTINGS_MODULE": f"web.{party}.settings",
         "DATA_DIR": str(folder),
         "DJANGO_DEBUG": "1",
     }
@@ -188,7 +188,7 @@ def add_practices(hospital: Path) -> None:
     """Every practice, at the hospital, by its certificate name."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": "hospital.settings",
+        "DJANGO_SETTINGS_MODULE": "web.hospital.settings",
         "DATA_DIR": str(hospital),
         "DJANGO_DEBUG": "1",
     }
@@ -214,7 +214,7 @@ def add_hospitals(startup: Path) -> None:
     """Every hospital, at the startup, as a recipient of released final models."""
     env = {
         **os.environ,
-        "PARTY": "startup",
+        "DJANGO_SETTINGS_MODULE": "web.startup.settings",
         "DATA_DIR": str(startup),
         "DJANGO_DEBUG": "1",
     }
@@ -232,7 +232,7 @@ def seed_lab_records(hospital: Path, arguments: list[str]) -> None:
     director provided one."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": "hospital.settings",
+        "DJANGO_SETTINGS_MODULE": "web.hospital.settings",
         "DATA_DIR": str(hospital),
         "DJANGO_DEBUG": "1",
     }
@@ -249,7 +249,7 @@ def add_laboratories(practice: Path, practice_cycle: str) -> None:
     """Every hospital's laboratory, at its lab-order endpoint (features/practice/ordering.feature)."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": "practice.settings",
+        "DJANGO_SETTINGS_MODULE": "web.practice.settings",
         "DATA_DIR": str(practice),
         "DJANGO_DEBUG": "1",
     }
@@ -378,7 +378,7 @@ def screening_status(demo_dir: Path, slug: str) -> str:
     """One hospital's one-line screening model state."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": "hospital.settings",
+        "DJANGO_SETTINGS_MODULE": "web.hospital.settings",
         "DATA_DIR": str(hospital_dir(demo_dir, slug)),
         "DJANGO_DEBUG": "1",
     }

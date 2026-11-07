@@ -1,5 +1,5 @@
 """The hospital's lab-order endpoint over gRPC, called as a practice's app calls
-it: the proto's messages in, status codes out (shared/messaging/messages.proto).
+it: the proto's messages in, status codes out (web/shared/messaging/messages.proto).
 Like a view test: what it records and refuses, not the rules behind it, which
 are features/hospital/lab_orders.feature. No general practitioner's code."""
 
@@ -11,13 +11,18 @@ import grpc
 import pytest
 from django.core.management import call_command
 
-from hospital.analyser.models import Participant
-from hospital.lab.messaging import serve
-from hospital.lab.models import LabOrderDetails, Practice, ScreeningResult, TestRequest
-from shared.messaging import messages_pb2, messages_pb2_grpc
-from shared.messaging.convert import timestamp
-from shared.vocabulary import RegisteredSex
-from shared.vocabulary import Test as OrderedTest
+from web.hospital.analyser.models import Participant
+from web.hospital.lab.messaging import serve
+from web.hospital.lab.models import (
+    LabOrderDetails,
+    Practice,
+    ScreeningResult,
+    TestRequest,
+)
+from web.shared.messaging import messages_pb2, messages_pb2_grpc
+from web.shared.messaging.convert import timestamp
+from web.shared.vocabulary import RegisteredSex
+from web.shared.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 30, 10, 0, tzinfo=UTC)
 # The server runs in its own threads, so the test may not hold a transaction.

@@ -174,9 +174,9 @@ models. Without Docker, run each party as its own web app, each on a port of its
 own; its data goes to `.data/<party>/` in the checkout:
 
     export DJANGO_DEBUG=1
-    DJANGO_SETTINGS_MODULE=hospital.settings uv run python manage.py migrate
-    DJANGO_SETTINGS_MODULE=hospital.settings uv run python -m demo.seed hospital
-    DJANGO_SETTINGS_MODULE=hospital.settings uv run python manage.py runserver 8001
-    DJANGO_SETTINGS_MODULE=practice.settings uv run python manage.py migrate
-    DJANGO_SETTINGS_MODULE=practice.settings uv run python -m demo.seed practice
-    DJANGO_SETTINGS_MODULE=practice.settings uv run python manage.py runserver 8002
+    DJANGO_SETTINGS_MODULE=web.hospital.settings uv run python manage.py migrate
+    DJANGO_SETTINGS_MODULE=web.hospital.settings uv run python -m demo.seed hospital
+    DJANGO_SETTINGS_MODULE=web.hospital.settings uv run python manage.py runserver 8001
+    DJANGO_SETTINGS_MODULE=web.practice.settings uv run python manage.py migrate
+    DJANGO_SETTINGS_MODULE=web.practice.settings uv run python -m demo.seed practice
+    DJANGO_SETTINGS_MODULE=web.practice.settings uv run python manage.py runserver 8002

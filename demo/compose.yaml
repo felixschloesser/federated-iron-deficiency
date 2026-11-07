@@ -152,7 +152,7 @@ services:
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn shared.wsgi --bind=startup-pages:8000 --workers=2 --access-logfile=- &
+        gunicorn web.shared.wsgi --bind=startup-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_final_models startup-final-models:8442 &
         wait -n
         exit 1
@@ -161,7 +161,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://startup-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('startup-final-models', 8442)).close()"]
     environment:
-      DJANGO_SETTINGS_MODULE: startup.settings
+      DJANGO_SETTINGS_MODULE: web.startup.settings
       DATA_DIR: /demo/startup
       FLWR_HOME: /demo/startup/flwr-home
     volumes:
@@ -207,7 +207,7 @@ services:
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn shared.wsgi --bind=uz-leuven-pages:8000 --workers=2 --access-logfile=- &
+        gunicorn web.shared.wsgi --bind=uz-leuven-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_messages uz-leuven-messaging:8441 &
         wait -n
         exit 1
@@ -218,7 +218,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://uz-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('uz-leuven-messaging', 8441)).close()"]
     environment:
-      DJANGO_SETTINGS_MODULE: hospital.settings
+      DJANGO_SETTINGS_MODULE: web.hospital.settings
       DATA_DIR: /demo/hospitals/uz-leuven
       PARTY_NAME: UZ Leuven
       PARTY_COLOUR: jade
@@ -271,7 +271,7 @@ services:
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn shared.wsgi --bind=heilig-hart-leuven-pages:8000 --workers=2 --access-logfile=- &
+        gunicorn web.shared.wsgi --bind=heilig-hart-leuven-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_messages heilig-hart-leuven-messaging:8441 &
         wait -n
         exit 1
@@ -282,7 +282,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://heilig-hart-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('heilig-hart-leuven-messaging', 8441)).close()"]
     environment:
-      DJANGO_SETTINGS_MODULE: hospital.settings
+      DJANGO_SETTINGS_MODULE: web.hospital.settings
       DATA_DIR: /demo/hospitals/heilig-hart-leuven
       PARTY_NAME: Heilig Hart Leuven
       PARTY_COLOUR: pumpkin
@@ -335,7 +335,7 @@ services:
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn shared.wsgi --bind=az-diest-pages:8000 --workers=2 --access-logfile=- &
+        gunicorn web.shared.wsgi --bind=az-diest-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_messages az-diest-messaging:8441 &
         wait -n
         exit 1
@@ -346,7 +346,7 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://az-diest-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('az-diest-messaging', 8441)).close()"]
     environment:
-      DJANGO_SETTINGS_MODULE: hospital.settings
+      DJANGO_SETTINGS_MODULE: web.hospital.settings
       DATA_DIR: /demo/hospitals/az-diest
       PARTY_NAME: AZ Diest
       PARTY_COLOUR: violet
@@ -371,12 +371,12 @@ services:
   huisartsenpraktijk-de-akker-web:
     <<: *practice-web
     build: {context: .., dockerfile: demo/practice-web.Dockerfile}
-    command: [gunicorn, shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    command: [gunicorn, web.shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      DJANGO_SETTINGS_MODULE: practice.settings
+      DJANGO_SETTINGS_MODULE: web.practice.settings
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PARTY_NAME: Huisartsenpraktijk De Akker
       PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-akker
@@ -387,12 +387,12 @@ services:
 
   huisartsenpraktijk-de-berk-web:
     <<: *practice-web
-    command: [gunicorn, shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    command: [gunicorn, web.shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      DJANGO_SETTINGS_MODULE: practice.settings
+      DJANGO_SETTINGS_MODULE: web.practice.settings
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PARTY_NAME: Huisartsenpraktijk De Berk
       PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-berk
@@ -403,12 +403,12 @@ services:
 
   huisartsenpraktijk-de-ceder-web:
     <<: *practice-web
-    command: [gunicorn, shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    command: [gunicorn, web.shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      DJANGO_SETTINGS_MODULE: practice.settings
+      DJANGO_SETTINGS_MODULE: web.practice.settings
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PARTY_NAME: Huisartsenpraktijk De Ceder
       PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-ceder

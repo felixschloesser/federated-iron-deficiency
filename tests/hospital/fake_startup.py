@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 import grpc
 
-from shared.messaging import messages_pb2, messages_pb2_grpc
+from web.shared.messaging import messages_pb2, messages_pb2_grpc
 
 
 @dataclass

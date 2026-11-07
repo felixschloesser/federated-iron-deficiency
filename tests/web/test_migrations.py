@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def migrate(practice: Path, *target: str) -> None:
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": "practice.settings",
+        "DJANGO_SETTINGS_MODULE": "web.practice.settings",
         "DATA_DIR": str(practice),
         "DJANGO_DEBUG": "1",
     }
@@ -61,7 +61,7 @@ def test_the_practice_names_a_hospital_holds_become_practices(tmp_path: Path) ->
     practice, its slug the certificate name, and keeps every sample."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": "hospital.settings",
+        "DJANGO_SETTINGS_MODULE": "web.hospital.settings",
         "DATA_DIR": str(tmp_path),
         "DJANGO_DEBUG": "1",
     }
