@@ -102,7 +102,7 @@ def test_the_contract_tells_a_missing_age_from_age_0() -> None:
         ("LabReport", "report_id"),
         ("Acknowledgement", "report_ids"),
         ("FinalModel", "run_id"),
-        ("FinalModelAcknowledgement", "run_ids"),
+        ("NewFinalModelsRequest", "held_run_ids"),
     ],
 )
 def test_ids_are_unsigned_integers(message: str, field: str) -> None:

@@ -1,6 +1,6 @@
 """A stand-in for the startup's final-models endpoint, so the hospital's tests
 need none of the startup's code: it offers the final models it is given and
-records which ones the hospital acknowledged."""
+records which final models each fetch said the hospital holds."""
 
 from collections.abc import Iterator
 from concurrent import futures
@@ -8,7 +8,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 import grpc
-from google.protobuf.empty_pb2 import Empty
 
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
 
@@ -22,27 +21,27 @@ def named(context: grpc.ServicerContext) -> str | None:
 @dataclass
 class FakeStartup(messages_pb2_grpc.FinalModelsServicer):
     offered: list[messages_pb2.FinalModel] = field(default_factory=list)
-    acknowledged: list[int] = field(default_factory=list)
+    # The run IDs each fetch said the hospital holds, in order.
+    held: list[list[int]] = field(default_factory=list)
     # The slug each fetch named its party by, in order.
     callers: list[str | None] = field(default_factory=list)
+    # A startup that offers what the hospital holds all the same.
+    ignores_held: bool = False
 
     def FetchNewFinalModels(
-        self, request: Empty, context: grpc.ServicerContext
+        self,
+        request: "messages_pb2.NewFinalModelsRequest",
+        context: grpc.ServicerContext,
     ) -> messages_pb2.NewFinalModels:
         self.callers.append(named(context))
+        self.held.append(list(request.held_run_ids))
         return messages_pb2.NewFinalModels(
             final_models=[
-                model for model in self.offered if model.run_id not in self.acknowledged
+                model
+                for model in self.offered
+                if self.ignores_held or model.run_id not in request.held_run_ids
             ]
         )
-
-    def AcknowledgeFinalModels(
-        self,
-        request: messages_pb2.FinalModelAcknowledgement,
-        context: grpc.ServicerContext,
-    ) -> Empty:
-        self.acknowledged.extend(request.run_ids)
-        return Empty()
 
 
 @contextmanager

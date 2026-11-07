@@ -12,7 +12,6 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 from django.utils.text import slugify
-from google.protobuf.empty_pb2 import Empty
 from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.asserts import assertContains
 from pytest_django.fixtures import Settings
@@ -124,28 +123,28 @@ def call(world: World, method: str, request: Any, hospital: str | None) -> Any:
             return None
 
 
+@given(parsers.parse('"{hospital}" fetched new final models'))
 @when(parsers.parse('"{hospital}" fetches new final models'))
 def fetches(world: World, hospital: str) -> None:
-    world["fetched"] = call(world, "FetchNewFinalModels", Empty(), hospital)
+    world["fetched"] = call(
+        world, "FetchNewFinalModels", messages_pb2.NewFinalModelsRequest(), hospital
+    )
+
+
+@when(
+    parsers.parse(
+        '"{hospital}" fetches new final models, holding final model "{run_id}"'
+    )
+)
+def fetches_holding(world: World, hospital: str, run_id: str) -> None:
+    held = messages_pb2.NewFinalModelsRequest(held_run_ids=[int(run_id)])
+    world["fetched"] = call(world, "FetchNewFinalModels", held, hospital)
 
 
 @when("a hospital fetches new final models without naming itself")
 def fetches_unnamed(world: World) -> None:
-    world["fetched"] = call(world, "FetchNewFinalModels", Empty(), None)
-
-
-@given(
-    parsers.parse(
-        '"{hospital}" fetched new final models and acknowledged final model "{run_id}"'
-    )
-)
-def fetched_and_acknowledged(world: World, hospital: str, run_id: str) -> None:
-    fetches(world, hospital)
-    call(
-        world,
-        "AcknowledgeFinalModels",
-        messages_pb2.FinalModelAcknowledgement(run_ids=[int(run_id)]),
-        hospital,
+    world["fetched"] = call(
+        world, "FetchNewFinalModels", messages_pb2.NewFinalModelsRequest(), None
     )
 
 

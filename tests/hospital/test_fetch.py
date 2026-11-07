@@ -76,7 +76,7 @@ def released(world: World, run_id: str) -> None:
     parsers.parse('the startup offers final model "{run_id}" again, with other weights')
 )
 def offered_again(world: World, run_id: str) -> None:
-    world["startup"].acknowledged.clear()
+    world["startup"].ignores_held = True
     world["startup"].offered[:] = [offered(run_id, seed=2)]
     world["before"] = (world["folder"] / f"{run_id}.pt").read_bytes()
 
@@ -115,10 +115,10 @@ def holds_validated(world: World, name: str) -> None:
     assert model.federated == FEDERATED
 
 
-@then(parsers.parse('the startup is told the hospital stored final model "{run_id}"'))
-def acknowledged(world: World, run_id: str) -> None:
-    assert world["startup"].acknowledged == [int(run_id)]
-    assert world["startup"].callers == ["uz-leuven"]
+@then(parsers.parse('the startup is told the hospital holds final model "{run_id}"'))
+def told_held(world: World, run_id: str) -> None:
+    assert world["startup"].held == [[], [int(run_id)]]
+    assert world["startup"].callers == ["uz-leuven", "uz-leuven"]
 
 
 @then(parsers.parse('"{name}" is unchanged'))
