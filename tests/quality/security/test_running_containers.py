@@ -94,9 +94,7 @@ def test_a_hospitals_web_app_serves_its_pages_and_stylesheets(
     """AZ Diest's web app runs gunicorn with DEBUG off, and WhiteNoise serves its
     stylesheets. Pass: its login page and that page's stylesheet both answer
     200, the stylesheet as text/css."""
-    fetched: dict[str, Any] = probe(
-        compose, hospital_app, FETCH, f"{APP_HOSPITAL}-pages"
-    )
+    fetched: dict[str, Any] = probe(compose, hospital_app, FETCH, f"{APP_HOSPITAL}-web")
     assert fetched["login"] == 200, fetched
     # On a failure, which stylesheet it asked for and the page it got.
     assert fetched["css"][0] == 200, fetched
@@ -121,20 +119,20 @@ print(json.dumps(answers))
 def test_a_practice_reaches_the_hospitals_lab_order_endpoint_and_not_its_pages(
     compose: Compose, hospital_app: str
 ) -> None:
-    """One container serves AZ Diest's pages (8000) and its lab-order endpoint
-    (8441, DF23, DF25), each under a name only one network knows. Pass: from
-    practice De Ceder's web app, on the messaging network, only 8441
-    answers."""
+    """AZ Diest's pages (8000) and its lab-order endpoint (8441, DF23, DF25) run
+    in containers of their own, each on one network. Pass: from practice De
+    Ceder's web app, on the messaging network, the endpoint answers on 8441
+    and nothing else, and the pages' container is not even a name there."""
     build(compose, "practice-web")
-    answers = probe(
-        compose,
-        f"{APP_PRACTICE}-web",
-        PORTS,
-        f"{APP_HOSPITAL}-messaging",
-        "8441",
-        "8000",
-    )
-    assert answers == {"8441": "open", "8000": "ConnectionRefusedError"}
+
+    def answers(host: str) -> Any:
+        return probe(compose, f"{APP_PRACTICE}-web", PORTS, host, "8441", "8000")
+
+    assert answers(f"{APP_HOSPITAL}-messaging") == {
+        "8441": "open",
+        "8000": "ConnectionRefusedError",
+    }
+    assert answers(f"{APP_HOSPITAL}-web") == {"8441": "gaierror", "8000": "gaierror"}
 
 
 # Runs on a hospital's network: asks the proxy for a name by Host header and
@@ -156,8 +154,9 @@ def test_the_proxy_hands_a_browser_only_the_party_it_names(
     compose: Compose, hospital_app: str, proxy: None
 ) -> None:
     """The proxy, the only published port, routes each <party>.localhost by its
-    Host header. Pass: az-diest.localhost gets AZ Diest's web app, and a name
-    the proxy does not route (bank.example) gets the proxy's refusal, 421."""
+    Host header. Pass: az-diest.localhost gets AZ Diest's web app, a name
+    outside .localhost (bank.example) gets the proxy's refusal, 421, and a
+    .localhost name of no party gets 502, as no web app has that name."""
 
     def ask(name: str) -> str:
         status: str = probe(compose, hospital_app, THROUGH_PROXY, "proxy", name)
@@ -166,6 +165,7 @@ def test_the_proxy_hands_a_browser_only_the_party_it_names(
     assert ask(f"{APP_HOSPITAL}.localhost") == "200"
     # The proxy's own refusal, before any web app could answer.
     assert ask("bank.example") == "421"
+    assert ask("nobody.localhost") == "502"
 
 
 # Runs in the startup's web app's container: does it reach the SuperLink, and
