@@ -77,19 +77,19 @@ def test_models_page(
         (
             "0.4",
             (
-                "9 of 10 (90%; 95% CI 60–98%)",
-                "30 of 42 (71%; 95% CI 56–83%)",
-                "9 of 21 (43%; 95% CI 24–63%)",
-                "30 of 31 (97%; 95% CI 84–99%)",
+                '9 of 10 (90%; <span class="no-wrap">95% CI 60–98%</span>)',
+                '30 of 42 (71%; <span class="no-wrap">95% CI 56–83%</span>)',
+                '9 of 21 (43%; <span class="no-wrap">95% CI 24–63%</span>)',
+                '30 of 31 (97%; <span class="no-wrap">95% CI 84–99%</span>)',
             ),
         ),
         (
             "0.5",
             (
-                "7 of 10 (70%; 95% CI 40–89%)",
-                "37 of 42 (88%; 95% CI 75–95%)",
-                "7 of 12 (58%; 95% CI 32–81%)",
-                "37 of 40 (92%; 95% CI 80–97%)",
+                '7 of 10 (70%; <span class="no-wrap">95% CI 40–89%</span>)',
+                '37 of 42 (88%; <span class="no-wrap">95% CI 75–95%</span>)',
+                '7 of 12 (58%; <span class="no-wrap">95% CI 32–81%</span>)',
+                '37 of 40 (92%; <span class="no-wrap">95% CI 80–97%</span>)',
             ),
         ),
     ):
