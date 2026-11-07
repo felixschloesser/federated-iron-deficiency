@@ -1,0 +1,229 @@
+# What glossary.toml's words replaced, and when the team decided a word: the
+# process's record, kept out of readers' way. The report was drafted with AI
+# help, so a word that reads badly to lab staff is replaced and the report's
+# word moves to its rejected list. A term here is a term in glossary.toml.
+
+["general practitioner"]
+decided = "2026-11-03"
+rejected = ["GP (abbreviation)", "requester", "ordering physician (WHO 5-4, p. 66)"]
+
+["laboratory"]
+rejected = ["lab (the report's short form, kept only in \"lab order\" and \"lab report\")", "hospital (the organisation, not where the tube goes)"]
+
+["primary laboratory"]
+decided = "2026-11-05"
+rejected = ["default laboratory (developer word)", "home laboratory", "paired hospital (demo.toml's pairing, not a laboratory)", "lab (kept only in \"lab order\" and \"lab report\")"]
+
+["laboratory staff"]
+rejected = ["lab technician (\"technician\" in WHO LQMS means equipment service only)", "technologist (a qualified grade)", "laboratorian", "laboratory worker"]
+
+["analyser"]
+rejected = ["nhanes (the demo data's origin, not what the app is)", "instrument (WHO LQMS's general word; the report says analyser)", "stand-in (says how it is built, not what it is)", "tube (the glossary's rejected word for the container)"]
+
+["patient"]
+rejected = ["participant (NHANES word; data origin only)"]
+
+["practice"]
+rejected = ["client (WHO 13-2; the code's word until 2026-11-03)", "sender", "requester"]
+
+["certificate name"]
+rejected = ["practice ID (no source)", "hospital ID (no source)", "client ID (OAuth's word)", "RIZIV/INAMI number (identifies a doctor, not a practice)"]
+
+["practice name"]
+rejected = ["client name"]
+
+["order"]
+rejected = ["request (the laboratory's word)", "requisition (WHO)", "examination request (ISO 15189)"]
+
+["lab order"]
+rejected = ["order (the practice's)", "test request (the laboratory's)"]
+
+["test request"]
+rejected = ["lab order (the message it arrives as)", "order (US and HL7 usage)", "requisition (WHO: the paper form)", "examination request (ISO 15189)"]
+
+["test"]
+rejected = ["examination (ISO 15189)"]
+
+["CBC (complete blood count)"]
+rejected = ["blood count (report uses both; one word only)"]
+
+["clinical indication"]
+rejected = ["reason for testing"]
+
+["suspected anaemia"]
+rejected = ["anaemia work-up"]
+
+["suspected irritable bowel syndrome"]
+rejected = ["IBS (abbreviation)"]
+
+["unexplained fatigue"]
+rejected = ["non-specific complaint (no source; the report's earlier word)", "fatigue work-up"]
+
+["start of pregnancy"]
+rejected = ["pregnancy check"]
+
+["chronic kidney disease follow-up"]
+rejected = ["CKD (abbreviation)"]
+
+["other"]
+decided = "2026-11-01"
+rejected = []
+
+["screened indication"]
+rejected = ["screen requested (the general practitioner requests nothing)", "eligible (also sex and age)"]
+
+["not eligible"]
+rejected = ["not screened because of indication", "sex or age"]
+
+["registered sex"]
+rejected = ["gender", "sex"]
+
+["sample ID"]
+rejected = ["laboratory identification number", "accession number (WHO 5-4, p. 66)"]
+
+["stored sample"]
+rejected = ["add-on test", "retained sample"]
+
+["sample"]
+rejected = ["specimen (ISO 15189)", "tube (the container)", "blood draw"]
+
+["collected"]
+rejected = ["drawn", "taken", "venipuncture"]
+
+["analysed"]
+rejected = ["examined", "tested"]
+
+["screening"]
+rejected = ["scoring", "classification"]
+
+["inference"]
+rejected = ["screening (in ml/: the hospital's word)", "prediction"]
+
+["screening result"]
+rejected = ["flag", "outcome", "classification"]
+
+["ferritin suggested / ferritin not suggested / not screened"]
+rejected = ["flagged / not flagged (an earlier report draft; in a lab a *flag* marks an out-of-range value)", "possible iron deficiency (names a diagnosis)"]
+
+["final model"]
+rejected = ["release", "model version"]
+
+["screening model"]
+rejected = ["model (too generic; Django's `Model`)", "final model (kept for training code and the report's DFD)", "release", "model version"]
+
+["deploy"]
+rejected = ["activate", "release", "roll out", "deployment for a party's running copy (that is a party's web app)"]
+
+["deployed model"]
+rejected = ["active release", "fingerprint"]
+
+["laboratory director"]
+rejected = ["clinical biologist (not in either source)", "quality manager (WHO: runs the quality system, does not decide)", "laboratory manager"]
+
+["lab record"]
+rejected = ["past result", "patient record", "participant (NHANES's word)"]
+
+["past patient"]
+rejected = ["participant", "subject", "sample"]
+
+["training cohort"]
+rejected = ["cohort (alone, in copy)", "dataset", "partition (Flower's word)", "snapshot", "extract"]
+
+["provide"]
+decided = "2026-11-06"
+rejected = ["release (the data scientist's word for final models)", "share (suggests the data leaves the hospital)", "approve", "make available"]
+
+["withdraw"]
+decided = "2026-11-06"
+rejected = ["revoke", "stop sharing", "delete"]
+
+["local validation"]
+rejected = ["local evaluation", "shadow run", "flag rate"]
+
+["sensitivity"]
+rejected = ["recall (machine learning, not a laboratory word)", "true positive rate"]
+
+["95% confidence interval"]
+rejected = ["uncertainty (WHO LQMS's word for measurement uncertainty)", "margin of error", "error bars"]
+
+["specificity"]
+rejected = ["true negative rate"]
+
+["positive predictive value"]
+rejected = ["precision (in the laboratory: how much repeated measurements vary, WHO LQMS p. 82)", "unnecessary suggestions (its complement, shown inside it)"]
+
+["negative predictive value"]
+rejected = []
+
+["threshold"]
+rejected = ["cutoff (reserved for ferritin's 15 ng/mL)"]
+
+["messaging"]
+rejected = ["API", "integration"]
+
+["release"]
+rejected = ["transmit (the startup no longer sends: a hospital fetches)", "publish (only recipient hospitals may fetch)", "share", "offer (reads like the model sale it replaced)"]
+
+["fetch"]
+rejected = ["pull", "download", "receive (nothing is pushed: the hospital asks)"]
+
+["recipient hospital"]
+rejected = ["buyer (no sale is modelled)", "customer", "subscriber", "client"]
+
+["lab report"]
+rejected = ["test report (WHO p. 193)"]
+
+["comment"]
+rejected = ["interpretive comment"]
+
+["CBC value names and units, e.g. *Hemoglobin*, g/dL"]
+rejected = ["Hb", "Ht and other report abbreviations (no source; other units)"]
+
+["Ferritin, ng/mL"]
+rejected = ["µg/L (LBDFERSI)"]
+
+["Ferritin (made up for the demo), ng/mL"]
+decided = "2026-11-01"
+rejected = ["ferritin (would pass a made-up value as measured)", "synthetic ferritin"]
+
+["Flower container (`flower-` prefix)"]
+rejected = ["`serverapp`", "`clientapp` (Flower's names run together); startup code (the report's TB4 label, which the report keeps)"]
+
+["startup"]
+rejected = ["company", "vendor", "server (one of its machines, not the party)"]
+
+["data scientist"]
+rejected = ["ML engineer", "researcher", "startup staff"]
+
+["training run"]
+rejected = ["job", "experiment", "round (one of a run's rounds)"]
+
+["submit"]
+rejected = ["start", "launch", "trigger"]
+
+["run status"]
+rejected = ["progress", "state", "in progress / done"]
+
+["run configuration"]
+rejected = ["settings", "hyperparameters (a developer word, and not all of it)", "options"]
+
+["rounds"]
+rejected = ["iterations", "server rounds"]
+
+["local epochs"]
+rejected = ["epochs (ambiguous across rounds)", "passes"]
+
+["learning rate"]
+rejected = ["lr", "step size"]
+
+["weight decay"]
+rejected = ["L2 penalty", "regularisation"]
+
+["batch size"]
+rejected = ["minibatch", "chunk size"]
+
+["seed"]
+rejected = ["random state", "model seed (the key, not the word)"]
+
+["stop"]
+rejected = ["cancel", "abort", "kill"]
