@@ -29,4 +29,4 @@ TRAINING_COHORT_DIR = DATA_DIR / "cohort"
 # this hospital and knows it by (glossary.toml, certificate name); without the
 # endpoint, the hospital offers no fetching.
 STARTUP_ADDRESS = os.environ.get("STARTUP_ADDRESS") or None
-HOSPITAL_CERTIFICATE_NAME = os.environ.get("HOSPITAL_CERTIFICATE_NAME", "demo-hospital")
+HOSPITAL_CERTIFICATE_NAME = os.environ.get("HOSPITAL_CERTIFICATE_NAME")

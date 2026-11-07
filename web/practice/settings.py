@@ -20,4 +20,4 @@ INSTALLED_APPS: list[str] = [
 ROLES = [Role.GENERAL_PRACTITIONER]
 ROOT_URLCONF = "web.practice.urls"
 PARTY_NAME = os.environ.get("PARTY_NAME") or "Demo practice"
-PRACTICE_CERTIFICATE_NAME = os.environ.get("PRACTICE_CERTIFICATE_NAME", "demo-practice")
+PRACTICE_CERTIFICATE_NAME = os.environ.get("PRACTICE_CERTIFICATE_NAME")

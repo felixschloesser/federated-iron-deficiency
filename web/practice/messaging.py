@@ -8,10 +8,12 @@ from datetime import datetime
 
 import grpc
 from django.conf import settings
+from google.protobuf.empty_pb2 import Empty
 
 from web.practice.models import Laboratory, LabReport, Order
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
 from web.shared.messaging.convert import from_proto, moment, timestamp, to_proto
+from web.shared.messaging.identity import calling_as
 from web.shared.vocabulary import RegisteredSex, Test
 
 TIMEOUT_SECONDS = 10
@@ -40,7 +42,6 @@ def _send(
 ) -> None:
     endpoint.SendLabOrder(
         messages_pb2.LabOrder(
-            certificate_name=settings.PRACTICE_CERTIFICATE_NAME,
             sample_id=order.sample.sample_id,
             test=to_proto(Test(order.test), messages_pb2.Test),
             screened_indication=order.screened_indication,
@@ -51,6 +52,7 @@ def _send(
             ordered_at=timestamp(order.ordered_at),
         ),
         timeout=timeout,
+        metadata=calling_as(settings.PRACTICE_CERTIFICATE_NAME),
     )
 
 
@@ -97,11 +99,9 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
     store and acknowledge them."""
     with open_laboratory(laboratory) as endpoint:
         _send_pending(endpoint, laboratory, now=now)
+        metadata = calling_as(settings.PRACTICE_CERTIFICATE_NAME)
         reports = endpoint.FetchNewLabReports(
-            messages_pb2.NewLabReportsRequest(
-                certificate_name=settings.PRACTICE_CERTIFICATE_NAME
-            ),
-            timeout=TIMEOUT_SECONDS,
+            Empty(), timeout=TIMEOUT_SECONDS, metadata=metadata
         ).reports
         stored = [
             report.report_id
@@ -110,11 +110,9 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
         ]
         if stored:
             endpoint.AcknowledgeLabReports(
-                messages_pb2.Acknowledgement(
-                    certificate_name=settings.PRACTICE_CERTIFICATE_NAME,
-                    report_ids=stored,
-                ),
+                messages_pb2.Acknowledgement(report_ids=stored),
                 timeout=TIMEOUT_SECONDS,
+                metadata=metadata,
             )
     return len(stored)
 

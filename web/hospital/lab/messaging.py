@@ -3,12 +3,14 @@
 import grpc
 from django.db import models
 from django.utils import timezone
+from google.protobuf.empty_pb2 import Empty
 
 from web.hospital.lab.forms import LabOrderForm
 from web.hospital.lab.models import LabOrderDetails, Practice, TestRequest
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
 from web.shared.messaging.convert import from_proto, moment, timestamp, to_proto
 from web.shared.messaging.endpoint import start, with_database
+from web.shared.messaging.identity import caller
 from web.shared.vocabulary import RegisteredSex, Test
 
 
@@ -17,23 +19,14 @@ def _value(choice: models.TextChoices | None) -> str:
     return "" if choice is None else choice.value
 
 
-type FromPractice = (
-    messages_pb2.LabOrder
-    | messages_pb2.NewLabReportsRequest
-    | messages_pb2.Acknowledgement
-)
-
-
-def practice_of(request: FromPractice, context: grpc.ServicerContext) -> Practice:
-    """The calling practice, by the certificate name it sends; a message without
-    one, or from a practice the hospital does not know, is refused before anything
-    is read or recorded. With the report's mutual TLS
-    the name would come from the connection, context.peer_identities()."""
-    if not request.certificate_name:
-        context.abort(grpc.StatusCode.INVALID_ARGUMENT, "practice_required")
-    practice = Practice.objects.filter(
-        certificate_name=request.certificate_name
-    ).first()
+def practice_of(context: grpc.ServicerContext) -> Practice:
+    """The calling practice, by the certificate name the call names itself by; a
+    call that names none, or a practice the hospital does not know, is refused
+    before anything is read or recorded."""
+    certificate_name = caller(context)
+    if certificate_name is None:
+        context.abort(grpc.StatusCode.UNAUTHENTICATED, "practice_required")
+    practice = Practice.objects.filter(certificate_name=certificate_name).first()
     if practice is None:
         context.abort(grpc.StatusCode.PERMISSION_DENIED, "unknown_practice")
     return practice
@@ -45,8 +38,8 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
     @with_database
     def SendLabOrder(
         self, request: messages_pb2.LabOrder, context: grpc.ServicerContext
-    ) -> messages_pb2.Received:
-        practice = practice_of(request, context)
+    ) -> Empty:
+        practice = practice_of(context)
         form = LabOrderForm(
             {
                 "sample_id": request.sample_id,
@@ -71,13 +64,13 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
             practice=practice,
             details=LabOrderDetails(**form.cleaned_data),
         )
-        return messages_pb2.Received()
+        return Empty()
 
     @with_database
     def FetchNewLabReports(
-        self, request: messages_pb2.NewLabReportsRequest, context: grpc.ServicerContext
+        self, request: Empty, context: grpc.ServicerContext
     ) -> messages_pb2.LabReports:
-        practice = practice_of(request, context)
+        practice = practice_of(context)
         return messages_pb2.LabReports(
             reports=[
                 messages_pb2.LabReport(
@@ -96,13 +89,13 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
     @with_database
     def AcknowledgeLabReports(
         self, request: messages_pb2.Acknowledgement, context: grpc.ServicerContext
-    ) -> messages_pb2.Received:
+    ) -> Empty:
         TestRequest.objects.acknowledge(
-            practice=practice_of(request, context),
+            practice=practice_of(context),
             report_ids=[int(report_id) for report_id in request.report_ids],
             now=timezone.now(),
         )
-        return messages_pb2.Received()
+        return Empty()
 
 
 def serve(address: str) -> tuple[grpc.Server, int]:

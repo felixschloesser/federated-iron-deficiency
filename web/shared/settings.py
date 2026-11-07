@@ -34,12 +34,13 @@ FINAL_MODELS_DIR: Path | None = None
 # code at the hospital reads.
 TRAINING_COHORT_DIR: Path | None = None
 # The name the hospitals issued this practice and know it by, which its app
-# sends in every message (glossary.toml, certificate name).
-PRACTICE_CERTIFICATE_NAME = ""
+# names itself by in each call (glossary.toml, certificate name); None, it
+# cannot call.
+PRACTICE_CERTIFICATE_NAME: str | None = None
 # The startup's final-models endpoint and the name the startup issued this
 # hospital; without the endpoint, no fetching.
 STARTUP_ADDRESS: str | None = None
-HOSPITAL_CERTIFICATE_NAME = ""
+HOSPITAL_CERTIFICATE_NAME: str | None = None
 # Shown in the title bar and header; never the screening's name.
 PARTY_NAME = ""
 

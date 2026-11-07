@@ -13,7 +13,8 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
-            "certificate_name", help="what its app sends in every message: de-ceder"
+            "certificate_name",
+            help="what its app names itself by in each call: de-ceder",
         )
         parser.add_argument(
             "name", help='as the hospital knows it: "Huisartsenpraktijk De Ceder"'

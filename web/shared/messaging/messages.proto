@@ -1,12 +1,15 @@
 // Messages between the general practitioner's app and the hospital
 // (tests/hospital/test_messaging.py), and between a hospital's web app and the
 // startup (features/startup/release.feature). The client is always the one that
-// asks, the practice or the hospital, and names itself by its certificate name in
-// every message; the demo leaves out the report's mutual TLS.
+// asks, the practice or the hospital. No message says who sent it: the client
+// names itself by its certificate name in each call's metadata
+// (web/shared/messaging/identity.py), where mutual TLS would take it from the
+// client's certificate; the demo leaves that out.
 syntax = "proto3";
 
 package messaging.v1;
 
+import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 // The choices of web.shared.vocabulary, one value per member, named after it with the
@@ -28,13 +31,12 @@ enum RegisteredSex {
 // laboratory needs only whether it is screened (features/hospital/screening.feature). The hospital's form still
 // checks every field.
 message LabOrder {
-  string certificate_name = 1;      // the sending practice's (features/hospital/lab_orders.feature)
-  string sample_id = 2;
-  Test test = 3;
-  bool screened_indication = 4;     // false when absent: never screened by mistake
-  RegisteredSex registered_sex = 5;
-  uint32 age = 6;
-  google.protobuf.Timestamp ordered_at = 7;
+  string sample_id = 1;
+  Test test = 2;
+  bool screened_indication = 3;     // false when absent: never screened by mistake
+  RegisteredSex registered_sex = 4;
+  uint32 age = 5;
+  google.protobuf.Timestamp ordered_at = 6;
 }
 
 // DF25. Results and one bit of screening (features/practice/reports.feature, tests/quality/privacy/test_messages.py): no score, and nothing that
@@ -48,25 +50,18 @@ message LabReport {
   bool ferritin_suggested = 6;      // false when absent: never a false suggestion
 }
 
-message Received {}
-
-message NewLabReportsRequest {
-  string certificate_name = 1;      // the sending practice's
-}
-
 message LabReports {
   repeated LabReport reports = 1;
 }
 
 message Acknowledgement {
-  string certificate_name = 1;      // the sending practice's
-  repeated string report_ids = 2;
+  repeated string report_ids = 1;
 }
 
 service Laboratory {
-  rpc SendLabOrder(LabOrder) returns (Received);
-  rpc FetchNewLabReports(NewLabReportsRequest) returns (LabReports);
-  rpc AcknowledgeLabReports(Acknowledgement) returns (Received);
+  rpc SendLabOrder(LabOrder) returns (google.protobuf.Empty);
+  rpc FetchNewLabReports(google.protobuf.Empty) returns (LabReports);
+  rpc AcknowledgeLabReports(Acknowledgement) returns (google.protobuf.Empty);
 }
 
 // A released final model as a recipient hospital fetches it (DF37): its weights
@@ -79,20 +74,15 @@ message FinalModel {
   map<string, double> federated = 3;
 }
 
-message NewFinalModelsRequest {
-  string certificate_name = 1;      // the fetching hospital's
-}
-
 message NewFinalModels {
   repeated FinalModel final_models = 1;
 }
 
 message FinalModelAcknowledgement {
-  string certificate_name = 1;      // the fetching hospital's
-  repeated string run_ids = 2;      // the final models it stored
+  repeated string run_ids = 1;      // the final models it stored
 }
 
 service FinalModels {
-  rpc FetchNewFinalModels(NewFinalModelsRequest) returns (NewFinalModels);
-  rpc AcknowledgeFinalModels(FinalModelAcknowledgement) returns (Received);
+  rpc FetchNewFinalModels(google.protobuf.Empty) returns (NewFinalModels);
+  rpc AcknowledgeFinalModels(FinalModelAcknowledgement) returns (google.protobuf.Empty);
 }

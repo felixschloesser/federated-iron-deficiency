@@ -10,6 +10,7 @@ import grpc
 import pandas as pd
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from google.protobuf.empty_pb2 import Empty
 
 from ml.final_model import from_bytes
 from ml.training_cohort import (
@@ -19,6 +20,7 @@ from ml.training_cohort import (
 )
 from web.hospital.deployment.model_files import store_fetched
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
+from web.shared.messaging.identity import calling_as
 
 TIMEOUT_SECONDS = 30
 
@@ -40,19 +42,18 @@ def fetch_final_models(*, now: datetime) -> list[str]:
     grpc.RpcError when the startup cannot be reached or refuses."""
     address, directory = settings.STARTUP_ADDRESS, settings.SCREENING_MODELS_DIR
     cohort_dir = settings.TRAINING_COHORT_DIR
-    certificate_name = settings.HOSPITAL_CERTIFICATE_NAME
     if address is None or directory is None or cohort_dir is None:
         raise ImproperlyConfigured(
             "Fetching needs STARTUP_ADDRESS, the screening models' folder and the"
             " training cohort's."
         )
+    metadata = calling_as(settings.HOSPITAL_CERTIFICATE_NAME)
     if not training_cohorts(cohort_dir):
         raise TrainingCohortUnavailable("No training cohort to validate on.")
     with grpc.insecure_channel(address) as channel:
         startup = messages_pb2_grpc.FinalModelsStub(channel)
         offered = startup.FetchNewFinalModels(
-            messages_pb2.NewFinalModelsRequest(certificate_name=certificate_name),
-            timeout=TIMEOUT_SECONDS,
+            Empty(), timeout=TIMEOUT_SECONDS, metadata=metadata
         ).final_models
         cohort: pd.DataFrame | None = None
         stored = []
@@ -76,9 +77,8 @@ def fetch_final_models(*, now: datetime) -> list[str]:
             stored.append(model.run_id)
         if stored:
             startup.AcknowledgeFinalModels(
-                messages_pb2.FinalModelAcknowledgement(
-                    certificate_name=certificate_name, run_ids=stored
-                ),
+                messages_pb2.FinalModelAcknowledgement(run_ids=stored),
                 timeout=TIMEOUT_SECONDS,
+                metadata=metadata,
             )
     return stored

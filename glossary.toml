@@ -35,7 +35,7 @@ meaning = "A general practitioner's practice, which orders tests at the hospital
 source = "Report, \"Federated version\": \"Each GP practice runs its own app\"; \"Design choices and assumptions\", DF24: \"Lab orders, with the sending practice\""
 
 ["certificate name"]
-meaning = "The name a serving party issued its client and registers it by: a hospital its practices (`add_practice`, `PRACTICE_CERTIFICATE_NAME`), the startup its recipient hospitals (`add_hospital`, `HOSPITAL_CERTIFICATE_NAME`). Sent in every request; the demo trusts it as sent, with mutual TLS it would come from the client's certificate. A name the server does not know is refused"
+meaning = "The name a serving party issued its client and registers it by: a hospital its practices (`add_practice`, `PRACTICE_CERTIFICATE_NAME`), the startup its recipient hospitals (`add_hospital`, `HOSPITAL_CERTIFICATE_NAME`). Named in each call's metadata; the demo trusts it as named, with mutual TLS it would come from the client's certificate. A name the server does not know is refused"
 source = "Report, Solutions table, mutual TLS: \"each hospital is its own CA and tells practices apart by certificate name\"; \"the startup is its own CA and tells recipient hospitals apart by certificate name\""
 
 ["practice name"]
