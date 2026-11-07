@@ -99,12 +99,12 @@ def css_classes(root: Path) -> list[str]:
     return findings
 
 
-def kit_only(root: Path) -> list[str]:
+def includes_only(root: Path) -> list[str]:
     return [
-        f"{path.relative_to(root).as_posix()}: page does not extend the kit"
+        f"{path.relative_to(root).as_posix()}: page does not extend includes/base.html"
         for path in templates(root)
-        if "kit" not in path.parts
-        and not path.read_text().lstrip().startswith('{% extends "kit/')
+        if "includes" not in path.parts
+        and not path.read_text().lstrip().startswith('{% extends "includes/')
     ]
 
 
@@ -480,7 +480,7 @@ CHECKS: dict[str, Callable[[Path], list[str]]] = {
     check.__name__: check
     for check in (
         css_classes,
-        kit_only,
+        includes_only,
         safe,
         suppressions,
         listed_members,

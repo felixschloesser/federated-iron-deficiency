@@ -5,7 +5,7 @@ Include with: form, submit_label.{% endcomment %}
 {# Focus moves to it on load, so a keyboard user starts from what to fix (no script: autofocus on a focusable element). #}
 <article role="alert" data-level="error" tabindex="-1" autofocus>{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</article>
 {% elif form.errors %}
-{# The kit's error alert (kit/alert.html), with a heading and a list. #}
+{# The shared error alert (includes/alert.html), with a heading and a list. #}
 <article role="alert" data-level="error" aria-labelledby="error-summary-title" tabindex="-1" autofocus>
   <h2 id="error-summary-title">There is a problem</h2>
   <ul>
