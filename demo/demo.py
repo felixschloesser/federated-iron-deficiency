@@ -15,6 +15,7 @@ practitioner's practice its own web app.
 import argparse
 import os
 import shutil
+import sqlite3
 import subprocess
 import sys
 import time
@@ -140,8 +141,42 @@ def tube_seeds(nhanes: Path) -> list[list[str]]:
     return [seed_arguments(partition, nhanes) for partition, _ in hospitals()]
 
 
+def set_aside_stale_database(folder: Path) -> Path | None:
+    """Rename the party's database aside when it records a migration of ours the
+    code no longer has (a volume from before migrations were reset): it cannot
+    migrate. The renamed file is kept; returns where it went."""
+    path = folder / "web.sqlite3"
+    if not path.exists():
+        return None
+    ours = {
+        (migration.parent.parent.name, migration.stem)
+        for migration in (ROOT / "web").glob("**/migrations/0*.py")
+    }
+    labels = {app for app, _ in ours}
+    database = sqlite3.connect(path)
+    try:
+        recorded = database.execute(
+            "SELECT app, name FROM django_migrations"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # No table yet: migrate never finished on it, and will start it.
+        recorded = []
+    finally:
+        database.close()
+    if all(app not in labels or (app, name) in ours for app, name in recorded):
+        return None
+    aside = path.with_name("web.sqlite3.before-reset")
+    path.rename(aside)
+    return aside
+
+
 def prepare_web(folder: Path, party: str, seeds: list[list[str]]) -> None:
     """Migrate the party's database and seed its demo accounts, once per seed."""
+    aside = set_aside_stale_database(folder)
+    if aside is not None:
+        tqdm.write(
+            f"{folder.name}: its database predates the code's migrations; kept as {aside.name}, prepared afresh."
+        )
     env = {
         **os.environ,
         "DJANGO_SETTINGS_MODULE": f"web.{party}.settings",

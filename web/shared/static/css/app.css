@@ -215,6 +215,29 @@ article dl dd {
   overflow-wrap: anywhere;
 }
 
+/* On a phone the term column leaves its value too little room for an unbreakable
+   piece such as "(95% CI 0.68–1.00)": each term then stands over its value. */
+@media (max-width: 575.98px) {
+  article dl {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+  }
+
+  article dl dd + dt {
+    margin-top: calc(var(--pico-spacing) / 2);
+  }
+
+  /* Stacked, a term would read as one more value. */
+  article dl dt {
+    font-weight: 600;
+  }
+}
+
+/* A card's heading may hold a 20-digit run ID: it wraps, not widens the page. */
+.card-header h2 {
+  overflow-wrap: anywhere;
+}
+
 /* A link that looks like a button: it leads somewhere, so it stays a link
    (Enter follows it), not role="button", which promises Space too. Pico's own
    button rule and states, from its variables (pico-2.1.1). */

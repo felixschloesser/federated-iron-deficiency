@@ -153,6 +153,33 @@ class ScreeningModelFile:
             (row for row in self.local_validation if row.threshold == threshold), None
         )
 
+    @property
+    def local_auroc_interval(self) -> str | None:
+        """The AUROC here's 95% confidence interval, 0.68–1.00; None without an
+        AUROC or the counts it was measured on."""
+        if self.local_auroc is None or not self.local_validation:
+            return None
+        # Every threshold's counts hold the same past patients.
+        counts = self.local_validation[0]
+        deficient = counts.count("true_positives") + counts.count("false_negatives")
+        other = counts.count("true_negatives") + counts.count("false_positives")
+        if not deficient or not other:
+            return None
+        # Hanley and McNeil's standard error (Radiology 1982;143:29–36): from the
+        # AUROC and the two groups' sizes alone, which is all the file holds.
+        area = self.local_auroc
+        q1, q2 = area / (2 - area), 2 * area**2 / (1 + area)
+        error = math.sqrt(
+            (
+                area * (1 - area)
+                + (deficient - 1) * (q1 - area**2)
+                + (other - 1) * (q2 - area**2)
+            )
+            / (deficient * other)
+        )
+        lower, upper = max(area - 1.96 * error, 0.0), min(area + 1.96 * error, 1.0)
+        return f"{lower:.2f}–{upper:.2f}"
+
 
 def screening_model_file(run_id: str, data: bytes) -> ScreeningModelFile:
     """A screening model as the laboratory director sees it, from its file's bytes."""
