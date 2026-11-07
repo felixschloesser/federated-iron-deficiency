@@ -8,11 +8,11 @@ from pytest_django.fixtures import Settings
 
 from demo.seed import main
 from demo.seeding import participants as seeding
-from practice.models import Patient
-from shared.accounts.models import User
-from shared.accounts.roles import Role, role_of
-from shared.vocabulary import RegisteredSex
 from tests.conftest import PEOPLE, nhanes_rows
+from web.practice.models import Patient
+from web.shared.accounts.models import User
+from web.shared.accounts.roles import Role, role_of
+from web.shared.vocabulary import RegisteredSex
 
 pytestmark = pytest.mark.django_db
 

@@ -10,14 +10,14 @@ from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains
 from pytest_django.fixtures import Settings
 
-from hospital.cohort.models import TrainingCohort
-from shared.accounts.models import User
-from shared.accounts.roles import Role
 from tests.hospital.conftest import (
     make_lab_records,
     make_laboratory_director,
     make_laboratory_staff_member,
 )
+from web.hospital.cohort.models import TrainingCohort
+from web.shared.accounts.models import User
+from web.shared.accounts.roles import Role
 
 pytestmark = pytest.mark.django_db
 

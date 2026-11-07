@@ -8,8 +8,8 @@ from datetime import datetime
 
 import grpc
 
-from shared.messaging import messages_pb2, messages_pb2_grpc
-from shared.messaging.convert import timestamp
+from web.shared.messaging import messages_pb2, messages_pb2_grpc
+from web.shared.messaging.convert import timestamp
 
 
 @dataclass

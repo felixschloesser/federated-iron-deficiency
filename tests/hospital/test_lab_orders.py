@@ -7,10 +7,10 @@ from datetime import UTC, datetime
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from hospital.analyser.models import Participant
-from hospital.lab.models import LabOrderDetails, Practice, Sample, TestRequest
-from shared.vocabulary import RegisteredSex
-from shared.vocabulary import Test as OrderedTest
+from web.hospital.analyser.models import Participant
+from web.hospital.lab.models import LabOrderDetails, Practice, Sample, TestRequest
+from web.shared.vocabulary import RegisteredSex
+from web.shared.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 30, 10, 0, tzinfo=UTC)
 pytestmark = pytest.mark.django_db

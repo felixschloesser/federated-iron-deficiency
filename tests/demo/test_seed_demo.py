@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def seed(party: str, folder: Path, nhanes: Path, seed_value: str) -> None:
     env = {
         **{key: value for key, value in os.environ.items() if key != "DATA_DIR"},
-        "DJANGO_SETTINGS_MODULE": f"{party}.settings",
+        "DJANGO_SETTINGS_MODULE": f"web.{party}.settings",
         "DATA_DIR": str(folder),
         "DJANGO_DEBUG": "1",
     }

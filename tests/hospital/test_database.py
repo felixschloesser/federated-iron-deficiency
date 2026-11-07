@@ -15,9 +15,9 @@ OTHER_COMMITS_AFTER_SECONDS = 1.0
 
 
 def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
-    from hospital.lab.models import LabOrderDetails, TestRequest
-    from shared.vocabulary import RegisteredSex, Test
     from tests.hospital.conftest import make_practice
+    from web.hospital.lab.models import LabOrderDetails, TestRequest
+    from web.shared.vocabulary import RegisteredSex, Test
 
     practice = make_practice()
     other = sqlite3.connect(

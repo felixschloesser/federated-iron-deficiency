@@ -27,8 +27,8 @@ def test_fab_holds_only_the_federated_app(tmp_path: Path) -> None:
         (app / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / name, app / name)
     # Stand-ins for the web app, which must never reach a SuperNode.
-    (app / "shared").mkdir(exist_ok=True)
-    (app / "shared" / "fab_probe.py").write_text("DEBUG = False\n")
+    (app / "web").mkdir(exist_ok=True)
+    (app / "web" / "fab_probe.py").write_text("DEBUG = False\n")
 
     flwr = Path(sys.executable).parent / "flwr"
     subprocess.run([str(flwr), "build"], cwd=app, capture_output=True, check=True)

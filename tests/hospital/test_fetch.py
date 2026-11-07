@@ -17,10 +17,10 @@ from pytest_django.fixtures import Settings
 
 from ml.cohort import FEATURES
 from ml.final_model import FinalModel, Net, read, to_bytes
-from shared.messaging import messages_pb2
 from tests.conftest import World
 from tests.hospital.conftest import make_laboratory_director
 from tests.hospital.fake_startup import FakeStartup, running
+from web.shared.messaging import messages_pb2
 
 FEDERATED = {"eval_auroc": 0.85}
 # The stand-in serves from its own threads.
