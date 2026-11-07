@@ -143,17 +143,17 @@ def test_each_service_mounts_only_its_own_partys_folder() -> None:
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_the_hospitals_own_apps_write_the_cohort_and_read_only_final_models(
+def test_the_hospitals_web_app_writes_the_cohort_and_its_screening_models(
     slug: str,
 ) -> None:
     """The laboratory director provides the training cohort from the web app
-    (features/hospital/training_cohort.feature), so it writes the cohort folder,
-    through the hospital's whole volume, unmasked."""
+    (features/hospital/training_cohort.feature) and fetches final models there,
+    validated on it (features/hospital/fetch.feature): the web app writes the
+    cohort folder and screening-models, through the hospital's whole volume,
+    unmasked, and the startup's code writes nothing at the hospital."""
     name = f"{slug}-web"
     assert "tmpfs" not in service(name)
-    assert mounts(name)[f"/demo/hospitals/{slug}"] == (f"hospitals/{slug}", False)
-    final_models = f"/demo/hospitals/{slug}/screening-models"
-    assert mounts(name)[final_models] == (f"hospitals/{slug}/screening-models", True)
+    assert mounts(name) == {f"/demo/hospitals/{slug}": (f"hospitals/{slug}", False)}
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
@@ -183,7 +183,11 @@ def test_the_proxy_reaches_every_web_app_and_nothing_else() -> None:
 
 
 def test_the_startups_web_app_reaches_the_superlink_and_the_proxy_never_does() -> None:
-    assert set(service("startup-web")["networks"]) == {"startup", "startup-web"}
+    assert set(service("startup-web")["networks"]) == {
+        "startup",
+        "startup-web",
+        "final-models",
+    }
     members = {
         name
         for name, spec in config()["services"].items()
@@ -218,7 +222,7 @@ def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
 def test_crossings_and_the_startup_are_internal_networks() -> None:
     networks = config()["networks"]
     internal = {name for name, spec in networks.items() if spec.get("internal")}
-    assert internal == {"startup", "model-updates", "messaging"} | {
+    assert internal == {"startup", "model-updates", "messaging", "final-models"} | {
         f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS
     }
 
@@ -266,6 +270,8 @@ def test_the_hospital_serves_its_pages_and_its_messaging_each_on_one_network_onl
     assert spec["networks"] == {
         slug: {"aliases": [f"{slug}-pages"]},
         "messaging": {"aliases": [f"{slug}-messaging"]},
+        # To fetch final models from the startup; it serves nothing there.
+        "final-models": {},
     }
     script = spec["command"][-1]
     assert f"--bind={slug}-pages:8000" in script
@@ -412,22 +418,19 @@ def test_every_flower_connection_runs_without_tls() -> None:
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_compose_gives_the_startups_code_only_the_cohort_and_final_models(
+def test_compose_gives_the_startups_code_only_the_cohort_read_only(
     slug: str,
 ) -> None:
     """The ClientApp, the startup's code at each hospital (DF7, TB4), sees no
     database, no key and no other party's folder, so what it sends leaves only
-    through DF9 and DF10. Pass: it mounts only its hospital's cohort,
-    read-only, and final models, and shares one internal network only with its
-    hospital's SuperNode."""
+    through DF9 and DF10, and it writes nothing at the hospital: a final model
+    enters only when the hospital fetches it (features/hospital/fetch.feature).
+    Pass: it mounts only its hospital's cohort, read-only, and shares one
+    internal network only with its hospital's SuperNode."""
     declared = config()
     clientapp = f"{slug}-flower-client-app"
     assert mounts(clientapp) == {
         f"/demo/hospitals/{slug}/cohort": (f"hospitals/{slug}/cohort", True),
-        f"/demo/hospitals/{slug}/screening-models": (
-            f"hospitals/{slug}/screening-models",
-            False,
-        ),
     }
     assert set(service(clientapp)["networks"]) == {clientapp}
     assert declared["networks"][clientapp]["internal"] is True
@@ -474,3 +477,41 @@ def test_a_health_check_runs_often_only_while_its_service_starts() -> None:
     assert len(checks) == 9
     for name, check in checks.items():
         assert (check["start_interval"], check["interval"]) == ("2s", "5m0s"), name
+
+
+def test_only_the_hospitals_web_apps_reach_the_startups_final_models_endpoint() -> None:
+    """The startup's final-models endpoint (P12) serves recipient hospitals only
+    (features/startup/release.feature). Pass: the final-models network joins the
+    startup's web app and every hospital's web app, nothing else, and is internal."""
+    declared = config()
+    members = {
+        name
+        for name, spec in declared["services"].items()
+        if "final-models" in spec.get("networks", {})
+    }
+    assert members == {"startup-web"} | {f"{slug}-web" for slug in HOSPITAL_SLUGS}
+    assert declared["networks"]["final-models"]["internal"] is True
+
+
+def test_the_startup_serves_its_pages_and_its_final_models_each_on_one_network_only() -> (
+    None
+):
+    # One container, two servers: the proxy reaches the pages, the hospitals'
+    # web apps only the final-models endpoint (features/startup/release.feature).
+    spec = service("startup-web")
+    assert spec["networks"]["startup-web"] == {"aliases": ["startup-pages"]}
+    assert spec["networks"]["final-models"] == {"aliases": ["startup-final-models"]}
+    script = spec["command"][-1]
+    assert "--bind=startup-pages:8000" in script
+    assert "serve_final_models startup-final-models:8442" in script
+    assert "wait -n" in script
+    assert spec["restart"] == "unless-stopped"
+
+
+@pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
+def test_each_hospital_fetches_from_the_startup_by_its_certificate_name(
+    slug: str,
+) -> None:
+    environment = service(f"{slug}-web")["environment"]
+    assert environment["STARTUP_ADDRESS"] == "startup-final-models:8442"
+    assert environment["HOSPITAL_CERTIFICATE_NAME"] == slug

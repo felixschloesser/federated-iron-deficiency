@@ -36,6 +36,10 @@ TRAINING_COHORT_DIR: Path | None = None
 # The name the hospitals issued this practice and know it by, which its app
 # sends in every message (glossary.toml, certificate name).
 PRACTICE_CERTIFICATE_NAME = ""
+# The startup's final-models endpoint and the name the startup issued this
+# hospital (features/hospital/fetch.feature); without the endpoint, no fetching.
+STARTUP_ADDRESS: str | None = None
+HOSPITAL_CERTIFICATE_NAME = ""
 # Shown in the title bar and header; never the screening's name.
 PARTY_NAME = ""
 

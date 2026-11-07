@@ -1,32 +1,15 @@
 """The hospital's messaging endpoint: gRPC, plaintext in the demo (shared/messaging/messages.proto, features/hospital/messaging.feature)."""
 
-import functools
-from collections.abc import Callable
-from concurrent import futures
-
 import grpc
-from django.db import close_old_connections, models
+from django.db import models
 from django.utils import timezone
 
 from hospital.lab.forms import LabOrderForm
 from hospital.lab.models import LabOrderDetails, Practice, TestRequest
 from shared.messaging import messages_pb2, messages_pb2_grpc
 from shared.messaging.convert import from_proto, moment, timestamp, to_proto
+from shared.messaging.endpoint import start, with_database
 from shared.vocabulary import RegisteredSex, Test
-
-
-def with_database[**P, R](handler: Callable[P, R]) -> Callable[P, R]:
-    """Open and close the database connection around a call, as Django does per request."""
-
-    @functools.wraps(handler)
-    def handle(*args: P.args, **kwargs: P.kwargs) -> R:
-        close_old_connections()
-        try:
-            return handler(*args, **kwargs)
-        finally:
-            close_old_connections()
-
-    return handle
 
 
 def _value(choice: models.TextChoices | None) -> str:
@@ -124,8 +107,9 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
 
 def serve(address: str) -> tuple[grpc.Server, int]:
     """Start the endpoint, plaintext: the demo leaves out the report's mutual TLS."""
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
-    messages_pb2_grpc.add_LaboratoryServicer_to_server(LaboratoryService(), server)
-    port = server.add_insecure_port(address)
-    server.start()
-    return server, port
+    return start(
+        address,
+        lambda server: messages_pb2_grpc.add_LaboratoryServicer_to_server(
+            LaboratoryService(), server
+        ),
+    )

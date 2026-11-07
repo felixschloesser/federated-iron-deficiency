@@ -1,6 +1,7 @@
 """End to end through the running demo: a CBC from the practice to the laboratory
-and back through the proxy, as a browser; and a final model trained, transmitted
-and transmitted again through the real Flower apps (features/transmission.feature).
+and back through the proxy, as a browser; and a final model trained through the
+real Flower apps, released at the startup and fetched by the hospital's own web
+app, twice (features/final_model_journey.feature).
 Every test here needs a Docker engine (tests/e2e/conftest.py)."""
 
 import json
@@ -139,8 +140,8 @@ def flower_running(compose: Compose, flower: None) -> None:
     wait_until_online(compose)
 
 
-@scenario("transmission.feature", "Train, transmit, transmit again")
-def test_train_transmit_transmit_again() -> None:
+@scenario("final_model_journey.feature", "Train, release, fetch, fetch again")
+def test_train_release_fetch_fetch_again() -> None:
     pass
 
 
@@ -254,23 +255,99 @@ def kept_not_stored(compose: Compose, journey: dict[str, Any]) -> None:
     assert held["hospital"] == {}, held
 
 
-@when(parsers.re("the data scientist transmits (that final model|it again)"))
-def transmit(compose: Compose, journey: dict[str, Any]) -> None:
-    journey["before"] = folders(compose)["hospital"]
-    journey["transmission"] = flower_run(
-        compose, f"transmit-final-model='{journey['training']}'"
+# As prepare does for the demo: the startup's web app, migrated, with its data
+# scientist, knowing AZ Diest as a recipient hospital by its folder's name. AZ
+# Diest never trained here: any hospital the startup registers may fetch.
+RELEASE = """
+from django.utils import timezone
+from shared.accounts.models import User
+from startup.training.models import Release
+Release.objects.release(
+    final_model_run_id={run_id!r},
+    released_by=User.objects.get(username="data-scientist"),
+    now=timezone.now(),
+)
+"""
+
+# What the laboratory director's Fetch new final models runs, in AZ Diest's own
+# web app container, on the final-models network; the run IDs it stored.
+FETCH_FINAL_MODELS = """
+import json
+from django.utils import timezone
+from hospital.deployment.fetching import fetch_final_models
+print(json.dumps(fetch_final_models(now=timezone.now())))
+"""
+
+
+def stored_at(compose: Compose, hospital: str) -> dict[str, str]:
+    """The final models a hospital stored: each file's name and SHA-256."""
+    script = (
+        "import hashlib, json; from pathlib import Path;"
+        f" folder = Path('/demo/hospitals/{hospital}/screening-models');"
+        " print(json.dumps({path.name: hashlib.sha256(path.read_bytes()).hexdigest()"
+        " for path in sorted(folder.glob('*.pt'))}))"
     )
+    result = compose("run", "--rm", "--no-deps", "prepare", "python", "-c", script)
+    held: dict[str, str] = json.loads(result.stdout.strip().splitlines()[-1])
+    return held
+
+
+@when("the data scientist releases that final model")
+def release(compose: Compose, journey: dict[str, Any]) -> None:
+    seeding = ["run", "--rm", "--no-deps", "-e", "DJANGO_DEBUG=1", "startup-web"]
+    manage = ["python", "manage.py"]
+    compose(*seeding, *manage, "migrate", "-v0")
+    compose(*seeding, *manage, "seed_startup")
+    compose(*seeding, *manage, "add_hospital", APP_HOSPITAL, "AZ Diest")
+    up(compose, "startup-web")
+    release_one = RELEASE.format(run_id=journey["training"])
+    compose(*seeding, *manage, "shell", "-c", release_one)
+    # AZ Diest's own cohort, to validate on, as prepare saves every hospital's.
+    cohort = "from pathlib import Path" + synthetic_cohort(APP_HOSPITAL)
+    compose("run", "--rm", "--no-deps", "prepare", "python", "-c", cohort)
+
+
+@then("AZ Diest stores none yet")
+def none_yet(compose: Compose) -> None:
+    assert stored_at(compose, APP_HOSPITAL) == {}
+
+
+@when(parsers.re("AZ Diest fetches new final models(?: again)?"))
+def hospital_fetches(compose: Compose, journey: dict[str, Any]) -> None:
+    journey["before"] = stored_at(compose, APP_HOSPITAL)
+    result = compose(
+        "run",
+        "--rm",
+        "--no-deps",
+        f"{APP_HOSPITAL}-web",
+        "python",
+        "manage.py",
+        "shell",
+        "-c",
+        FETCH_FINAL_MODELS,
+    )
+    journey["fetched"] = json.loads(result.stdout.strip().splitlines()[-1])
 
 
 @then(
-    "the transmitting run completes and UZ Leuven stores the final model under"
-    " the training run's ID"
+    "AZ Diest stores the final model under the training run's ID, with its local"
+    " validation"
 )
 def stored(compose: Compose, journey: dict[str, Any]) -> None:
-    held = folders(compose)["hospital"]
+    assert journey["fetched"] == [journey["training"]]
+    held = stored_at(compose, APP_HOSPITAL)
     assert list(held) == [f"{journey['training']}.pt"], held
+    path = f"/demo/hospitals/{APP_HOSPITAL}/screening-models/{journey['training']}.pt"
+    script = (
+        "from pathlib import Path; from ml.final_model import read;"
+        f" model = read(Path({path!r}));"
+        " print(model.problem() is None and bool(model.confusion_matrices))"
+    )
+    result = compose("run", "--rm", "--no-deps", "prepare", "python", "-c", script)
+    assert result.stdout.strip().splitlines()[-1] == "True"
 
 
-@then("that run completes too and UZ Leuven's copy is unchanged")
+@then("it fetches none and AZ Diest's copy is unchanged")
 def unchanged(compose: Compose, journey: dict[str, Any]) -> None:
-    assert folders(compose)["hospital"] == journey["before"]
+    assert journey["fetched"] == []
+    assert stored_at(compose, APP_HOSPITAL) == journey["before"]

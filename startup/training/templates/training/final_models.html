@@ -3,26 +3,19 @@
 {% block content %}
 {% include "kit/index_header.html" with title="Final models" %}
 
-<p>The final model of each training run, newest first. A hospital stores one only when you transmit it, to every hospital connected at the time; transmit again to reach one that was not. Every hospital already evaluated the final weights in the run's last round.</p>
-{% if runs_unknown %}
-{% include "kit/alert.html" with level="warning" role="status" text=runs_unknown %}
-<p>Transmitting comes back when the SuperLink answers.</p>
-{% endif %}
-{% for model, transmission_status in final_models %}
+<p>The final model of each training run, newest first. A hospital fetches a final model only after you release it, and only when its laboratory director asks. Every hospital already evaluated the final weights in the run's last round.</p>
+{% for model, release in final_models %}
 <article>
   <header class="card-header">
     <h2>{% if model.stored_at %}Final model of <span class="no-wrap">{{ model.stored_at|date:"j M Y, H:i" }}</span>{% else %}Final model of run {{ model.run_id }}{% endif %}</h2>
-    <p>{{ transmission_status.label }}</p>
+    <p>{% if release %}{% with fetched=release.fetched_by %}{% if fetched %}Fetched by {{ fetched|join:", " }}{% else %}Released, not fetched yet{% endif %}{% endwith %}{% else %}Not released{% endif %}</p>
   </header>
   <dl>
     <dt>Run</dt><dd>{{ model.run_id }}</dd>
     {% if model.federated_auroc is not None %}<dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>{% endif %}
     {% for label, value in model.run_configuration_items %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
   </dl>
-  <div class="action-row">
-    {% if transmits and transmission_status.offers_transmit %}{% url "training:transmit" model.run_id as transmit_url %}{% include "kit/action_button.html" with url=transmit_url label="Transmit to hospitals" accessible_label="Transmit final model of run "|add:model.run_id|add:" to the hospitals" %}{% endif %}
-    <a href="{% url "training:for_sale" model.run_id %}" download aria-label="Download final model of run {{ model.run_id }} for sale">Download for sale</a>
-  </div>
+  {% if not release %}<div class="action-row">{% url "training:release" model.run_id as release_url %}{% include "kit/action_button.html" with url=release_url label="Release" accessible_label="Release final model of run "|add:model.run_id %}</div>{% endif %}
 </article>
 {% empty %}
 <p>No training run has finished yet.</p>

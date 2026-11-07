@@ -12,8 +12,7 @@ from django.urls import Resolver404, resolve, reverse
         ("training:runs", {}, "/training/runs/"),
         ("training:stop", {"run_id": 7}, "/training/runs/7/stop/"),
         ("training:models", {}, "/training/models/"),
-        ("training:transmit", {"run_id": "7"}, "/training/models/7/transmit/"),
-        ("training:for_sale", {"run_id": "7"}, "/training/models/7/for-sale/"),
+        ("training:release", {"run_id": "7"}, "/training/models/7/release/"),
     ],
 )
 def test_each_url_follows_the_scheme(

@@ -57,8 +57,7 @@ def flower(arguments: list[str], timeout: int) -> dict[str, Any]:
 
 
 def submit_run(chosen: Mapping[str, int | float | str]) -> int:
-    """Submit one run of this app, configured as chosen (a training run, or one
-    that transmits a final model); return its run ID."""
+    """Submit a training run of this app, configured as chosen; return its run ID."""
     configuration = run_configuration(chosen)
     try:
         answer = flower(

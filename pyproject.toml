@@ -42,7 +42,6 @@ weight-decay = 0.001
 batch-size = 64
 model-seed = 42 # Initial weights and dropout; data splits stay fixed
 demo-dir = "" # Absolute folder for final models (demo/README.md); empty: ~/.cache/iron-deficiency
-transmit-final-model = "" # A training run when empty; else the run ID of the final model to transmit to every hospital (a string: run IDs exceed TOML's integers)
 wandb-api-key = "" # Pass at submit time: -c "wandb-api-key='$WANDB_API_KEY'"
 
 [dependency-groups]

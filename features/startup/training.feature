@@ -73,16 +73,6 @@ Feature: The startup's training runs
     When the data scientist submits a training run
     Then the submission is refused with code "superlink_refused"
 
-  Scenario: A final model for sale holds its weights only
-    Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
-    When the startup downloads final model "7" for sale
-    Then the download holds the final model's weights
-    And it holds no threshold, no standardization, no metrics and no run configuration: the buyer chooses and standardizes on its own cohort
-
-  Scenario: No final model of a run the startup did not keep
-    When the startup downloads final model "9" for sale
-    Then there is nothing to download
-
   Scenario: A SuperLink that does not answer in time
     Given the SuperLink does not answer
     When the data scientist submits a training run
@@ -130,52 +120,3 @@ Feature: The startup's training runs
       | state                  | code                   |
       | refuses to stop it     | superlink_refused_stop |
       | does not answer        | superlink_no_answer    |
-
-  Scenario: Transmission a final model to every hospital is a run of its own
-    Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
-    When the data scientist transmits final model "7" to the hospitals
-    Then the SuperLink receives a run with run configuration "transmit-final-model" 7
-    And the startup records that run "8" transmits final model "7", transmitted by "Data One"
-
-  Scenario: What a transmitted final model holds
-    Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
-    When the ServerApp reads final model "7" to transmit
-    Then it transmits the weights, the AUROC across hospitals and run ID 7
-    And it transmits no run configuration
-
-  Scenario: No final model to transmit
-    When the ServerApp reads final model "9" to transmit
-    Then transmitting is refused: there is no final model of run 9
-
-  Scenario Outline: A transmission that not every connected hospital acknowledged fails
-    When <replied> of <connected> connected hospitals reply, <errors> of them with an error
-    Then the transmission fails with "<why>"
-
-    Examples:
-      | connected | replied | errors | why                                            |
-      | 0         | 0       | 0      | No hospital is connected.                      |
-      | 3         | 2       | 0      | 2 of 3 connected hospitals replied.            |
-      | 3         | 3       | 1      | 1 of 3 connected hospitals could not store it. |
-
-  Scenario: A transmission every connected hospital acknowledged succeeds
-    When 3 of 3 connected hospitals reply, 0 of them with an error
-    Then the transmission succeeds
-
-  Scenario Outline: Each final model shows whether it reached the hospitals
-    Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
-    And the data scientist transmitted final model "7" in run "8"
-    And the SuperLink knows run "8" is "<status>"
-    Then final model "7" shows "<shown>"
-    And final model "7" <offers> Transmit to hospitals
-
-    Examples:
-      | status             | shown                               | offers         |
-      | running            | Transmitting                             | does not offer |
-      | finished:completed | Transmitted                           | offers         |
-      | finished:failed    | Not transmitted to every hospital          | offers         |
-      | finished:stopped   | Not transmitted to every hospital          | offers         |
-
-  Scenario: A final model not transmitted yet
-    Given the startup kept the final model of run "7" at 30 Oct 2026, 14:02
-    Then final model "7" shows "Not transmitted"
-    And final model "7" offers Transmit to hospitals

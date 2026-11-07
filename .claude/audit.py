@@ -23,7 +23,9 @@ SHARED_SIDE = {"ml.cohort", "ml.dataset"}
 # reads its own final models, never screens.
 TRAINING_SIDES = {
     # Also to write the training cohort its laboratory director provides.
-    "hospital": SHARED_SIDE | {"ml.final_model", "ml.inference", "ml.training_cohort"},
+    # Also to validate the final models it fetches.
+    "hospital": SHARED_SIDE
+    | {"ml.final_model", "ml.inference", "ml.training_cohort", "ml.validation"},
     "startup": SHARED_SIDE | {"ml.final_model"},
 }
 # Settings modules that are no party's: what every party shares, and mypy's.

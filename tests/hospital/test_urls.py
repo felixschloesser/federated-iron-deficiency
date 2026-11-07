@@ -10,6 +10,7 @@ from django.urls import Resolver404, resolve, reverse
     ("name", "kwargs", "path"),
     [
         ("deployment:screening_models", {}, "/deployment/screening-models/"),
+        ("deployment:fetch_final_models", {}, "/deployment/screening-models/fetch/"),
         (
             "deployment:deploy",
             {"run_id": "7"},

@@ -13,7 +13,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from ml.cohort import FEATURES
 from ml.final_model import Net, Problem, read
 from ml.inference import score
-from ml.training import store_final_model
+from ml.validation import store_final_model
 from tests.conftest import World
 
 STORED_AT = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
@@ -50,7 +50,7 @@ def hospital(tmp_path: Path, cohort: pd.DataFrame) -> World:
 
 @given(
     parsers.parse(
-        "the ClientApp stored the final models of runs {first:d} and {second:d}"
+        "the hospital stored the final models of runs {first:d} and {second:d}"
     )
 )
 def stored_two(hospital: World, first: int, second: int) -> None:
@@ -73,7 +73,7 @@ def disk_full(monkeypatch: pytest.MonkeyPatch, run_id: int) -> None:
 
 
 @when(
-    parsers.re(r"the ClientApp stores the final model of run (?P<run_id>\d+)( again)?")
+    parsers.re(r"the hospital stores the final model of run (?P<run_id>\d+)( again)?")
 )
 def stores(hospital: World, run_id: str) -> None:
     try:
@@ -209,7 +209,7 @@ def test_a_file_that_is_no_model_reads_as_unreadable(tmp_path: Path) -> None:
 
 def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
     """The weights seeded by run_id, received as the final model of as_run."""
-    from ml.training import receive_final_model
+    from ml.validation import receive_final_model
 
     torch.manual_seed(run_id)
     return receive_final_model(
@@ -222,16 +222,14 @@ def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
     )
 
 
-@given(parsers.parse("the ClientApp received the final model of run {run_id:d}"))
+@given(parsers.parse("the hospital received the final model of run {run_id:d}"))
 def received(hospital: World, run_id: int) -> None:
     receive(hospital, run_id)
     hospital["before"] = (hospital["folder"] / f"{run_id}.pt").read_bytes()
 
 
 @when(
-    parsers.re(
-        r"the ClientApp receives the final model of run (?P<run_id>\d+)( again)?"
-    )
+    parsers.re(r"the hospital receives the final model of run (?P<run_id>\d+)( again)?")
 )
 def receives(hospital: World, run_id: str) -> None:
     try:
@@ -247,7 +245,7 @@ def receiving_succeeds(hospital: World) -> None:
 
 @when(
     parsers.parse(
-        "the ClientApp receives other weights as the final model of run {run_id:d}"
+        "the hospital receives other weights as the final model of run {run_id:d}"
     )
 )
 def receives_other(hospital: World, run_id: int) -> None:

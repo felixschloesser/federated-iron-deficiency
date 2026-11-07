@@ -27,8 +27,7 @@ not a process of the report's DFDs:
 | P2 SuperNode, ClientApp | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
 | P3 SuperLink | `flower-superlink` |
 | P4 ServerApp | `flower-server-app` |
-| P5 Model sale | *Download for sale* on `startup-web`: a final model's weights as a file, without a threshold |
-| E3 Other hospitals | not built |
+| P12 Final-models endpoint | `startup-web`, a second server beside its pages, on the `final-models` network only the hospitals' web apps join |
 | P6 Model deployment, P8 Messaging endpoint, P9 Lab analysis, P10 Screening | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis, and its messaging endpoint, each server on its own network |
 | P7 Practice app | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
 | E1 Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models (DS4) and submits a training run; or `train`, run by hand |
@@ -126,8 +125,8 @@ container inside the startup's network because that is where the data
 scientist sits in the report's DFD; the SuperLink's control API is never
 published to your machine, and the proxy reaches the startup's web app on a
 network of its own, `startup-web`, never the SuperLink. When the run
-finishes, its final model appears on the startup's Final models page; transmit
-it to the hospitals there. Then log in to a hospital as `director` to compare
+finishes, its final model appears on the startup's Final models page; release
+it there. Then log in to a hospital as `director`, fetch new final models, compare
 its local validation at each threshold and deploy it at one. Then order a
 CBC as `doctor`, analyse it as `staff`, and the lab report with its
 screening comes back to the practice.

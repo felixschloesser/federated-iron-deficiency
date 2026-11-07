@@ -13,13 +13,9 @@ from django.views.generic import FormView, TemplateView
 from shared.accounts.mixins import RoleRequiredMixin
 from shared.accounts.models import User
 from shared.accounts.roles import Role
-from startup.training.final_models import (
-    final_models,
-    for_sale,
-    transmission_statuses,
-)
+from startup.training.final_models import final_models
 from startup.training.forms import SubmitRunForm
-from startup.training.models import Transmission
+from startup.training.models import Release
 from startup.training.runs import TrainingRun, stop_run, submit_run, training_runs
 
 
@@ -44,14 +40,9 @@ class TrainingRunsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         runs, runs_unknown = listed_runs()
-        by_run = {
-            transmission.run_id: transmission
-            for transmission in Transmission.objects.all()
-        }
         return {
             **super().get_context_data(**kwargs),
-            # Each run with the final model it transmits, if it is a transmission.
-            "training_runs": [(run, by_run.get(str(run.run_id))) for run in runs or []],
+            "training_runs": runs or [],
             "runs_unknown": runs_unknown,
             # A SuperLink that does not list runs would not take one, nor a stop.
             "submits": runs_unknown is None,
@@ -76,20 +67,23 @@ class TrainingRunsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
 
 
 class FinalModelsView(DataScientistRequiredMixin, TemplateView):
-    """The startup's final models, each with whether it reached the hospitals."""
+    """The startup's final models, each released or not, and which recipient
+    hospitals fetched it (features/startup/release.feature)."""
 
     template_name = "training/final_models.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        runs, runs_unknown = listed_runs()
-        kept = final_models(settings.FINAL_MODELS_DIR)
-        statuses = transmission_statuses(kept, runs, list(Transmission.objects.all()))
+        releases = {
+            release.final_model_run_id: release
+            for release in Release.objects.with_fetches()
+        }
         return {
             **super().get_context_data(**kwargs),
-            "final_models": [(model, statuses[model.run_id]) for model in kept],
-            "runs_unknown": runs_unknown,
-            # A SuperLink that does not list runs would not take a transmission.
-            "transmits": runs_unknown is None,
+            # Each final model with its release, or None: then Release is offered.
+            "final_models": [
+                (model, releases.get(model.run_id))
+                for model in final_models(settings.FINAL_MODELS_DIR)
+            ],
         }
 
 
@@ -106,37 +100,22 @@ class StopRunView(DataScientistRequiredMixin, View):
         return redirect("training:runs")
 
 
-class TransmitView(DataScientistRequiredMixin, View):
-    """Transmits a final model to every connected hospital, then back."""
+class ReleaseView(DataScientistRequiredMixin, View):
+    """Releases a final model, so recipient hospitals may fetch it, then back."""
 
     def post(self, request: HttpRequest, run_id: str) -> HttpResponse:
         user = request.user
         if not isinstance(user, User):  # The mixin let in only a data scientist.
             raise PermissionDenied
-        try:
-            transmission = Transmission.objects.transmit(
-                final_model=run_id, transmitted_by=user, now=timezone.now()
-            )
-        except ValidationError as error:
-            messages.error(request, error.messages[0])
-        else:
-            messages.success(
-                request,
-                f"Run {transmission.run_id} transmits final model of run {run_id}"
-                " to every hospital connected now.",
-            )
-        return redirect("training:models")
-
-
-class ForSaleView(DataScientistRequiredMixin, View):
-    """A final model's weights as a file: the model sale (P5)."""
-
-    def get(self, request: HttpRequest, run_id: str) -> HttpResponse:
-        data = for_sale(settings.FINAL_MODELS_DIR, run_id)
-        if data is None:
+        if run_id not in {
+            model.run_id for model in final_models(settings.FINAL_MODELS_DIR)
+        }:
             raise Http404(f"No final model of run {run_id}.")
-        response = HttpResponse(data, content_type="application/octet-stream")
-        response["Content-Disposition"] = (
-            f'attachment; filename="final-model-run-{run_id}.pt"'
+        Release.objects.release(
+            final_model_run_id=run_id, released_by=user, now=timezone.now()
         )
-        return response
+        messages.success(
+            request,
+            f"Final model of run {run_id} released: recipient hospitals may fetch it.",
+        )
+        return redirect("training:models")
