@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from ml.cohort import FEATURES
 from tests.conftest import make_user
 from tests.django_settings import _test_settings
-from web.shared.vocabulary import RegisteredSex
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -117,6 +117,7 @@ def make_lab_records(
     sex: "RegisteredSex" = RegisteredSex.FEMALE,
     age: int = 30,
     with_ferritin: bool = True,
+    indication: ClinicalIndication = ClinicalIndication.SUSPECTED_ANAEMIA,
 ) -> None:
     """`count` past patients' lab records, the first `iron_deficient` with ferritin
     below the cutoff; each CBC differs, so each record does."""
@@ -132,6 +133,7 @@ def make_lab_records(
             ferritin=(8.0 if number < iron_deficient else 40.0)
             if with_ferritin
             else None,
+            clinical_indication=indication,
         )
         for number in range(count)
     )
