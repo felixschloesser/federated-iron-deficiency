@@ -159,7 +159,7 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
         {"sample_id": [1], "sex": ["Female"], "age": [30]}
         | {var: [1.0] for var in CBC_VARS}
     )
-    ferritin = pd.DataFrame({"sample_id": [1], "LBXFER": [20.0]})
+    ferritin = pd.DataFrame({"sample_id": [1], "LBXFER": [20.0], "CRP": [1.0]})
     records = pd.DataFrame(
         {
             "sex": ["Female"],
@@ -172,7 +172,7 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
     )
     monkeypatch.setattr(ml.dataset, "participants", lambda cycle: records)
     monkeypatch.setattr(ml.dataset, "new_cycle_participants", lambda: samples)
-    monkeypatch.setattr(ml.dataset, "new_cycle_ferritin", lambda: ferritin)
+    monkeypatch.setattr(ml.dataset, "new_cycle_ferritin_and_crp", lambda: ferritin)
     # A folder prepared before the participants stayed with prepare.
     stale = [tmp_path / "hospitals" / hospitals()[0][1]]
     stale += [tmp_path / "practices" / practices()[0][1]]

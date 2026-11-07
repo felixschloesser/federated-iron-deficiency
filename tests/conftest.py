@@ -50,10 +50,10 @@ def make_user(name: str, role: "Role") -> "User":
     return User.objects.create_user(username=name.lower().replace(" ", "-"), role=role)
 
 
-# (sex, age, ferritin) per group, in the order seeding.Group lists them.
+# (sex, age, ferritin) per group, in the order seeding.Group lists them; CRP 1.
 PEOPLE = [
-    ("Female", 30, 8.0),  # eligible, ferritin below 15
-    ("Female", 25, 40.0),  # eligible, ferritin 15 or more
+    ("Female", 30, 8.0),  # eligible, iron deficient
+    ("Female", 25, 40.0),  # eligible, not iron deficient
     ("Male", 35, None),  # men
     ("Female", 70, None),  # women outside 18-49
 ]
@@ -72,6 +72,7 @@ def nhanes_rows() -> "pd.DataFrame":
             "age": age,
             **dict.fromkeys(CBC_VARS, float(group)),
             "LBXFER": ferritin,
+            "CRP": None if ferritin is None else 1.0,
         }
         for group, (sex, age, ferritin) in enumerate([*PEOPLE, UNMEASURED])
         for copy in range(4)
