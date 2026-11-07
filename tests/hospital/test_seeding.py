@@ -1,18 +1,17 @@
-"""The hospital's demo data (seed_hospital): its staff, and what its analyser
+"""The hospital's demo data (python -m demo.seed hospital): its staff, and what its analyser
 stand-in measures for each NHANES participant it was given."""
 
-from io import StringIO
 from pathlib import Path
 
 import pytest
-from django.core.management import CommandError, call_command
 from pytest_django.fixtures import Settings
 
+from demo.seed import main
+from demo.seeding import participants as seeding
 from hospital.analyser.models import MADE_UP_FERRITIN, Participant
 from ml.cohort import CBC_VARS
 from shared.accounts.models import User
 from shared.accounts.roles import Role, role_of
-from shared.seeding import command as seeding
 from shared.vocabulary import RESULT_NAMES
 from shared.vocabulary import Test as OrderedTest
 from tests.conftest import PEOPLE, nhanes_rows
@@ -28,7 +27,7 @@ def development(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def seeded(development: None) -> None:
-    call_command("seed_hospital")
+    main(["hospital"])
 
 
 def test_seeds_its_staff(seeded: None) -> None:
@@ -56,15 +55,15 @@ def test_seeds_three_participants_of_each_group_from_nhanes(seeded: None) -> Non
 
 
 def test_running_twice_changes_nothing(seeded: None) -> None:
-    call_command("seed_hospital")
+    main(["hospital"])
     assert User.objects.count() == 3
     assert Participant.objects.count() == 3 * len(PEOPLE)
 
 
 def test_refuses_outside_development(settings: Settings) -> None:
     settings.DEBUG = False
-    with pytest.raises(CommandError, match="DJANGO_DEBUG=1"):
-        call_command("seed_hospital")
+    with pytest.raises(SystemExit, match="DJANGO_DEBUG=1"):
+        main(["hospital"])
     assert not User.objects.exists()
 
 
@@ -72,7 +71,7 @@ def test_reads_participants_from_a_csv(settings: Settings, tmp_path: Path) -> No
     settings.DEBUG = True
     csv = tmp_path / "nhanes.csv"
     nhanes_rows().to_csv(csv, index=False)
-    call_command("seed_hospital", "--nhanes", str(csv))
+    main(["hospital", "--nhanes", str(csv)])
     assert Participant.objects.count() == 3 * len(PEOPLE)
 
 
@@ -81,7 +80,7 @@ def test_eligible_women_without_ferritin_are_never_seeded(seeded: None) -> None:
 
 
 def test_the_number_of_participants_is_a_parameter(development: None) -> None:
-    call_command("seed_hospital", "--patients", "6")
+    main(["hospital", "--patients", "6"])
     assert Participant.objects.count() == 6
 
 
@@ -112,8 +111,8 @@ def test_a_hospital_seeds_its_lab_records(settings: Settings, tmp_path: Path) ->
     settings.DEBUG = True
     settings.TRAINING_COHORT_DIR = tmp_path / "cohort"
     path = lab_records_file(tmp_path, deficient=20, sound=100)
-    call_command("seed_lab_records", "--csv", str(path), stdout=StringIO())
-    call_command("seed_lab_records", "--csv", str(path), stdout=StringIO())
+    main(["lab-records", "--csv", str(path)])
+    main(["lab-records", "--csv", str(path)])
     # Once, however often prepare runs; nothing provided without --provide.
     assert LabRecord.objects.count() == 121
     assert TrainingCohort.objects.provided() is None
@@ -130,11 +129,9 @@ def test_a_hospital_seeding_with_provide_provides_its_training_cohort(
     settings.TRAINING_COHORT_DIR = tmp_path / "cohort"
     monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
     path = lab_records_file(tmp_path, deficient=20, sound=100)
-    call_command("seed_hospital", stdout=StringIO())
+    main(["hospital"])
     for _ in range(2):
-        call_command(
-            "seed_lab_records", "--csv", str(path), "--provide", stdout=StringIO()
-        )
+        main(["lab-records", "--csv", str(path), "--provide"])
     provided = TrainingCohort.objects.provided()
     assert provided is not None
     assert (provided.past_patients, provided.iron_deficient) == (120, 20)

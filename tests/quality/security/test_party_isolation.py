@@ -23,12 +23,6 @@ import pytest
 pytestmark = pytest.mark.subprocess
 
 ROOT = Path(__file__).resolve().parents[3]
-# Each party's seed command.
-SEED_COMMANDS = {
-    "hospital": "seed_hospital",
-    "practice": "seed_practice",
-    "startup": "seed_startup",
-}
 BASE_ENV = {
     name: value
     for name, value in os.environ.items()
@@ -63,11 +57,9 @@ PARTIES = ["hospital", "practice", "startup"]
 
 @pytest.mark.parametrize("party", PARTIES)
 def test_a_partys_database_lives_in_its_folder(tmp_path: Path, party: str) -> None:
-    """Pass: the party's database is DATA_DIR's shared.sqlite3."""
+    """Pass: the party's database is DATA_DIR's web.sqlite3."""
     result = settings_of(party, {"DATA_DIR": str(tmp_path)})
-    assert result.stdout.splitlines()[0] == str(tmp_path / "shared.sqlite3"), (
-        result.stderr
-    )
+    assert result.stdout.splitlines()[0] == str(tmp_path / "web.sqlite3"), result.stderr
 
 
 def test_the_startup_keeps_its_final_models_in_its_folder(tmp_path: Path) -> None:
@@ -79,15 +71,28 @@ def test_the_startup_keeps_its_final_models_in_its_folder(tmp_path: Path) -> Non
 @pytest.mark.parametrize("party", PARTIES)
 def test_without_a_folder_a_party_keeps_its_data_in_the_checkouts(party: str) -> None:
     """A checkout without DATA_DIR (development, the tests) is still one party
-    with a folder of its own. Pass: its database is .data/<party>/shared.sqlite3."""
+    with a folder of its own. Pass: its database is .data/<party>/web.sqlite3."""
     result = settings_of(party, {})
-    expected = ROOT / ".data" / party / "shared.sqlite3"
+    expected = ROOT / ".data" / party / "web.sqlite3"
     assert result.stdout.splitlines()[0] == str(expected), result.stderr
 
 
-def seed_arguments(command: str, nhanes: Path) -> list[str]:
-    """The startup seeds no participants, so it takes no NHANES file."""
-    return [] if command == "seed_startup" else ["--nhanes", str(nhanes)]
+def seed(party: str, env: dict[str, str], nhanes: Path) -> None:
+    """The party's demo accounts and records (python -m demo.seed); the startup
+    seeds no participants, so it takes no NHANES file."""
+    arguments = [] if party == "startup" else ["--nhanes", str(nhanes)]
+    subprocess.run(
+        [sys.executable, "-m", "demo.seed", party, *arguments],
+        check=True,
+        cwd=ROOT,
+        env={
+            **BASE_ENV,
+            "DJANGO_SETTINGS_MODULE": f"{party}.settings",
+            "DJANGO_DEBUG": "1",
+            **env,
+        },
+        capture_output=True,
+    )
 
 
 def run_manage(party: str, env: dict[str, str], *args: str) -> None:
@@ -108,7 +113,7 @@ def run_manage(party: str, env: dict[str, str], *args: str) -> None:
 def tables_after_migrating(party: str, folder: Path) -> set[str]:
     """The tables of a `party` web app's database in `folder`, once migrated."""
     run_manage(party, {"DATA_DIR": str(folder)}, "migrate", "-v0")
-    with closing(sqlite3.connect(folder / "shared.sqlite3")) as database:
+    with closing(sqlite3.connect(folder / "web.sqlite3")) as database:
         return {
             name
             for (name,) in database.execute(
@@ -169,15 +174,15 @@ for user in User.objects.order_by("username"):
 
 
 @pytest.mark.parametrize(
-    ("party", "command", "users"),
+    ("party", "users"),
     [
-        ("hospital", "seed_hospital", {"director", "staff"}),
-        ("practice", "seed_practice", {"doctor"}),
-        ("startup", "seed_startup", {"data-scientist"}),
+        ("hospital", {"director", "staff"}),
+        ("practice", {"doctor"}),
+        ("startup", {"data-scientist"}),
     ],
 )
 def test_every_page_of_a_party_loads_in_its_own_web_app(
-    tmp_path: Path, party: str, command: str, users: set[str]
+    tmp_path: Path, party: str, users: set[str]
 ) -> None:
     """Pass: with only its own apps installed, every page of each seeded
     account's role answers 200."""
@@ -187,7 +192,7 @@ def test_every_page_of_a_party_loads_in_its_own_web_app(
     nhanes_rows().to_csv(nhanes, index=False)
     env = {"DATA_DIR": str(tmp_path)}
     run_manage(party, env, "migrate", "-v0")
-    run_manage(party, env, command, *seed_arguments(command, nhanes))
+    seed(party, env, nhanes)
     result = subprocess.run(
         [sys.executable, "manage.py", "shell", "-c", SMOKE],
         check=True,

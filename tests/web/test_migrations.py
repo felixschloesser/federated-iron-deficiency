@@ -33,7 +33,7 @@ def test_a_laboratory_folder_added_unique_is_removed_with_its_laboratories(
     """A demo volume ran 0003 when it made the folder unique; 0004 must drop
     that unique column, laboratories kept, which SQLite cannot do in place."""
     migrate(tmp_path, "practice", "0002")
-    database = sqlite3.connect(tmp_path / "shared.sqlite3")
+    database = sqlite3.connect(tmp_path / "web.sqlite3")
     with database:
         database.executemany(
             "INSERT INTO practice_laboratory (name, address) VALUES (?, ?)",
@@ -74,7 +74,7 @@ def test_the_practice_names_a_hospital_holds_become_practices(tmp_path: Path) ->
         )
 
     migrate_hospital("lab", "0002")
-    database = sqlite3.connect(tmp_path / "shared.sqlite3")
+    database = sqlite3.connect(tmp_path / "web.sqlite3")
     with database:
         database.executemany(
             "INSERT INTO lab_sample (practice, sample_id) VALUES (?, ?)",
@@ -110,7 +110,7 @@ def test_a_general_practitioner_record_becomes_the_users_role(tmp_path: Path) ->
     0007 makes it the user's role, and the one-per-practice constraint follows."""
     migrate(tmp_path, "practice", "0006")
     migrate(tmp_path, "accounts", "0002")
-    database = sqlite3.connect(tmp_path / "shared.sqlite3")
+    database = sqlite3.connect(tmp_path / "web.sqlite3")
     with database:
         for username in ("doctor", "no-role"):
             database.execute(
