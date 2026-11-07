@@ -35,8 +35,8 @@ def test_clean_tree_has_no_findings(tmp_path: Path) -> None:
         tmp_path,
         {
             "static/css/app.css": ".page { margin: 0; }\n",
-            "templates/kit/base.html": '<main class="page"></main>\n',
-            "templates/lab/index.html": '{% extends "kit/base.html" %}\n',
+            "templates/includes/base.html": '<main class="page"></main>\n',
+            "templates/lab/index.html": '{% extends "includes/base.html" %}\n',
             "web/hospital/lab/views.py": (
                 "class ReceiveView(View):\n"
                 "    def post(self, request) -> HttpResponse:\n"
@@ -52,25 +52,27 @@ def test_undefined_css_class(tmp_path: Path) -> None:
         tmp_path,
         {
             "static/css/app.css": ".page {}\n",
-            "templates/kit/base.html": (
+            "templates/includes/base.html": (
                 '<p class="page {% if unread %}unread{% endif %}">\n'
             ),
         },
     )
     assert audit.run(root)["css_classes"] == [
-        "templates/kit/base.html:1: class 'unread' is not defined in static/css"
+        "templates/includes/base.html:1: class 'unread' is not defined in static/css"
     ]
 
 
-def test_page_template_outside_the_kit(tmp_path: Path) -> None:
+def test_page_template_that_does_not_extend_the_base(tmp_path: Path) -> None:
     root = tree(tmp_path, {"templates/lab/index.html": "<html></html>\n"})
-    assert counts(root)["kit_only"] == 1
+    assert counts(root)["includes_only"] == 1
 
 
 def test_safe_filter_needs_an_allowlist_entry(tmp_path: Path) -> None:
-    files = {"templates/kit/base.html": "{{ body" + SAFE + " }}\n"}
+    files = {"templates/includes/base.html": "{{ body" + SAFE + " }}\n"}
     assert counts(tree(tmp_path, files))["safe"] == 1
-    allowlist = '[safe]\n"templates/kit/base.html" = "Rendered Markdown we write"\n'
+    allowlist = (
+        '[safe]\n"templates/includes/base.html" = "Rendered Markdown we write"\n'
+    )
     tree(tmp_path, {".claude/audit_allowlist.toml": allowlist})
     assert counts(tmp_path)["safe"] == 0
 

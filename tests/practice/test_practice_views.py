@@ -347,14 +347,14 @@ def test_login_page_and_logout(client: Client, general_practitioner: User) -> No
     assert client.get(reverse("practice:patients")).status_code == 302
 
 
-def test_refusal_page_comes_from_the_kit(client: Client) -> None:
+def test_refusal_page_comes_from_the_shared_includes(client: Client) -> None:
     client.force_login(User.objects.create_user(username="no-role"))
     response = client.get(reverse("practice:patients"))
     assert response.status_code == 403
     assert "403.html" in [template.name for template in response.templates]
 
 
-def test_missing_page_comes_from_the_kit(client: Client) -> None:
+def test_missing_page_comes_from_the_shared_includes(client: Client) -> None:
     response = client.get("/no-such-page/")
     assert response.status_code == 404
     assert "404.html" in [template.name for template in response.templates]

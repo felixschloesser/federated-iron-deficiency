@@ -56,7 +56,7 @@ def test_a_wrong_password_marks_both_fields_invalid(client: Client) -> None:
     errors = response.context["form"].errors.as_data()
     assert [error.code for error in errors["__all__"]] == ["invalid_login"]
     assertContains(response, 'aria-invalid="true"', count=2)
-    # One form-wide error: the kit's error alert says just that, plainly.
+    # One form-wide error: the shared error alert says just that, plainly.
     assertContains(response, '<article role="alert" data-level="error"')
     assertContains(response, "<p>Wrong username or password.</p>")
     assertNotContains(response, "There is a problem")
@@ -64,7 +64,7 @@ def test_a_wrong_password_marks_both_fields_invalid(client: Client) -> None:
 
 
 def test_login_labels_have_no_trailing_colon(client: Client) -> None:
-    """The kit's labels read as names, not as prompts: "Username", not "Username:"."""
+    """The shared form's labels read as names, not as prompts: "Username", not "Username:"."""
     response = client.get(reverse("login"))
     assertContains(response, '<label for="id_username">Username</label>')
     assertContains(response, '<label for="id_password">Password</label>')

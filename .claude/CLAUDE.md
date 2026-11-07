@@ -21,14 +21,11 @@ uv run --frozen ruff check .
 uv run --frozen mypy --strict . .claude/audit.py .claude/red_first.py
 for party in hospital practice startup; do DJANGO_SETTINGS_MODULE=web.$party.settings uv run --frozen python -W error manage.py check; done
 for party in hospital practice startup; do DJANGO_SETTINGS_MODULE=web.$party.settings uv run --frozen python manage.py makemigrations --check --dry-run; done
-uv run --frozen pytest -W error --ds=web.hospital.settings
-uv run --frozen pytest -W error --ds=web.practice.settings
-uv run --frozen pytest -W error --ds=web.startup.settings
 uv run --frozen pytest -W error
 uv run --frozen python .claude/audit.py
 ```
 
-- Run every gate through `uv run --frozen`, never with a stale `.venv`. Each pytest line collects one party's `tests/<party>/` (its `--ds`), the last one every test outside the party folders, without Django settings (`conftest.py`). With `DJANGO_SETTINGS_MODULE` set in the shell, the last line collects that party's tests instead: unset it.
+- Run every gate through `uv run --frozen`, never with a stale `.venv`. Plain pytest runs the tests outside the party folders without Django settings, then each party's (a folder named after the party, anywhere under `tests/`) in a pytest of its own under `--ds=web.<party>.settings` (`conftest.py`). With `DJANGO_SETTINGS_MODULE` set in the shell, it runs only that party's tests: unset it.
 - Merge gate: `uv run --frozen pytest -W error -m containers` must also exit 0 when a branch touches what the images or containers are made of, or the tests that run them: compose, Docker files, `.dockerignore`, `web/shared/settings.py`, `web/<party>/settings.py`, `demo/`, `ml/`, `pyproject.toml`, `uv.lock`, `tests/compose_project.py` or a test marked `containers`. Other branches merge without it.
 
 - Zero warnings. Never suppress one (`# noqa`, `# type: ignore`, `filterwarnings`); fix the root cause. If the fix is genuinely unclear, stop and report with a recommendation.
@@ -62,7 +59,7 @@ uv run --frozen python .claude/audit.py
 
 ## Templates
 
-- Pages are built only from the shared kit (`web/shared/templates/kit/`: base layout, index header, action row, archive/restore with the refusal beside the action, form layout, error summary). A missing piece goes into the kit, not the page.
+- Pages are built only from the shared includes (`web/shared/templates/includes/`: base layout, index header, action row, archive/restore with the refusal beside the action, form layout, error summary). A missing piece goes into includes/, not the page.
 - Only CSS classes defined in the vendored stylesheet or `web/shared/static/css/`. The audit checks `class="…"` in the templates.
 - Conditional controls (show only when the recorded facts make them applicable) are decided in the view or a query function and tested there, not by rendering.
 - In tests, `string_if_invalid` fails the test; a missing variable never renders blank.

@@ -84,6 +84,7 @@ plugins = ["mypy_django_plugin.main"]
 django_settings_module = "typecheck_settings"
 
 [tool.pytest.ini_options]
+testpaths = ["tests", ".claude/tests"]
 # The audit and red_first live in .claude/, out of readers' way; their tests import them.
 pythonpath = [".claude"]
 # Every test is a function: no class is collected, so domain classes named
