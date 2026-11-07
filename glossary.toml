@@ -159,15 +159,15 @@ meaning = "Decides which screening model screens patients; one per hospital (fea
 source = "WHO LQMS ch. 2, p. 21: the director assesses \"all potential risks … including services to patients\" (20 uses)"
 
 ["lab record"]
-meaning = "What the laboratory holds of a past patient: registered sex, age, the CBC values and the ferritin result; what the training cohort is extracted from. Kept apart from the test requests (DS8) and the analyser stand-in"
+meaning = "What the laboratory holds of a past patient: registered sex, age, the CBC values, the ferritin and CRP results and the clinical indication of its order; what the training cohort is extracted from. Kept apart from the test requests (DS8) and the analyser stand-in"
 source = "Report, DS1 \"Lab records\"; DF1 \"Past CBC and ferritin results\""
 
 ["past patient"]
-meaning = "Whom the training cohort holds a row for: an eligible woman with a complete CBC and a ferritin result in the lab records"
+meaning = "Whom the training cohort holds a row for: an eligible woman with a complete CBC ordered for a screened indication, a ferritin and a CRP result in the lab records"
 source = "Report, DF2 \"Cohort: 13 CBC values, age and label per past patient\""
 
 ["training cohort"]
-meaning = "What the startup's code at this hospital trains on: the 13 CBC values, age and whether ferritin was below the cutoff, per past patient; nothing else. Exists only once the laboratory director provides it"
+meaning = "What the startup's code at this hospital trains on: the 13 CBC values, age and whether iron deficient, per past patient; nothing else. Exists only once the laboratory director provides it"
 source = "Report, DS2 \"Training cohort\""
 
 ["provide"]
@@ -237,6 +237,14 @@ source = "NHANES 2021–2023 CBC_L codebook, SAS labels (https://wwwn.cdc.gov/Nc
 ["Ferritin, ng/mL"]
 meaning = "As above"
 source = "NHANES 2021–2023 FERTIN_L codebook (https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2021/DataFiles/FERTIN_L.htm)"
+
+["inflammation"]
+meaning = "When a past patient counts as iron deficient below 70 ng/mL instead of 15: a CRP above 5 mg/L. Ferritin rises with inflammation, so the lower cutoff would miss her"
+source = "WHO ferritin guideline (who2020), recommendation 1.2, PDF p. 11: \"In individuals with infection or inflammation, a ferritin concentration below … 70 µg/L in adults\"; PDF p. 15: \"elevated inflammation (as defined by a CRP concentration >5 mg/L\""
+
+["CRP, mg/L"]
+meaning = "The lab result that says whether a past patient had inflammation; it makes the label and stays in the lab records. A past patient without one stays out of the training cohort, and the director sees how many"
+source = "WHO ferritin guideline (who2020), PDF p. 29: \"C-reactive protein (CRP)\"; NHANES HSCRP codebooks (LBXHSCRP, mg/L)"
 
 ["Ferritin (made up for the demo), ng/mL"]
 meaning = "Tells the general practitioner the value is not a measurement; kept apart from ferritin so it never feeds a suggestion or a label"

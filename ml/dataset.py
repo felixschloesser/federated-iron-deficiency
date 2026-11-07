@@ -7,7 +7,7 @@ import pandas as pd
 from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import NaturalIdPartitioner
 
-from ml.cohort import CBC_VARS, FEATURES, FERRITIN_CUTOFF, eligible
+from ml.cohort import CBC_VARS, FEATURES, eligible, iron_deficient
 
 # NHANES merged into one row per participant and cycle, pinned to a fixed revision.
 HF_DATASET = "gracemyu/nhanes-merged"
@@ -37,7 +37,16 @@ HF_COLUMNS = {
     "demo_ridexprg": "RIDEXPRG",
     **{f"cbc_{var.lower()}": var for var in CBC_VARS},
     "fertin_lbxfer": "LBXFER",
+    "crp_lbxcrp": "LBXCRP",
+    "hscrp_lbxhscrp": "LBXHSCRP",
 }
+
+
+def _renamed(table: pd.DataFrame) -> pd.DataFrame:
+    """The merged table in NHANES's names, with CRP in mg/L: the high-sensitivity
+    assay where a cycle has it (mg/L), else the standard one (mg/dL)."""
+    renamed = table.rename(columns=HF_COLUMNS)
+    return renamed.assign(CRP=renamed["LBXHSCRP"].fillna(renamed["LBXCRP"] * 10))
 
 
 def pregnant(participants: pd.DataFrame) -> "pd.Series[bool]":
@@ -52,7 +61,7 @@ def in_cohort(participants: pd.DataFrame) -> "pd.Series[bool]":
     return (
         eligible(participants["RIAGENDR"], participants["RIDAGEYR"])
         & ~pregnant(participants)
-        & participants[FEATURES + ["LBXFER"]].notna().all(axis=1)
+        & participants[FEATURES + ["LBXFER", "CRP"]].notna().all(axis=1)
     )
 
 
@@ -71,7 +80,7 @@ def hospital_share(participants: pd.DataFrame, cycle: str) -> pd.DataFrame:
 
 def build_cohort(dataset_dict: datasets.DatasetDict) -> datasets.DatasetDict:
     """Reduce the merged NHANES table to the cohort of each cycle."""
-    merged = dataset_dict["train"].to_pandas().rename(columns=HF_COLUMNS)
+    merged = _renamed(dataset_dict["train"].to_pandas())
     cohort = pd.concat(
         [
             hospital_share(
@@ -81,7 +90,7 @@ def build_cohort(dataset_dict: datasets.DatasetDict) -> datasets.DatasetDict:
         ]
     ).sort_values("SEQN")
     cohort = cohort.assign(
-        iron_deficient=(cohort["LBXFER"] < FERRITIN_CUTOFF).astype(int)
+        iron_deficient=iron_deficient(cohort["LBXFER"], cohort["CRP"]).astype(int)
     )
     columns = FEATURES + ["iron_deficient", "cycle"]
     return datasets.DatasetDict(
@@ -104,24 +113,23 @@ def load_federated_dataset() -> FederatedDataset:
 
 def _load_cycle(year: int) -> pd.DataFrame:
     """Return every participant of the cycle starting in `year`."""
-    merged = (
+    merged = _renamed(
         datasets.load_dataset(
             HF_DATASET,
             revision=HF_REVISION,
             data_files=HF_DATA_FILE,
             columns=list(HF_COLUMNS),
             split="train",
-        )
-        .to_pandas()
-        .rename(columns=HF_COLUMNS)
+        ).to_pandas()
     )
     return merged[merged["YEAR"] == year]
 
 
 def participants(cycle: str) -> pd.DataFrame:
     """The hospital's share of `cycle`'s participants with every feature, with
-    ferritin where NHANES measured it, in SEQN order: what the demo seeds as
-    the hospital's past lab records (DS1)."""
+    ferritin and CRP (mg/L) where NHANES measured them and whether each was
+    pregnant, in SEQN order: what the demo seeds as the hospital's past lab
+    records (DS1)."""
     measured = _load_cycle(CYCLES[cycle]).dropna(subset=FEATURES)
     cohort = in_cohort(measured)
     sampled = pd.concat(
@@ -136,6 +144,7 @@ def participants(cycle: str) -> pd.DataFrame:
             "age": sampled["RIDAGEYR"].astype(int),
             **{var: sampled[var] for var in CBC_VARS},
             "LBXFER": sampled["LBXFER"],
+            "CRP": sampled["CRP"],
             "pregnant": pregnant(sampled),
         }
     )

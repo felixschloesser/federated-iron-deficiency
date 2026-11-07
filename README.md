@@ -3,7 +3,8 @@
 This [Flower](https://flower.ai/) app trains a
 [PyTorch](https://pytorch.org/) binary classifier to identify iron deficiency
 from routine complete blood count measurements and age. Iron deficiency is
-defined as ferritin below 15 ng/mL.
+ferritin below 15 ng/mL, or below 70 ng/mL with inflammation (CRP above
+5 mg/L), as the WHO ferritin guideline (2020) defines it for adults.
 
 The federation has three clients, standing in for a large, a medium, and a
 small hospital. Each holds a different
