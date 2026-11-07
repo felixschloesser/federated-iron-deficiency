@@ -29,8 +29,7 @@ TRAINING_COHORT = "training-cohort"
 
 def load_cohort(context: Context) -> pd.DataFrame:
     """Load this node's cohort: at a hospital, the training cohort its laboratory
-    director provided, the same one every round of a run
-    (features/training_cohort_in_runs.feature)."""
+    director provided, the same one every round of a run."""
     # Deployment Runtime: the training cohort, noted in the run's state, which
     # Flower keeps on this SuperNode from round to round.
     if "data-path" in context.node_config:

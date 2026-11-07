@@ -1,7 +1,7 @@
 """Screening models as files in the hospital's folder: storing a fetched final
-model with this hospital's standardization and local validation
-(features/hospital/final_models.feature), what the laboratory director sees of
-each, and why one cannot be deployed (features/hospital/deployment.feature)."""
+model with this hospital's standardization and local validation, what the
+laboratory director sees of each, and why one cannot be deployed
+(features/hospital/deployment.feature)."""
 
 import hashlib
 from dataclasses import dataclass, field

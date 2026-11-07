@@ -20,6 +20,6 @@ class Migration(migrations.Migration):
                 fields=("practice", "sample_id"), name="one_sample_per_practice"
             ),
         ),
-        # The practice says who ordered (features/practice/access.feature): no general practitioner's name.
+        # The practice says who ordered: no general practitioner's name.
         migrations.RemoveField(model_name="laborder", name="general_practitioner"),
     ]

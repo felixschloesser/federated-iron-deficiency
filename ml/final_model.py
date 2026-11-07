@@ -75,7 +75,7 @@ class FinalModel:
     std: torch.Tensor | None = None
     run_id: int | str | None = None
     stored_at: datetime | None = None
-    # Only what the ServerApp aggregated; no other hospital's metrics (features/hospital/final_models.feature).
+    # Only what the ServerApp aggregated; no other hospital's metrics.
     federated: dict[str, float] = field(default_factory=dict)
     # Local validation: the confusion matrix at each threshold, and AUROC.
     confusion_matrices: dict[float, dict[str, int]] = field(default_factory=dict)
@@ -142,7 +142,7 @@ def to_bytes(model: FinalModel) -> bytes:
 
 
 def write(path: Path, model: FinalModel) -> None:
-    """Store a final model; one is never overwritten (features/hospital/final_models.feature)."""
+    """Store a final model; one is never overwritten."""
     if path.exists():
         raise FileExistsError(path)
     path.parent.mkdir(parents=True, exist_ok=True)
