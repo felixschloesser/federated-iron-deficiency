@@ -25,3 +25,5 @@ PROGRESS.md
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+# Each party's data in a checkout without DATA_DIR (shared/settings.py).
+/.data/

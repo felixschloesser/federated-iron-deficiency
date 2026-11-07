@@ -27,8 +27,7 @@ not a process of the report's DFDs:
 | P2 SuperNode, ClientApp | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
 | P3 SuperLink | `flower-superlink` |
 | P4 ServerApp | `flower-server-app` |
-| P5 Model sale | *Download for sale* on `startup-web`: a final model's weights as a file, without a threshold |
-| E3 Other hospitals | not built |
+| P12 Final-models endpoint | `startup-web`, a second server beside its pages, on the `final-models` network only the hospitals' web apps join |
 | P6 Model deployment, P8 Messaging endpoint, P9 Lab analysis, P10 Screening | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis, and its messaging endpoint, each server on its own network |
 | P7 Practice app | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
 | E1 Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models (DS4) and submits a training run; or `train`, run by hand |
@@ -126,8 +125,8 @@ container inside the startup's network because that is where the data
 scientist sits in the report's DFD; the SuperLink's control API is never
 published to your machine, and the proxy reaches the startup's web app on a
 network of its own, `startup-web`, never the SuperLink. When the run
-finishes, its final model appears on the startup's Final models page; transmit
-it to the hospitals there. Then log in to a hospital as `director` to compare
+finishes, its final model appears on the startup's Final models page; release
+it there. Then log in to a hospital as `director`, fetch new final models, compare
 its local validation at each threshold and deploy it at one. Then order a
 CBC as `doctor`, analyse it as `staff`, and the lab report with its
 screening comes back to the practice.
@@ -150,7 +149,7 @@ screening comes back to the practice.
   removes this demo's networks that no container uses; the next `up` creates
   the ones it needs again.
 - To look into a party's database while the demo runs:
-  `docker compose exec uz-leuven-web python -m sqlite3 /demo/hospitals/uz-leuven/web.sqlite3`.
+  `docker compose exec uz-leuven-web python -m sqlite3 /demo/hospitals/uz-leuven/shared.sqlite3`.
 
 The demo's output folder was `demo/` until 2026-11-05; `demo/` now holds the
 demo's source. Move what you have once:
@@ -170,7 +169,14 @@ names and insist on HTTPS: clear it for those sites.
 ## Without Docker
 
 Each party installs only its own apps: a hospital's database has no table
-for patients, a practice's none for lab orders, analyser values or final
-models. A development checkout (no `PARTY`) serves
-every party from one database; seed it with
-`DJANGO_DEBUG=1 uv run python manage.py seed_hospital` and `seed_practice`.
+for patients, a practice's none for test requests, analyser values or final
+models. Without Docker, run each party as its own web app, each on a port of its
+own; its data goes to `.data/<party>/` in the checkout:
+
+    export DJANGO_DEBUG=1
+    DJANGO_SETTINGS_MODULE=hospital.settings uv run python manage.py migrate
+    DJANGO_SETTINGS_MODULE=hospital.settings uv run python manage.py seed_hospital
+    DJANGO_SETTINGS_MODULE=hospital.settings uv run python manage.py runserver 8001
+    DJANGO_SETTINGS_MODULE=practice.settings uv run python manage.py migrate
+    DJANGO_SETTINGS_MODULE=practice.settings uv run python manage.py seed_practice
+    DJANGO_SETTINGS_MODULE=practice.settings uv run python manage.py runserver 8002

@@ -26,7 +26,7 @@ from tqdm import tqdm
 
 from demo.topology import PATIENTS, PRACTICES, PROVIDED
 from ml.dataset import CYCLES, HOSPITALS, hospital_slug
-from web.seeding.accounts import (
+from shared.seeding.accounts import (
     DATA_SCIENTIST,
     GENERAL_PRACTITIONER,
     LABORATORY_DIRECTOR,
@@ -139,7 +139,12 @@ def prepare_web(
     folder: Path, party: str, seed_command: str, seeds: list[list[str]]
 ) -> None:
     """Migrate the party's database and seed its demo accounts, once per seed."""
-    env = {**os.environ, "PARTY": party, "DATA_DIR": str(folder), "DJANGO_DEBUG": "1"}
+    env = {
+        **os.environ,
+        "DJANGO_SETTINGS_MODULE": f"{party}.settings",
+        "DATA_DIR": str(folder),
+        "DJANGO_DEBUG": "1",
+    }
     subprocess.run(manage("migrate", "-v0"), env=env, check=True)
     for seed in seeds:
         # Quiet: the summary at startup names the accounts once.
@@ -176,7 +181,7 @@ def add_practices(hospital: Path) -> None:
     """Every practice, at the hospital, by its certificate name."""
     env = {
         **os.environ,
-        "PARTY": "hospital",
+        "DJANGO_SETTINGS_MODULE": "hospital.settings",
         "DATA_DIR": str(hospital),
         "DJANGO_DEBUG": "1",
     }
@@ -189,12 +194,38 @@ def add_practices(hospital: Path) -> None:
         )
 
 
+def hospital_arguments() -> list[list[str]]:
+    """add_hospital's arguments for every hospital: the certificate name the
+    startup issues it (its folder's name) and its name (features/startup/release.feature)."""
+    return [
+        [slug, HOSPITALS[cycle]]
+        for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True)
+    ]
+
+
+def add_hospitals(startup: Path) -> None:
+    """Every hospital, at the startup, as a recipient of released final models."""
+    env = {
+        **os.environ,
+        "PARTY": "startup",
+        "DATA_DIR": str(startup),
+        "DJANGO_DEBUG": "1",
+    }
+    for arguments in hospital_arguments():
+        subprocess.run(
+            manage("add_hospital", *arguments),
+            env=env,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+
+
 def seed_lab_records(hospital: Path, arguments: list[str]) -> None:
     """The hospital's lab records, and its training cohort where its laboratory
     director provided one."""
     env = {
         **os.environ,
-        "PARTY": "hospital",
+        "DJANGO_SETTINGS_MODULE": "hospital.settings",
         "DATA_DIR": str(hospital),
         "DJANGO_DEBUG": "1",
     }
@@ -210,7 +241,7 @@ def add_laboratories(practice: Path, practice_cycle: str) -> None:
     """Every hospital's laboratory, at its lab-order endpoint (features/practice/messaging.feature)."""
     env = {
         **os.environ,
-        "PARTY": "practice",
+        "DJANGO_SETTINGS_MODULE": "practice.settings",
         "DATA_DIR": str(practice),
         "DJANGO_DEBUG": "1",
     }
@@ -327,6 +358,8 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
             if party == "hospital":
                 add_practices(folder)
                 seed_lab_records(folder, lab_record_arguments(demo_dir)[folder.name])
+            if party == "startup":
+                add_hospitals(folder)
             bar.update()
         for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True):
             bar.set_description_str(f"{'Checking ' + HOSPITALS[cycle]:<{width}}")
@@ -339,7 +372,7 @@ def screening_status(demo_dir: Path, slug: str) -> str:
     """One hospital's one-line screening model state."""
     env = {
         **os.environ,
-        "PARTY": "hospital",
+        "DJANGO_SETTINGS_MODULE": "hospital.settings",
         "DATA_DIR": str(hospital_dir(demo_dir, slug)),
         "DJANGO_DEBUG": "1",
     }

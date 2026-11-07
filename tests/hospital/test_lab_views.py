@@ -8,16 +8,16 @@ from django.urls import reverse
 from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains, assertNotContains
 
+from hospital.lab.models import TestRequest
+from shared.accounts.models import User
+from shared.vocabulary import RegisteredSex
+from shared.vocabulary import Test as OrderedTest
 from tests.hospital.conftest import (
     make_laboratory_director,
     make_laboratory_staff_member,
     make_tube,
     receive_lab_order,
 )
-from web.accounts.models import User
-from web.hospital.lab.models import TestRequest
-from web.vocabulary import RegisteredSex
-from web.vocabulary import Test as OrderedTest
 
 ORDERED = datetime(2026, 10, 29, 9, 0, tzinfo=UTC)
 

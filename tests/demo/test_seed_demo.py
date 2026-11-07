@@ -1,230 +1,56 @@
-"""The demo data commands used for manual and browser checks: seed_hospital
-and seed_practice, both run in a development checkout."""
+"""Each party seeds the same NHANES participants for the same seed: the practice
+its patients, the hospital what their tubes would measure (seed_practice,
+seed_hospital). Each seeds its own folder in a process of its own, as the demo
+does; what each party seeds alone is in tests/<party>/test_seeding.py."""
 
-from io import StringIO
+import os
+import sqlite3
+import subprocess
+import sys
+from contextlib import closing
 from pathlib import Path
 
 import pytest
-from django.core.management import CommandError, call_command
-from pytest_django.fixtures import Settings
 
-from ml.cohort import CBC_VARS
-from tests.conftest import PEOPLE, nhanes_rows
-from web.accounts.models import User
-from web.accounts.roles import Role, role_of
-from web.hospital.nhanes.models import Participant
-from web.practice.models import Patient
-from web.seeding import command as seeding
-from web.vocabulary import RegisteredSex
+from tests.conftest import nhanes_rows
 
-pytestmark = [pytest.mark.subprocess, pytest.mark.django_db]
+pytestmark = pytest.mark.subprocess
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
-def seed(*args: str) -> None:
-    call_command("seed_hospital", *args)
-    call_command("seed_practice", *args)
-    call_command("seed_startup")
-
-
-@pytest.fixture
-def seeded(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
-    settings.DEBUG = True
-    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
-    seed()
-
-
-def test_seeds_accounts_of_every_role(seeded: None) -> None:
-    roles = {role_of(user) for user in User.objects.all()}
-    assert roles == {*Role, None}  # no-role: for the refusal at login
-    assert User.objects.get(username="staff").check_password("demo-pass-2026")
-
-
-def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
-    assert Patient.objects.count() == 3 * len(PEOPLE)
-    for group, (sex, age, ferritin) in enumerate(PEOPLE):
-        participants = Participant.objects.filter(
-            seqn__range=(1000 + 10 * group, 1009 + 10 * group)
-        )
-        assert participants.count() == 3
-        for participant in participants:
-            assert participant.ferritin == ferritin
-            # NHANES did not measure them: a value made up from the women who
-            # were, at or above the cutoff (here the 25-year-olds' 40.0).
-            assert participant.made_up_ferritin == (40.0 if ferritin is None else None)
-            assert participant.cbc == dict.fromkeys(CBC_VARS, float(group))
-            patient = Patient.objects.get(nhanes_number=str(participant.seqn))
-            assert patient.registered_sex == sex.lower()
-            assert patient.age == age
-
-
-def test_the_practice_has_one_general_practitioner_and_every_patient(
-    seeded: None,
-) -> None:
-    assert User.objects.get(role=Role.GENERAL_PRACTITIONER).username == "doctor"
-    assert Patient.objects.count() == 12
-
-
-def test_running_twice_changes_nothing(seeded: None) -> None:
-    seed()
-    # staff, director, the practice's one general practitioner, the startup's
-    # data scientist, no-role.
-    assert User.objects.count() == 5
-    assert Patient.objects.count() == 3 * len(PEOPLE)
-
-
-def test_refuses_outside_development(settings: Settings) -> None:
-    settings.DEBUG = False
-    with pytest.raises(CommandError, match="DJANGO_DEBUG=1"):
-        seed()
-    assert not User.objects.exists()
-
-
-def test_each_hospital_seeds_other_participants(
-    settings: Settings, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    settings.DEBUG = True
-    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
-    rows = nhanes_rows()
-    assert not seeding.choose(rows, seed=0).equals(seeding.choose(rows, seed=1))
-    seed("--seed", "1")
-    assert Patient.objects.count() == 3 * len(PEOPLE)
-
-
-def test_reads_participants_from_a_csv(settings: Settings, tmp_path: Path) -> None:
-    settings.DEBUG = True
-    csv = tmp_path / "nhanes.csv"
-    nhanes_rows().to_csv(csv, index=False)
-    seed("--nhanes", str(csv))
-    assert Patient.objects.count() == 3 * len(PEOPLE)
-
-
-def test_a_hospital_seeds_no_patients(
-    settings: Settings, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    settings.DEBUG = True
-    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
-    call_command("seed_hospital")
-    assert not Patient.objects.exists()
-    assert Participant.objects.count() == 3 * len(PEOPLE)
-    assert {role_of(user) for user in User.objects.all()} == {
-        Role.LABORATORY_STAFF,
-        Role.LABORATORY_DIRECTOR,
-        None,
+def seed(party: str, folder: Path, nhanes: Path, seed_value: str) -> None:
+    env = {
+        **{key: value for key, value in os.environ.items() if key != "DATA_DIR"},
+        "DJANGO_SETTINGS_MODULE": f"{party}.settings",
+        "DATA_DIR": str(folder),
+        "DJANGO_DEBUG": "1",
     }
+    manage = [sys.executable, str(ROOT / "manage.py")]
+    subprocess.run([*manage, "migrate", "-v0"], env=env, check=True)
+    subprocess.run(
+        [*manage, f"seed_{party}", "--nhanes", str(nhanes), "--seed", seed_value],
+        env=env,
+        check=True,
+        capture_output=True,
+    )
 
 
-def test_a_practice_seeds_no_analyser_values(
-    settings: Settings, monkeypatch: pytest.MonkeyPatch
+def column(folder: Path, query: str) -> set[str]:
+    with closing(sqlite3.connect(folder / "shared.sqlite3")) as database:
+        return {str(value) for (value,) in database.execute(query)}
+
+
+@pytest.mark.parametrize("seed_value", ["0", "1"])
+def test_the_practice_and_the_hospital_seed_the_same_participants(
+    tmp_path: Path, seed_value: str
 ) -> None:
-    settings.DEBUG = True
-    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
-    call_command("seed_practice")
-    assert not Participant.objects.exists()
-    assert Patient.objects.count() == 3 * len(PEOPLE)
-    assert {role_of(user) for user in User.objects.all()} == {
-        Role.GENERAL_PRACTITIONER,
-        None,
-    }
-
-
-def test_eligible_women_without_ferritin_are_never_seeded(seeded: None) -> None:
-    assert not Participant.objects.filter(seqn__range=(1040, 1049)).exists()
-    assert not Patient.objects.filter(age=40).exists()
-
-
-def test_a_made_up_ferritin_is_reported_under_its_own_name() -> None:
-    from web.hospital.nhanes.models import MADE_UP_FERRITIN
-    from web.vocabulary import RESULT_NAMES, Test
-
-    participant = Participant(seqn=1, cbc={}, ferritin=None, made_up_ferritin=60.0)
-    assert participant.measure(Test.FERRITIN) == {MADE_UP_FERRITIN: 60.0}
-    assert RESULT_NAMES[MADE_UP_FERRITIN].name == "Ferritin (made up for the demo)"
-    assert RESULT_NAMES[MADE_UP_FERRITIN].unit == "ng/mL"
-
-
-def test_patients_get_fictional_flemish_names_matching_their_sex(seeded: None) -> None:
-    for patient in Patient.objects.all():
-        first, last = patient.name.split(" ", 1)
-        sex = RegisteredSex(patient.registered_sex)
-        assert first in seeding.first_names(sex), patient.name
-        assert last in seeding.SURNAMES, patient.name
-    assert Patient.objects.values("name").distinct().count() > 1
-
-
-def test_a_patients_name_is_the_same_on_every_seed() -> None:
-    female = RegisteredSex.FEMALE
-    assert seeding.patient_name(135318, female) == seeding.patient_name(135318, female)
-    assert seeding.patient_name(135318, female) != seeding.patient_name(135319, female)
-
-
-def test_the_number_of_patients_is_a_parameter(
-    settings: Settings, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    settings.DEBUG = True
-    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
-    seed("--patients", "6")
-    assert Patient.objects.count() == 6
-    assert Participant.objects.count() == 6
-    # Shared by the groups, the first ones rounding up: 2, 2, 1, 1.
-    assert Patient.objects.filter(age=30).count() == 2
-    assert Patient.objects.filter(age=70).count() == 1
-
-
-def test_the_startup_seeds_only_its_data_scientist(settings: Settings) -> None:
-    settings.DEBUG = True
-    call_command("seed_startup")
-    assert not Patient.objects.exists()
-    assert not Participant.objects.exists()
-    assert {role_of(user) for user in User.objects.all()} == {
-        Role.DATA_SCIENTIST,
-        None,
-    }
-
-
-def lab_records_file(tmp_path: Path, deficient: int, sound: int) -> Path:
-    """A lab-records CSV as prepare writes it: eligible women, and one man."""
-    import pandas as pd
-
-    rows = [("Female", 30, 8.0)] * deficient + [("Female", 30, 40.0)] * sound
-    rows += [("Male", 30, 40.0)]
-    frame = pd.DataFrame(rows, columns=["sex", "age", "LBXFER"])
-    for number, var in enumerate(CBC_VARS):
-        frame[var] = [float(row + number) for row in range(len(frame))]
-    path = tmp_path / "lab-records.csv"
-    frame.to_csv(path, index=False)
-    return path
-
-
-def test_a_hospital_seeds_its_lab_records(settings: Settings, tmp_path: Path) -> None:
-    from web.hospital.cohort.models import LabRecord, TrainingCohort
-
-    settings.DEBUG = True
-    settings.TRAINING_COHORT_DIR = tmp_path / "cohort"
-    path = lab_records_file(tmp_path, deficient=20, sound=100)
-    call_command("seed_lab_records", "--csv", str(path), stdout=StringIO())
-    call_command("seed_lab_records", "--csv", str(path), stdout=StringIO())
-    # Once, however often prepare runs; nothing provided without --provide.
-    assert LabRecord.objects.count() == 121
-    assert TrainingCohort.objects.provided() is None
-
-
-def test_a_hospital_seeding_with_provide_provides_its_training_cohort(
-    settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Through the laboratory director's own provide
-    (features/hospital/training_cohort.feature); once, however often prepare runs."""
-    from web.hospital.cohort.models import TrainingCohort
-
-    settings.DEBUG = True
-    settings.TRAINING_COHORT_DIR = tmp_path / "cohort"
-    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
-    path = lab_records_file(tmp_path, deficient=20, sound=100)
-    call_command("seed_hospital", stdout=StringIO())
-    for _ in range(2):
-        call_command(
-            "seed_lab_records", "--csv", str(path), "--provide", stdout=StringIO()
-        )
-    provided = TrainingCohort.objects.provided()
-    assert provided is not None
-    assert (provided.past_patients, provided.iron_deficient) == (120, 20)
-    assert provided.provided_by.username == "director"
+    nhanes = tmp_path / "nhanes.csv"
+    nhanes_rows().to_csv(nhanes, index=False)
+    hospital, practice = tmp_path / "hospital", tmp_path / "practice"
+    seed("hospital", hospital, nhanes, seed_value)
+    seed("practice", practice, nhanes, seed_value)
+    tubes = column(hospital, "SELECT seqn FROM analyser_participant")
+    patients = column(practice, "SELECT nhanes_number FROM practice_patient")
+    assert tubes
+    assert patients == tubes

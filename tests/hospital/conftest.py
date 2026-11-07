@@ -4,8 +4,9 @@ its endpoint records, its analyser stand-in, and final models as they arrive."""
 from typing import TYPE_CHECKING
 
 from ml.cohort import FEATURES
+from shared.vocabulary import RegisteredSex
 from tests.conftest import make_user
-from web.vocabulary import RegisteredSex
+from tests.django_settings import _test_settings
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -13,27 +14,30 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
-    from web.accounts.models import User
-    from web.hospital.lab.models import Practice, TestRequest
-    from web.hospital.nhanes.models import Participant
-    from web.vocabulary import Test
+    from hospital.analyser.models import Participant
+    from hospital.lab.models import Practice, TestRequest
+    from shared.accounts.models import User
+    from shared.vocabulary import Test
+
+# The settings every test of this party runs with (tests/django_settings.py).
+__all__ = ["_test_settings"]
 
 
 def make_laboratory_staff_member(name: str) -> "User":
-    from web.accounts.roles import Role
+    from shared.accounts.roles import Role
 
     return make_user(name, Role.LABORATORY_STAFF)
 
 
 def make_laboratory_director(name: str) -> "User":
-    from web.accounts.roles import Role
+    from shared.accounts.roles import Role
 
     return make_user(name, Role.LABORATORY_DIRECTOR)
 
 
 def make_practice(certificate_name: str = "practice") -> "Practice":
     """A practice the hospital works with, by its certificate name."""
-    from web.hospital.lab.models import Practice
+    from hospital.lab.models import Practice
 
     return Practice.objects.add(
         certificate_name=certificate_name, name=certificate_name.title()
@@ -43,8 +47,8 @@ def make_practice(certificate_name: str = "practice") -> "Practice":
 def make_tube() -> "Participant":
     """What a new patient's samples would measure at the hospital's analyser
     stand-in: placeholder CBC values, no ferritin. Its number starts their sample IDs."""
+    from hospital.analyser.models import Participant
     from ml.cohort import CBC_VARS
-    from web.hospital.nhanes.models import Participant
 
     return Participant.objects.create(
         seqn=Participant.objects.count() + 1, cbc=dict.fromkeys(CBC_VARS, 1.0)
@@ -60,7 +64,7 @@ def receive_lab_order(
 ) -> "TestRequest":
     """A lab order (DF23) as the hospital's messaging endpoint records it, from the
     practice make_practice() adds; a CBC for a screened indication."""
-    from web.hospital.lab.models import LabOrderDetails, TestRequest
+    from hospital.lab.models import LabOrderDetails, TestRequest
 
     return TestRequest.objects.receive(
         practice=make_practice(),
@@ -116,8 +120,8 @@ def make_lab_records(
 ) -> None:
     """`count` past patients' lab records, the first `iron_deficient` with ferritin
     below the cutoff; each CBC differs, so each record does."""
+    from hospital.cohort.models import LabRecord
     from ml.cohort import CBC_VARS
-    from web.hospital.cohort.models import LabRecord
 
     start = LabRecord.objects.count()
     LabRecord.objects.bulk_create(

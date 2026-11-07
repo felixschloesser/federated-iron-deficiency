@@ -13,8 +13,14 @@ CSRF_EXEMPT = "csrf" + "_exempt"
 SAFE = "|sa" + "fe"
 
 
+# Each party's settings module: where the audit learns which parties there are.
+PARTY_SETTINGS = {
+    f"{party}/settings.py": "" for party in ("hospital", "practice", "startup")
+}
+
+
 def tree(root: Path, files: dict[str, str]) -> Path:
-    for name, text in files.items():
+    for name, text in {**PARTY_SETTINGS, **files}.items():
         (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_text(text)
     return root
@@ -31,7 +37,7 @@ def test_clean_tree_has_no_findings(tmp_path: Path) -> None:
             "static/css/app.css": ".page { margin: 0; }\n",
             "templates/kit/base.html": '<main class="page"></main>\n',
             "templates/lab/index.html": '{% extends "kit/base.html" %}\n',
-            "web/hospital/lab/views.py": (
+            "hospital/lab/views.py": (
                 "class ReceiveView(View):\n"
                 "    def post(self, request) -> HttpResponse:\n"
                 "        self.test_request.run_analyser(now)\n"
@@ -78,14 +84,13 @@ def test_safe_filter_needs_an_allowlist_entry(tmp_path: Path) -> None:
     ],
 )
 def test_suppressions(tmp_path: Path, code: str) -> None:
-    assert counts(tree(tmp_path, {"web/x.py": code}))["suppressions"] == 1
+    assert counts(tree(tmp_path, {"shared/x.py": code}))["suppressions"] == 1
 
 
 def test_listed_choice_members(tmp_path: Path) -> None:
     code = "OPEN = [Status.ORDERED, Status.RECEIVED]\n"
     assert (
-        counts(tree(tmp_path, {"web/hospital/lab/models.py": code}))["listed_members"]
-        == 1
+        counts(tree(tmp_path, {"hospital/lab/models.py": code}))["listed_members"] == 1
     )
 
 
@@ -95,10 +100,10 @@ def test_mutation_outside_a_post_handler(tmp_path: Path) -> None:
         "    def get_queryset(self) -> QuerySet:\n"
         "        sample.save()\n"
     )
-    assert audit.run(tree(tmp_path, {"web/hospital/lab/views.py": code}))[
+    assert audit.run(tree(tmp_path, {"hospital/lab/views.py": code}))[
         "get_mutation"
     ] == [
-        "web/hospital/lab/views.py:2: IndexView.get_queryset mutates outside a POST handler"
+        "hospital/lab/views.py:2: IndexView.get_queryset mutates outside a POST handler"
     ]
 
 
@@ -108,7 +113,7 @@ def test_form_valid_may_write(tmp_path: Path) -> None:
         "    def form_valid(self, form) -> HttpResponse:\n"
         "        self.general_practitioner.place_order()\n"
     )
-    assert counts(tree(tmp_path, {"web/practice/views.py": code}))["get_mutation"] == 0
+    assert counts(tree(tmp_path, {"practice/views.py": code}))["get_mutation"] == 0
 
 
 MODELS_WITH_A_WRITE = (
@@ -129,10 +134,10 @@ def test_calling_a_writing_model_method_outside_a_post_handler(
     )
     root = tree(
         tmp_path,
-        {"web/practice/models.py": MODELS_WITH_A_WRITE, "web/practice/views.py": view},
+        {"practice/models.py": MODELS_WITH_A_WRITE, "practice/views.py": view},
     )
     finding = (
-        "web/practice/views.py:2: PatientView.get_context_data mutates outside a"
+        "practice/views.py:2: PatientView.get_context_data mutates outside a"
         " POST handler"
     )
     assert audit.run(root)["get_mutation"] == [finding]
@@ -146,21 +151,21 @@ def test_a_post_handler_may_call_a_writing_model_method(tmp_path: Path) -> None:
     )
     root = tree(
         tmp_path,
-        {"web/practice/models.py": MODELS_WITH_A_WRITE, "web/practice/views.py": view},
+        {"practice/models.py": MODELS_WITH_A_WRITE, "practice/views.py": view},
     )
     assert counts(root)["get_mutation"] == 0
 
 
 def test_function_view(tmp_path: Path) -> None:
     code = "def index(request) -> HttpResponse:\n    return render(request, 'x.html')\n"
-    assert audit.run(tree(tmp_path, {"web/hospital/lab/views.py": code}))[
+    assert audit.run(tree(tmp_path, {"hospital/lab/views.py": code}))[
         "get_mutation"
-    ] == ["web/hospital/lab/views.py:1: function view index; use a class-based view"]
+    ] == ["hospital/lab/views.py:1: function view index; use a class-based view"]
 
 
 def test_helpers_are_not_views(tmp_path: Path) -> None:
     code = "def general_practitioner_of(request) -> GeneralPractitioner:\n    return GeneralPractitioner.objects.get()\n"
-    assert counts(tree(tmp_path, {"web/practice/views.py": code}))["get_mutation"] == 0
+    assert counts(tree(tmp_path, {"practice/views.py": code}))["get_mutation"] == 0
 
 
 def test_unsourced_glossary_term(tmp_path: Path) -> None:
@@ -177,12 +182,12 @@ def test_unsourced_glossary_term(tmp_path: Path) -> None:
 
 
 def test_any_finding_fails_the_audit(tmp_path: Path) -> None:
-    root = tree(tmp_path, {"web/x.py": f"x = 1  {NOQA}\n"})
+    root = tree(tmp_path, {"shared/x.py": f"x = 1  {NOQA}\n"})
     assert audit.main(["--root", str(root)]) == 1
 
 
 def test_no_finding_passes_the_audit(tmp_path: Path) -> None:
-    root = tree(tmp_path, {"web/x.py": "x = 1\n"})
+    root = tree(tmp_path, {"shared/x.py": "x = 1\n"})
     assert audit.main(["--root", str(root)]) == 0
 
 
@@ -193,10 +198,10 @@ def test_web_imports_only_the_screening_side(tmp_path: Path) -> None:
         "from ml.client_app import app\n"
         "import ml.server_app\n"
     )
-    root = tree(tmp_path, {"web/hospital/lab/models.py": code, "tools/x.py": code})
+    root = tree(tmp_path, {"hospital/lab/models.py": code, "tools/x.py": code})
     assert audit.run(root)["training_imports"] == [
-        "web/hospital/lab/models.py:3: imports ml.client_app, the Flower app's code",
-        "web/hospital/lab/models.py:4: imports ml.server_app, the Flower app's code",
+        "hospital/lab/models.py:3: imports ml.client_app, the Flower app's code",
+        "hospital/lab/models.py:4: imports ml.server_app, the Flower app's code",
     ]
 
 
@@ -204,19 +209,19 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
     root = tree(
         tmp_path,
         {
-            "web/practice/views.py": "from web.practice.models import Order\n"
-            "from web.vocabulary import Test\n"
-            "from web.hospital.lab.models import TestRequest\n",
-            "web/hospital/lab/models.py": "import web.practice.models\n",
-            "web/accounts/backends.py": "from web.hospital.deployment import models\n",
-            "web/messaging/messages_pb2.py": "import grpc\n",
-            "demo/demo.py": "from web.hospital.lab.models import TestRequest\n",
+            "practice/views.py": "from practice.models import Order\n"
+            "from shared.vocabulary import Test\n"
+            "from hospital.lab.models import TestRequest\n",
+            "hospital/lab/models.py": "import practice.models\n",
+            "shared/accounts/backends.py": "from hospital.deployment import models\n",
+            "shared/messaging/messages_pb2.py": "import grpc\n",
+            "demo/demo.py": "from hospital.lab.models import TestRequest\n",
         },
     )
     assert audit.run(root)["party_imports"] == [
-        "web/accounts/backends.py:1: shared code imports web.hospital",
-        "web/hospital/lab/models.py:1: the hospital's code imports web.practice",
-        "web/practice/views.py:3: the practice's code imports web.hospital",
+        "hospital/lab/models.py:1: the hospital's code imports practice",
+        "practice/views.py:3: the practice's code imports hospital",
+        "shared/accounts/backends.py:1: shared code imports hospital",
     ]
 
 
@@ -225,14 +230,14 @@ def test_each_partys_tests_import_only_its_own_code(tmp_path: Path) -> None:
         tmp_path,
         {
             "tests/practice/test_messaging.py": "from tests.practice.conftest import x\n"
-            "from web.hospital.lab.models import TestRequest\n",
+            "from hospital.lab.models import TestRequest\n",
             "tests/hospital/test_lab.py": "from tests.practice.conftest import make_patient\n",
-            "tests/views/test_urls.py": "import web.hospital.lab.urls\nimport web.practice.urls\n",
+            "tests/views/test_urls.py": "import hospital.lab.urls\nimport practice.pages\n",
         },
     )
     assert audit.run(root)["party_imports"] == [
         "tests/hospital/test_lab.py:1: the hospital's code imports tests.practice",
-        "tests/practice/test_messaging.py:2: the practice's code imports web.hospital",
+        "tests/practice/test_messaging.py:2: the practice's code imports hospital",
     ]
 
 
@@ -245,16 +250,89 @@ def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
     root = tree(
         tmp_path,
         {
-            "web/hospital/lab/models.py": code,
-            "web/practice/views.py": code,
-            "web/seeding/command.py": code,
-            "web/startup/training/views.py": code,
+            "hospital/lab/models.py": code,
+            "practice/views.py": code,
+            "shared/seeding/command.py": code,
+            "startup/training/views.py": code,
         },
     )
     assert audit.run(root)["training_imports"] == [
-        "web/practice/views.py:2: imports ml.inference, the hospital's code",
-        "web/practice/views.py:3: imports ml.final_model, the hospital's or the startup's code",
-        "web/seeding/command.py:2: imports ml.inference, the hospital's code",
-        "web/seeding/command.py:3: imports ml.final_model, the hospital's or the startup's code",
-        "web/startup/training/views.py:2: imports ml.inference, the hospital's code",
+        "practice/views.py:2: imports ml.inference, the hospital's code",
+        "practice/views.py:3: imports ml.final_model, the hospital's or the startup's code",
+        "shared/seeding/command.py:2: imports ml.inference, the hospital's code",
+        "shared/seeding/command.py:3: imports ml.final_model, the hospital's or the startup's code",
+        "startup/training/views.py:2: imports ml.inference, the hospital's code",
+    ]
+
+
+ROLES = (
+    "class Role(TextChoices):\n"
+    '    GENERAL_PRACTITIONER = "gp", "gp"\n'
+    '    LABORATORY_STAFF = "staff", "staff"\n'
+)
+
+
+def test_each_party_installs_its_own_apps_and_no_other_partys(tmp_path: Path) -> None:
+    root = tree(
+        tmp_path,
+        {
+            "shared/accounts/roles.py": ROLES,
+            "practice/apps.py": "",
+            "hospital/lab/apps.py": "",
+            "hospital/deployment/apps.py": "",
+            "hospital/settings.py": 'INSTALLED_APPS = [*SHARED_APPS, "hospital.lab"]\n'
+            "ROLES = [Role.LABORATORY_STAFF]\n",
+            "practice/settings.py": 'INSTALLED_APPS = ["practice", "hospital.lab"]\n'
+            "ROLES = [Role.GENERAL_PRACTITIONER]\n",
+        },
+    )
+    assert audit.run(root)["party_settings"] == [
+        "hospital/settings.py: does not install hospital.deployment",
+        "practice/settings.py: installs hospital.lab, the hospital's",
+    ]
+
+
+def test_every_role_logs_in_to_exactly_one_party(tmp_path: Path) -> None:
+    root = tree(
+        tmp_path,
+        {
+            "shared/accounts/roles.py": ROLES,
+            "hospital/settings.py": "ROLES = [Role.GENERAL_PRACTITIONER]\n",
+            "practice/settings.py": "ROLES = [Role.GENERAL_PRACTITIONER]\n",
+        },
+    )
+    assert audit.run(root)["party_settings"] == [
+        "shared/accounts/roles.py: Role.GENERAL_PRACTITIONER logs in to hospital and practice",
+        "shared/accounts/roles.py: Role.LABORATORY_STAFF logs in to no party",
+    ]
+
+
+def test_a_partys_roles_are_no_listed_members(tmp_path: Path) -> None:
+    """A party's settings write out its roles; party_settings checks them."""
+    code = "ROLES = [Role.LABORATORY_STAFF, Role.LABORATORY_DIRECTOR]\n"
+    root = tree(tmp_path, {"hospital/settings.py": code, "shared/x.py": code})
+    assert audit.run(root)["listed_members"] == [
+        "shared/x.py:1: members of Role listed; derive with match"
+    ]
+
+
+def test_the_hospital_reaches_the_analyser_only_through_its_port(
+    tmp_path: Path,
+) -> None:
+    root = tree(
+        tmp_path,
+        {
+            "hospital/lab/models.py": "from hospital.analyser import port\n"
+            "from hospital.analyser.models import Participant\n",
+            "hospital/analyser/port.py": "from hospital.analyser.models import Participant\n",
+            "hospital/lab/management/commands/seed_hospital.py": (
+                "from hospital.analyser.models import Participant\n"
+            ),
+        },
+    )
+    assert audit.run(root)["analyser_port"] == [
+        (
+            "hospital/lab/models.py:2: imports hospital.analyser.models;"
+            " use hospital.analyser.port"
+        )
     ]

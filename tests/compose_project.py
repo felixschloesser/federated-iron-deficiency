@@ -22,7 +22,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 # The hospital whose SuperNode and ClientApp the Flower tests start.
 HOSPITAL = "uz-leuven"
-# Not UZ Leuven, whose web.sqlite3 is the ClientApp probe's bait, not a database.
+# Not UZ Leuven, whose shared.sqlite3 is the ClientApp probe's bait, not a database.
 APP_HOSPITAL = "az-diest"
 APP_PRACTICE = "huisartsenpraktijk-de-ceder"
 
@@ -213,7 +213,7 @@ def flower(compose: Compose, superlink: None) -> None:
         "-c",
         "from pathlib import Path"
         + synthetic_cohort(HOSPITAL)
-        + f"; (Path('/demo/hospitals/{HOSPITAL}') / 'web.sqlite3').write_text('lab orders')",
+        + f"; (Path('/demo/hospitals/{HOSPITAL}') / 'shared.sqlite3').write_text('lab orders')",
     )
     compose(
         "up",
@@ -270,7 +270,9 @@ def hospital_app(compose: Compose) -> str:
         " from demo.demo import hospital_dir;"
         f" hospital = hospital_dir(Path('/demo'), {APP_HOSPITAL!r});"
         # A volume's subpath must exist before a container mounts it.
-        " (hospital / 'screening-models').mkdir(exist_ok=True)",
+        " (hospital / 'screening-models').mkdir(exist_ok=True);"
+        # The web app mounts the cohort, read-only, to validate fetched final models.
+        " (hospital / 'cohort').mkdir(exist_ok=True)",
     )
     name = f"{APP_HOSPITAL}-web"
     compose("run", "--rm", "--no-deps", name, "python", "manage.py", "migrate", "-v0")

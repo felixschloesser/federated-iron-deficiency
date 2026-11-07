@@ -140,17 +140,28 @@ services:
       - {type: volume, source: startup, target: /demo/startup/flwr-home, volume: {subpath: flwr-home}}
     networks: [startup]
 
-  # The startup's web app: its data scientist sees the final models and submits
-  # training runs. On startup to reach the SuperLink, on startup-web for the
-  # proxy, which so never reaches the SuperLink.
+  # The startup's web app: its data scientist sees the final models, submits
+  # training runs and releases final models. One container, two servers, each on
+  # a name only one network knows: the proxy reaches the pages, the hospitals'
+  # web apps only the final-models endpoint (P12, features/startup/release.feature).
+  # On startup to reach the SuperLink, which so neither the proxy nor a hospital reaches.
   startup-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    command:
+      - bash
+      - -c
+      - |
+        trap 'kill $$(jobs -p)' TERM INT
+        gunicorn shared.wsgi --bind=startup-pages:8000 --workers=2 --access-logfile=- &
+        python manage.py serve_final_models startup-final-models:8442 &
+        wait -n
+        exit 1
+    restart: unless-stopped
     healthcheck:
       <<: *health
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
+      test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://startup-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('startup-final-models', 8442)).close()"]
     environment:
-      PARTY: startup
+      DJANGO_SETTINGS_MODULE: startup.settings
       DATA_DIR: /demo/startup
       FLWR_HOME: /demo/startup/flwr-home
     volumes:
@@ -158,7 +169,10 @@ services:
       - {type: volume, source: startup, target: /demo/startup/final-models, read_only: true, volume: {subpath: final-models}}
     # Masked: the SuperLink's state (DS3) is the SuperLink's alone.
     tmpfs: [/demo/startup/superlink]
-    networks: [startup, startup-web]
+    networks:
+      startup: {}
+      startup-web: {aliases: [startup-pages]}
+      final-models: {aliases: [startup-final-models]}
 
   # TB1 and TB4, UZ Leuven.
   uz-leuven-flower-supernode:
@@ -169,18 +183,18 @@ services:
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
-      - --node-config=data-path='/demo/hospitals/uz-leuven/cohort' final-models-path='/demo/hospitals/uz-leuven/screening-models'
+      - --node-config=data-path='/demo/hospitals/uz-leuven/cohort'
     networks: [model-updates, uz-leuven-flower-client-app]
 
-  # The startup's code at the hospital (TB4): only the cohort and the final
-  # models, and a network that reaches nothing but its SuperNode (tests/quality/security/test_running_containers.py).
+  # The startup's code at the hospital (TB4): only the cohort, read-only, so it
+  # writes nothing at the hospital, and a network that reaches nothing but its
+  # SuperNode (tests/quality/security/test_running_containers.py).
   uz-leuven-flower-client-app:
     <<: *superexec
     depends_on: [uz-leuven-flower-supernode]
     command: [--runtime-api-address=uz-leuven-flower-supernode:9094, --insecure]
     volumes:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/cohort, read_only: true, volume: {subpath: cohort}}
-      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/screening-models, volume: {subpath: screening-models}}
     networks: [uz-leuven-flower-client-app]
 
   uz-leuven-web:
@@ -193,7 +207,7 @@ services:
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn web.wsgi --bind=uz-leuven-pages:8000 --workers=2 --access-logfile=- &
+        gunicorn shared.wsgi --bind=uz-leuven-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_messages uz-leuven-messaging:8441 &
         wait -n
         exit 1
@@ -204,19 +218,25 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://uz-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('uz-leuven-messaging', 8441)).close()"]
     environment:
-      PARTY: hospital
+      DJANGO_SETTINGS_MODULE: hospital.settings
       DATA_DIR: /demo/hospitals/uz-leuven
       PARTY_NAME: UZ Leuven
       PARTY_COLOUR: jade
+      # The startup's final-models endpoint, and the name the startup issued this
+      # hospital (features/hospital/fetch.feature).
+      STARTUP_ADDRESS: startup-final-models:8442
+      HOSPITAL_CERTIFICATE_NAME: uz-leuven
     volumes:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
-      - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven/screening-models, read_only: true, volume: {subpath: screening-models}}
-    # The laboratory director provides the training cohort here, so the web app
-    # writes the cohort folder (features/hospital/training_cohort.feature); it holds no SuperNode key.
+    # The laboratory director provides the training cohort and fetches final
+    # models here, so the web app writes the cohort folder and screening-models,
+    # through the hospital's whole volume (features/hospital/training_cohort.feature,
+    # features/hospital/fetch.feature); it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       uz-leuven: {aliases: [uz-leuven-pages]}
       messaging: {aliases: [uz-leuven-messaging]}
+      final-models: {}
 
   # TB1 and TB4, Heilig Hart Leuven.
   heilig-hart-leuven-flower-supernode:
@@ -227,18 +247,18 @@ services:
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
-      - --node-config=data-path='/demo/hospitals/heilig-hart-leuven/cohort' final-models-path='/demo/hospitals/heilig-hart-leuven/screening-models'
+      - --node-config=data-path='/demo/hospitals/heilig-hart-leuven/cohort'
     networks: [model-updates, heilig-hart-leuven-flower-client-app]
 
-  # The startup's code at the hospital (TB4): only the cohort and the final
-  # models, and a network that reaches nothing but its SuperNode (tests/quality/security/test_running_containers.py).
+  # The startup's code at the hospital (TB4): only the cohort, read-only, so it
+  # writes nothing at the hospital, and a network that reaches nothing but its
+  # SuperNode (tests/quality/security/test_running_containers.py).
   heilig-hart-leuven-flower-client-app:
     <<: *superexec
     depends_on: [heilig-hart-leuven-flower-supernode]
     command: [--runtime-api-address=heilig-hart-leuven-flower-supernode:9094, --insecure]
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/cohort, read_only: true, volume: {subpath: cohort}}
-      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/screening-models, volume: {subpath: screening-models}}
     networks: [heilig-hart-leuven-flower-client-app]
 
   heilig-hart-leuven-web:
@@ -251,7 +271,7 @@ services:
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn web.wsgi --bind=heilig-hart-leuven-pages:8000 --workers=2 --access-logfile=- &
+        gunicorn shared.wsgi --bind=heilig-hart-leuven-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_messages heilig-hart-leuven-messaging:8441 &
         wait -n
         exit 1
@@ -262,19 +282,25 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://heilig-hart-leuven-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('heilig-hart-leuven-messaging', 8441)).close()"]
     environment:
-      PARTY: hospital
+      DJANGO_SETTINGS_MODULE: hospital.settings
       DATA_DIR: /demo/hospitals/heilig-hart-leuven
       PARTY_NAME: Heilig Hart Leuven
       PARTY_COLOUR: pumpkin
+      # The startup's final-models endpoint, and the name the startup issued this
+      # hospital (features/hospital/fetch.feature).
+      STARTUP_ADDRESS: startup-final-models:8442
+      HOSPITAL_CERTIFICATE_NAME: heilig-hart-leuven
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
-      - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven/screening-models, read_only: true, volume: {subpath: screening-models}}
-    # The laboratory director provides the training cohort here, so the web app
-    # writes the cohort folder (features/hospital/training_cohort.feature); it holds no SuperNode key.
+    # The laboratory director provides the training cohort and fetches final
+    # models here, so the web app writes the cohort folder and screening-models,
+    # through the hospital's whole volume (features/hospital/training_cohort.feature,
+    # features/hospital/fetch.feature); it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
       messaging: {aliases: [heilig-hart-leuven-messaging]}
+      final-models: {}
 
   # TB1 and TB4, AZ Diest.
   az-diest-flower-supernode:
@@ -285,18 +311,18 @@ services:
       - --isolation=process
       - --host=0.0.0.0
       - --port=9094
-      - --node-config=data-path='/demo/hospitals/az-diest/cohort' final-models-path='/demo/hospitals/az-diest/screening-models'
+      - --node-config=data-path='/demo/hospitals/az-diest/cohort'
     networks: [model-updates, az-diest-flower-client-app]
 
-  # The startup's code at the hospital (TB4): only the cohort and the final
-  # models, and a network that reaches nothing but its SuperNode (tests/quality/security/test_running_containers.py).
+  # The startup's code at the hospital (TB4): only the cohort, read-only, so it
+  # writes nothing at the hospital, and a network that reaches nothing but its
+  # SuperNode (tests/quality/security/test_running_containers.py).
   az-diest-flower-client-app:
     <<: *superexec
     depends_on: [az-diest-flower-supernode]
     command: [--runtime-api-address=az-diest-flower-supernode:9094, --insecure]
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/cohort, read_only: true, volume: {subpath: cohort}}
-      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/screening-models, volume: {subpath: screening-models}}
     networks: [az-diest-flower-client-app]
 
   az-diest-web:
@@ -309,7 +335,7 @@ services:
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn web.wsgi --bind=az-diest-pages:8000 --workers=2 --access-logfile=- &
+        gunicorn shared.wsgi --bind=az-diest-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_messages az-diest-messaging:8441 &
         wait -n
         exit 1
@@ -320,31 +346,37 @@ services:
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://az-diest-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('az-diest-messaging', 8441)).close()"]
     environment:
-      PARTY: hospital
+      DJANGO_SETTINGS_MODULE: hospital.settings
       DATA_DIR: /demo/hospitals/az-diest
       PARTY_NAME: AZ Diest
       PARTY_COLOUR: violet
+      # The startup's final-models endpoint, and the name the startup issued this
+      # hospital (features/hospital/fetch.feature).
+      STARTUP_ADDRESS: startup-final-models:8442
+      HOSPITAL_CERTIFICATE_NAME: az-diest
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
-      - {type: volume, source: az-diest, target: /demo/hospitals/az-diest/screening-models, read_only: true, volume: {subpath: screening-models}}
-    # The laboratory director provides the training cohort here, so the web app
-    # writes the cohort folder (features/hospital/training_cohort.feature); it holds no SuperNode key.
+    # The laboratory director provides the training cohort and fetches final
+    # models here, so the web app writes the cohort folder and screening-models,
+    # through the hospital's whole volume (features/hospital/training_cohort.feature,
+    # features/hospital/fetch.feature); it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       az-diest: {aliases: [az-diest-pages]}
       messaging: {aliases: [az-diest-messaging]}
+      final-models: {}
 
   # TB3, each general practitioner's practice, sending samples to every hospital's
   # laboratory (features/practice/messaging.feature): on the messaging network.
   huisartsenpraktijk-de-akker-web:
     <<: *practice-web
     build: {context: .., dockerfile: demo/practice-web.Dockerfile}
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    command: [gunicorn, shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      PARTY: practice
+      DJANGO_SETTINGS_MODULE: practice.settings
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-akker
       PARTY_NAME: Huisartsenpraktijk De Akker
       PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-akker
@@ -355,12 +387,12 @@ services:
 
   huisartsenpraktijk-de-berk-web:
     <<: *practice-web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    command: [gunicorn, shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      PARTY: practice
+      DJANGO_SETTINGS_MODULE: practice.settings
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-berk
       PARTY_NAME: Huisartsenpraktijk De Berk
       PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-berk
@@ -371,12 +403,12 @@ services:
 
   huisartsenpraktijk-de-ceder-web:
     <<: *practice-web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    command: [gunicorn, shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      PARTY: practice
+      DJANGO_SETTINGS_MODULE: practice.settings
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-ceder
       PARTY_NAME: Huisartsenpraktijk De Ceder
       PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-ceder
@@ -405,6 +437,7 @@ networks:
   setup: {}
   startup: {internal: true}
   startup-web: {}
+  final-models: {internal: true}
   model-updates: {internal: true}
   messaging: {internal: true}
   uz-leuven: {}

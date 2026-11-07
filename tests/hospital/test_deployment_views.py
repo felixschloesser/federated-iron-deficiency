@@ -10,13 +10,13 @@ from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains
 from pytest_django.fixtures import Settings
 
+from hospital.deployment.models import Deployment
+from shared.accounts.models import User
 from tests.hospital.conftest import (
     make_laboratory_director,
     make_laboratory_staff_member,
     write_final_model,
 )
-from web.accounts.models import User
-from web.hospital.deployment.models import Deployment
 
 pytestmark = pytest.mark.django_db
 VALIDATION = {
@@ -155,7 +155,7 @@ def test_laboratory_staff_are_sent_to_their_start_page(
 def test_a_file_not_named_after_a_run_is_no_screening_model(
     screening_models_dir: Path,
 ) -> None:
-    from web.hospital.deployment.model_files import screening_models
+    from hospital.deployment.model_files import screening_models
 
     (screening_models_dir / "1.pt").rename(screening_models_dir / "run123.pt")
     (screening_models_dir / "2.pt").unlink()
@@ -167,7 +167,8 @@ def test_without_a_screening_models_folder(
 ) -> None:
     settings.SCREENING_MODELS_DIR = None
     assertContains(
-        client.get(reverse("deployment:screening_models")), "No models have arrived."
+        client.get(reverse("deployment:screening_models")),
+        "No final model fetched yet.",
     )
 
 

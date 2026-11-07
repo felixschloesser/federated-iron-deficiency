@@ -1,22 +1,14 @@
 """Privacy tests: plain pytest, one test per threat and pass/fail measure, each
 named in the test's docstring (.claude/CLAUDE.md).
 
-What a test here can build on:
+A privacy test checks the system as deployed, never in this process (each
+party's web app is a Django project of its own):
 
-- The hospital's side, in this process: `from tests.hospital.conftest import
-  receive_lab_order, make_tube, make_practice, make_laboratory_director,
-  make_laboratory_staff_member, write_final_model`.
-- The general practitioner's side, in this process: `from
-  tests.practice.conftest import make_patient, collect_and_order,
-  make_general_practitioner`; the stand-in for a hospital's lab-order endpoint
-  is the `fake_laboratory` fixture below.
-- The startup's side: `from tests.startup.conftest import make_data_scientist`.
-- The running demo, with a Docker engine: the fixtures `compose`, `flower`,
-  `superlink`, `hospital_app` and `probe()` from tests/compose_project.py. Mark
-  such a test `@pytest.mark.containers`; one that starts a process of its own,
-  `@pytest.mark.subprocess`.
+- In containers, against the running demo: the fixtures `compose`, `flower`,
+  `superlink`, `hospital_app` and `proxy`, and `probe()` from
+  tests/compose_project.py. Mark such a test `@pytest.mark.containers`.
+- In a process of its own, as one party: `manage.py` under
+  `DJANGO_SETTINGS_MODULE=<party>.settings` with a `DATA_DIR` of the
+  test's (tests/quality/security/test_party_isolation.py shows how). Mark such
+  a test `@pytest.mark.subprocess`.
 """
-
-from tests.practice.conftest import fake_laboratory
-
-__all__ = ["fake_laboratory"]

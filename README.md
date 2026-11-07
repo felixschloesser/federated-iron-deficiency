@@ -21,7 +21,7 @@ v1.3.0 for a privacy impact assessment of a hypothetical deployment: a startup
 and three Belgian hospitals.
 
 - **Package `ml/`.** The original's package is `iron_deficiency/`; here the
-  Flower app is `ml/`, beside the web app in `web/` and the demo in `demo/`.
+  Flower app is `ml/`, beside the web app in `shared/` and the demo in `demo/`.
 - **Data from Hugging Face.** The original downloads the NHANES files from the
   CDC on each client. Here the cohorts come from a pinned revision of
   `gracemyu/nhanes-merged` through Flower Datasets, so the app also runs in
@@ -38,11 +38,12 @@ and three Belgian hospitals.
   hospital (about 5:2:1). The latest cycle, 2021–2023, no longer trains, so it
   can stand in for new blood counts screened after training.
 - **Final models.** The original app stops after training. Here the startup
-  keeps each final model, and its data scientist transmits one to every
-  connected hospital in a run of its own (`transmit-final-model=<run ID>`),
-  with the aggregated evaluation metrics; the run fails unless every connected
-  hospital acknowledges it. Each stores it as a new file named after the training run ID in its
-  `final-models-path`, with its own standardization and a local validation on
+  keeps each final model, and its data scientist releases one; a hospital's
+  laboratory director then fetches it, with the aggregated evaluation metrics,
+  from the startup's web app over gRPC, never through Flower: the startup's
+  code at a hospital writes nothing there. The hospital's own web app stores it
+  as a new file named after the training run ID in its screening-models
+  folder, with its own standardization and a local validation on
   its validation split: the confusion matrix at each threshold from 0.05 to
   0.95 in steps of 0.05, and AUROC (`ml/training.py`). A
   hospital decides itself which final model to deploy, and at which threshold. The startup keeps a copy of every final

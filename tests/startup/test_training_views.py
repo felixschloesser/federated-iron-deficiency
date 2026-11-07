@@ -15,8 +15,8 @@ from pytest_django.fixtures import Settings
 
 from ml.final_model import Net
 from ml.training import keep_final_model
+from startup.training.forms import SubmitRunForm
 from tests.startup.conftest import make_data_scientist
-from web.startup.training.forms import SubmitRunForm
 
 pytestmark = pytest.mark.django_db
 
@@ -41,7 +41,7 @@ def test_final_models_page(
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     client.force_login(make_data_scientist("Data One"))
-    # Session, user with role, transmissions.
+    # Session, user with role, releases (their fetches are read only when there are any).
     with django_assert_num_queries(3):
         response = client.get(reverse("training:models"))
     assertContains(
@@ -51,12 +51,7 @@ def test_final_models_page(
     )
     for term, value in (("Run", "7"), ("AUROC across hospitals", "0.86")):
         assertContains(response, f"<dt>{term}</dt><dd>{value}</dd>", html=True)
-    assertContains(
-        response,
-        '<a href="/training/models/7/for-sale/" download'
-        ' aria-label="Download final model of run 7 for sale">Download for sale</a>',
-        html=True,
-    )
+    assertContains(response, "<p>Not released</p>", html=True)
 
 
 def test_a_final_models_run_configuration_is_listed(
@@ -151,9 +146,9 @@ def test_without_the_superlink_the_page_says_the_statuses_are_unknown(
     response = client.get(reverse("training:runs"))
     assertContains(response, "the training runs&#x27; statuses are unknown")
     assertNotContains(response, "127.0.0.1")
-    # The final models still show.
+    # The final models still show, and can be released: releasing needs no SuperLink.
     response = client.get(reverse("training:models"))
-    assertContains(response, 'href="/training/models/7/for-sale/"')
+    assertContains(response, 'action="/training/models/7/release/"')
 
 
 @pytest.mark.usefixtures("data_scientist")
@@ -207,7 +202,7 @@ def test_a_refused_run_says_why(
 def test_a_deployment_tells_the_server_app_its_demo_folder(
     settings: Settings, tmp_path: Path
 ) -> None:
-    from web.startup.training.runs import run_configuration
+    from startup.training.runs import run_configuration
 
     settings.DATA_DIR = tmp_path / "startup"
     assert (
@@ -230,47 +225,6 @@ def test_a_run_without_an_answer_shows_no_server_paths(
     response = client.post(reverse("training:runs"), SubmitRunForm.defaults())
     assertContains(response, "The SuperLink refused the run: it gave no answer")
     assertNotContains(response, "/srv/flwr-home")
-
-
-@pytest.mark.usefixtures("data_scientist")
-def test_a_final_model_downloads_for_sale(
-    client: Client, final_models_dir: Path
-) -> None:
-    from ml.final_model import from_bytes
-
-    response = client.get(reverse("training:for_sale", kwargs={"run_id": "7"}))
-    assert response.status_code == 200
-    assert response["Content-Disposition"] == (
-        'attachment; filename="final-model-run-7.pt"'
-    )
-    assert from_bytes(response.content).state_dict is not None
-
-
-@pytest.mark.usefixtures("data_scientist")
-def test_a_run_without_a_final_model_is_not_found(
-    client: Client, final_models_dir: Path
-) -> None:
-    response = client.get(reverse("training:for_sale", kwargs={"run_id": "9"}))
-    assert response.status_code == 404
-
-
-def test_only_the_data_scientist_downloads_for_sale(
-    client: Client, final_models_dir: Path
-) -> None:
-    url = reverse("training:for_sale", kwargs={"run_id": "7"})
-    response = client.get(url)
-    assertRedirects(response, f"{reverse('login')}?next={url}")
-
-
-@pytest.mark.usefixtures("data_scientist")
-def test_each_final_model_links_to_its_sale(
-    client: Client, final_models_dir: Path
-) -> None:
-    response = client.get(reverse("training:models"))
-    assertContains(
-        response,
-        f'href="{reverse("training:for_sale", kwargs={"run_id": "7"})}"',
-    )
 
 
 def test_every_offered_parameter_is_kept_with_the_final_model() -> None:
@@ -332,7 +286,7 @@ def test_without_the_superlink_the_page_offers_no_submission(
     assertNotContains(response, 'name="batch_size"')
     assertContains(
         response,
-        "Submitting, stopping and transmitting come back when the SuperLink answers.",
+        "Submitting and stopping come back when the SuperLink answers.",
     )
 
 
@@ -356,58 +310,55 @@ def test_each_cell_names_its_column_for_narrow_screens(
 def test_a_file_not_named_after_a_run_is_no_final_model(
     final_models_dir: Path,
 ) -> None:
-    from web.startup.training.final_models import final_models
+    from startup.training.final_models import final_models
 
     (final_models_dir / "7.pt").rename(final_models_dir / "run123.pt")
     assert final_models(final_models_dir) == []
 
 
 @pytest.mark.usefixtures("data_scientist")
-def test_a_final_model_not_transmitted_offers_transmit(
-    client: Client, final_models_dir: Path
-) -> None:
-    response = client.get(reverse("training:models"))
-    assertContains(response, "<p>Not transmitted</p>", html=True)
-    assertContains(response, 'action="/training/models/7/transmit/"')
-    assertContains(
-        response, 'aria-label="Transmit final model of run 7 to the hospitals"'
-    )
-
-
-@pytest.mark.usefixtures("data_scientist")
-def test_transmitting_a_final_model_returns_with_its_run(
-    client: Client, monkeypatch: pytest.MonkeyPatch, final_models_dir: Path
-) -> None:
-    answering(monkeypatch, {"success": True, "run-id": "8"})
-    response = client.post(reverse("training:transmit", kwargs={"run_id": "7"}))
-    assertRedirects(response, reverse("training:models"))
-    assert [str(message) for message in get_messages(response.wsgi_request)] == [
-        "Run 8 transmits final model of run 7 to every hospital connected now."
-    ]
-
-
-@pytest.mark.usefixtures("data_scientist")
-def test_a_run_that_transmits_a_final_model_says_so(
-    client: Client, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from web.startup.training.models import Transmission
-
-    Transmission.objects.create(
-        final_model="7",
-        run_id="8",
-        transmitted_by=make_data_scientist("Data Two"),
-        submitted_at=datetime(2026, 10, 30, 9, 0, tzinfo=UTC),
-    )
-    answering(monkeypatch, {}, {"success": True, "runs": [{**RUNNING, "run-id": "8"}]})
-    response = client.get(reverse("training:runs"))
-    assertContains(
-        response, '<td data-label="Run">8 · transmits final model 7</td>', html=True
-    )
-
-
-@pytest.mark.usefixtures("data_scientist")
 def test_the_runs_section_does_not_repeat_the_page_title(client: Client) -> None:
-    """Its runs include transmissions; Flower calls them all runs."""
+    """Flower calls every training run a run."""
     response = client.get(reverse("training:runs"))
     assertContains(response, "<h2>Runs</h2>", html=True)
     assertNotContains(response, "<h2>Training runs</h2>", html=True)
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_final_model_not_released_offers_release(
+    client: Client, final_models_dir: Path
+) -> None:
+    response = client.get(reverse("training:models"))
+    assertContains(response, "<p>Not released</p>", html=True)
+    assertContains(response, 'action="/training/models/7/release/"')
+    assertContains(response, 'aria-label="Release final model of run 7"')
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_releasing_a_final_model_returns_and_offers_it_no_more(
+    client: Client, final_models_dir: Path
+) -> None:
+    response = client.post(reverse("training:release", kwargs={"run_id": "7"}))
+    assertRedirects(response, reverse("training:models"))
+    assert [str(message) for message in get_messages(response.wsgi_request)] == [
+        "Final model of run 7 released: recipient hospitals may fetch it."
+    ]
+    page = client.get(reverse("training:models"))
+    assertContains(page, "<p>Released, not fetched yet</p>", html=True)
+    assertNotContains(page, 'action="/training/models/7/release/"')
+
+
+@pytest.mark.usefixtures("data_scientist")
+def test_a_run_without_a_final_model_cannot_be_released(
+    client: Client, final_models_dir: Path
+) -> None:
+    response = client.post(reverse("training:release", kwargs={"run_id": "9"}))
+    assert response.status_code == 404
+
+
+def test_only_the_data_scientist_releases(
+    client: Client, final_models_dir: Path
+) -> None:
+    url = reverse("training:release", kwargs={"run_id": "7"})
+    response = client.post(url)
+    assertRedirects(response, f"{reverse('login')}?next={url}")

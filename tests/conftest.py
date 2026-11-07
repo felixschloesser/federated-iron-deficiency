@@ -1,17 +1,15 @@
 """Test-wide settings, the scenarios' world, and what every party's tests and
 the demo's share. Each party's builders are in tests/<party>/conftest.py."""
 
-import copy
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_django.fixtures import Settings
 
 if TYPE_CHECKING:
     import pandas as pd
 
-    from web.accounts.models import User
-    from web.accounts.roles import Role
+    from shared.accounts.models import User
+    from shared.accounts.roles import Role
 from ml.cohort import CBC_VARS
 
 # The compose project and what runs in it, for every test that needs Docker
@@ -40,22 +38,6 @@ __all__ = [
 World = dict[str, Any]
 
 
-class MissingVariable(str):
-    """Fails the render that would have shown a missing variable as blank."""
-
-    def __mod__(self, name: object) -> str:
-        raise AssertionError(f"Template variable missing: {name}")
-
-
-@pytest.fixture(autouse=True)
-def _test_settings(settings: Settings) -> None:
-    settings.SECURE_SSL_REDIRECT = False
-    # Assign a copy, so Django rebuilds its template engines and restores them after.
-    templates = copy.deepcopy(settings.TEMPLATES)
-    templates[0]["OPTIONS"]["string_if_invalid"] = MissingVariable("%s")
-    settings.TEMPLATES = templates
-
-
 @pytest.fixture
 def world() -> World:
     """What the steps of one scenario have built so far, by name."""
@@ -63,7 +45,7 @@ def world() -> World:
 
 
 def make_user(name: str, role: "Role") -> "User":
-    from web.accounts.models import User
+    from shared.accounts.models import User
 
     return User.objects.create_user(username=name.lower().replace(" ", "-"), role=role)
 

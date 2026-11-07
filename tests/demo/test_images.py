@@ -47,19 +47,16 @@ def test_the_practice_image_installs_only_the_web_apps_dependencies() -> None:
     assert {"django", "grpcio", "protobuf", "gunicorn", "whitenoise"} <= names
 
 
-def test_django_boots_without_the_training_data_libraries() -> None:
-    """Both parties' apps and URLs load without Hugging Face's datasets."""
+@pytest.mark.parametrize("party", ["hospital", "practice", "startup"])
+def test_django_boots_without_the_training_data_libraries(party: str) -> None:
+    """Each party's apps and URLs load without Hugging Face's datasets."""
     code = (
         "import sys, django; django.setup();"
         " from django.urls import get_resolver; get_resolver().url_patterns;"
         " print(sorted(m for m in ('datasets', 'flwr_datasets') if m in sys.modules))"
     )
-    environment = {
-        key: value
-        for key, value in os.environ.items()
-        if key not in {"PARTY", "DATA_DIR"}
-    }
-    environment["DJANGO_SETTINGS_MODULE"] = "web.settings"
+    environment = {key: value for key, value in os.environ.items() if key != "DATA_DIR"}
+    environment["DJANGO_SETTINGS_MODULE"] = f"{party}.settings"
     result = subprocess.run(
         [sys.executable, "-c", code],
         cwd=ROOT,

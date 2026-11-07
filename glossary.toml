@@ -44,6 +44,16 @@ rejected = [
     "laboratory worker",
 ]
 
+["analyser"]
+source = "Report, P9 \"Analyse samples\": \"laboratory staff run the analyser\"; DF36 \"Results: the analyser's values for each test request\""
+why = "The instrument that measures a sample for a test; an external system to the laboratory, simulated in the demo from NHANES participants (hospital/analyser/). The laboratory knows it only through measure() in hospital/analyser/port.py; inside the simulator, NHANES's own words (participant, SEQN) are right"
+rejected = [
+    "nhanes (the demo data's origin, not what the app is)",
+    "instrument (WHO LQMS's general word; the report says analyser)",
+    "stand-in (says how it is built, not what it is)",
+    "tube (the glossary's rejected word for the container)",
+]
+
 ["patient"]
 source = "Report, Use case"
 why = "The report's word"
@@ -59,12 +69,12 @@ rejected = [
 ]
 
 ["certificate name"]
-source = "Report, Solutions table, mutual TLS: \"each hospital is its own CA and tells practices apart by certificate name\"; user decision, 2026-11-05"
-why = "The name the hospital issued a practice and registers it by (`add_practice`): the lab's key for the practice, which its app sends in every message (`PRACTICE_CERTIFICATE_NAME`). The demo trusts it as sent; with the report's mutual TLS it would come from the practice's certificate. A message from a name the hospital does not know is refused"
+source = "Report, Solutions table, mutual TLS: \"each hospital is its own CA and tells practices apart by certificate name\"; \"the startup is its own CA and tells recipient hospitals apart by certificate name\""
+why = "The name a serving party issued its client and registers it by: a hospital its practices (`add_practice`, `PRACTICE_CERTIFICATE_NAME`), the startup its recipient hospitals (`add_hospital`, `HOSPITAL_CERTIFICATE_NAME`). Sent in every request; the demo trusts it as sent, with mutual TLS it would come from the client's certificate. A name the server does not know is refused"
 rejected = [
     "practice ID (no source)",
-    "practice name (chosen by the sender, neither stable nor unique; the lab's key until 2026-11-05)",
-    "client ID",
+    "hospital ID (no source)",
+    "client ID (OAuth's word)",
     "RIZIV/INAMI number (identifies a doctor, not a practice)",
 ]
 
@@ -309,8 +319,28 @@ rejected = ["cutoff (reserved for ferritin's 15 ng/mL)"]
 
 ["messaging"]
 source = "Report, P8 \"Messaging endpoint\""
-why = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (web/messaging/, serve_messages)"
+why = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (shared/messaging/, serve_messages)"
 rejected = ["API", "integration"]
+
+["release"]
+source = "Report, federated version: \"The data scientist then releases a final model\" (DF32, DF36)"
+why = "The data scientist's act that lets recipient hospitals fetch a final model; nothing leaves the startup before it"
+rejected = [
+    "transmit (the startup no longer sends: a hospital fetches)",
+    "publish (only recipient hospitals may fetch)",
+    "share",
+    "offer (reads like the model sale it replaced)",
+]
+
+["fetch"]
+source = "Report, DF37, DF38: \"a recipient hospital's laboratory director fetches it\"; as a practice fetches new lab reports (FetchNewLabReports)"
+why = "The hospital's explicit request: a final model enters a hospital only when its laboratory director fetches new final models, through the hospital's own web app"
+rejected = ["pull", "download", "receive (nothing is pushed: the hospital asks)"]
+
+["recipient hospital"]
+source = "Report, federated version: \"Any hospital the startup registers is a recipient, whether or not it trained\""
+why = "A hospital the startup registers (`add_hospital`) and issues a certificate name; it may fetch every released final model"
+rejected = ["buyer (no sale is modelled)", "customer", "subscriber", "client"]
 
 ["lab report"]
 source = "Report, DF25"
@@ -368,11 +398,6 @@ source = "Report, \"Federated version\": \"its data scientist submits the app\" 
 why = "What the data scientist does to start a training run: the report's verb, and Flower's"
 rejected = ["start", "launch", "trigger"]
 
-["model sale"]
-source = "Report, P5 \"Model sale\"; Stakeholders table: other hospitals \"May buy the model from the startup\"; DF16 \"Final model weights, if sold\""
-why = "What the startup's *Download for sale* stands in for: the final model's weights only; a buyer standardizes and chooses a threshold on its own cohort, as each hospital does. Never a hospital's standardization or any metrics"
-rejected = ["export", "share", "release"]
-
 ["run status"]
 source = "Flower CLI, `flwr ls`: \"Current status of the run (pending, starting, running, finished)\"; a finished run is completed, failed or stopped (Flower, `flwr.common.constant.SubStatus`)"
 why = "Where a training run is, in the data scientist's own tool's words: Pending, Starting, Running, Completed, Failed, Stopped"
@@ -417,8 +442,3 @@ rejected = ["random state", "model seed (the key, not the word)"]
 source = "Flower CLI, `flwr stop`: \"Stop a Flower run\"; the run status Stopped"
 why = "What the data scientist does to a training run in progress they no longer want, so no hospital trains or sends weights for it any more"
 rejected = ["cancel", "abort", "kill"]
-
-["transmit"]
-source = "Report, \"Federated version\": \"The data scientist then transmits a final model to every connected hospital, with its averaged validation metrics, in a run of its own (DF8)\""
-why = "What the data scientist does to a final model so that every connected hospital stores it as a screening model its laboratory director may deploy; the report's word. Flower's own API calls each message it carries a send (`grid.send_and_receive`), the app's design, not a Flower feature"
-rejected = ["send (Flower's word for any message)", "deploy (the laboratory director's word)", "push", "distribute"]
