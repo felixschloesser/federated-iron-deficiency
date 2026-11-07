@@ -29,8 +29,7 @@ CONNECTION = "demo"
 def run_configuration(chosen: Mapping[str, int | float | str]) -> str:
     """The run configuration as `flwr run --run-config` takes it: what the data
     scientist chose and, in the demo, the folder above the startup's. No
-    threshold: each hospital's laboratory director chooses one
-    (features/hospital/deployment.feature)."""
+    threshold: each hospital's laboratory director chooses one."""
     pairs = [f"{key}={value!r}" for key, value in chosen.items()]
     if settings.DATA_DIR is not None:
         pairs.append(f"demo-dir='{settings.DATA_DIR.parent}'")
@@ -92,7 +91,7 @@ def submit_run(chosen: Mapping[str, int | float | str]) -> int:
 
 
 def stop_run(run_id: int) -> None:
-    """Stop a training run in progress (features/startup/training.feature)."""
+    """Stop a training run in progress."""
     try:
         answer = flower(["stop", str(run_id), CONNECTION], SUBMIT_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired as error:
@@ -179,7 +178,7 @@ class TrainingRun:
 
 
 def training_runs() -> list[TrainingRun]:
-    """Every training run the SuperLink knows, newest first (features/startup/training.feature)."""
+    """Every training run the SuperLink knows, newest first."""
     try:
         answer = flower(["ls", CONNECTION], LIST_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired as error:

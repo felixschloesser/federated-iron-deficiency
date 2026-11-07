@@ -81,7 +81,7 @@ class Role(models.TextChoices):
 def role_of(user: "AbstractBaseUser | AnonymousUser | None") -> Role | None:
     """The user's role in this party's web app; None for an account without one,
     or whose role is another party's (its settings' ROLES): the role's pages
-    are not served here (features/practice/access.feature)."""
+    are not served here."""
     value = getattr(user, "role", None)
     if value is None:
         return None

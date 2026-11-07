@@ -36,7 +36,7 @@ PATIENTS: dict[str, int] = {
     cycle: entry["patients"] for cycle, entry in ENTRIES.items()
 }
 # Whether each hospital's laboratory director provided the training cohort at
-# start (features/hospital/training_cohort.feature).
+# start.
 PROVIDED: dict[str, bool] = {
     cycle: entry["provided"] for cycle, entry in ENTRIES.items()
 }
@@ -195,7 +195,7 @@ MIDDLE = """\
   # The startup's web app: its data scientist sees the final models, submits
   # training runs and releases final models. One container, two servers, each on
   # a name only one network knows: the proxy reaches the pages, the hospitals'
-  # web apps only the final-models endpoint (P5, features/startup/release.feature).
+  # web apps only the final-models endpoint (P5).
   # On startup to reach the SuperLink, which so neither the proxy nor a hospital reaches.
   startup-web:
     <<: *web
@@ -278,15 +278,14 @@ HOSPITAL = """\
       PARTY_NAME: {name}
       PARTY_COLOUR: {colour}
       # The startup's final-models endpoint, and the name the startup issued this
-      # hospital (features/hospital/fetch.feature).
+      # hospital.
       STARTUP_ADDRESS: startup-final-models:8442
       HOSPITAL_CERTIFICATE_NAME: {slug}
     volumes:
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}}
     # The laboratory director provides the training cohort and fetches final
     # models here, so the web app writes the cohort folder and screening-models,
-    # through the hospital's whole volume (features/hospital/training_cohort.feature,
-    # features/hospital/fetch.feature); it holds no SuperNode key.
+    # through the hospital's whole volume; it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       {slug}: {aliases: [{slug}-pages]}
@@ -297,7 +296,7 @@ HOSPITAL = """\
 
 PRACTICE_INTRO = """\
   # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory (features/practice/ordering.feature): on the messaging network.
+  # laboratory: on the messaging network.
 """
 
 PRACTICE = """\

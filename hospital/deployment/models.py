@@ -68,7 +68,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         self, *, run_id: str, threshold: float, directory: Path | None, now: datetime
     ) -> Deployment:
         """Make a screening model in the hospital's folder the deployed model, at a
-        threshold its local validation holds, from `now` (features/hospital/deployment.feature)."""
+        threshold its local validation holds, from `now`."""
         path = None if directory is None else final_model_path(directory, run_id)
         if path is None or not path.is_file():
             raise ValidationError(
@@ -109,7 +109,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         return self.create(screening_model=screening_model, deployed_at=now)
 
     def screener(self, directory: Path | None) -> Screener | NoUsableModel:
-        """The deployed model ready to screen, or why there is none (features/hospital/screening.feature)."""
+        """The deployed model ready to screen, or why there is none."""
         latest = (
             self.select_related("screening_model")
             .order_by("-deployed_at", "-pk")

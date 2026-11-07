@@ -86,7 +86,7 @@ class TrainingCohortManager(models.Manager["TrainingCohort"]):
     def provide(self, *, directory: Path, by: User, now: datetime) -> TrainingCohort:
         """Extract the training cohort from the lab records and make it the one
         the startup's code at this hospital reads, in place of any provided
-        before (features/hospital/training_cohort.feature)."""
+        before."""
         rows = LabRecord.objects.training_cohort()
         iron_deficient = int(rows["iron_deficient"].sum())
         refusals = [
@@ -139,7 +139,7 @@ class TrainingCohortManager(models.Manager["TrainingCohort"]):
     @transaction.atomic
     def withdraw(self, *, directory: Path, by: User, now: datetime) -> TrainingCohort:
         """Withdraw the provided training cohort: the startup's code at this
-        hospital finds none from its next round (features/training_cohort_in_runs.feature)."""
+        hospital finds none from its next round."""
         provided = self.provided()
         if provided is None:
             raise ValidationError(

@@ -22,7 +22,7 @@ class Test(models.TextChoices):
     FERRITIN = "ferritin", "ferritin"
 
     def is_screened(self) -> bool:
-        """Whether the hospital screens this test for iron deficiency (features/hospital/screening.feature, features/hospital/lab.feature)."""
+        """Whether the hospital screens this test for iron deficiency."""
         match self:
             case Test.CBC:
                 return True
@@ -33,7 +33,7 @@ class Test(models.TextChoices):
 
     def on_suspicion(self) -> bool:
         """Whether this test is ordered only beside a lab report suggesting it,
-        on that lab report's sample (features/practice/ordering.feature): ferritin is ordered on suspicion."""
+        on that lab report's sample: ferritin is ordered on suspicion."""
         match self:
             case Test.CBC:
                 return False
@@ -65,7 +65,7 @@ class ClinicalIndication(models.TextChoices):
     OTHER = "other", "Other"
 
     def is_screened(self) -> bool:
-        """Whether a CBC for this indication is screened (features/hospital/screening.feature): the guidelines order
+        """Whether a CBC for this indication is screened: the guidelines order
         a CBC without ferritin first, so a suggestion can add something."""
         match self:
             case (
