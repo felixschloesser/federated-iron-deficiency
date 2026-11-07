@@ -89,7 +89,7 @@ def seed_practice(rows: Rows) -> list[str]:
             defaults={
                 "name": patient_name(seqn, sex),
                 "registered_sex": sex,
-                "age": int(row["age"]),
+                "age": int(float(row["age"])),
             },
         )
     user("no-role", None)
@@ -124,7 +124,7 @@ def seed_lab_records(csv_path: Path, provide: bool) -> str:
             LabRecord.objects.bulk_create(
                 LabRecord(
                     registered_sex=RegisteredSex.of_nhanes(str(row["sex"])),
-                    age=int(row["age"]),
+                    age=int(float(row["age"])),
                     cbc={
                         var: value
                         for var in CBC_VARS
