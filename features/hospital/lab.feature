@@ -64,3 +64,14 @@ Feature: Analysing samples
     Given a CBC order for "Test Patient 1"
     Then the lab's samples hold sample ID, registered sex, age, test, whether the indication is screened and results, and no general practitioner
     And the lab's records relate to nothing outside the hospital
+
+  Scenario: Laboratory staff see nothing of a patient's screening
+    The screening result is the model's inference about the patient; laboratory
+    staff analyse samples and need none of it. A screening model problem is
+    about the hospital, not the patient: they are told to tell the laboratory
+    director.
+    Given a CBC order for "Test Patient 1"
+    And no screening model is deployed
+    When laboratory staff run the analyser on the To analyse page
+    Then they are told the lab report was released without screening, and to tell the laboratory director
+    And the Analysed page shows the CBC and no screening result
