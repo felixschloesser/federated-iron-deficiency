@@ -32,7 +32,7 @@ PROJECT: dict[Compose, str] = {}
 # One file for every worktree: their container runs share one Docker engine.
 LOCK = Path(tempfile.gettempdir()) / "iron-deficiency-containers.lock"
 # The images compose.yaml builds.
-IMAGES = ("web", "practice-web", "superexec")
+IMAGES = ("prepare", "hospital-web", "startup-web", "practice-web", "superexec")
 # Each project's images built so far: a test run builds each once.
 BUILT: dict[str, set[str]] = {}
 
@@ -184,7 +184,7 @@ def synthetic_cohort(hospital: str) -> str:
 @pytest.fixture(scope="session")
 def superlink(compose: Compose) -> None:
     """Flower's part of `prepare`, into the party volumes, then the SuperLink."""
-    build(compose, "web")
+    build(compose, "prepare")
     compose(
         "run",
         "--rm",
@@ -203,7 +203,8 @@ def flower(compose: Compose, superlink: None) -> None:
     """The SuperLink, the ServerApp, and UZ Leuven's SuperNode and ClientApp; UZ
     Leuven holds a synthetic cohort and, beside it, a database the ClientApp
     must never see."""
-    build(compose, "superexec")
+    # flwr runs in the startup's train service, on the startup's image.
+    build(compose, "superexec", "startup-web")
     compose(
         "run",
         "--rm",
@@ -258,7 +259,7 @@ def wait_until_online(compose: Compose, nodes: int = 1) -> None:
 @pytest.fixture(scope="session")
 def hospital_app(compose: Compose) -> str:
     """AZ Diest's web app running: its pages and its lab-order endpoint."""
-    build(compose, "web")
+    build(compose, "prepare", "hospital-web")
     compose(
         "run",
         "--rm",
