@@ -19,7 +19,7 @@ from demo.seeding.accounts import (
     LABORATORY_STAFF,
     PASSWORD,
 )
-from demo.seeding.participants import patient_name
+from demo.seeding.names import patient_name
 from ml.cohort import CBC_VARS
 from web.shared.accounts.models import User
 from web.shared.accounts.roles import Role

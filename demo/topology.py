@@ -139,25 +139,51 @@ x-supernode: &supernode
 services:
   # Out-of-band setup, not drawn in the DFDs: lab records,
   # databases. The one container that sees every party's folder.
+  # The one container that reaches the internet: it writes the public NHANES
+  # extracts each party seeds from, one folder per party, on the host, and sees
+  # no party's volume (demo/nhanes.py). Once they exist it is done in a second.
+  nhanes-download:
+    image: ${COMPOSE_PROJECT_NAME}-nhanes-download
+    build: {context: .., dockerfile: demo/nhanes-download.Dockerfile}
+    # A host folder compose creates belongs to root: hand it to the demo user.
+    user: root
+    entrypoint:
+      - bash
+      - -c
+      - |
+        chown "$$DEMO_USER" /demo/huggingface /demo/nhanes
+        exec setpriv --reuid="$${DEMO_USER%%:*}" --regid="$${DEMO_USER##*:}" --clear-groups "$$@"
+      - nhanes-download
+    # Each hospital and its practice: cycle, folder names, patients (demo.toml).
+    command: [python, -m, demo.nhanes, --out-dir, /demo/nhanes, NHANES_PAIRS]
+    environment:
+      DEMO_USER: *user
+      # Hugging Face may refuse unauthenticated downloads of the NHANES data.
+      HF_TOKEN: ${HF_TOKEN:-}
+      # Downloads and extracts stay on the host, so `down -v` fetches nothing again.
+      HF_HOME: /demo/huggingface
+    volumes:
+      - ../.demo/huggingface:/demo/huggingface
+      - ../.demo/nhanes:/demo/nhanes
+    networks: [setup]
+
   prepare:
     <<: *prepare
     build: {context: .., dockerfile: demo/prepare.Dockerfile}
+    depends_on:
+      nhanes-download: {condition: service_completed_successfully}
     # A fresh volume belongs to root: hand each to the demo user, then drop to it.
     user: root
     entrypoint:
       - bash
       - -c
       - |
-        chown "$$DEMO_USER" /demo/startup /demo/hospitals/* /demo/practices/* /demo/huggingface
+        chown "$$DEMO_USER" /demo/startup /demo/hospitals/* /demo/practices/*
         exec setpriv --reuid="$${DEMO_USER%%:*}" --regid="$${DEMO_USER##*:}" --clear-groups "$$@"
       - prepare
     command: [python, -m, demo.demo, prepare, --demo-dir, /demo]
     environment:
       DEMO_USER: *user
-      # Hugging Face may refuse unauthenticated downloads of the NHANES data.
-      HF_TOKEN: ${HF_TOKEN:-}
-      # Downloads stay on the host, so a reset fetches nothing twice.
-      HF_HOME: /demo/huggingface
       # Only for the summary's addresses.
       DEMO_HTTP_PORT: ${DEMO_HTTP_PORT:-80}
     volumes:
@@ -165,9 +191,9 @@ services:
 """
 
 MIDDLE = """\
-      # On the host, kept by `down -v`: the downloads.
-      - ../.demo/huggingface:/demo/huggingface
-    networks: [setup]
+      # nhanes-download's extracts, read-only; prepare reaches no network.
+      - ../.demo/nhanes:/demo/nhanes:ro
+    network_mode: none
 
   # TB2, the startup.
   flower-superlink:
@@ -418,12 +444,22 @@ def practices() -> list[tuple[str, str, str]]:
     ]
 
 
+def nhanes_pairs() -> str:
+    """nhanes-download's arguments: each hospital and its practice, in CYCLES
+    order (demo/nhanes.py)."""
+    return ", ".join(
+        f"--pair, {cycle}, {hospital_slug(HOSPITALS[cycle])},"
+        f' {hospital_slug(PRACTICES[cycle])}, "{PATIENTS[cycle]}"'
+        for cycle in CYCLES
+    )
+
+
 def compose() -> str:
     hospital_slugs = [slug for _, slug, _ in hospitals()]
     practice_slugs = [slug for _, slug, _ in practices()]
     folders = [("hospitals", slug) for slug in hospital_slugs]
     folders += [("practices", slug) for slug in practice_slugs]
-    text = GENERATED + HEAD
+    text = GENERATED + HEAD.replace("NHANES_PAIRS", nhanes_pairs())
     text += "".join(
         f"      - {{type: volume, source: {slug}, target: /demo/{kind}/{slug}}}\n"
         for kind, slug in folders

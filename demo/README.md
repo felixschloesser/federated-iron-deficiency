@@ -53,17 +53,21 @@ Mac, Docker maps IDs for you.
 docker compose up --build --abort-on-container-failure
 ```
 
-The first start takes a while. It builds three images (the hospitals'
+The first start takes a while. It builds the images (the hospitals'
 web apps, the practices' leaner ones without PyTorch or Flower, and the
 startup's Flower app with PyTorch, CPU only), then runs these steps in order:
 
-1. **prepare** creates what each party needs and the DFDs do not draw:
-   each hospital's lab records (its NHANES cycle) and the 2021–2023
-   blood counts (downloaded from Hugging Face; set `HF_TOKEN` in `.env` if
-   it refuses), and each party's database with its demo accounts. It is the
-   only container that sees every party's folder: setup done once, out of
-   band.
-2. Everything else starts: the startup's SuperLink and ServerApp; per
+1. **nhanes-download** writes the public NHANES extracts each party seeds
+   from, one folder per party in `.demo/nhanes/`: each hospital's lab records
+   (its cycle) and its analyser's participants, each practice's patients
+   (from the 2021–2023 blood counts). It is the only container that reaches
+   the internet (Hugging Face; set `HF_TOKEN` in `.env` if it refuses), and it
+   sees no party's folder. Once the extracts exist, it is done in a second.
+2. **prepare** creates what each party needs and the DFDs do not draw: each
+   party's database, seeded from its extract, with its demo accounts. It
+   reaches no network, and is the only container that sees every party's
+   folder: setup done once, out of band.
+3. Everything else starts: the startup's SuperLink and ServerApp; per
    hospital a SuperNode, the startup's ClientApp (in a container that sees
    only the cohort and the final models and reaches only its SuperNode), the
    web app and the endpoint that receives lab orders; per practice its web
@@ -142,9 +146,8 @@ screening comes back to the practice.
   training cohorts, final models, the SuperLink's state and the databases.
   `docker compose down -v` deletes them all, so the next `up` starts over;
   `.demo/` on your machine keeps only what that must not cost you: the
-  Hugging Face downloads (`.demo/huggingface/`), with the NHANES 2021–2023
-  cycle the seeded patients come from; no party's folder holds that cycle.
-  `prepare` still asks Hugging Face, but downloads nothing twice.
+  Hugging Face downloads (`.demo/huggingface/`) and the extracts made from
+  them (`.demo/nhanes/`), so the next `up` downloads nothing.
 - When a change to `demo.toml` or the topology renames or drops a network,
   `docker compose down --remove-orphans` leaves the old one behind, and Docker
   has room for only about 30 networks. With the demo stopped,
