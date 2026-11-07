@@ -452,9 +452,10 @@ def local_validation_counts(auroc: float, deficient: int, other: int) -> object:
     )
 
 
-@then(parsers.parse("its AUROC reads {shown}"))
-def auroc_reads(screening_model_file: object, shown: str) -> None:
+@then(parsers.parse("its AUROC has a 95% confidence interval of {interval}"))
+def auroc_interval(screening_model_file: object, interval: str) -> None:
     from web.hospital.deployment.model_files import ScreeningModelFile
 
     assert isinstance(screening_model_file, ScreeningModelFile)
-    assert screening_model_file.local_auroc_shown == shown
+    expected = None if interval == "none" else interval
+    assert screening_model_file.local_auroc_interval == expected

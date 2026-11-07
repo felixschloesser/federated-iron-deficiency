@@ -18,7 +18,7 @@
   </header>
   {% if model.local_auroc is not None or model.federated_auroc is not None %}
   <dl>
-    {% if model.local_auroc is not None %}<dt>AUROC here</dt><dd class="no-wrap">{{ model.local_auroc_shown }}</dd>{% endif %}
+    {% if model.local_auroc is not None %}<dt>AUROC here</dt><dd>{{ model.local_auroc|floatformat:2 }}{% if model.local_auroc_interval %} <span class="no-wrap">(95% CI {{ model.local_auroc_interval }})</span>{% endif %}</dd>{% endif %}
     {% if model.federated_auroc is not None %}<dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>{% endif %}
   </dl>
   {% endif %}

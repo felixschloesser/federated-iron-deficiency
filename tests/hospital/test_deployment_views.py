@@ -109,7 +109,7 @@ def test_models_page(
             assertContains(response, f'<td data-label="{label}">{cell}</td>', html=True)
     assertContains(
         response,
-        '<dt>AUROC here</dt><dd class="no-wrap">0.84 (95% CI 0.68–1.00)</dd>',
+        '<dt>AUROC here</dt><dd>0.84 <span class="no-wrap">(95% CI 0.68–1.00)</span></dd>',
         html=True,
     )
     assertContains(response, "<dt>AUROC across hospitals</dt><dd>0.87</dd>", html=True)

@@ -71,14 +71,15 @@ Feature: Deploying a screening model
 
   Scenario Outline: The AUROC here carries its 95% confidence interval
     Given a local validation with AUROC <auroc> on <deficient> iron-deficient and <other> other past patients
-    Then its AUROC reads <shown>
+    Then its AUROC has a 95% confidence interval of <interval>
 
     Examples:
-      | auroc | deficient | other | shown                     |
-      | 0.84  | 10        | 42    | 0.84 (95% CI 0.68–1.00)   |
-      | 0.86  | 10        | 42    | 0.86 (95% CI 0.71–1.00)   |
-      | 0.84  | 84        | 170   | 0.84 (95% CI 0.78–0.90)   |
-      | 0.50  | 10        | 42    | 0.50 (95% CI 0.30–0.70)   |
+      | auroc | deficient | other | interval  |
+      | 0.84  | 10        | 42    | 0.68–1.00 |
+      | 0.86  | 10        | 42    | 0.71–1.00 |
+      | 0.84  | 84        | 170   | 0.78–0.90 |
+      | 0.50  | 10        | 42    | 0.30–0.70 |
+      | 0.70  | 0         | 42    | none      |
 
   Scenario Outline: A screening model that cannot be deployed says why
     Given screening model "3" that <problem>
