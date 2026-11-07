@@ -23,7 +23,7 @@ from demo.seeding.participants import patient_name
 from ml.cohort import CBC_VARS
 from web.shared.accounts.models import User
 from web.shared.accounts.roles import Role
-from web.shared.vocabulary import RegisteredSex
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 
 Rows = list[dict[Hashable, Any]]
 
@@ -90,6 +90,15 @@ def seed_startup() -> list[str]:
     return [DATA_SCIENTIST]
 
 
+def indication(pregnant: bool, number: int) -> ClinicalIndication:
+    """A past CBC's indication: at the start of pregnancy for a woman NHANES
+    found pregnant, else one of the screened indications in turn."""
+    if pregnant:
+        return ClinicalIndication.START_OF_PREGNANCY
+    screened = ClinicalIndication.screened()
+    return screened[number % len(screened)]
+
+
 def seed_lab_records(csv: Path, provide: bool) -> str:
     """The hospital's lab records (DS1), once, from a CSV prepare wrote
     (ml.dataset.participants); with `provide`, the laboratory director then
@@ -108,8 +117,9 @@ def seed_lab_records(csv: Path, provide: bool) -> str:
                         if not pd.isna(row[var])
                     },
                     ferritin=None if pd.isna(row["LBXFER"]) else float(row["LBXFER"]),
+                    clinical_indication=indication(bool(row["pregnant"]), number),
                 )
-                for row in pd.read_csv(csv).to_dict("records")
+                for number, row in enumerate(pd.read_csv(csv).to_dict("records"))
             )
     summary = f"{LabRecord.objects.count()} lab records"
     if not provide:
