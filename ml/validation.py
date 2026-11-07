@@ -78,7 +78,9 @@ def _split_frames(dataframe: pd.DataFrame, seed: int) -> Splits[pd.DataFrame]:
 
 
 def _training_stats(train_df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
-    # This cohort's training split only: no statistic leaves the hospital.
+    # This cohort's training split only: no statistic leaves the hospital. As
+    # Flower's tabular example fits its scaler per client; pooled standardization
+    # measured no better here (2026-11-07), as FedBN argues for local statistics.
     return train_df[FEATURES].mean(), train_df[FEATURES].std().replace(0, 1.0)
 
 
