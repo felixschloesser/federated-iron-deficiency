@@ -14,6 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWLIST = Path(".claude") / "audit_allowlist.toml"
 GLOSSARY = Path("glossary.toml")
+# Rejected words and decision dates: the process's record, out of readers' way.
+GLOSSARY_RECORD = Path(".claude/glossary_record.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
 BUILD_OUTPUT = {"staticfiles"}
 # The parts of the training package any code under web/shared/ may import: the
@@ -403,16 +405,74 @@ def party_settings(root: Path) -> list[str]:
     return findings
 
 
-def glossary_sources(root: Path) -> list[str]:
-    """Every term in glossary.toml names its source."""
+def glossary_entries(root: Path) -> list[str]:
+    """Every term in glossary.toml has a source and a meaning; the process's
+    record of rejected words names only glossary terms."""
     path = root / GLOSSARY
     if not path.exists():
         return []
+    entries = tomllib.loads(path.read_text())
     findings = []
-    for term, entry in tomllib.loads(path.read_text()).items():
+    for term, entry in entries.items():
         source = str(entry.get("source", "")).strip()
         if source in ("", "—", "-") or "unsourced" in source.lower():
             findings.append(f"{GLOSSARY.as_posix()}: term '{term}' has no source")
+        elif not str(entry.get("meaning", "")).strip():
+            findings.append(f"{GLOSSARY.as_posix()}: term '{term}' has no meaning")
+    record = root / GLOSSARY_RECORD
+    if record.exists():
+        findings += [
+            f"{GLOSSARY_RECORD.as_posix()}: term '{term}' is not in {GLOSSARY.as_posix()}"
+            for term in tomllib.loads(record.read_text())
+            if term not in entries
+        ]
+    return findings
+
+
+FEATURE_FILE = re.compile(r"features/[a-z_/]+\.feature")
+
+
+def _docstring_lines(tree: ast.Module) -> list[range]:
+    """The lines of each module and class docstring."""
+    found = []
+    for node in [tree, *ast.walk(tree)]:
+        if not isinstance(node, (ast.Module, ast.ClassDef)) or not node.body:
+            continue
+        first = node.body[0]
+        if (
+            isinstance(first, ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)
+        ):
+            found.append(range(first.lineno, (first.end_lineno or 0) + 1))
+    return found
+
+
+def feature_citations(root: Path) -> list[str]:
+    """Outside tests/, a feature file is named only in a module or class
+    docstring, once in each."""
+    findings = []
+    for path in files(root, "*.py"):
+        name = path.relative_to(root).as_posix()
+        if name.startswith("tests/"):
+            continue
+        text = path.read_text()
+        docstrings = _docstring_lines(ast.parse(text))
+        cited: set[range] = set()
+        for number, line in enumerate(text.splitlines(), start=1):
+            for _ in FEATURE_FILE.finditer(line):
+                home = next((lines for lines in docstrings if number in lines), None)
+                if home is None:
+                    findings.append(
+                        f"{name}:{number}: feature file named outside a module or"
+                        " class docstring"
+                    )
+                elif home in cited:
+                    findings.append(
+                        f"{name}:{number}: a second feature file in one docstring"
+                    )
+                else:
+                    cited.add(home)
     return findings
 
 
@@ -425,7 +485,8 @@ CHECKS: dict[str, Callable[[Path], list[str]]] = {
         suppressions,
         listed_members,
         get_mutation,
-        glossary_sources,
+        glossary_entries,
+        feature_citations,
         training_imports,
         party_imports,
         party_settings,
