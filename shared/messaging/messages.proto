@@ -1,5 +1,5 @@
 // Messages between the general practitioner's app and the hospital
-// (features/hospital/messaging.feature), and between a hospital's web app and the
+// (tests/hospital/test_messaging.py), and between a hospital's web app and the
 // startup (features/startup/release.feature). The client is always the one that
 // asks, the practice or the hospital, and names itself by its certificate name in
 // every message; the demo leaves out the report's mutual TLS.
@@ -23,7 +23,7 @@ enum RegisteredSex {
   REGISTERED_SEX_MALE = 2;
 }
 
-// DF23. No patient name, no blood values, no clinical indication (features/hospital/messaging.feature): the
+// DF23. No patient name, no blood values, no clinical indication (tests/tools/test_messages.py): the
 // tube's values are measured at the hospital, and of the indication the
 // laboratory needs only whether it is screened (features/hospital/screening.feature). The hospital's form still
 // checks every field.
@@ -33,7 +33,7 @@ message LabOrder {
   reserved "indication";
   reserved 6;                       // was the general practitioner's name: the
   reserved "general_practitioner";  // certificate_name says who ordered (features/practice/access.feature)
-  string certificate_name = 13;     // the sending practice's (features/hospital/messaging.feature)
+  string certificate_name = 13;     // the sending practice's (features/hospital/lab_orders.feature)
   string sample_id = 1;
   Test test = 8;
   bool screened_indication = 12;    // false when absent: never screened by mistake
@@ -42,7 +42,7 @@ message LabOrder {
   google.protobuf.Timestamp ordered_at = 11;
 }
 
-// DF25. Results and one bit of screening (features/practice/reports.feature, features/hospital/messaging.feature): no score, and nothing that
+// DF25. Results and one bit of screening (features/practice/reports.feature, tests/tools/test_messages.py): no score, and nothing that
 // tells ferritin not suggested from not screened.
 message LabReport {
   reserved 3, 6;                    // were strings: test, released_at

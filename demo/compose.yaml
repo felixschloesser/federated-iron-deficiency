@@ -367,7 +367,7 @@ services:
       final-models: {}
 
   # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory (features/practice/messaging.feature): on the messaging network.
+  # laboratory (features/practice/ordering.feature): on the messaging network.
   huisartsenpraktijk-de-akker-web:
     <<: *practice-web
     build: {context: .., dockerfile: demo/practice-web.Dockerfile}
