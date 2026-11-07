@@ -97,7 +97,9 @@ def lab_records_file(tmp_path: Path, deficient: int, sound: int) -> Path:
 
     rows = [("Female", 30, 8.0)] * deficient + [("Female", 30, 40.0)] * sound
     rows += [("Male", 30, 40.0)]
-    frame = pd.DataFrame(rows, columns=["sex", "age", "LBXFER"]).assign(pregnant=False)
+    frame = pd.DataFrame(rows, columns=["sex", "age", "LBXFER"]).assign(
+        CRP=1.0, pregnant=False
+    )
     for number, var in enumerate(CBC_VARS):
         frame[var] = [float(row + number) for row in range(len(frame))]
     path = tmp_path / "lab-records.csv"

@@ -1,17 +1,17 @@
-{% extends "kit/base.html" %}
+{% extends "includes/base.html" %}
 {% block title %}Training runs{% endblock %}
 {% block content %}
-{% include "kit/index_header.html" with title="Training runs" %}
+{% include "includes/index_header.html" with title="Training runs" %}
 
 {% if submits %}
 <h2>Submit a training run</h2>
 <p>Every hospital trains on its own cohort, as configured here; the startup keeps the final model, and you release it from Final models; each hospital's laboratory director fetches it and chooses whether to deploy it, and at which threshold. Every hospital evaluates each round, so the AUROC is across all of them.</p>
-{% include "kit/form.html" with form=form submit_label="Submit training run" %}
+{% include "includes/form.html" with form=form submit_label="Submit training run" %}
 {% endif %}
 
 <h2>Runs</h2>
 {% if runs_unknown %}
-{% include "kit/alert.html" with level="warning" role="status" text=runs_unknown %}
+{% include "includes/alert.html" with level="warning" role="status" text=runs_unknown %}
 <p>Submitting and stopping come back when the SuperLink answers.</p>
 {% elif training_runs %}
 <p>Newest first, as the SuperLink reported them at {{ checked_at|time:"H:i" }}; reload the page to see a run move on.</p>
@@ -19,7 +19,7 @@
   <thead><tr><th scope="col">Run</th><th scope="col">Status</th><th scope="col">Since</th><th scope="col">Elapsed</th><th scope="col">Details</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
   <tbody>
     {% for run in training_runs %}
-    <tr><td data-label="Run">{{ run.run_id }}</td><td data-label="Status" class="no-wrap">{% if run.status.in_progress %}<strong>{{ run.status_label }}</strong>{% else %}{{ run.status_label }}{% endif %}</td><td data-label="Since" class="no-wrap">{{ run.since|date:"j M Y, H:i"|default:"—" }}</td><td data-label="Elapsed" class="no-wrap">{{ run.elapsed }}</td><td data-label="Details">{{ run.details|default_if_none:"—" }}</td><td data-label="">{% if run.status.in_progress %}{% url "training:stop" run.run_id as stop_url %}{% with run_id=run.run_id|stringformat:"d" %}{% include "kit/action_button.html" with url=stop_url label="Stop" accessible_label="Stop run "|add:run_id %}{% endwith %}{% endif %}</td></tr>
+    <tr><td data-label="Run">{{ run.run_id }}</td><td data-label="Status" class="no-wrap">{% if run.status.in_progress %}<strong>{{ run.status_label }}</strong>{% else %}{{ run.status_label }}{% endif %}</td><td data-label="Since" class="no-wrap">{{ run.since|date:"j M Y, H:i"|default:"—" }}</td><td data-label="Elapsed" class="no-wrap">{{ run.elapsed }}</td><td data-label="Details">{{ run.details|default_if_none:"—" }}</td><td data-label="">{% if run.status.in_progress %}{% url "training:stop" run.run_id as stop_url %}{% with run_id=run.run_id|stringformat:"d" %}{% include "includes/action_button.html" with url=stop_url label="Stop" accessible_label="Stop run "|add:run_id %}{% endwith %}{% endif %}</td></tr>
     {% endfor %}
   </tbody>
 </table></div>

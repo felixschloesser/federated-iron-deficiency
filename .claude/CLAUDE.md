@@ -28,14 +28,14 @@ uv run --frozen python .claude/audit.py
 - Run every gate through `uv run --frozen`, never with a stale `.venv`. Plain pytest runs the tests outside the party folders without Django settings, then each party's (a folder named after the party, anywhere under `tests/`) in a pytest of its own under `--ds=web.<party>.settings` (`conftest.py`). With `DJANGO_SETTINGS_MODULE` set in the shell, it runs only that party's tests: unset it.
 - Merge gate: `uv run --frozen pytest -W error -m containers` must also exit 0 when a branch touches what the images or containers are made of, or the tests that run them: compose, Docker files, `.dockerignore`, `web/shared/settings.py`, `web/<party>/settings.py`, `demo/`, `ml/`, `pyproject.toml`, `uv.lock`, `tests/compose_project.py` or a test marked `containers`. Other branches merge without it.
 
-- Zero warnings. Never suppress one (`# noqa`, `# type: ignore`, `filterwarnings`); fix the root cause. If the fix is genuinely unclear, stop and report with a recommendation.
+- Zero warnings. Never suppress one (`# noqa`, `# type: ignore`, `filterwarnings`); fix the root cause. Generated code (protoc's `*_pb2*`) is excluded from ruff instead: excluded, not suppressed; regenerate it, never patch it. If the fix is genuinely unclear, stop and report with a recommendation.
 - `.claude/audit.py` fails on any finding.
 - Under machine load, rerun a timed-out test once and report it.
 
 ## Vocabulary first
 
 - Before any scenario that introduces or renames a domain concept: a term table (term | source | why chosen | rejected terms). A term without a source stops the draft; report it.
-- Glossary entries (`glossary.toml`, one table per term with `source`, `why` and `rejected`) change in the same commit as the code, each with its source; the audit fails on a term without one. Model, form, template and copy use the glossary's words; the domain experts' words win over developer words.
+- Glossary entries (`glossary.toml`, one table per term with `meaning` and `source`, for readers) change in the same commit as the code; the words a term replaced and the date the team decided it go in `.claude/glossary_record.toml` (`rejected`, `decided`). The audit fails on a term without a meaning or source, and on a record term not in the glossary. Model, form, template and copy use the glossary's words; the domain experts' words win over developer words.
 
 ## Red first
 
@@ -55,11 +55,11 @@ uv run --frozen python .claude/audit.py
 - **No capability without a path to it.** Every writing model or manager method is reachable from a view; every view from the URLconf and a link or form on a page.
 - **POST-redirect-GET.** Every mutation is a POST that redirects on success. GET never mutates.
 - Code rules: no bare `assert` outside tests; no `except Exception` without re-raise; no single-letter names; functions ≤100 lines, ≤5 parameters.
-- Outside `tests/`, a module or class docstring may name its feature file, once; functions, methods and comments do not.
+- Outside `tests/`, a module or class docstring may name its feature file, once; functions, methods and comments do not (the audit checks).
 
 ## Templates
 
-- Pages are built only from the shared kit (`web/shared/templates/kit/`: base layout, index header, action row, archive/restore with the refusal beside the action, form layout, error summary). A missing piece goes into the kit, not the page.
+- Pages are built only from the shared includes (`web/shared/templates/includes/`: base layout, index header, action row, archive/restore with the refusal beside the action, form layout, error summary). A missing piece goes into includes/, not the page.
 - Only CSS classes defined in the vendored stylesheet or `web/shared/static/css/`. The audit checks `class="…"` in the templates.
 - Conditional controls (show only when the recorded facts make them applicable) are decided in the view or a query function and tested there, not by rendering.
 - In tests, `string_if_invalid` fails the test; a missing variable never renders blank.
