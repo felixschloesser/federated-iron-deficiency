@@ -26,7 +26,7 @@ from tqdm import tqdm
 
 from demo.topology import PATIENTS, PRACTICES, PROVIDED
 from ml.dataset import CYCLES, HOSPITALS, hospital_slug
-from web.seeding.accounts import (
+from shared.seeding.accounts import (
     DATA_SCIENTIST,
     GENERAL_PRACTITIONER,
     LABORATORY_DIRECTOR,
@@ -141,7 +141,7 @@ def prepare_web(
     """Migrate the party's database and seed its demo accounts, once per seed."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": f"web.settings.{party}",
+        "DJANGO_SETTINGS_MODULE": f"{party}.settings",
         "DATA_DIR": str(folder),
         "DJANGO_DEBUG": "1",
     }
@@ -181,7 +181,7 @@ def add_practices(hospital: Path) -> None:
     """Every practice, at the hospital, by its certificate name."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": "web.settings.hospital",
+        "DJANGO_SETTINGS_MODULE": "hospital.settings",
         "DATA_DIR": str(hospital),
         "DJANGO_DEBUG": "1",
     }
@@ -199,7 +199,7 @@ def seed_lab_records(hospital: Path, arguments: list[str]) -> None:
     director provided one."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": "web.settings.hospital",
+        "DJANGO_SETTINGS_MODULE": "hospital.settings",
         "DATA_DIR": str(hospital),
         "DJANGO_DEBUG": "1",
     }
@@ -215,7 +215,7 @@ def add_laboratories(practice: Path, practice_cycle: str) -> None:
     """Every hospital's laboratory, at its lab-order endpoint (features/practice/messaging.feature)."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": "web.settings.practice",
+        "DJANGO_SETTINGS_MODULE": "practice.settings",
         "DATA_DIR": str(practice),
         "DJANGO_DEBUG": "1",
     }
@@ -344,7 +344,7 @@ def screening_status(demo_dir: Path, slug: str) -> str:
     """One hospital's one-line screening model state."""
     env = {
         **os.environ,
-        "DJANGO_SETTINGS_MODULE": "web.settings.hospital",
+        "DJANGO_SETTINGS_MODULE": "hospital.settings",
         "DATA_DIR": str(hospital_dir(demo_dir, slug)),
         "DJANGO_DEBUG": "1",
     }

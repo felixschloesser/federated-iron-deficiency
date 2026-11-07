@@ -8,14 +8,14 @@ import pytest
 from django.core.management import CommandError, call_command
 from pytest_django.fixtures import Settings
 
+from hospital.nhanes.models import MADE_UP_FERRITIN, Participant
 from ml.cohort import CBC_VARS
+from shared.accounts.models import User
+from shared.accounts.roles import Role, role_of
+from shared.seeding import command as seeding
+from shared.vocabulary import RESULT_NAMES
+from shared.vocabulary import Test as OrderedTest
 from tests.conftest import PEOPLE, nhanes_rows
-from web.accounts.models import User
-from web.accounts.roles import Role, role_of
-from web.hospital.nhanes.models import MADE_UP_FERRITIN, Participant
-from web.seeding import command as seeding
-from web.vocabulary import RESULT_NAMES
-from web.vocabulary import Test as OrderedTest
 
 pytestmark = pytest.mark.django_db
 
@@ -107,7 +107,7 @@ def lab_records_file(tmp_path: Path, deficient: int, sound: int) -> Path:
 
 
 def test_a_hospital_seeds_its_lab_records(settings: Settings, tmp_path: Path) -> None:
-    from web.hospital.cohort.models import LabRecord, TrainingCohort
+    from hospital.cohort.models import LabRecord, TrainingCohort
 
     settings.DEBUG = True
     settings.TRAINING_COHORT_DIR = tmp_path / "cohort"
@@ -124,7 +124,7 @@ def test_a_hospital_seeding_with_provide_provides_its_training_cohort(
 ) -> None:
     """Through the laboratory director's own provide
     (features/hospital/training_cohort.feature); once, however often prepare runs."""
-    from web.hospital.cohort.models import TrainingCohort
+    from hospital.cohort.models import TrainingCohort
 
     settings.DEBUG = True
     settings.TRAINING_COHORT_DIR = tmp_path / "cohort"

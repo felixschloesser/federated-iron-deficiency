@@ -10,31 +10,31 @@ import grpc
 import pytest
 from pytest_bdd import given, parsers
 
+from shared.messaging import messages_pb2_grpc
 from tests.conftest import World, make_user
 from tests.django_settings import _test_settings
 from tests.practice.fake_laboratory import FakeLaboratory
-from web.messaging import messages_pb2_grpc
 
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from web.accounts.models import User
-    from web.practice.models import Order, Patient, Sample
-    from web.vocabulary import ClinicalIndication, RegisteredSex, Test
+    from practice.models import Order, Patient, Sample
+    from shared.accounts.models import User
+    from shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 # The settings every test of this party runs with (tests/django_settings.py).
 __all__ = ["_test_settings"]
 
 
 def make_general_practitioner(name: str) -> "User":
-    from web.accounts.roles import Role
+    from shared.accounts.roles import Role
 
     return make_user(name, Role.GENERAL_PRACTITIONER)
 
 
 def make_patient(name: str, sex: "RegisteredSex", age: int) -> "Patient":
     """A patient of the practice, whose sample IDs start with a new NHANES number."""
-    from web.practice.models import Patient
+    from practice.models import Patient
 
     return Patient.objects.create(
         name=name,
@@ -58,7 +58,7 @@ def general_practitioner_with_patient(
     sex: str | None,
     age: str | None,
 ) -> None:
-    from web.vocabulary import RegisteredSex
+    from shared.vocabulary import RegisteredSex
 
     owner = world["general_practitioners"].get(
         general_practitioner
@@ -73,8 +73,8 @@ def suggest_ferritin_on(sample: "Sample", now: "datetime") -> None:
     """The sample's CBC, placed if missing, with a fetched lab report suggesting
     ferritin: what any ferritin order needs (features/practice/ordering.feature). The CBC counts as sent, so no
     test sends it to a laboratory by accident."""
-    from web.practice.models import LabReport, Order
-    from web.vocabulary import ClinicalIndication, Test
+    from practice.models import LabReport, Order
+    from shared.vocabulary import ClinicalIndication, Test
 
     cbc = sample.orders.filter(test=Test.CBC).first()
     if cbc is None:
@@ -101,7 +101,7 @@ def collect_and_order(
     now: "datetime",
 ) -> "Order":
     """Collect a sample from the patient and order one test on it."""
-    from web.practice.models import Laboratory
+    from practice.models import Laboratory
 
     # The practice's first laboratory, if it works with any (features/practice/messaging.feature).
     laboratory = Laboratory.objects.order_by("pk").first()

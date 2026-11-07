@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def seed(party: str, folder: Path, nhanes: Path, seed_value: str) -> None:
     env = {
         **{key: value for key, value in os.environ.items() if key != "DATA_DIR"},
-        "DJANGO_SETTINGS_MODULE": f"web.settings.{party}",
+        "DJANGO_SETTINGS_MODULE": f"{party}.settings",
         "DATA_DIR": str(folder),
         "DJANGO_DEBUG": "1",
     }
@@ -37,7 +37,7 @@ def seed(party: str, folder: Path, nhanes: Path, seed_value: str) -> None:
 
 
 def column(folder: Path, query: str) -> set[str]:
-    with closing(sqlite3.connect(folder / "web.sqlite3")) as database:
+    with closing(sqlite3.connect(folder / "shared.sqlite3")) as database:
         return {str(value) for (value,) in database.execute(query)}
 
 

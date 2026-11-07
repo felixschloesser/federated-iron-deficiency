@@ -8,13 +8,13 @@ import pytest
 from django.core.exceptions import ValidationError
 from pytest_bdd import given, parsers, scenarios, then, when
 
+from hospital.lab.models import Sample, TestRequest
+from hospital.nhanes.models import FERRITIN, Participant
 from ml.cohort import CBC_VARS
+from shared.vocabulary import RegisteredSex
+from shared.vocabulary import Test as OrderedTest
 from tests.conftest import World
 from tests.hospital.conftest import make_practice, make_tube, receive_lab_order
-from web.hospital.lab.models import Sample, TestRequest
-from web.hospital.nhanes.models import FERRITIN, Participant
-from web.vocabulary import RegisteredSex
-from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 29, 10, 0, tzinfo=UTC)
 TESTS = {"CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}

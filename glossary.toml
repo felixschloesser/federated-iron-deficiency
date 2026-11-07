@@ -309,7 +309,7 @@ rejected = ["cutoff (reserved for ferritin's 15 ng/mL)"]
 
 ["messaging"]
 source = "Report, P8 \"Messaging endpoint\""
-why = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (web/messaging/, serve_messages)"
+why = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (shared/messaging/, serve_messages)"
 rejected = ["API", "integration"]
 
 ["lab report"]

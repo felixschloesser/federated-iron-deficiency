@@ -22,7 +22,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 # The hospital whose SuperNode and ClientApp the Flower tests start.
 HOSPITAL = "uz-leuven"
-# Not UZ Leuven, whose web.sqlite3 is the ClientApp probe's bait, not a database.
+# Not UZ Leuven, whose shared.sqlite3 is the ClientApp probe's bait, not a database.
 APP_HOSPITAL = "az-diest"
 APP_PRACTICE = "huisartsenpraktijk-de-ceder"
 
@@ -213,7 +213,7 @@ def flower(compose: Compose, superlink: None) -> None:
         "-c",
         "from pathlib import Path"
         + synthetic_cohort(HOSPITAL)
-        + f"; (Path('/demo/hospitals/{HOSPITAL}') / 'web.sqlite3').write_text('lab orders')",
+        + f"; (Path('/demo/hospitals/{HOSPITAL}') / 'shared.sqlite3').write_text('lab orders')",
     )
     compose(
         "up",

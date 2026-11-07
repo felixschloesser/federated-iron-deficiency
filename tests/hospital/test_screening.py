@@ -10,6 +10,16 @@ import torch
 from django.db.models import DecimalField, FloatField
 from pytest_bdd import given, parsers, scenarios, then, when
 
+from hospital.deployment.model_files import sha256
+from hospital.deployment.models import Deployment, NoUsableModel
+from hospital.lab.models import (
+    LabOrderDetails,
+    NotScreened,
+    Sample,
+    ScreeningResult,
+    TestRequest,
+)
+from hospital.nhanes.models import Participant
 from ml.cohort import CBC_VARS, FEATURES, eligible
 from ml.final_model import (
     FinalModel,
@@ -18,20 +28,10 @@ from ml.final_model import (
     standardization_tensor,
     write,
 )
+from shared.vocabulary import ClinicalIndication, RegisteredSex
+from shared.vocabulary import Test as OrderedTest
 from tests.conftest import World
 from tests.hospital.conftest import make_practice
-from web.hospital.deployment.model_files import sha256
-from web.hospital.deployment.models import Deployment, NoUsableModel
-from web.hospital.lab.models import (
-    LabOrderDetails,
-    NotScreened,
-    Sample,
-    ScreeningResult,
-    TestRequest,
-)
-from web.hospital.nhanes.models import Participant
-from web.vocabulary import ClinicalIndication, RegisteredSex
-from web.vocabulary import Test as OrderedTest
 
 # Scenarios: screening a CBC when the analyser runs (features/hospital/screening.feature).
 

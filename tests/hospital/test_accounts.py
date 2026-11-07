@@ -4,7 +4,7 @@ import pytest
 from django.conf import settings
 from django.urls import resolve
 
-from web.accounts.roles import Role, role_of
+from shared.accounts.roles import Role, role_of
 
 pytestmark = pytest.mark.django_db
 

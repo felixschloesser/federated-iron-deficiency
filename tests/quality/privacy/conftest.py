@@ -8,7 +8,7 @@ party's web app is a Django project of its own):
   `superlink`, `hospital_app` and `proxy`, and `probe()` from
   tests/compose_project.py. Mark such a test `@pytest.mark.containers`.
 - In a process of its own, as one party: `manage.py` under
-  `DJANGO_SETTINGS_MODULE=web.settings.<party>` with a `DATA_DIR` of the
+  `DJANGO_SETTINGS_MODULE=<party>.settings` with a `DATA_DIR` of the
   test's (tests/quality/security/test_party_isolation.py shows how). Mark such
   a test `@pytest.mark.subprocess`.
 """

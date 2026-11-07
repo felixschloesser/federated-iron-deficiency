@@ -11,20 +11,20 @@ import pytest
 from django.core.management import call_command
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from tests.conftest import World
-from web.hospital.lab.messaging import serve
-from web.hospital.lab.models import (
+from hospital.lab.messaging import serve
+from hospital.lab.models import (
     LabOrderDetails,
     Practice,
     Sample,
     ScreeningResult,
     TestRequest,
 )
-from web.hospital.nhanes.models import Participant
-from web.messaging import messages_pb2, messages_pb2_grpc
-from web.messaging.convert import timestamp
-from web.vocabulary import RegisteredSex
-from web.vocabulary import Test as OrderedTest
+from hospital.nhanes.models import Participant
+from shared.messaging import messages_pb2, messages_pb2_grpc
+from shared.messaging.convert import timestamp
+from shared.vocabulary import RegisteredSex
+from shared.vocabulary import Test as OrderedTest
+from tests.conftest import World
 
 NOW = datetime(2026, 10, 30, 10, 0, tzinfo=UTC)
 TESTS = {"CBC": messages_pb2.TEST_CBC, "ferritin": messages_pb2.TEST_FERRITIN}
