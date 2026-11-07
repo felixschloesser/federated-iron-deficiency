@@ -422,3 +422,40 @@ def reads_with_interval(measure: object, percent: str, interval: str) -> None:
     assert isinstance(measure, Ratio)
     assert measure.percent == (None if percent == "none" else percent)
     assert measure.interval == (None if interval == "none" else interval)
+
+
+@given(
+    parsers.parse(
+        "a local validation with AUROC {auroc:f} on {deficient:d} iron-deficient and"
+        " {other:d} other past patients"
+    ),
+    target_fixture="screening_model_file",
+)
+def local_validation_counts(auroc: float, deficient: int, other: int) -> object:
+    from web.hospital.deployment.model_files import (
+        LocalValidationAt,
+        ScreeningModelFile,
+    )
+
+    # Any threshold's counts hold every past patient of the validation.
+    counts = {
+        "true_positives": deficient,
+        "false_negatives": 0,
+        "false_positives": other,
+        "true_negatives": 0,
+    }
+    return ScreeningModelFile(
+        run_id="1",
+        problem=None,
+        local_auroc=auroc,
+        local_validation=[LocalValidationAt(0.05, counts)],
+    )
+
+
+@then(parsers.parse("its AUROC has a 95% confidence interval of {interval}"))
+def auroc_interval(screening_model_file: object, interval: str) -> None:
+    from web.hospital.deployment.model_files import ScreeningModelFile
+
+    assert isinstance(screening_model_file, ScreeningModelFile)
+    expected = None if interval == "none" else interval
+    assert screening_model_file.local_auroc_interval == expected
