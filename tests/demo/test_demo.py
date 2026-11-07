@@ -161,7 +161,13 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
     )
     ferritin = pd.DataFrame({"sample_id": [1], "LBXFER": [20.0]})
     records = pd.DataFrame(
-        {"sex": ["Female"], "age": [30], "LBXFER": [20.0], "pregnant": [False]}
+        {
+            "sex": ["Female"],
+            "age": [30],
+            "LBXFER": [20.0],
+            "CRP": [1.0],
+            "pregnant": [False],
+        }
         | {var: [1.0] for var in CBC_VARS}
     )
     monkeypatch.setattr(ml.dataset, "participants", lambda cycle: records)

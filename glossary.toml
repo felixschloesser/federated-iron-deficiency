@@ -258,7 +258,7 @@ rejected = [
 
 ["lab record"]
 source = "Report, DS1 \"Lab records\"; DF1 \"Past CBC and ferritin results\""
-why = "What the laboratory holds of a past patient: registered sex, age, the CBC values and the ferritin result; what the training cohort is extracted from. Kept apart from the test requests (DS8) and the analyser stand-in"
+why = "What the laboratory holds of a past patient: registered sex, age, the CBC values, the ferritin and CRP results and the clinical indication of its order; what the training cohort is extracted from. Kept apart from the test requests (DS8) and the analyser stand-in"
 rejected = ["past result", "patient record", "participant (NHANES's word)"]
 
 ["past patient"]
@@ -268,7 +268,7 @@ rejected = ["participant", "subject", "sample"]
 
 ["training cohort"]
 source = "Report, DS2 \"Training cohort\""
-why = "What the startup's code at this hospital trains on: the 13 CBC values, age and whether ferritin was below the cutoff, per past patient; nothing else. Exists only once the laboratory director provides it"
+why = "What the startup's code at this hospital trains on: the 13 CBC values, age and whether iron deficient, per past patient; nothing else. Exists only once the laboratory director provides it"
 rejected = ["cohort (alone, in copy)", "dataset", "partition (Flower's word)", "snapshot", "extract"]
 
 ["provide"]
@@ -370,6 +370,16 @@ rejected = ["Hb", "Ht and other report abbreviations (no source; other units)"]
 source = "NHANES 2021–2023 FERTIN_L codebook (https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2021/DataFiles/FERTIN_L.htm)"
 why = "As above"
 rejected = ["µg/L (LBDFERSI)"]
+
+["inflammation"]
+source = "WHO ferritin guideline (who2020), recommendation 1.2, PDF p. 11: \"In individuals with infection or inflammation, a ferritin concentration below … 70 µg/L in adults\"; PDF p. 15: \"elevated inflammation (as defined by a CRP concentration >5 mg/L\""
+why = "When a past patient counts as iron deficient below 70 ng/mL instead of 15: a CRP above 5 mg/L. Ferritin rises with inflammation, so the lower cutoff would miss her"
+rejected = ["infection (one cause of it)", "acute phase (jargon)"]
+
+["CRP, mg/L"]
+source = "WHO ferritin guideline (who2020), PDF p. 29: \"C-reactive protein (CRP)\"; NHANES HSCRP codebooks (LBXHSCRP, mg/L)"
+why = "The lab result that says whether a past patient had inflammation; it makes the label and stays in the lab records. A past patient without one stays out of the training cohort, and the director sees how many"
+rejected = ["hs-CRP (an assay, not the measure)", "LBXCRP (mg/dL, the older assay)"]
 
 ["Ferritin (made up for the demo), ng/mL"]
 source = "User decision, 2026-11-01: NHANES has no ferritin for men and women outside 12–49"
