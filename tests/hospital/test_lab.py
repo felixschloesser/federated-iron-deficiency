@@ -6,10 +6,12 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.test import Client
+from django.urls import reverse
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from hospital.analyser.models import FERRITIN, Participant
-from hospital.lab.models import Sample, TestRequest
+from hospital.lab.models import NotScreened, Sample, ScreeningResult, TestRequest
 from ml.cohort import CBC_VARS
 from shared.vocabulary import RegisteredSex
 from shared.vocabulary import Test as OrderedTest
@@ -215,3 +217,46 @@ def lab_relates_to_the_hospital_only(world: World) -> None:
             if field.related_model is not None
         }
         assert related <= {"lab", "deployment"}, (model, related)
+
+
+@given("no screening model is deployed")
+def no_model_deployed(world: World) -> None:
+    from hospital.deployment.models import Deployment
+
+    assert not Deployment.objects.exists()
+
+
+@when("laboratory staff run the analyser on the To analyse page")
+def run_on_page(world: World, client: Client) -> None:
+    from tests.hospital.conftest import make_laboratory_staff_member
+
+    client.force_login(make_laboratory_staff_member("Lab One"))
+    world["client"] = client
+    world["response"] = client.post(
+        reverse("lab:analyse", kwargs={"pk": world["test_request"].pk}),
+        follow=True,
+    )
+
+
+@then(
+    "they are told the lab report was released without screening, and to tell the"
+    " laboratory director"
+)
+def told_to_tell_director(world: World) -> None:
+    sample_id = world["test_request"].sample.sample_id
+    messages = [str(message) for message in world["response"].context["messages"]]
+    expected = (
+        f"Sample {sample_id}: CBC analysed, lab report released without screening:"
+        " no screening model deployed. Tell the laboratory director."
+    )
+    assert messages == [expected]
+
+
+@then("the Analysed page shows the CBC and no screening result")
+def analysed_shows_no_screening(world: World) -> None:
+    response = world["client"].get(reverse("lab:analysed"))
+    page = response.content.decode()
+    assert world["test_request"].sample.sample_id in page
+    assert "Screening result" not in page
+    for label in (*ScreeningResult.labels, *NotScreened.labels):
+        assert label not in page, label
