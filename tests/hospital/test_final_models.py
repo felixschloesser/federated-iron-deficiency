@@ -143,7 +143,7 @@ def holds_none(hospital: World) -> None:
 
 
 @then(
-    "its local validation holds the four counts of its validation split at each"
+    "its local validation holds the four counts of its test split at each"
     " threshold from 0.05 to 0.95 in steps of 0.05"
 )
 def local_validation(hospital: World) -> None:
@@ -156,8 +156,8 @@ def local_validation(hospital: World) -> None:
             "false_positives",
             "true_negatives",
         }
-        # The validation split is 16% of the cohort (ml.validation.load_data).
-        assert sum(matrix.values()) == 32
+        # The test split is 20% of the cohort (ml.validation.load_data).
+        assert sum(matrix.values()) == 40
     # A higher threshold suggests ferritin for no more women.
     suggested = [
         matrices[threshold]["true_positives"] + matrices[threshold]["false_positives"]
