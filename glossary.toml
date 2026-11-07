@@ -40,7 +40,7 @@ source = "Report, Solutions table, mutual TLS: \"each hospital is its own CA and
 
 ["practice name"]
 meaning = "The practice's own name (`PARTY_NAME`), shown on its pages; the hospital registers it beside the certificate name, which is the lab's key, and it is never sent"
-source = "Report, \"Design choices and assumptions\", DF24: \"Lab orders, with the sending practice\"; the names in demo.toml (`practice = \"Huisartsenpraktijk De Akker\"`)"
+source = "Report, \"Design choices and assumptions\", DF24: \"Lab orders, with the sending practice\"; the names in demo/compose.yaml (`PARTY_NAME: Huisartsenpraktijk De Akker`)"
 
 ["order"]
 meaning = "The practice's word: what the general practitioner places, with its clinical indication, which never leaves the practice. Each party speaks its own language: the practice orders, the wire carries a lab order, the laboratory works on a test request"

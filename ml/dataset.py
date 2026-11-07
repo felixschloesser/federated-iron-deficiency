@@ -18,7 +18,7 @@ HF_DATASET = "gracemyu/nhanes-merged"
 HF_REVISION = "2069b6643803fdf1a110b3c632dfc0fe3bb0b08d"
 HF_DATA_FILE = "merged_deduped.parquet"
 
-# One NHANES cycle per hospital (demo/topology.py names them), keyed by the
+# One NHANES cycle per hospital (demo/compose.yaml names them), keyed by the
 # cycle's first survey year: a large, a medium and a small hospital.
 CYCLES = {
     "2005-2006": 2005,

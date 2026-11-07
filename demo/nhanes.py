@@ -5,8 +5,8 @@ it, and it sees no party's volume.
     python -m demo.nhanes --out-dir DIR --pair CYCLE HOSPITAL PRACTICE PATIENTS ...
 
 Each --pair is a hospital and the practice of its cycle, by folder name, and
-how many patients the practice seeds; compose passes them (demo/topology.py),
-so this needs no topology and its image no rebuild when the demo's parties
+how many patients the practice seeds; compose passes them (demo/compose.yaml),
+so this needs no list of parties and its image no rebuild when the demo's parties
 change.
 
 A hospital's folder holds its past lab records (its cycle's share) and the

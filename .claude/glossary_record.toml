@@ -12,7 +12,7 @@ rejected = ["lab (the report's short form, kept only in \"lab order\" and \"lab 
 
 ["primary laboratory"]
 decided = "2026-11-05"
-rejected = ["default laboratory (developer word)", "home laboratory", "paired hospital (demo.toml's pairing, not a laboratory)", "lab (kept only in \"lab order\" and \"lab report\")"]
+rejected = ["default laboratory (developer word)", "home laboratory", "paired hospital (the demo's pairing, not a laboratory)", "lab (kept only in \"lab order\" and \"lab report\")"]
 
 ["laboratory staff"]
 rejected = ["lab technician (\"technician\" in WHO LQMS means equipment service only)", "technologist (a qualified grade)", "laboratorian", "laboratory worker"]

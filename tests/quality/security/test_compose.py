@@ -14,12 +14,9 @@ from typing import Any
 
 import pytest
 
-from demo.topology import COLOURS, HOSPITALS, PRACTICES, hospital_slug
 from ml.dataset import CYCLES
 
 ROOT = Path(__file__).resolve().parents[3]
-HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
-PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
 # Each practice sends to the hospital of the same cycle (demo/README.md).
 STARTUP_SERVICES = {
     "flower-superlink",
@@ -62,6 +59,36 @@ def config(demo_user: str | None = None, **settings: str) -> dict[str, Any]:
 def service(name: str) -> dict[str, Any]:
     found: dict[str, Any] = config()["services"][name]
     return found
+
+
+def pairs() -> list[tuple[str, str, str, int]]:
+    """nhanes-download's --pair arguments, as compose.yaml writes them: each
+    hospital with its NHANES cycle, its practice and the practice's patients."""
+    command: list[str] = service("nhanes-download")["command"]
+    return [
+        (command[at + 1], command[at + 2], command[at + 3], int(command[at + 4]))
+        for at, part in enumerate(command)
+        if part == "--pair"
+    ]
+
+
+def name(slug: str) -> str:
+    """A party's name, as its web app shows it."""
+    found: str = service(f"{slug}-web")["environment"]["PARTY_NAME"]
+    return found
+
+
+HOSPITAL_SLUGS = [hospital for _, hospital, _, _ in pairs()]
+PRACTICE_SLUGS = [practice for _, _, practice, _ in pairs()]
+
+
+def test_the_demo_pairs_exactly_the_hospitals_training_knows() -> None:
+    """Each hospital trains on its NHANES cycle (ml.dataset.CYCLES). Pass: compose
+    names each cycle once, in that order, each with a hospital and a practice
+    whose web apps run."""
+    assert [cycle for cycle, _, _, _ in pairs()] == list(CYCLES)
+    for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS:
+        assert f"{slug}-web" in config()["services"], slug
 
 
 def volume_folder(volume: str) -> str:
@@ -292,18 +319,16 @@ def test_the_hospital_serves_its_pages_and_its_messaging_each_on_one_network_onl
 
 def test_each_web_app_knows_its_party_name_and_colour() -> None:
     vendor = ROOT / "web/shared/static/css/vendor/pico-2.1.1"
-    for cycle, (hospital_colour, practice_colour) in COLOURS.items():
-        hospital = service(f"{hospital_slug(HOSPITALS[cycle])}-web")["environment"]
-        assert hospital["PARTY_NAME"] == HOSPITALS[cycle]
-        assert hospital["PARTY_COLOUR"] == hospital_colour
-        practice = service(f"{hospital_slug(PRACTICES[cycle])}-web")["environment"]
-        assert practice["PARTY_NAME"] == PRACTICES[cycle]
-        # What every hospital registers it by (demo.demo.practice_arguments).
-        slug = hospital_slug(PRACTICES[cycle])
-        assert practice["PRACTICE_CERTIFICATE_NAME"] == slug
-        assert practice["PARTY_COLOUR"] == practice_colour
-        for colour in (hospital_colour, practice_colour):
-            assert (vendor / f"pico.{colour}.min.css").is_file(), colour
+    for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS:
+        environment = service(f"{slug}-web")["environment"]
+        assert environment["PARTY_NAME"], slug
+        colour = environment["PARTY_COLOUR"]
+        assert (vendor / f"pico.{colour}.min.css").is_file(), (slug, colour)
+    for slug in PRACTICE_SLUGS:
+        # What every hospital registers it by.
+        assert (
+            service(f"{slug}-web")["environment"]["PRACTICE_CERTIFICATE_NAME"] == slug
+        )
 
 
 def test_no_practice_service_runs_on_a_timer() -> None:
@@ -567,14 +592,8 @@ def test_every_hospital_knows_every_practice_by_its_folder_name(slug: str) -> No
     (features/practice/ordering.feature), so each hospital registers every
     practice, by the certificate name its app sends: its folder name."""
     assert registered(f"{slug}-web") == [
-        ["add_practice", hospital_slug(PRACTICES[cycle]), PRACTICES[cycle]]
-        for cycle in CYCLES
+        ["add_practice", practice, name(practice)] for practice in PRACTICE_SLUGS
     ]
-    for cycle in CYCLES:
-        practice = service(f"{hospital_slug(PRACTICES[cycle])}-web")
-        assert practice["environment"]["PRACTICE_CERTIFICATE_NAME"] == hospital_slug(
-            PRACTICES[cycle]
-        )
 
 
 def test_the_startup_knows_every_hospital_by_the_name_its_web_app_sends() -> None:
@@ -582,29 +601,25 @@ def test_the_startup_knows_every_hospital_by_the_name_its_web_app_sends() -> Non
     (features/startup/release.feature), so the startup registers every one, by
     the certificate name its web app sends."""
     assert registered("startup-web") == [
-        ["add_hospital", hospital_slug(HOSPITALS[cycle]), HOSPITALS[cycle]]
-        for cycle in CYCLES
+        ["add_hospital", hospital, name(hospital)] for hospital in HOSPITAL_SLUGS
     ]
-    for cycle in CYCLES:
-        slug = hospital_slug(HOSPITALS[cycle])
+    for slug in HOSPITAL_SLUGS:
         assert (
             service(f"{slug}-web")["environment"]["HOSPITAL_CERTIFICATE_NAME"] == slug
         )
 
 
-@pytest.mark.parametrize("cycle", list(CYCLES))
+@pytest.mark.parametrize(("paired", "practice"), [(h, p) for _, h, p, _ in pairs()])
 def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise(
-    cycle: str,
+    paired: str, practice: str
 ) -> None:
     """Every hospital's laboratory, its paired hospital's the primary one, so lab
     orders follow the hospitals' sizes by default."""
-    commands = registered(f"{hospital_slug(PRACTICES[cycle])}-web")
-    assert [command[1] for command in commands] == [
-        HOSPITALS[other] for other in CYCLES
-    ]
-    for command, other in zip(commands, CYCLES, strict=True):
-        assert command[2] == f"{hospital_slug(HOSPITALS[other])}-messaging:8441"
-        assert ("--primary" in command) is (other == cycle)
+    commands = registered(f"{practice}-web")
+    assert [command[1] for command in commands] == [name(h) for h in HOSPITAL_SLUGS]
+    for command, hospital in zip(commands, HOSPITAL_SLUGS, strict=True):
+        assert command[2] == f"{hospital}-messaging:8441"
+        assert ("--primary" in command) is (hospital == paired)
 
 
 def test_two_hospitals_provide_their_training_cohort_at_start() -> None:

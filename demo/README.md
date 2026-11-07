@@ -6,9 +6,9 @@ runs in its own containers, which see only that party's folder under `.demo/`
 (gitignored), on Docker networks that follow the report's trust boundaries.
 So "UZ Leuven's data never reaches the startup" holds because no network or
 mount connects them, not merely because the code is careful. Who the parties
-are, and each one's colour and number of seeded patients, is declared in
-`demo/demo.toml`. `demo/compose.yaml` and `demo/proxy.conf` are generated from it:
-after editing it, run `uv run python -m demo.topology`.
+are, and each one's colour, whom it knows and how many patients it seeds, is
+written in `demo/compose.yaml`, in each party's own services; `demo/proxy.conf`
+routes each party's name to its web app.
 
 ## 1. Install Docker
 
@@ -150,7 +150,7 @@ screening comes back to the practice.
   `.demo/` on your machine keeps only what that must not cost you: the
   Hugging Face downloads (`.demo/huggingface/`) and the extracts made from
   them (`.demo/nhanes/`), so the next `up` downloads nothing.
-- When a change to `demo.toml` or the topology renames or drops a network,
+- When a change to `demo/compose.yaml` renames or drops a network,
   `docker compose down --remove-orphans` leaves the old one behind, and Docker
   has room for only about 30 networks. With the demo stopped,
   `docker network prune --filter label=com.docker.compose.project=iron-deficiency`
