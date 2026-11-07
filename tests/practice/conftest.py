@@ -103,7 +103,7 @@ def collect_and_order(
     """Collect a sample from the patient and order one test on it."""
     from practice.models import Laboratory
 
-    # The practice's first laboratory, if it works with any (features/practice/messaging.feature).
+    # The practice's first laboratory, if it works with any (features/practice/ordering.feature).
     laboratory = Laboratory.objects.order_by("pk").first()
     sample = patient.collect_sample(laboratory=laboratory, now=now)
     if test.on_suspicion():

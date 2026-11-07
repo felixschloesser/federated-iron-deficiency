@@ -1,4 +1,4 @@
-"""The hospital's messaging endpoint: gRPC, plaintext in the demo (shared/messaging/messages.proto, features/hospital/messaging.feature)."""
+"""The hospital's messaging endpoint: gRPC, plaintext in the demo (shared/messaging/messages.proto)."""
 
 import grpc
 from django.db import models

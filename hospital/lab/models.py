@@ -106,7 +106,7 @@ class Sample(models.Model):
 
 @dataclass(frozen=True)
 class LabOrderDetails:
-    """What a lab order (DF23) says: no patient name, no values (features/hospital/messaging.feature)."""
+    """What a lab order (DF23) says: no patient name, no values (features/hospital/lab.feature)."""
 
     sample_id: str
     test: Test
