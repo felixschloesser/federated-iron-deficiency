@@ -5,8 +5,10 @@ import pytest
 from django.conf import settings
 from django.test import Client
 from django.urls import resolve, reverse
+from pytest_bdd import given, parsers, scenario, then, when
 from pytest_django.asserts import assertContains, assertNotContains
 
+from shared.accounts.forms import RoleAuthenticationForm
 from shared.accounts.models import User
 from shared.accounts.roles import Role, role_of
 from tests.practice.conftest import make_general_practitioner
@@ -85,3 +87,43 @@ def test_each_role_of_this_party_has_its_pages_here(role: Role) -> None:
     assert role.nav_links()
     for link in role.nav_links():
         assert resolve(link["url"])
+
+
+@scenario(
+    "practice/access.feature",
+    "An account whose role is another party's cannot log in here",
+)
+def test_an_account_whose_role_is_another_partys_cannot_log_in_here() -> None:
+    pass
+
+
+@given(parsers.parse('an account "{username}" of {role}'))
+def account(username: str, role: str) -> None:
+    by_label = {choice.label: choice for choice in Role}
+    User.objects.create_user(username=username, password=PASSWORD, role=by_label[role])
+
+
+@when(
+    parsers.parse('"{username}" logs in to the practice\'s web app'),
+    target_fixture="login",
+)
+def logs_in(username: str) -> RoleAuthenticationForm:
+    form = RoleAuthenticationForm(data={"username": username, "password": PASSWORD})
+    form.is_valid()
+    return form
+
+
+@then(parsers.parse('logging in is refused with code "{code}"'))
+def refused(login: RoleAuthenticationForm, code: str) -> None:
+    assert [error.code for error in login.errors.as_data().get("__all__", [])] == [code]
+
+
+def test_a_logged_in_account_of_another_partys_role_gets_403_not_a_crash(
+    client: Client,
+) -> None:
+    """Its start page is another party's, which this URLconf cannot reverse: once
+    a 500, now refused like an account without a role."""
+    staff = User.objects.create_user(username="staff", role=Role.LABORATORY_STAFF)
+    client.force_login(staff)
+    assert client.get(reverse("home")).status_code == 403
+    assert client.get(reverse("practice:patients")).status_code == 403

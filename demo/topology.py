@@ -195,7 +195,7 @@ MIDDLE = """\
   # The startup's web app: its data scientist sees the final models, submits
   # training runs and releases final models. One container, two servers, each on
   # a name only one network knows: the proxy reaches the pages, the hospitals'
-  # web apps only the final-models endpoint (P12).
+  # web apps only the final-models endpoint (P5).
   # On startup to reach the SuperLink, which so neither the proxy nor a hospital reaches.
   startup-web:
     <<: *web
@@ -219,7 +219,7 @@ MIDDLE = """\
     volumes:
       - {type: volume, source: startup, target: /demo/startup}
       - {type: volume, source: startup, target: /demo/startup/final-models, read_only: true, volume: {subpath: final-models}}
-    # Masked: the SuperLink's state (DS3) is the SuperLink's alone.
+    # Masked: the SuperLink's state is the SuperLink's alone.
     tmpfs: [/demo/startup/superlink]
     networks:
       startup: {}

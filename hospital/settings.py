@@ -2,17 +2,18 @@
 screening models the laboratory director deploys."""
 
 import os
+from typing import Any
 
 from shared.accounts.roles import Role
 from shared.settings import *
 
 DATA_DIR = data_dir("hospital")
-DATABASES = databases(DATA_DIR)
-SECRET_KEY = secret_key(DATA_DIR)
+DATABASES: dict[str, Any] = databases(DATA_DIR)
+SECRET_KEY: str = secret_key(DATA_DIR)
 SESSION_COOKIE_NAME, CSRF_COOKIE_NAME = cookie_names(DATA_DIR)
 
 # This party's own apps; no other party installs them.
-INSTALLED_APPS = [
+INSTALLED_APPS: list[str] = [
     *SHARED_APPS,
     "hospital.analyser",
     "hospital.lab",
