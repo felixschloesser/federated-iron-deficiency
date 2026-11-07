@@ -159,7 +159,7 @@ services:
   # On startup to reach the SuperLink, which so neither the proxy nor a hospital reaches.
   startup-web:
     <<: *startup-web
-    build: {context: .., dockerfile: demo/party-web.Dockerfile, args: {PARTY: startup}}
+    build: {context: .., dockerfile: demo/startup.Dockerfile}
     command:
       - bash
       - -c
@@ -212,7 +212,7 @@ services:
 
   uz-leuven-web:
     <<: *hospital-web
-    build: {context: .., dockerfile: demo/party-web.Dockerfile, args: {PARTY: hospital}}
+    build: {context: .., dockerfile: demo/hospital.Dockerfile}
     # One container, two servers, each on a name only one network knows: the
     # proxy reaches the pages, the practice only the lab-order endpoint (tests/quality/security/test_running_containers.py).
     # Either one stopping stops the container, and compose restarts it.
@@ -381,7 +381,7 @@ services:
   # laboratory: on the messaging network.
   huisartsenpraktijk-de-akker-web:
     <<: *practice-web
-    build: {context: .., dockerfile: demo/practice-web.Dockerfile}
+    build: {context: .., dockerfile: demo/practice.Dockerfile}
     command: [gunicorn, web.shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
       <<: *health

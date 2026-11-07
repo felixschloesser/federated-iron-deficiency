@@ -25,7 +25,7 @@ def test_no_gpu_libraries_are_locked_for_any_platform() -> None:
 
 def test_the_practice_image_installs_only_the_web_apps_dependencies() -> None:
     """A practice screens nothing: its image has no PyTorch, Flower or W&B."""
-    dockerfile = (ROOT / "demo" / "practice-web.Dockerfile").read_text()
+    dockerfile = (ROOT / "demo" / "practice.Dockerfile").read_text()
     (sync,) = [
         line.split("uv sync", 1)[1].split()
         for line in dockerfile.splitlines()

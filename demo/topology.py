@@ -224,7 +224,7 @@ MIDDLE = """\
   # On startup to reach the SuperLink, which so neither the proxy nor a hospital reaches.
   startup-web:
     <<: *startup-web
-    build: {context: .., dockerfile: demo/party-web.Dockerfile, args: {PARTY: startup}}
+    build: {context: .., dockerfile: demo/startup.Dockerfile}
     command:
       - bash
       - -c
@@ -344,11 +344,8 @@ PRACTICE = """\
 
 """
 
-PRACTICE_BUILD = "    build: {context: .., dockerfile: demo/practice-web.Dockerfile}\n"
-HOSPITAL_BUILD = (
-    "    build: {context: .., dockerfile: demo/party-web.Dockerfile,"
-    " args: {PARTY: hospital}}\n"
-)
+PRACTICE_BUILD = "    build: {context: .., dockerfile: demo/practice.Dockerfile}\n"
+HOSPITAL_BUILD = "    build: {context: .., dockerfile: demo/hospital.Dockerfile}\n"
 
 PROXY = """\
   # Between the browser and the parties, like the internet: routes each
