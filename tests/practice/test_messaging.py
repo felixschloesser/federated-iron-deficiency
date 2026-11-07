@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 import grpc
 import pytest
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.test import Client
 from django.urls import reverse
@@ -76,8 +77,19 @@ def test_a_placed_order_reaches_the_hospital_as_its_lab_order(
     assert sent.registered_sex == messages_pb2.REGISTERED_SEX_FEMALE
     assert sent.age == 32
     assert sent.ordered_at.ToDatetime(tzinfo=UTC) == NOW
-    # The practice by the certificate name the hospital issued; no general practitioner.
-    assert sent.certificate_name == "de-ceder"
+    # The practice by the certificate name the hospital issued, in the call's
+    # metadata; no general practitioner.
+    assert fake_laboratory.laboratory.callers == ["de-ceder"]
+
+
+def test_a_practice_without_a_certificate_name_sends_nothing(
+    settings: Settings, practice: Laboratory, fake_laboratory: Running
+) -> None:
+    """A practice nobody named claims no default name: it refuses to call."""
+    settings.PRACTICE_CERTIFICATE_NAME = None
+    with pytest.raises(ImproperlyConfigured):
+        send_cbc(practice, ClinicalIndication.UNEXPLAINED_FATIGUE)
+    assert fake_laboratory.laboratory.callers == []
 
 
 @pytest.mark.parametrize("indication", list(ClinicalIndication))

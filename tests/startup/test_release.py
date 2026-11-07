@@ -11,6 +11,7 @@ import grpc
 import pytest
 from django.test import Client
 from django.urls import reverse
+from google.protobuf.empty_pb2 import Empty
 from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.asserts import assertContains
 from pytest_django.fixtures import Settings
@@ -92,13 +93,16 @@ def released_by(world: World, run_id: str, name: str) -> None:
     assert release.released_at == NOW
 
 
-def call(world: World, method: str, request: Any) -> Any:
-    """One call of the endpoint, as a hospital's web app makes it; a refusal is
-    kept."""
+def call(world: World, method: str, request: Any, certificate_name: str | None) -> Any:
+    """One call of the endpoint, as a hospital's web app makes it, named in the
+    call's metadata; a refusal is kept."""
+    metadata = (
+        () if certificate_name is None else (("certificate-name", certificate_name),)
+    )
     with grpc.insecure_channel(world["startup"]) as channel:
         endpoint = messages_pb2_grpc.FinalModelsStub(channel)
         try:
-            return getattr(endpoint, method)(request, timeout=10)
+            return getattr(endpoint, method)(request, timeout=10, metadata=metadata)
         except grpc.RpcError as error:
             world["refused"] = error
             return None
@@ -106,11 +110,12 @@ def call(world: World, method: str, request: Any) -> Any:
 
 @when(parsers.parse('"{certificate_name}" fetches new final models'))
 def fetches(world: World, certificate_name: str) -> None:
-    world["fetched"] = call(
-        world,
-        "FetchNewFinalModels",
-        messages_pb2.NewFinalModelsRequest(certificate_name=certificate_name),
-    )
+    world["fetched"] = call(world, "FetchNewFinalModels", Empty(), certificate_name)
+
+
+@when("a hospital fetches new final models without naming itself")
+def fetches_unnamed(world: World) -> None:
+    world["fetched"] = call(world, "FetchNewFinalModels", Empty(), None)
 
 
 @given(
@@ -124,9 +129,8 @@ def fetched_and_acknowledged(world: World, certificate_name: str, run_id: str) -
     call(
         world,
         "AcknowledgeFinalModels",
-        messages_pb2.FinalModelAcknowledgement(
-            certificate_name=certificate_name, run_ids=[run_id]
-        ),
+        messages_pb2.FinalModelAcknowledgement(run_ids=[run_id]),
+        certificate_name,
     )
 
 
@@ -167,6 +171,13 @@ def refused_unknown(world: World) -> None:
     error = world["refused"]
     assert error.code() == grpc.StatusCode.PERMISSION_DENIED
     assert error.details() == "unknown_hospital"
+
+
+@then("fetching is refused as naming no hospital")
+def refused_unnamed(world: World) -> None:
+    error = world["refused"]
+    assert error.code() == grpc.StatusCode.UNAUTHENTICATED
+    assert error.details() == "hospital_required"
 
 
 @when("the data scientist opens the final models")

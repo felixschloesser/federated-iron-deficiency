@@ -35,6 +35,11 @@ Feature: The startup releases final models; recipient hospitals fetch them
     When "az-gent" fetches new final models
     Then fetching is refused as unknown hospital
 
+  Scenario: A fetch that names no hospital is refused
+    Given data scientist "Data One" released final model "7"
+    When a hospital fetches new final models without naming itself
+    Then fetching is refused as naming no hospital
+
   Scenario: A hospital that never trained may fetch
     Given the startup knows hospital "AZ Gent" by certificate name "az-gent"
     And data scientist "Data One" released final model "7"

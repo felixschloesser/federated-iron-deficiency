@@ -7,9 +7,16 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 import grpc
+from google.protobuf.empty_pb2 import Empty
 
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
 from web.shared.messaging.convert import timestamp
+
+
+def named(context: grpc.ServicerContext) -> str | None:
+    """The certificate name a call named itself by, read as any server reads it."""
+    name = dict(context.invocation_metadata()).get("certificate-name")
+    return name if isinstance(name, str) else None
 
 
 @dataclass
@@ -17,6 +24,8 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
     lab_orders: list[messages_pb2.LabOrder] = field(default_factory=list)
     reports: dict[str, messages_pb2.LabReport] = field(default_factory=dict)
     acknowledged: set[str] = field(default_factory=set)
+    # The certificate name each call named itself by, in order.
+    callers: list[str | None] = field(default_factory=list)
     # A status the endpoint answers every lab order with instead of recording it.
     refusal: grpc.StatusCode | None = None
 
@@ -42,15 +51,17 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
 
     def SendLabOrder(
         self, request: messages_pb2.LabOrder, context: grpc.ServicerContext
-    ) -> messages_pb2.Received:
+    ) -> Empty:
+        self.callers.append(named(context))
         if self.refusal is not None:
             context.abort(self.refusal, "refused")
         self.lab_orders.append(request)
-        return messages_pb2.Received()
+        return Empty()
 
     def FetchNewLabReports(
-        self, request: messages_pb2.NewLabReportsRequest, context: grpc.ServicerContext
+        self, request: Empty, context: grpc.ServicerContext
     ) -> messages_pb2.LabReports:
+        self.callers.append(named(context))
         return messages_pb2.LabReports(
             reports=[
                 report
@@ -61,6 +72,7 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
 
     def AcknowledgeLabReports(
         self, request: messages_pb2.Acknowledgement, context: grpc.ServicerContext
-    ) -> messages_pb2.Received:
+    ) -> Empty:
+        self.callers.append(named(context))
         self.acknowledged.update(request.report_ids)
-        return messages_pb2.Received()
+        return Empty()

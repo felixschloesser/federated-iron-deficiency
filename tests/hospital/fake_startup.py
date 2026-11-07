@@ -8,20 +8,28 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 import grpc
+from google.protobuf.empty_pb2 import Empty
 
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
+
+
+def named(context: grpc.ServicerContext) -> str | None:
+    """The certificate name a call named itself by, read as any server reads it."""
+    name = dict(context.invocation_metadata()).get("certificate-name")
+    return name if isinstance(name, str) else None
 
 
 @dataclass
 class FakeStartup(messages_pb2_grpc.FinalModelsServicer):
     offered: list[messages_pb2.FinalModel] = field(default_factory=list)
     acknowledged: list[str] = field(default_factory=list)
-    certificate_names: list[str] = field(default_factory=list)
+    # The certificate name each fetch named itself by, in order.
+    callers: list[str | None] = field(default_factory=list)
 
     def FetchNewFinalModels(
-        self, request: messages_pb2.NewFinalModelsRequest, context: grpc.ServicerContext
+        self, request: Empty, context: grpc.ServicerContext
     ) -> messages_pb2.NewFinalModels:
-        self.certificate_names.append(request.certificate_name)
+        self.callers.append(named(context))
         return messages_pb2.NewFinalModels(
             final_models=[
                 model for model in self.offered if model.run_id not in self.acknowledged
@@ -32,9 +40,9 @@ class FakeStartup(messages_pb2_grpc.FinalModelsServicer):
         self,
         request: messages_pb2.FinalModelAcknowledgement,
         context: grpc.ServicerContext,
-    ) -> messages_pb2.Received:
+    ) -> Empty:
         self.acknowledged.extend(request.run_ids)
-        return messages_pb2.Received()
+        return Empty()
 
 
 @contextmanager

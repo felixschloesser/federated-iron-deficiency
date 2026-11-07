@@ -118,7 +118,7 @@ def holds_validated(world: World, name: str) -> None:
 @then(parsers.parse('the startup is told the hospital stored final model "{run_id}"'))
 def acknowledged(world: World, run_id: str) -> None:
     assert world["startup"].acknowledged == [run_id]
-    assert world["startup"].certificate_names == ["uz-leuven"]
+    assert world["startup"].callers == ["uz-leuven"]
 
 
 @then(parsers.parse('"{name}" is unchanged'))
@@ -148,4 +148,4 @@ def says_provide_first(world: World) -> None:
 
 @then("the startup is not asked")
 def startup_not_asked(world: World) -> None:
-    assert world["startup"].certificate_names == []
+    assert world["startup"].callers == []
