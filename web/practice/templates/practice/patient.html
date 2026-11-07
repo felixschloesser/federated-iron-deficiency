@@ -4,11 +4,11 @@
 {% include "includes/index_header.html" with title=patient.name subtitle=subtitle actions=actions post_actions=post_actions %}
 {% for sample in samples %}
 <details{% if forloop.first %} open{% endif %}>
-  <summary><h2>Sample <span class="sample-id">{{ sample.sample_id }}</span>, collected {{ sample.collected_at|date:"j M Y, H:i" }}{% if sample.laboratory %}, for {{ sample.laboratory }}{% endif %}</h2>{% if not forloop.first %}<small>{{ sample.tests_display|default:"No tests ordered yet" }}{% if sample.ferritin_suggested %} · Ferritin suggested{% endif %}</small>{% endif %}</summary>
+  <summary><h2>Sample <span class="sample-id">{{ sample.sample_id }}</span>, collected {{ sample.collected_at|date:"j M Y, H:i" }}{% if sample.laboratory %}, for {{ sample.laboratory }}{% endif %}</h2>{% if not forloop.first %}<small>{{ sample.tests_display|default:"No tests ordered yet" }}{% if sample.lab_order_rejected %} · Lab order rejected{% endif %}{% if sample.ferritin_suggested %} · Ferritin suggested{% endif %}</small>{% endif %}</summary>
   {% for order in sample.orders.all %}
   <article>
     <h3>{{ order.get_test_display|capfirst }}{% if order.indication %} ({{ order.get_indication_display|lower }}){% endif %}</h3>
-    <p>{% if order.report %}<ins>Lab report released {{ order.report.released_at|date:"j M Y, H:i" }}</ins>{% elif order.sent_at %}<mark>Awaiting lab report</mark>{% else %}<mark>Lab order not sent yet</mark>{% endif %} · Ordered {{ order.ordered_at|date:"j M Y, H:i" }}{% if order.sent_at and not order.report and fetches_reports %}<br><small>Check for reports to fetch it.</small>{% endif %}</p>
+    <p>{% if order.report %}<ins>Lab report released {{ order.report.released_at|date:"j M Y, H:i" }}</ins>{% elif order.reason_for_rejection %}<mark>Lab order rejected: {{ order.reason_for_rejection }}</mark>{% elif order.sent_at %}<mark>Awaiting lab report</mark>{% else %}<mark>Lab order not sent yet</mark>{% endif %} · Ordered {{ order.ordered_at|date:"j M Y, H:i" }}{% if order.reason_for_rejection %}<br><small>Collect a new sample to order again.</small>{% endif %}{% if order.sent_at and not order.report and fetches_reports %}<br><small>Check for reports to fetch it.</small>{% endif %}</p>
     {% if order.report %}
     {% if order.report.comment %}<p><strong>{{ order.report.comment }}</strong></p>{% endif %}
     {% if order.report.note %}<p>{{ order.report.note }}</p>{% endif %}

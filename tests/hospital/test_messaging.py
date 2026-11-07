@@ -58,6 +58,26 @@ def lab_order(**fields: Any) -> messages_pb2.LabOrder:
     return messages_pb2.LabOrder(**values)
 
 
+def violations(refused: grpc.RpcError) -> list[tuple[str, str]]:
+    """A rejected lab order's reasons (WHO LQMS 5-4, p. 66), as the practice
+    reads them: INVALID_ARGUMENT with google.rpc.BadRequest field violations,
+    each with its form error code and a description to show."""
+    import google.rpc.error_details_pb2 as rpc_details
+    from grpc_status import rpc_status
+
+    assert refused.code() == grpc.StatusCode.INVALID_ARGUMENT
+    status = rpc_status.from_call(refused)
+    assert status is not None
+    bad_request = rpc_details.BadRequest()
+    (detail,) = status.details
+    assert detail.Unpack(bad_request)
+    assert all(violation.description for violation in bad_request.field_violations)
+    return [
+        (violation.field, violation.reason)
+        for violation in bad_request.field_violations
+    ]
+
+
 def refusal(call: Any, request: Any, metadata: Any = DE_CEDER) -> grpc.RpcError:
     with pytest.raises(grpc.RpcError) as refused:
         call(request, timeout=10, metadata=metadata)
@@ -87,8 +107,7 @@ def test_a_lab_order_without_a_test_is_refused(
     refused = refusal(
         endpoint.SendLabOrder, lab_order(test=messages_pb2.TEST_UNSPECIFIED)
     )
-    assert refused.code() == grpc.StatusCode.INVALID_ARGUMENT
-    assert '"test"' in (refused.details() or "")
+    assert violations(refused) == [("test", "required")]
     assert not TestRequest.objects.exists()
 
 
@@ -99,8 +118,7 @@ def test_a_lab_order_without_an_age_is_refused(
     order = lab_order()
     order.ClearField("age")
     refused = refusal(endpoint.SendLabOrder, order)
-    assert refused.code() == grpc.StatusCode.INVALID_ARGUMENT
-    assert '"age"' in (refused.details() or "")
+    assert violations(refused) == [("age", "required")]
     assert not TestRequest.objects.exists()
 
 

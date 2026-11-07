@@ -155,6 +155,11 @@ class Sample(models.Model):
         return ", ".join(order.get_test_display() for order in self.orders.all())
 
     @property
+    def lab_order_rejected(self) -> bool:
+        """Whether the laboratory rejected a lab order on this sample."""
+        return any(order.rejected_at is not None for order in self.orders.all())
+
+    @property
     def ferritin_suggested(self) -> bool:
         """Whether a lab report on this sample suggests ferritin."""
         return any(
@@ -206,6 +211,13 @@ class Sample(models.Model):
         )
 
 
+class OrderQuerySet(models.QuerySet["Order"]):
+    def not_sent(self) -> "OrderQuerySet":
+        """The orders whose lab order still waits to be sent: neither confirmed by
+        the laboratory nor rejected by it."""
+        return self.filter(sent_at__isnull=True, rejected_at__isnull=True)
+
+
 class Order(models.Model):
     sample = models.ForeignKey(Sample, on_delete=models.PROTECT, related_name="orders")
     test = models.CharField(max_length=8, choices=Test.choices)
@@ -219,6 +231,12 @@ class Order(models.Model):
     ordered_at = models.DateTimeField()
     # Absent until the hospital confirmed the lab order (DF23); then never sent again.
     sent_at = models.DateTimeField(null=True, blank=True)
+    # Absent unless the laboratory rejected the lab order, with its reason for
+    # rejection (glossary.toml, rejection); then never sent again either.
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    reason_for_rejection = models.TextField(null=True, blank=True)
+
+    objects = OrderQuerySet.as_manager()
 
     class Meta:
         constraints = (
@@ -244,7 +262,26 @@ class Order(models.Model):
                 violation_error_code="indication_not_applicable",
                 violation_error_message="Ferritin takes no clinical indication.",
             ),
+            # A rejection is recorded with its reason, or not at all.
+            models.CheckConstraint(
+                condition=models.Q(
+                    rejected_at__isnull=True, reason_for_rejection__isnull=True
+                )
+                | models.Q(
+                    rejected_at__isnull=False, reason_for_rejection__isnull=False
+                ),
+                name="rejected_with_reason",
+                violation_error_code="rejected_with_reason",
+                violation_error_message="A rejection records when and why.",
+            ),
         )
+
+    @transaction.atomic
+    def reject(self, *, reason: str, now: datetime) -> None:
+        """The laboratory rejected its lab order, for `reason`: kept, never sent
+        again; the general practitioner collects a new sample to order again."""
+        self.rejected_at, self.reason_for_rejection = now, reason
+        self.save(update_fields=["rejected_at", "reason_for_rejection"])
 
     def clean(self) -> None:
         """Ferritin only on suspicion: its sample has a lab report suggesting it. Across rows, so no constraint can hold it."""

@@ -38,6 +38,10 @@ source = "Report, \"Federated version\": \"Each GP practice runs its own app\"; 
 meaning = "A party's own name, which never changes: shown on its pages (`PRACTICE_NAME`, `HOSPITAL_NAME`, `STARTUP_NAME`, each set by that party's settings alone; a party they name none shows \"Demo\", which it never calls as), and the name a hospital registers a practice by (`add_practice`) and the startup a recipient hospital (`add_hospital`). A practice or a hospital calls another party as its name's slug (\"Huisartsenpraktijk De Ceder\" calls as `huisartsenpraktijk-de-ceder`), in each call's metadata; the demo believes it, and with mutual TLS the slug would be what the caller's certificate carries. A call naming no party, or one the server does not know, is refused, and so is registering a name whose slug another party has"
 source = "the names in demo/compose.yaml (`PRACTICE_NAME: Huisartsenpraktijk De Akker`); Report, Solutions table, mutual TLS: \"tells practices apart by certificate name\", which the slug stands for while the demo has no certificates"
 
+["rejection"]
+meaning = "The laboratory refuses a lab order whose information is insufficient, with its reason for rejection, field by field; the practice keeps the order and its reason, never sends it again, and the general practitioner collects a new sample to order again. Adapted from the WHO's rejected sample: here the lab order is rejected before any sample reaches the laboratory"
+source = "WHO LQMS 5-4, p. 66, Rejection of samples: \"insufficient patient information\"; \"Record the reason for rejection\"; \"promptly inform the authorized person\"; \"request another sample\""
+
 ["order"]
 meaning = "The practice's word: what the general practitioner places, with its clinical indication, which never leaves the practice. Each party speaks its own language: the practice orders, the wire carries a lab order, the laboratory works on a test request"
 source = "WHO glossary *path of workflow*, \"physician's order\" (p. 228)"

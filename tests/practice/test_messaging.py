@@ -80,6 +80,123 @@ def test_a_placed_order_reaches_the_hospital_as_its_lab_order(
     assert fake_laboratory.laboratory.callers == ["de-ceder"]
 
 
+def place_cbc(name: str) -> Order:
+    """A CBC order for a new patient, not sent yet."""
+    record = make_patient(name, RegisteredSex.FEMALE, 32)
+    return collect_and_order(
+        patient=record,
+        test=OrderedTest.CBC,
+        indication=ClinicalIndication.UNEXPLAINED_FATIGUE,
+        now=NOW,
+    )
+
+
+AGE_REQUIRED = [("age", "This field is required.")]
+
+
+def test_a_rejected_lab_order_keeps_its_reason_and_is_sent_no_more(
+    practice: Laboratory, fake_laboratory: Running
+) -> None:
+    """The laboratory's reason for rejection (WHO LQMS 5-4, p. 66) is kept on the
+    order, which is never sent again: the general practitioner orders anew."""
+    placed = place_cbc("Test Patient 1")
+    fake_laboratory.laboratory.rejects[placed.sample.sample_id] = AGE_REQUIRED
+    messaging.send_pending_lab_orders(practice, now=NOW)
+    messaging.send_pending_lab_orders(practice, now=NOW)
+    order = Order.objects.get(pk=placed.pk)
+    assert (order.rejected_at, order.sent_at) == (NOW, None)
+    assert order.reason_for_rejection == "age: This field is required."
+    assert fake_laboratory.laboratory.lab_orders == []
+    assert len(fake_laboratory.laboratory.callers) == 1
+
+
+def test_a_rejected_lab_order_holds_back_no_other_and_reports_still_arrive(
+    practice: Laboratory, fake_laboratory: Running
+) -> None:
+    """One lab order the laboratory rejects is that order's fault alone."""
+    rejected = place_cbc("Test Patient 2")
+    fake_laboratory.laboratory.rejects[rejected.sample.sample_id] = AGE_REQUIRED
+    accepted = place_cbc("Test Patient 3")
+    placed, report_id = released_ferritin(fake_laboratory.laboratory)
+    assert messaging.check_for_lab_reports(practice, now=NOW) == 1
+    sent = [order.sample_id for order in fake_laboratory.laboratory.lab_orders]
+    assert accepted.sample.sample_id in sent
+    assert LabReport.objects.filter(order=placed).exists()
+    assert report_id in fake_laboratory.laboratory.acknowledged
+
+
+def test_placing_an_order_the_laboratory_rejects_says_why(
+    client: Client, practice: Laboratory, owner: User, fake_laboratory: Running
+) -> None:
+    record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
+    client.force_login(owner)
+    url = new_order_url(client, record)
+    fake_laboratory.laboratory.rejects[latest_sample_id(record)] = AGE_REQUIRED
+    response = client.post(url, follow=True)
+    assertContains(
+        response, "AZ Diest rejected the lab order: age: This field is required."
+    )
+    assertNotContains(response, "refused")
+
+
+def test_the_patient_page_shows_a_rejected_lab_order_and_its_reason(
+    client: Client, practice: Laboratory, owner: User
+) -> None:
+    placed = place_cbc("Test Patient 1")
+    placed.reject(reason="age: This field is required.", now=NOW)
+    client.force_login(owner)
+    response = client.get(
+        reverse("practice:patient", kwargs={"pk": placed.sample.patient.pk})
+    )
+    assertContains(response, "Lab order rejected: age: This field is required.")
+    assertContains(response, "Collect a new sample to order again.")
+    assertNotContains(response, "Lab order not sent yet")
+
+
+def test_the_hint_to_order_again_follows_the_order_date(
+    client: Client, practice: Laboratory, owner: User
+) -> None:
+    """The status, then when it was ordered, then what to do, as for a lab
+    order awaiting its lab report."""
+    placed = place_cbc("Test Patient 1")
+    placed.reject(reason="age: This field is required.", now=NOW)
+    client.force_login(owner)
+    response = client.get(
+        reverse("practice:patient", kwargs={"pk": placed.sample.patient.pk})
+    )
+    html = response.content.decode()
+    assert html.index("Lab order rejected") < html.index("Ordered ")
+    assert html.index("Ordered ") < html.index("Collect a new sample to order again.")
+
+
+def test_a_closed_sample_says_its_lab_order_was_rejected(
+    client: Client, practice: Laboratory, owner: User
+) -> None:
+    """Older samples start closed; a rejection shows on their summary all the same."""
+    rejected = place_cbc("Test Patient 1")
+    rejected.reject(reason="age: This field is required.", now=NOW)
+    record = rejected.sample.patient
+    collect_and_order(
+        patient=record,
+        test=OrderedTest.CBC,
+        indication=ClinicalIndication.UNEXPLAINED_FATIGUE,
+        now=NOW,
+    )
+    client.force_login(owner)
+    response = client.get(reverse("practice:patient", kwargs={"pk": record.pk}))
+    assertContains(response, "<small>CBC · Lab order rejected</small>", html=False)
+
+
+def test_the_orders_page_says_a_lab_order_was_rejected(
+    client: Client, practice: Laboratory, owner: User
+) -> None:
+    placed = place_cbc("Test Patient 1")
+    placed.reject(reason="age: This field is required.", now=NOW)
+    client.force_login(owner)
+    response = client.get(reverse("practice:orders"))
+    assertContains(response, '<td data-label="Lab report">Lab order rejected</td>')
+
+
 def test_a_practice_without_a_name_sends_nothing(
     settings: Settings, practice: Laboratory, fake_laboratory: Running
 ) -> None:

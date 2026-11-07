@@ -92,3 +92,13 @@ Feature: Collecting a sample and ordering tests on it
     Given the practice works with laboratories "UZ Leuven" and "AZ Diest"
     When both are written straight to the database as primary
     Then the database refuses it
+
+  Scenario: A rejected lab order keeps its reason for rejection and is sent no more
+    Given "Dr. Demo A" ordered a CBC for "Test Patient 1" with indication unexplained fatigue
+    When the laboratory rejects its lab order because "age: This field is required."
+    Then the order records the reason for rejection "age: This field is required."
+    And the order is not among the lab orders to send
+
+  Scenario: The database holds no rejection without its reason
+    When an order is written straight to the database as rejected without a reason
+    Then the database refuses it

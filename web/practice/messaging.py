@@ -14,6 +14,7 @@ from web.practice.models import Laboratory, LabReport, Order
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
 from web.shared.messaging.convert import from_proto, moment, timestamp, to_proto
 from web.shared.messaging.identity import calling_as
+from web.shared.messaging.rejection import reason_for_rejection
 from web.shared.vocabulary import RegisteredSex, Test
 
 TIMEOUT_SECONDS = 10
@@ -63,13 +64,26 @@ def _send_pending(
     now: datetime,
     timeout: float = TIMEOUT_SECONDS,
 ) -> int:
-    pending = Order.objects.filter(
-        sent_at__isnull=True, sample__laboratory=laboratory
-    ).select_related("sample__patient")
+    pending = (
+        Order.objects.not_sent()
+        .filter(sample__laboratory=laboratory)
+        .select_related("sample__patient")
+    )
+    sent = 0
     for order in pending:
-        _send(endpoint, order, timeout=timeout)
+        try:
+            _send(endpoint, order, timeout=timeout)
+        except grpc.RpcError as error:
+            # One lab order's reason holds back no other; anything else is the
+            # whole exchange's, and stops it.
+            reason = reason_for_rejection(error)
+            if reason is None:
+                raise
+            order.reject(reason=reason, now=now)
+            continue
         Order.objects.filter(pk=order.pk).update(sent_at=now)
-    return len(pending)
+        sent += 1
+    return sent
 
 
 def send_pending_lab_orders(

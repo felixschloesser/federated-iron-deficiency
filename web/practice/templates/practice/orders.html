@@ -15,7 +15,7 @@
       <td data-label="Sample ID" class="sample-id">{{ order.sample.sample_id }}</td>
       <td data-label="Test">{{ order.get_test_display }}</td>
       <td data-label="Clinical indication">{{ order.get_indication_display|default:"—" }}</td>
-      <td data-label="Lab report">{% if order.lab_report_released_at %}Released {{ order.lab_report_released_at|date:"j M Y, H:i" }}{% else %}—{% endif %}</td>
+      <td data-label="Lab report">{% if order.lab_report_released_at %}Released {{ order.lab_report_released_at|date:"j M Y, H:i" }}{% elif order.rejected_at %}Lab order rejected{% else %}—{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>

@@ -11,6 +11,7 @@ from web.shared.messaging import messages_pb2, messages_pb2_grpc
 from web.shared.messaging.convert import from_proto, moment, timestamp, to_proto
 from web.shared.messaging.endpoint import start, with_database
 from web.shared.messaging.identity import caller
+from web.shared.messaging.rejection import rejected
 from web.shared.vocabulary import RegisteredSex, Test
 
 
@@ -59,7 +60,7 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
             }
         )
         if not form.is_valid():
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, form.errors.as_json())
+            context.abort_with_status(rejected(form.errors.as_data()))
         TestRequest.objects.receive(
             practice=practice,
             details=LabOrderDetails(**form.cleaned_data),
