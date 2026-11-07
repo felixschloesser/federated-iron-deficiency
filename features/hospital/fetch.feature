@@ -2,7 +2,7 @@ Feature: A hospital fetches final models when its laboratory director asks
   A final model enters the hospital only when its laboratory director fetches
   new final models: the hospital's own web app asks the startup's
   final-models endpoint with the hospital's certificate name (DF33), validates
-  each final model on the hospital's validation split (DF34), stores it under
+  each final model on the hospital's test split (DF34), stores it under
   its training run's ID (DF17) and acknowledges it. The startup's code at the
   hospital writes nothing there (tests/quality/security/test_compose.py).
   Each scenario's last step is its response measure, true or false.

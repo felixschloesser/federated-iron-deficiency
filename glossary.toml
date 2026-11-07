@@ -283,7 +283,7 @@ rejected = ["revoke", "stop sharing", "delete"]
 
 ["local validation"]
 source = "Built from *validation* (report, DF10 \"validation example count\")"
-why = "A screening model on this hospital's own validation split: the confusion matrix at each threshold from 0.05 to 0.95, as counts, then AUROC; what the laboratory director chooses a threshold from"
+why = "A screening model on this hospital's own test split, which no training run saw or was chosen on: the confusion matrix at each threshold from 0.05 to 0.95, as counts, then AUROC; what the laboratory director chooses a threshold from"
 rejected = ["local evaluation", "shadow run", "flag rate"]
 
 ["sensitivity"]
