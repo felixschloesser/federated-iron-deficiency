@@ -1,4 +1,5 @@
-"""The committed gRPC code matches messages.proto (web/shared/messaging/messages.proto)."""
+"""The gRPC contract (web/shared/messaging/messages.proto): the committed
+generated code matches it, and its choices and times are typed."""
 
 import subprocess
 import sys
@@ -6,29 +7,21 @@ from pathlib import Path
 
 import pytest
 
+from web.shared.messaging import GENERATE
+
 ROOT = Path(__file__).resolve().parents[2]
-GENERATED = (
-    "messages_pb2.py",
-    "messages_pb2.pyi",
-    "messages_pb2_grpc.py",
-    "messages_pb2_grpc.pyi",
-)
+MESSAGING = Path("web", "shared", "messaging")
 
 
 @pytest.mark.subprocess
-def test_generated_code_matches_the_proto(tmp_path: Path) -> None:
-    subprocess.run(
-        [
-            sys.executable,
-            str(ROOT / "tools" / "generate_messages.py"),
-            "--out",
-            str(tmp_path),
-        ],
-        check=True,
-    )
-    committed = ROOT / "web" / "shared" / "messaging"
-    for name in GENERATED:
-        assert (tmp_path / name).read_text() == (committed / name).read_text(), name
+def test_the_committed_generated_code_matches_the_proto(tmp_path: Path) -> None:
+    """Regenerated with the documented command, every generated file is the
+    committed one."""
+    command = [arg.replace("=.", f"={tmp_path}") for arg in GENERATE]
+    subprocess.run([sys.executable, "-m", *command], cwd=ROOT, check=True)
+    for generated in sorted((ROOT / MESSAGING).glob("*_pb2*")):
+        regenerated = tmp_path / MESSAGING / generated.name
+        assert regenerated.read_text() == generated.read_text(), generated.name
 
 
 @pytest.mark.parametrize(

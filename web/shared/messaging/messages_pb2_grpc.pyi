@@ -8,21 +8,23 @@ asks, the practice or the hospital, and names itself by its certificate name in
 every message; the demo leaves out the report's mutual TLS.
 """
 
-import abc as _abc_1
-import typing as _typing
 from collections import abc as _abc
-from typing import Self as _Self
-
-import grpc as _grpc
 from grpc import aio as _aio
+from web.shared.messaging import messages_pb2 as _messages_pb2
+import abc as _abc_1
+import grpc as _grpc
+import sys
+import typing as _typing
 
-from . import messages_pb2 as _messages_pb2
+if sys.version_info >= (3, 11):
+    from typing import Self as _Self
+else:
+    from typing_extensions import Self as _Self
 
 _T = _typing.TypeVar("_T")
 
-class _MaybeAsyncIterator(
-    _abc.AsyncIterator[_T], _abc.Iterator[_T], metaclass=_abc_1.ABCMeta
-): ...
+class _MaybeAsyncIterator(_abc.AsyncIterator[_T], _abc.Iterator[_T], metaclass=_abc_1.ABCMeta): ...
+
 class _ServicerContext(_grpc.ServicerContext, _aio.ServicerContext):  # type: ignore[misc, type-arg]
     ...
 
@@ -34,28 +36,16 @@ class LaboratoryStub:
     def __new__(cls, channel: _grpc.Channel) -> _Self: ...
     @_typing.overload
     def __new__(cls, channel: _aio.Channel) -> LaboratoryAsyncStub: ...
-    SendLabOrder: _grpc.UnaryUnaryMultiCallable[
-        _messages_pb2.LabOrder, _messages_pb2.Received
-    ]
-    FetchNewLabReports: _grpc.UnaryUnaryMultiCallable[
-        _messages_pb2.NewLabReportsRequest, _messages_pb2.LabReports
-    ]
-    AcknowledgeLabReports: _grpc.UnaryUnaryMultiCallable[
-        _messages_pb2.Acknowledgement, _messages_pb2.Received
-    ]
+    SendLabOrder: _grpc.UnaryUnaryMultiCallable[_messages_pb2.LabOrder, _messages_pb2.Received]
+    FetchNewLabReports: _grpc.UnaryUnaryMultiCallable[_messages_pb2.NewLabReportsRequest, _messages_pb2.LabReports]
+    AcknowledgeLabReports: _grpc.UnaryUnaryMultiCallable[_messages_pb2.Acknowledgement, _messages_pb2.Received]
 
 @_typing.type_check_only
 class LaboratoryAsyncStub(LaboratoryStub):
     def __init__(self, channel: _aio.Channel) -> None: ...
-    SendLabOrder: _aio.UnaryUnaryMultiCallable[
-        _messages_pb2.LabOrder, _messages_pb2.Received
-    ]  # type: ignore[assignment]
-    FetchNewLabReports: _aio.UnaryUnaryMultiCallable[
-        _messages_pb2.NewLabReportsRequest, _messages_pb2.LabReports
-    ]  # type: ignore[assignment]
-    AcknowledgeLabReports: _aio.UnaryUnaryMultiCallable[
-        _messages_pb2.Acknowledgement, _messages_pb2.Received
-    ]  # type: ignore[assignment]
+    SendLabOrder: _aio.UnaryUnaryMultiCallable[_messages_pb2.LabOrder, _messages_pb2.Received]  # type: ignore[assignment]
+    FetchNewLabReports: _aio.UnaryUnaryMultiCallable[_messages_pb2.NewLabReportsRequest, _messages_pb2.LabReports]  # type: ignore[assignment]
+    AcknowledgeLabReports: _aio.UnaryUnaryMultiCallable[_messages_pb2.Acknowledgement, _messages_pb2.Received]  # type: ignore[assignment]
 
 class LaboratoryServicer(metaclass=_abc_1.ABCMeta):
     @_abc_1.abstractmethod
@@ -63,45 +53,37 @@ class LaboratoryServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _messages_pb2.LabOrder,
         context: _ServicerContext,
-    ) -> _messages_pb2.Received | _abc.Awaitable[_messages_pb2.Received]: ...
+    ) -> _typing.Union[_messages_pb2.Received, _abc.Awaitable[_messages_pb2.Received]]: ...
+
     @_abc_1.abstractmethod
     def FetchNewLabReports(
         self,
         request: _messages_pb2.NewLabReportsRequest,
         context: _ServicerContext,
-    ) -> _messages_pb2.LabReports | _abc.Awaitable[_messages_pb2.LabReports]: ...
+    ) -> _typing.Union[_messages_pb2.LabReports, _abc.Awaitable[_messages_pb2.LabReports]]: ...
+
     @_abc_1.abstractmethod
     def AcknowledgeLabReports(
         self,
         request: _messages_pb2.Acknowledgement,
         context: _ServicerContext,
-    ) -> _messages_pb2.Received | _abc.Awaitable[_messages_pb2.Received]: ...
+    ) -> _typing.Union[_messages_pb2.Received, _abc.Awaitable[_messages_pb2.Received]]: ...
 
-def add_LaboratoryServicer_to_server(
-    servicer: LaboratoryServicer, server: _grpc.Server | _aio.Server
-) -> None: ...
+def add_LaboratoryServicer_to_server(servicer: LaboratoryServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
 
 class FinalModelsStub:
     @_typing.overload
     def __new__(cls, channel: _grpc.Channel) -> _Self: ...
     @_typing.overload
     def __new__(cls, channel: _aio.Channel) -> FinalModelsAsyncStub: ...
-    FetchNewFinalModels: _grpc.UnaryUnaryMultiCallable[
-        _messages_pb2.NewFinalModelsRequest, _messages_pb2.NewFinalModels
-    ]
-    AcknowledgeFinalModels: _grpc.UnaryUnaryMultiCallable[
-        _messages_pb2.FinalModelAcknowledgement, _messages_pb2.Received
-    ]
+    FetchNewFinalModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.NewFinalModelsRequest, _messages_pb2.NewFinalModels]
+    AcknowledgeFinalModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.FinalModelAcknowledgement, _messages_pb2.Received]
 
 @_typing.type_check_only
 class FinalModelsAsyncStub(FinalModelsStub):
     def __init__(self, channel: _aio.Channel) -> None: ...
-    FetchNewFinalModels: _aio.UnaryUnaryMultiCallable[
-        _messages_pb2.NewFinalModelsRequest, _messages_pb2.NewFinalModels
-    ]  # type: ignore[assignment]
-    AcknowledgeFinalModels: _aio.UnaryUnaryMultiCallable[
-        _messages_pb2.FinalModelAcknowledgement, _messages_pb2.Received
-    ]  # type: ignore[assignment]
+    FetchNewFinalModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.NewFinalModelsRequest, _messages_pb2.NewFinalModels]  # type: ignore[assignment]
+    AcknowledgeFinalModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.FinalModelAcknowledgement, _messages_pb2.Received]  # type: ignore[assignment]
 
 class FinalModelsServicer(metaclass=_abc_1.ABCMeta):
     @_abc_1.abstractmethod
@@ -109,16 +91,13 @@ class FinalModelsServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _messages_pb2.NewFinalModelsRequest,
         context: _ServicerContext,
-    ) -> (
-        _messages_pb2.NewFinalModels | _abc.Awaitable[_messages_pb2.NewFinalModels]
-    ): ...
+    ) -> _typing.Union[_messages_pb2.NewFinalModels, _abc.Awaitable[_messages_pb2.NewFinalModels]]: ...
+
     @_abc_1.abstractmethod
     def AcknowledgeFinalModels(
         self,
         request: _messages_pb2.FinalModelAcknowledgement,
         context: _ServicerContext,
-    ) -> _messages_pb2.Received | _abc.Awaitable[_messages_pb2.Received]: ...
+    ) -> _typing.Union[_messages_pb2.Received, _abc.Awaitable[_messages_pb2.Received]]: ...
 
-def add_FinalModelsServicer_to_server(
-    servicer: FinalModelsServicer, server: _grpc.Server | _aio.Server
-) -> None: ...
+def add_FinalModelsServicer_to_server(servicer: FinalModelsServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
