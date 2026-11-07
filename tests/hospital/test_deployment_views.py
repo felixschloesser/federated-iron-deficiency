@@ -107,8 +107,12 @@ def test_models_page(
             strict=True,
         ):
             assertContains(response, f'<td data-label="{label}">{cell}</td>', html=True)
-    for term, value in (("AUROC here", "0.84"), ("AUROC across hospitals", "0.87")):
-        assertContains(response, f"<dt>{term}</dt><dd>{value}</dd>", html=True)
+    assertContains(
+        response,
+        '<dt>AUROC here</dt><dd class="no-wrap">0.84 (95% CI 0.68–1.00)</dd>',
+        html=True,
+    )
+    assertContains(response, "<dt>AUROC across hospitals</dt><dd>0.87</dd>", html=True)
     assertContains(response, "Cannot be deployed: not a readable model file")
     assertContains(response, "No screening model is deployed")
 
