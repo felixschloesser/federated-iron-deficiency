@@ -1,4 +1,4 @@
-"""The startup's final-models endpoint (P12): a recipient hospital fetches the
+"""The startup's final-models endpoint (P5): a recipient hospital fetches the
 released final models it has not stored yet, and acknowledges those it stored
 (shared/messaging/messages.proto, features/startup/release.feature)."""
 

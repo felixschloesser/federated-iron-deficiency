@@ -480,7 +480,7 @@ def test_a_health_check_runs_often_only_while_its_service_starts() -> None:
 
 
 def test_only_the_hospitals_web_apps_reach_the_startups_final_models_endpoint() -> None:
-    """The startup's final-models endpoint (P12) serves recipient hospitals only
+    """The startup's final-models endpoint (P5) serves recipient hospitals only
     (features/startup/release.feature). Pass: the final-models network joins the
     startup's web app and every hospital's web app, nothing else, and is internal."""
     declared = config()
