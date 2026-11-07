@@ -2,7 +2,8 @@ Feature: Final models at each hospital
   When the laboratory director fetches a final model (features/hospital/fetch.feature),
   the hospital's web app stores it in the screening-models folder: a new file named
   after its training run's ID, never overwriting one, with the federated metrics the startup sent,
-  and its local validation on this hospital's validation split: a confusion
+  and its local validation on this hospital's test split, which no training run
+  trained or was chosen on: a confusion
   matrix at each threshold the laboratory director may choose, and AUROC. The
   training run sets no threshold. Its metadata holds only this hospital's local validation and the
   federated aggregate, never another hospital's metrics.
@@ -25,7 +26,7 @@ Feature: Final models at each hospital
 
   Scenario: Local validation is a confusion matrix at each threshold, and AUROC
     When the hospital stores the final model of run 11
-    Then its local validation holds the four counts of its validation split at each threshold from 0.05 to 0.95 in steps of 0.05
+    Then its local validation holds the four counts of its test split at each threshold from 0.05 to 0.95 in steps of 0.05
     And an AUROC
 
   Scenario: A hospital learns no other hospital's metrics
