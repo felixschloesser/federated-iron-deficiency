@@ -116,3 +116,14 @@ def logs_in(username: str) -> RoleAuthenticationForm:
 @then(parsers.parse('logging in is refused with code "{code}"'))
 def refused(login: RoleAuthenticationForm, code: str) -> None:
     assert [error.code for error in login.errors.as_data().get("__all__", [])] == [code]
+
+
+def test_a_logged_in_account_of_another_partys_role_gets_403_not_a_crash(
+    client: Client,
+) -> None:
+    """Its start page is another party's, which this URLconf cannot reverse: once
+    a 500, now refused like an account without a role."""
+    staff = User.objects.create_user(username="staff", role=Role.LABORATORY_STAFF)
+    client.force_login(staff)
+    assert client.get(reverse("home")).status_code == 403
+    assert client.get(reverse("practice:patients")).status_code == 403
