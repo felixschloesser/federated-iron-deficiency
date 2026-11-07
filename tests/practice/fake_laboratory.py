@@ -1,5 +1,5 @@
 """A hospital's lab-order endpoint for the general practitioner's tests, kept
-to the contract features/hospital/messaging.feature holds the real one to: it
+to the messages tests/hospital/test_messaging.py holds the real one to: it
 records each lab order it is sent, and hands out the lab reports it was given
 until they are acknowledged. No hospital code, no hospital database."""
 

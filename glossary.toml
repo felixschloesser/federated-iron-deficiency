@@ -150,7 +150,7 @@ rejected = []
 
 ["screened indication"]
 source = "Report, Data table: \"the three screened indications\""
-why = "All the lab order says of the clinical indication: whether it is one the screening covers (features/hospital/screening.feature, features/hospital/messaging.feature), never which"
+why = "All the lab order says of the clinical indication: whether it is one the screening covers (features/hospital/screening.feature), never which"
 rejected = [
     "screen requested (the general practitioner requests nothing)",
     "eligible (also sex and age)",
