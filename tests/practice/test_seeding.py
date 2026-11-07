@@ -7,12 +7,12 @@ import pytest
 from django.core.management import CommandError, call_command
 from pytest_django.fixtures import Settings
 
+from practice.models import Patient
+from shared.accounts.models import User
+from shared.accounts.roles import Role, role_of
+from shared.seeding import command as seeding
+from shared.vocabulary import RegisteredSex
 from tests.conftest import PEOPLE, nhanes_rows
-from web.accounts.models import User
-from web.accounts.roles import Role, role_of
-from web.practice.models import Patient
-from web.seeding import command as seeding
-from web.vocabulary import RegisteredSex
 
 pytestmark = pytest.mark.django_db
 

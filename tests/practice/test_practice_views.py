@@ -11,16 +11,16 @@ from pytest_django import DjangoAssertNumQueries
 from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
 
+from practice.models import Order, Patient
+from shared.accounts.models import User
+from shared.views import ServerErrorView
+from shared.vocabulary import RegisteredSex
+from shared.vocabulary import Test as OrderedTest
 from tests.practice.conftest import (
     make_general_practitioner,
     make_patient,
     suggest_ferritin_on,
 )
-from web.accounts.models import User
-from web.practice.models import Order, Patient
-from web.views import ServerErrorView
-from web.vocabulary import RegisteredSex
-from web.vocabulary import Test as OrderedTest
 
 pytestmark = pytest.mark.django_db
 
@@ -190,7 +190,7 @@ def test_patient_page_offers_ferritin_beside_a_suggestion(
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    from web.practice.models import LabReport
+    from practice.models import LabReport
 
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
@@ -229,7 +229,7 @@ def test_patient_page_queries_do_not_grow_with_suggestions(
     patient: Patient,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    from web.practice.models import LabReport
+    from practice.models import LabReport
 
     logged_in(client, general_practitioner)
     for _ in range(2):
@@ -407,7 +407,7 @@ def test_an_order_that_would_be_refused_returns_to_the_patient(
 ) -> None:
     # Ferritin without a suggestion (features/practice/ordering.feature), then a test the sample has (features/practice/ordering.feature):
     # opening its order page goes back to the patient, with the refusal there.
-    from web.practice.models import NOT_SUGGESTED
+    from practice.models import NOT_SUGGESTED
 
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
@@ -476,7 +476,7 @@ def test_orders_index_names_each_orders_sample(
 def test_order_ferritin_names_its_sample_for_assistive_technology(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
-    from web.practice.models import LabReport
+    from practice.models import LabReport
 
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
@@ -497,7 +497,7 @@ def test_order_ferritin_names_its_sample_for_assistive_technology(
 def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
-    from web.practice.models import LabReport
+    from practice.models import LabReport
 
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
@@ -524,7 +524,7 @@ def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
 def test_each_sample_is_a_details_block_and_only_the_newest_is_open(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
-    from web.practice.models import LabReport
+    from practice.models import LabReport
 
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
@@ -569,7 +569,7 @@ def test_patients_can_be_searched_by_name(
 def test_the_patients_list_marks_a_patient_awaiting_ferritin(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
-    from web.practice.models import LabReport
+    from practice.models import LabReport
 
     logged_in(client, general_practitioner)
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
@@ -610,7 +610,7 @@ def test_an_order_says_whether_its_lab_order_is_sent(
 def test_with_several_laboratories_collecting_starts_with_the_choice(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
-    from web.practice.models import Laboratory
+    from practice.models import Laboratory
 
     for name in ("UZ Leuven", "AZ Diest"):
         Laboratory.objects.create(name=name, address="127.0.0.1:1")
@@ -645,7 +645,7 @@ def test_with_several_laboratories_collecting_starts_with_the_choice(
 def test_the_choice_of_laboratory_starts_at_the_primary_one(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
-    from web.practice.models import Laboratory
+    from practice.models import Laboratory
 
     for name in ("UZ Leuven", "AZ Diest"):
         Laboratory.objects.create(name=name, address="127.0.0.1:1")
@@ -663,7 +663,7 @@ def test_the_choice_of_laboratory_starts_at_the_primary_one(
 def test_with_one_laboratory_collecting_is_one_click(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
-    from web.practice.models import Laboratory
+    from practice.models import Laboratory
 
     only = Laboratory.objects.create(name="AZ Diest", address="127.0.0.1:1")
     logged_in(client, general_practitioner)
@@ -700,7 +700,7 @@ def test_a_page_headers_post_action_is_a_plain_button(
 
 
 def test_a_patients_page_marks_patients_current(client: Client) -> None:
-    from web.vocabulary import RegisteredSex
+    from shared.vocabulary import RegisteredSex
 
     client.force_login(make_general_practitioner("Doctor One"))
     patient = make_patient("Test Patient 1", RegisteredSex.FEMALE, 30)

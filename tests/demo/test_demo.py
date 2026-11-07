@@ -128,17 +128,17 @@ PARTY_FOLDERS = {
         "superlink",  # DS3
         "final-models",  # DS4
         "flwr-home",
-        "web.sqlite3",  # the data scientist's account
+        "shared.sqlite3",  # the data scientist's account
         ".secret_key",
     },
     "hospitals": {
         "cohort",  # DS2
         "screening-models",  # DS5
-        "web.sqlite3",  # DS6, DS8
+        "shared.sqlite3",  # DS6, DS8
         ".secret_key",
     },
     "practices": {
-        "web.sqlite3",  # DS7
+        "shared.sqlite3",  # DS7
         ".secret_key",
     },
 }

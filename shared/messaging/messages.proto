@@ -1,0 +1,106 @@
+// Messages between the general practitioner's app and the hospital
+// (features/hospital/messaging.feature), and between a hospital's web app and the
+// startup (features/startup/release.feature). The client is always the one that
+// asks, the practice or the hospital, and names itself by its certificate name in
+// every message; the demo leaves out the report's mutual TLS.
+syntax = "proto3";
+
+package messaging.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// The choices of shared.vocabulary, one value per member, named after it with the
+// enum's prefix (Test.CBC is TEST_CBC); 0 is none (proto3 default).
+enum Test {
+  TEST_UNSPECIFIED = 0;
+  TEST_CBC = 1;
+  TEST_FERRITIN = 2;
+}
+
+enum RegisteredSex {
+  REGISTERED_SEX_UNSPECIFIED = 0;
+  REGISTERED_SEX_FEMALE = 1;
+  REGISTERED_SEX_MALE = 2;
+}
+
+// DF23. No patient name, no blood values, no clinical indication (features/hospital/messaging.feature): the
+// tube's values are measured at the hospital, and of the indication the
+// laboratory needs only whether it is screened (features/hospital/screening.feature). The hospital's form still
+// checks every field.
+message LabOrder {
+  reserved 2, 3, 4, 7;              // were strings: test, indication, sex, ordered_at
+  reserved 9;                       // was the clinical indication itself
+  reserved "indication";
+  reserved 6;                       // was the general practitioner's name: the
+  reserved "general_practitioner";  // certificate_name says who ordered (features/practice/access.feature)
+  string certificate_name = 13;     // the sending practice's (features/hospital/messaging.feature)
+  string sample_id = 1;
+  Test test = 8;
+  bool screened_indication = 12;    // false when absent: never screened by mistake
+  RegisteredSex registered_sex = 10;
+  uint32 age = 5;
+  google.protobuf.Timestamp ordered_at = 11;
+}
+
+// DF25. Results and one bit of screening (features/practice/reports.feature, features/hospital/messaging.feature): no score, and nothing that
+// tells ferritin not suggested from not screened.
+message LabReport {
+  reserved 3, 6;                    // were strings: test, released_at
+  reserved 5;                       // was the free-text comment
+  reserved "comment";
+  string report_id = 1;
+  string sample_id = 2;
+  Test test = 8;
+  map<string, double> results = 4;
+  google.protobuf.Timestamp released_at = 9;
+  bool ferritin_suggested = 7;      // false when absent: never a false suggestion
+}
+
+message Received {}
+
+message NewLabReportsRequest {
+  string certificate_name = 1;      // the sending practice's
+}
+
+message LabReports {
+  repeated LabReport reports = 1;
+}
+
+message Acknowledgement {
+  string certificate_name = 2;      // the sending practice's
+  repeated string report_ids = 1;
+}
+
+service Laboratory {
+  rpc SendLabOrder(LabOrder) returns (Received);
+  rpc FetchNewLabReports(NewLabReportsRequest) returns (LabReports);
+  rpc AcknowledgeLabReports(Acknowledgement) returns (Received);
+}
+
+// A released final model as a recipient hospital fetches it (DF37): its weights
+// (a final model file holding only them), the AUROC across hospitals and the
+// other averaged validation metrics, and its training run's ID; never its run
+// configuration.
+message FinalModel {
+  string run_id = 1;
+  bytes weights = 2;
+  map<string, double> federated = 3;
+}
+
+message NewFinalModelsRequest {
+  string certificate_name = 1;      // the fetching hospital's
+}
+
+message NewFinalModels {
+  repeated FinalModel final_models = 1;
+}
+
+message FinalModelAcknowledgement {
+  string certificate_name = 1;      // the fetching hospital's
+  repeated string run_ids = 2;      // the final models it stored
+}
+
+service FinalModels {
+  rpc FetchNewFinalModels(NewFinalModelsRequest) returns (NewFinalModels);
+  rpc AcknowledgeFinalModels(FinalModelAcknowledgement) returns (Received);
+}

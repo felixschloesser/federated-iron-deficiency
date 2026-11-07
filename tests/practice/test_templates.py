@@ -74,8 +74,8 @@ def test_a_link_that_looks_like_a_button_stays_a_link() -> None:
 
     root = Path(__file__).resolve().parents[2]
     templates = [
-        *root.glob("web/templates/**/*.html"),
-        *root.glob("web/*/templates/**/*.html"),
+        *root.glob("shared/templates/**/*.html"),
+        *root.glob("shared/*/templates/**/*.html"),
     ]
     assert templates, root
     offenders = [
@@ -93,7 +93,9 @@ def test_a_button_link_keeps_the_house_focus_outline() -> None:
     import re
     from pathlib import Path
 
-    css = (Path(__file__).resolve().parents[2] / "web/static/css/app.css").read_text()
+    css = (
+        Path(__file__).resolve().parents[2] / "shared/static/css/app.css"
+    ).read_text()
     rules = re.findall(r"([^{}]*button-link[^{}]*)\{([^{}]*)\}", css)
     assert rules
     assert [selector.strip() for selector, body in rules if "outline:" in body] == []
@@ -107,7 +109,9 @@ def test_the_header_wraps_and_a_status_mark_keeps_its_padding_on_every_line() ->
     import re
     from pathlib import Path
 
-    css = (Path(__file__).resolve().parents[2] / "web/static/css/app.css").read_text()
+    css = (
+        Path(__file__).resolve().parents[2] / "shared/static/css/app.css"
+    ).read_text()
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
     rules = {
         selector.strip(): body

@@ -15,8 +15,8 @@ from pytest_django.fixtures import Settings
 
 from ml.final_model import Net
 from ml.training import keep_final_model
+from startup.training.forms import SubmitRunForm
 from tests.startup.conftest import make_data_scientist
-from web.startup.training.forms import SubmitRunForm
 
 pytestmark = pytest.mark.django_db
 
@@ -202,7 +202,7 @@ def test_a_refused_run_says_why(
 def test_a_deployment_tells_the_server_app_its_demo_folder(
     settings: Settings, tmp_path: Path
 ) -> None:
-    from web.startup.training.runs import run_configuration
+    from startup.training.runs import run_configuration
 
     settings.DATA_DIR = tmp_path / "startup"
     assert (
@@ -310,7 +310,7 @@ def test_each_cell_names_its_column_for_narrow_screens(
 def test_a_file_not_named_after_a_run_is_no_final_model(
     final_models_dir: Path,
 ) -> None:
-    from web.startup.training.final_models import final_models
+    from startup.training.final_models import final_models
 
     (final_models_dir / "7.pt").rename(final_models_dir / "run123.pt")
     assert final_models(final_models_dir) == []

@@ -81,7 +81,7 @@ exclude = ["^\\.demo/"]
 plugins = ["mypy_django_plugin.main"]
 
 [tool.django-stubs]
-django_settings_module = "web.settings.typecheck"
+django_settings_module = "typecheck_settings"
 
 [tool.pytest.ini_options]
 # The audit and red_first live in .claude/, out of readers' way; their tests import them.
@@ -101,7 +101,18 @@ markers = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["audit", "demo", "ml", "red_first", "tests", "tools", "web"]
+known-first-party = [
+    "audit",
+    "demo",
+    "hospital",
+    "ml",
+    "practice",
+    "red_first",
+    "shared",
+    "startup",
+    "tests",
+    "tools",
+]
 
 # Torch on Linux from PyTorch's CPU index: the containers screen and train on
 # CPU, and PyPI's x86-64 wheel would pull several GB of CUDA libraries.

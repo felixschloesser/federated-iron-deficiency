@@ -8,13 +8,13 @@ import pytest
 from django.core.exceptions import ValidationError
 from pytest_bdd import given, parsers, scenarios, then, when
 
+from hospital.analyser.models import FERRITIN, Participant
+from hospital.lab.models import Sample, TestRequest
 from ml.cohort import CBC_VARS
+from shared.vocabulary import RegisteredSex
+from shared.vocabulary import Test as OrderedTest
 from tests.conftest import World
 from tests.hospital.conftest import make_practice, make_tube, receive_lab_order
-from web.hospital.lab.models import Sample, TestRequest
-from web.hospital.nhanes.models import FERRITIN, Participant
-from web.vocabulary import RegisteredSex
-from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 29, 10, 0, tzinfo=UTC)
 TESTS = {"CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
@@ -214,4 +214,4 @@ def lab_relates_to_the_hospital_only(world: World) -> None:
             for field in model._meta.get_fields()
             if field.related_model is not None
         }
-        assert related <= {"lab", "deployment", "nhanes"}, (model, related)
+        assert related <= {"lab", "deployment"}, (model, related)

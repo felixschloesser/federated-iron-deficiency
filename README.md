@@ -21,7 +21,7 @@ v1.3.0 for a privacy impact assessment of a hypothetical deployment: a startup
 and three Belgian hospitals.
 
 - **Package `ml/`.** The original's package is `iron_deficiency/`; here the
-  Flower app is `ml/`, beside the web app in `web/` and the demo in `demo/`.
+  Flower app is `ml/`, beside the web app in `shared/` and the demo in `demo/`.
 - **Data from Hugging Face.** The original downloads the NHANES files from the
   CDC on each client. Here the cohorts come from a pinned revision of
   `gracemyu/nhanes-merged` through Flower Datasets, so the app also runs in

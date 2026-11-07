@@ -15,9 +15,9 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.asserts import assertContains
 from pytest_django.fixtures import Settings
 
+from shared.messaging import messages_pb2, messages_pb2_grpc
 from tests.conftest import World
 from tests.startup.conftest import make_data_scientist
-from web.messaging import messages_pb2, messages_pb2_grpc
 
 NOW = datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
 # The endpoint runs in its own threads, so the test may not hold a transaction.
@@ -30,7 +30,7 @@ scenarios("startup/release.feature")
 def startup(settings: Settings, tmp_path: Path) -> Iterator[str]:
     """The startup's final-models endpoint, running, over its final models; its
     address."""
-    from web.startup.training.messaging import serve
+    from startup.training.messaging import serve
 
     settings.FINAL_MODELS_DIR = tmp_path / "final-models"
     server, port = serve("127.0.0.1:0")
@@ -67,7 +67,7 @@ def kept(
 )
 def knows_hospital(name: str, certificate_name: str) -> None:
     """The startup registered the hospital, and issued its web app the name."""
-    from web.startup.training.models import Recipient
+    from startup.training.models import Recipient
 
     Recipient.objects.add(certificate_name=certificate_name, name=name)
 
@@ -75,7 +75,7 @@ def knows_hospital(name: str, certificate_name: str) -> None:
 @given(parsers.parse('data scientist "{name}" released final model "{run_id}"'))
 @when(parsers.parse('data scientist "{name}" releases final model "{run_id}"'))
 def releases(world: World, name: str, run_id: str) -> None:
-    from web.startup.training.models import Release
+    from startup.training.models import Release
 
     world["data_scientist"] = make_data_scientist(name)
     Release.objects.release(
@@ -85,7 +85,7 @@ def releases(world: World, name: str, run_id: str) -> None:
 
 @then(parsers.parse('final model "{run_id}" is released by "{name}"'))
 def released_by(world: World, run_id: str, name: str) -> None:
-    from web.startup.training.models import Release
+    from startup.training.models import Release
 
     release = Release.objects.get(final_model_run_id=run_id)
     assert release.released_by == world["data_scientist"]

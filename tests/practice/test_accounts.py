@@ -1,4 +1,4 @@
-"""Logging in, as every party's web app does (web.accounts, shared; checked
+"""Logging in, as every party's web app does (shared.accounts, shared; checked
 here, in the practice's run), and the practice's role and its pages."""
 
 import pytest
@@ -7,9 +7,9 @@ from django.test import Client
 from django.urls import resolve, reverse
 from pytest_django.asserts import assertContains, assertNotContains
 
+from shared.accounts.models import User
+from shared.accounts.roles import Role, role_of
 from tests.practice.conftest import make_general_practitioner
-from web.accounts.models import User
-from web.accounts.roles import Role, role_of
 
 pytestmark = pytest.mark.django_db
 PASSWORD = "check-pass-2026"
