@@ -21,7 +21,8 @@ class RoleRequiredMixin(LoginRequiredMixin):
         if not user.is_authenticated:
             return self.handle_no_permission()
         role = role_of(user)
-        if role is None:  # Cannot log in without a role; only if it was removed since
+        # Cannot log in without a role here; only if it was removed since.
+        if role is None:
             raise PermissionDenied
         if role is not self.role:
             messages.error(request, f"That page is for {self.role.people()}.")
