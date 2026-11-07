@@ -99,3 +99,19 @@ def test_the_number_of_patients_is_a_parameter(development: None) -> None:
     # Shared by the groups, the first ones rounding up: 2, 2, 1, 1.
     assert Patient.objects.filter(age=30).count() == 2
     assert Patient.objects.filter(age=70).count() == 1
+
+
+def test_seeds_from_nhanes_downloads_extract(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """nhanes-download's extract, as NHANES writes ages: 30.0, not 30
+    (demo/nhanes.py)."""
+    settings.DEBUG = True
+    rows = nhanes_rows().astype({"age": float})
+    extract = tmp_path / "patients.csv"
+    seeding.with_made_up_ferritin(seeding.choose(rows, seed=0), rows).to_csv(
+        extract, index=False
+    )
+    main(["practice", "--rows", str(extract)])
+    assert Patient.objects.count() == 3 * len(PEOPLE)
+    assert set(Patient.objects.values_list("age", flat=True)) <= {30, 25, 35, 70}
