@@ -9,7 +9,7 @@ RUN --mount=from=ghcr.io/astral-sh/uv:0.13.6,source=/uv,target=/usr/local/bin/uv
     --mount=type=bind,source=pyproject.toml,target=/tmp/lock/pyproject.toml \
     --mount=type=bind,source=uv.lock,target=/tmp/lock/uv.lock \
     --mount=type=cache,target=/root/.cache/pip \
-    uv export --project /tmp/lock --frozen --no-dev --no-default-groups \
+    uv export --project /tmp/lock --locked --no-dev --no-default-groups \
        --no-emit-project --no-hashes --no-emit-package ray --no-emit-package flwr \
        -o /tmp/requirements.txt \
     && python -m pip install -r /tmp/requirements.txt \
