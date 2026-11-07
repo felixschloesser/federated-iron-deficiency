@@ -46,7 +46,7 @@ def suggests_ferritin(
     cbc: Mapping[str, float], age: int, model: FinalModel, threshold: float
 ) -> bool:
     """Whether the model scores one CBC at or above the threshold it was deployed
-    at. Who is screened is the caller's decision (features/hospital/screening.feature)."""
+    at. Who is screened is the caller's decision."""
     features = pd.DataFrame([{**cbc, "RIDAGEYR": age}], columns=FEATURES)
     if features.isna().any(axis=None):
         raise ValueError("A CBC without all its values cannot be screened.")

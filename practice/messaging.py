@@ -30,7 +30,7 @@ def open_laboratory(
 
 
 def send_lab_order(order: Order, laboratory: Laboratory) -> None:
-    """Send an order's lab order (DF23): no name, no values (features/practice/messaging.feature)."""
+    """Send an order's lab order (DF23): no name, no values."""
     with open_laboratory(laboratory) as endpoint:
         _send(endpoint, order, timeout=TIMEOUT_SECONDS)
 
@@ -77,7 +77,7 @@ def send_pending_lab_orders(
     timeout: float = TIMEOUT_SECONDS,
 ) -> int:
     """Send the laboratory the lab orders of its samples it has not confirmed yet,
-    over one channel; it records each once (features/practice/messaging.feature)."""
+    over one channel; it records each once."""
     with open_laboratory(laboratory) as endpoint:
         return _send_pending(endpoint, laboratory, now=now, timeout=timeout)
 
@@ -161,7 +161,7 @@ class Check:
 
 
 def check_every_laboratory(*, now: datetime) -> Check:
-    """Check each laboratory in turn; one that fails holds back no other (features/practice/messaging.feature)."""
+    """Check each laboratory in turn; one that fails holds back no other."""
     asked, fetched, failures = 0, 0, []
     for laboratory in Laboratory.objects.order_by("name"):
         asked += 1

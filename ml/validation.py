@@ -172,7 +172,7 @@ def receive_final_model(
     stored_at: datetime,
 ) -> Path:
     """Store a fetched final model; one fetched again is kept as it was.
-    Other weights under a stored run's ID are refused (features/final_models.feature)."""
+    Other weights under a stored run's ID are refused."""
     path = final_model_path(directory, run_id)
     if path.exists():
         stored = read(path).state_dict
@@ -206,7 +206,7 @@ def store_final_model(
     """Store a training run's final model with this hospital's standardization.
 
     `federated` is what the ServerApp aggregated; no other hospital's metrics
-    reach this file (features/final_models.feature). A final model is never overwritten (features/final_models.feature).
+    reach this file. A final model is never overwritten.
     """
     path = final_model_path(directory, run_id)
     if path.exists():

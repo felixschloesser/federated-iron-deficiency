@@ -143,7 +143,7 @@ services:
   # The startup's web app: its data scientist sees the final models, submits
   # training runs and releases final models. One container, two servers, each on
   # a name only one network knows: the proxy reaches the pages, the hospitals'
-  # web apps only the final-models endpoint (P12, features/startup/release.feature).
+  # web apps only the final-models endpoint (P12).
   # On startup to reach the SuperLink, which so neither the proxy nor a hospital reaches.
   startup-web:
     <<: *web
@@ -223,15 +223,14 @@ services:
       PARTY_NAME: UZ Leuven
       PARTY_COLOUR: jade
       # The startup's final-models endpoint, and the name the startup issued this
-      # hospital (features/hospital/fetch.feature).
+      # hospital.
       STARTUP_ADDRESS: startup-final-models:8442
       HOSPITAL_CERTIFICATE_NAME: uz-leuven
     volumes:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
     # The laboratory director provides the training cohort and fetches final
     # models here, so the web app writes the cohort folder and screening-models,
-    # through the hospital's whole volume (features/hospital/training_cohort.feature,
-    # features/hospital/fetch.feature); it holds no SuperNode key.
+    # through the hospital's whole volume; it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       uz-leuven: {aliases: [uz-leuven-pages]}
@@ -287,15 +286,14 @@ services:
       PARTY_NAME: Heilig Hart Leuven
       PARTY_COLOUR: pumpkin
       # The startup's final-models endpoint, and the name the startup issued this
-      # hospital (features/hospital/fetch.feature).
+      # hospital.
       STARTUP_ADDRESS: startup-final-models:8442
       HOSPITAL_CERTIFICATE_NAME: heilig-hart-leuven
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
     # The laboratory director provides the training cohort and fetches final
     # models here, so the web app writes the cohort folder and screening-models,
-    # through the hospital's whole volume (features/hospital/training_cohort.feature,
-    # features/hospital/fetch.feature); it holds no SuperNode key.
+    # through the hospital's whole volume; it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       heilig-hart-leuven: {aliases: [heilig-hart-leuven-pages]}
@@ -351,15 +349,14 @@ services:
       PARTY_NAME: AZ Diest
       PARTY_COLOUR: violet
       # The startup's final-models endpoint, and the name the startup issued this
-      # hospital (features/hospital/fetch.feature).
+      # hospital.
       STARTUP_ADDRESS: startup-final-models:8442
       HOSPITAL_CERTIFICATE_NAME: az-diest
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
     # The laboratory director provides the training cohort and fetches final
     # models here, so the web app writes the cohort folder and screening-models,
-    # through the hospital's whole volume (features/hospital/training_cohort.feature,
-    # features/hospital/fetch.feature); it holds no SuperNode key.
+    # through the hospital's whole volume; it holds no SuperNode key.
     # DEBUG off; plain HTTP, as the demo leaves out the report's TLS (tests/quality/security/test_compose.py).
     networks:
       az-diest: {aliases: [az-diest-pages]}
@@ -367,7 +364,7 @@ services:
       final-models: {}
 
   # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory (features/practice/messaging.feature): on the messaging network.
+  # laboratory: on the messaging network.
   huisartsenpraktijk-de-akker-web:
     <<: *practice-web
     build: {context: .., dockerfile: demo/practice-web.Dockerfile}

@@ -1,6 +1,6 @@
 """The training cohort as files: the hospital writes it when its laboratory
 director provides it, the startup's code at the hospital (the ClientApp) reads
-it (features/hospital/training_cohort.feature, features/training_cohort_in_runs.feature).
+it (features/hospital/training_cohort.feature).
 
 A folder holds at most one training cohort, in a folder named after its
 SHA-256; none once withdrawn. Flower is not imported here, so the hospital's
