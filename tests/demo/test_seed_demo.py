@@ -50,7 +50,7 @@ def test_the_practice_and_the_hospital_seed_the_same_participants(
     hospital, practice = tmp_path / "hospital", tmp_path / "practice"
     seed("hospital", hospital, nhanes, seed_value)
     seed("practice", practice, nhanes, seed_value)
-    tubes = column(hospital, "SELECT seqn FROM nhanes_participant")
+    tubes = column(hospital, "SELECT seqn FROM analyser_participant")
     patients = column(practice, "SELECT nhanes_number FROM practice_patient")
     assert tubes
     assert patients == tubes

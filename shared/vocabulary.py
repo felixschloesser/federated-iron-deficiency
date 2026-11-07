@@ -94,7 +94,7 @@ class ResultName:
 
 
 # In the order of ml.cohort.CBC_VARS, then ferritin, then the demo's
-# made-up ferritin (hospital.nhanes.models.MADE_UP_FERRITIN); a test checks the order.
+# made-up ferritin (hospital.analyser.models.MADE_UP_FERRITIN); a test checks the order.
 RESULT_NAMES = {
     "LBXWBCSI": ResultName("White blood cell count", "1000 cells/µL"),
     "LBXRBCSI": ResultName("Red blood cell count", "million cells/µL"),

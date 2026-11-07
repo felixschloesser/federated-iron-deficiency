@@ -314,3 +314,25 @@ def test_a_partys_roles_are_no_listed_members(tmp_path: Path) -> None:
     assert audit.run(root)["listed_members"] == [
         "shared/x.py:1: members of Role listed; derive with match"
     ]
+
+
+def test_the_hospital_reaches_the_analyser_only_through_its_port(
+    tmp_path: Path,
+) -> None:
+    root = tree(
+        tmp_path,
+        {
+            "hospital/lab/models.py": "from hospital.analyser import port\n"
+            "from hospital.analyser.models import Participant\n",
+            "hospital/analyser/port.py": "from hospital.analyser.models import Participant\n",
+            "hospital/lab/management/commands/seed_hospital.py": (
+                "from hospital.analyser.models import Participant\n"
+            ),
+        },
+    )
+    assert audit.run(root)["analyser_port"] == [
+        (
+            "hospital/lab/models.py:2: imports hospital.analyser.models;"
+            " use hospital.analyser.port"
+        )
+    ]

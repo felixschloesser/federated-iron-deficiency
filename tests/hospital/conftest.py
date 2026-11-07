@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
+    from hospital.analyser.models import Participant
     from hospital.lab.models import Practice, TestRequest
-    from hospital.nhanes.models import Participant
     from shared.accounts.models import User
     from shared.vocabulary import Test
 
@@ -47,7 +47,7 @@ def make_practice(certificate_name: str = "practice") -> "Practice":
 def make_tube() -> "Participant":
     """What a new patient's samples would measure at the hospital's analyser
     stand-in: placeholder CBC values, no ferritin. Its number starts their sample IDs."""
-    from hospital.nhanes.models import Participant
+    from hospital.analyser.models import Participant
     from ml.cohort import CBC_VARS
 
     return Participant.objects.create(

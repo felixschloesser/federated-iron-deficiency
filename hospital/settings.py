@@ -14,7 +14,7 @@ SESSION_COOKIE_NAME, CSRF_COOKIE_NAME = cookie_names(DATA_DIR)
 # This party's own apps; no other party installs them.
 INSTALLED_APPS = [
     *SHARED_APPS,
-    "hospital.nhanes",
+    "hospital.analyser",
     "hospital.lab",
     "hospital.deployment",
     "hospital.cohort",

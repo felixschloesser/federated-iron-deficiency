@@ -305,6 +305,26 @@ def party_imports(root: Path) -> list[str]:
     return findings
 
 
+# The analyser is an external system to the laboratory (glossary.toml); the
+# hospital's code knows it only through its port.
+ANALYSER = ("hospital", "analyser")
+ANALYSER_PORT = {"hospital.analyser", "hospital.analyser.port"}
+
+
+def analyser_port(root: Path) -> list[str]:
+    """The hospital's code reaches the analyser only through
+    hospital/analyser/port.py; the analyser's own code and the commands that
+    stock the demo's stand-in may use its models."""
+    return [
+        f"{rel.as_posix()}:{line}: imports {module}; use hospital.analyser.port"
+        for rel, line, module in _web_imports(root, frozenset({"hospital"}))
+        if module.startswith("hospital.analyser")
+        and module not in ANALYSER_PORT
+        and rel.parts[:2] != ANALYSER
+        and "management" not in rel.parts
+    ]
+
+
 def _assigned_list(tree: ast.Module, name: str) -> list[ast.expr]:
     """The elements of the list literal assigned to `name` at module level."""
     for node in tree.body:
@@ -405,6 +425,7 @@ CHECKS: dict[str, Callable[[Path], list[str]]] = {
         training_imports,
         party_imports,
         party_settings,
+        analyser_port,
     )
 }
 

@@ -12,8 +12,8 @@ from django.db import models, transaction
 from django.db.models import Exists, OuterRef
 from django_stubs_ext import WithAnnotations
 
+from hospital.analyser import port as analyser
 from hospital.deployment.models import Deployment, NoUsableModel, ScreeningModel
-from hospital.nhanes.models import Participant
 from ml.cohort import ELIGIBLE_AGES, ELIGIBLE_SEX
 from shared.vocabulary import RegisteredSex, Test
 
@@ -264,19 +264,12 @@ class TestRequest(models.Model):
             raise ValidationError(
                 "This test has already been analysed.", code="already_analysed"
             )
-        # The sample's contents: the NHANES participant whose number starts the
-        # sample ID, so every sample of one patient measures the same.
-        seqn = self.sample.sample_id.split("-")[0]
-        tube = (
-            Participant.objects.filter(seqn=int(seqn)).first()
-            if seqn.isdigit()
-            else None
-        )
-        if tube is None:
+        results = analyser.measure(self.sample.sample_id, Test(self.test))
+        if results is None:
             raise ValidationError(
                 "The analyser has no tube for this sample ID.", code="no_tube"
             )
-        self.results = tube.measure(Test(self.test))
+        self.results = results
         self.analysed_at = now
         if self.test == Test.CBC:
             self._screen(directory)

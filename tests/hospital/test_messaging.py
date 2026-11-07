@@ -11,6 +11,7 @@ import pytest
 from django.core.management import call_command
 from pytest_bdd import given, parsers, scenarios, then, when
 
+from hospital.analyser.models import Participant
 from hospital.lab.messaging import serve
 from hospital.lab.models import (
     LabOrderDetails,
@@ -19,7 +20,6 @@ from hospital.lab.models import (
     ScreeningResult,
     TestRequest,
 )
-from hospital.nhanes.models import Participant
 from shared.messaging import messages_pb2, messages_pb2_grpc
 from shared.messaging.convert import timestamp
 from shared.vocabulary import RegisteredSex

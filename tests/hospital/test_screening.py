@@ -10,6 +10,7 @@ import torch
 from django.db.models import DecimalField, FloatField
 from pytest_bdd import given, parsers, scenarios, then, when
 
+from hospital.analyser.models import Participant
 from hospital.deployment.model_files import sha256
 from hospital.deployment.models import Deployment, NoUsableModel
 from hospital.lab.models import (
@@ -19,7 +20,6 @@ from hospital.lab.models import (
     ScreeningResult,
     TestRequest,
 )
-from hospital.nhanes.models import Participant
 from ml.cohort import CBC_VARS, FEATURES, eligible
 from ml.final_model import (
     FinalModel,

@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from hospital.nhanes.models import Participant
+from hospital.analyser.models import Participant
 from ml.cohort import CBC_VARS
 from shared.accounts.roles import Role
 from shared.seeding.accounts import LABORATORY_DIRECTOR, LABORATORY_STAFF

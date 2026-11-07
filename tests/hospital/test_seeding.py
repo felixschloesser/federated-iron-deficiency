@@ -8,7 +8,7 @@ import pytest
 from django.core.management import CommandError, call_command
 from pytest_django.fixtures import Settings
 
-from hospital.nhanes.models import MADE_UP_FERRITIN, Participant
+from hospital.analyser.models import MADE_UP_FERRITIN, Participant
 from ml.cohort import CBC_VARS
 from shared.accounts.models import User
 from shared.accounts.roles import Role, role_of
