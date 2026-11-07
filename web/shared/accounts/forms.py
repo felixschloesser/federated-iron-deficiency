@@ -14,7 +14,7 @@ class RoleAuthenticationForm(NamedLabels, AuthenticationForm):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         # A submitted form re-renders only with errors, and the error summary
-        # takes focus (kit/form.html): HTML allows one autofocus.
+        # takes focus (includes/form.html): HTML allows one autofocus.
         if self.is_bound:
             self.fields["username"].widget.attrs.pop("autofocus", None)
 

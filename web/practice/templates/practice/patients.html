@@ -1,8 +1,8 @@
-{% extends "kit/base.html" %}
+{% extends "includes/base.html" %}
 {% block title %}Patients{% endblock %}
 {% block content %}
-{% include "kit/index_header.html" with title="Patients" %}
-{% include "kit/search.html" with label="Search patients by name" query=query %}
+{% include "includes/index_header.html" with title="Patients" %}
+{% include "includes/search.html" with label="Search patients by name" query=query %}
 {% if patients %}
 <div class="overflow-auto"><table>
   <thead>
