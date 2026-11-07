@@ -12,5 +12,6 @@
 !startup/
 # The demo's code and topology only: never a stray download or CA under demo/.
 !demo/*.py
+!demo/seeding/
 !demo/demo.toml
 **/__pycache__

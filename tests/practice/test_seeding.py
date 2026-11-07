@@ -1,16 +1,16 @@
-"""The practice's demo data (seed_practice): its general practitioner, and a
+"""The practice's demo data (python -m demo.seed practice): its general practitioner, and a
 patient for each NHANES participant it was given, with a made-up name."""
 
 from pathlib import Path
 
 import pytest
-from django.core.management import CommandError, call_command
 from pytest_django.fixtures import Settings
 
+from demo.seed import main
+from demo.seeding import participants as seeding
 from practice.models import Patient
 from shared.accounts.models import User
 from shared.accounts.roles import Role, role_of
-from shared.seeding import command as seeding
 from shared.vocabulary import RegisteredSex
 from tests.conftest import PEOPLE, nhanes_rows
 
@@ -25,7 +25,7 @@ def development(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def seeded(development: None) -> None:
-    call_command("seed_practice")
+    main(["practice"])
 
 
 def test_seeds_its_one_general_practitioner(seeded: None) -> None:
@@ -46,22 +46,22 @@ def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
 
 
 def test_running_twice_changes_nothing(seeded: None) -> None:
-    call_command("seed_practice")
+    main(["practice"])
     assert User.objects.count() == 2
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
 
 def test_refuses_outside_development(settings: Settings) -> None:
     settings.DEBUG = False
-    with pytest.raises(CommandError, match="DJANGO_DEBUG=1"):
-        call_command("seed_practice")
+    with pytest.raises(SystemExit, match="DJANGO_DEBUG=1"):
+        main(["practice"])
     assert not User.objects.exists()
 
 
 def test_each_seed_chooses_other_participants(development: None) -> None:
     rows = nhanes_rows()
     assert not seeding.choose(rows, seed=0).equals(seeding.choose(rows, seed=1))
-    call_command("seed_practice", "--seed", "1")
+    main(["practice", "--seed", "1"])
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
 
@@ -69,7 +69,7 @@ def test_reads_participants_from_a_csv(settings: Settings, tmp_path: Path) -> No
     settings.DEBUG = True
     csv = tmp_path / "nhanes.csv"
     nhanes_rows().to_csv(csv, index=False)
-    call_command("seed_practice", "--nhanes", str(csv))
+    main(["practice", "--nhanes", str(csv)])
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
 
@@ -93,7 +93,7 @@ def test_a_patients_name_is_the_same_on_every_seed() -> None:
 
 
 def test_the_number_of_patients_is_a_parameter(development: None) -> None:
-    call_command("seed_practice", "--patients", "6")
+    main(["practice", "--patients", "6"])
     assert Patient.objects.count() == 6
     # Shared by the groups, the first ones rounding up: 2, 2, 1, 1.
     assert Patient.objects.filter(age=30).count() == 2
