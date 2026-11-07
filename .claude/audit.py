@@ -328,17 +328,20 @@ def analyser_port(root: Path) -> list[str]:
 
 
 def _assigned_list(tree: ast.Module, name: str) -> list[ast.expr]:
-    """The elements of the list literal assigned to `name` at module level."""
+    """The elements of the list literal assigned to `name` at module level, with
+    or without an annotation."""
     for node in tree.body:
-        if (
-            isinstance(node, ast.Assign)
-            and any(
-                isinstance(target, ast.Name) and target.id == name
-                for target in node.targets
-            )
-            and isinstance(node.value, ast.List)
-        ):
-            return list(node.value.elts)
+        if isinstance(node, ast.Assign):
+            targets, value = node.targets, node.value
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets, value = [node.target], node.value
+        else:
+            continue
+        named = any(
+            isinstance(target, ast.Name) and target.id == name for target in targets
+        )
+        if named and isinstance(value, ast.List):
+            return list(value.elts)
     return []
 
 

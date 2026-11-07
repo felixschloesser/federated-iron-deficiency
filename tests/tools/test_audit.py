@@ -280,7 +280,7 @@ def test_each_party_installs_its_own_apps_and_no_other_partys(tmp_path: Path) ->
             "practice/apps.py": "",
             "hospital/lab/apps.py": "",
             "hospital/deployment/apps.py": "",
-            "hospital/settings.py": 'INSTALLED_APPS = [*SHARED_APPS, "hospital.lab"]\n'
+            "hospital/settings.py": 'INSTALLED_APPS: list[str] = [*SHARED_APPS, "hospital.lab"]\n'
             "ROLES = [Role.LABORATORY_STAFF]\n",
             "practice/settings.py": 'INSTALLED_APPS = ["practice", "hospital.lab"]\n'
             "ROLES = [Role.GENERAL_PRACTITIONER]\n",

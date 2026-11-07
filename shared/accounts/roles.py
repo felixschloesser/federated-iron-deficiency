@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, assert_never
 
+from django.conf import settings
 from django.db import models
 from django.urls import reverse
 
@@ -78,6 +79,11 @@ class Role(models.TextChoices):
 
 
 def role_of(user: "AbstractBaseUser | AnonymousUser | None") -> Role | None:
-    """Return the user's role, or None for an account without one."""
-    role = getattr(user, "role", None)
-    return None if role is None else Role(role)
+    """The user's role in this party's web app; None for an account without one,
+    or whose role is another party's (its settings' ROLES): the role's pages
+    are not served here (features/practice/access.feature)."""
+    value = getattr(user, "role", None)
+    if value is None:
+        return None
+    role = Role(value)
+    return role if role in settings.ROLES else None
