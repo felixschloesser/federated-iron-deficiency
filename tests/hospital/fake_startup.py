@@ -14,8 +14,8 @@ from web.shared.messaging import messages_pb2, messages_pb2_grpc
 
 
 def named(context: grpc.ServicerContext) -> str | None:
-    """The certificate name a call named itself by, read as any server reads it."""
-    name = dict(context.invocation_metadata()).get("certificate-name")
+    """The slug a call named its party by, read as any server reads it."""
+    name = dict(context.invocation_metadata()).get("party")
     return name if isinstance(name, str) else None
 
 
@@ -23,7 +23,7 @@ def named(context: grpc.ServicerContext) -> str | None:
 class FakeStartup(messages_pb2_grpc.FinalModelsServicer):
     offered: list[messages_pb2.FinalModel] = field(default_factory=list)
     acknowledged: list[str] = field(default_factory=list)
-    # The certificate name each fetch named itself by, in order.
+    # The slug each fetch named its party by, in order.
     callers: list[str | None] = field(default_factory=list)
 
     def FetchNewFinalModels(

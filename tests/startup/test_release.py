@@ -11,6 +11,7 @@ import grpc
 import pytest
 from django.test import Client
 from django.urls import reverse
+from django.utils.text import slugify
 from google.protobuf.empty_pb2 import Empty
 from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.asserts import assertContains
@@ -61,16 +62,33 @@ def kept(
     )
 
 
-@given(
-    parsers.parse(
-        'the startup knows hospital "{name}" by certificate name "{certificate_name}"'
-    )
-)
-def knows_hospital(name: str, certificate_name: str) -> None:
-    """The startup registered the hospital, and issued its web app the name."""
+@given(parsers.parse('the startup knows hospital "{name}"'))
+def knows_hospital(name: str) -> None:
+    """The startup registered the hospital by its name."""
     from web.startup.training.models import Recipient
 
-    Recipient.objects.add(certificate_name=certificate_name, name=name)
+    Recipient.objects.add(name=name)
+
+
+@when(parsers.parse('the startup registers hospital "{name}"'))
+def registers_hospital(world: World, name: str) -> None:
+    from django.core.exceptions import ValidationError
+
+    from web.startup.training.models import Recipient
+
+    try:
+        Recipient.objects.add(name=name)
+    except ValidationError as error:
+        world["refused"] = error
+
+
+@then("registering is refused as a slug taken")
+def refused_slug_taken(world: World) -> None:
+    from web.startup.training.models import Recipient
+
+    refused = world["refused"].error_dict.values()
+    assert [error.code for errors in refused for error in errors] == ["slug_taken"]
+    assert Recipient.objects.count() == 1
 
 
 @given(parsers.parse('data scientist "{name}" released final model "{run_id}"'))
@@ -93,12 +111,10 @@ def released_by(world: World, run_id: str, name: str) -> None:
     assert release.released_at == NOW
 
 
-def call(world: World, method: str, request: Any, certificate_name: str | None) -> Any:
-    """One call of the endpoint, as a hospital's web app makes it, named in the
-    call's metadata; a refusal is kept."""
-    metadata = (
-        () if certificate_name is None else (("certificate-name", certificate_name),)
-    )
+def call(world: World, method: str, request: Any, hospital: str | None) -> Any:
+    """One call of the endpoint, as a hospital's web app makes it, named by its
+    name's slug in the call's metadata; a refusal is kept."""
+    metadata = () if hospital is None else (("party", slugify(hospital)),)
     with grpc.insecure_channel(world["startup"]) as channel:
         endpoint = messages_pb2_grpc.FinalModelsStub(channel)
         try:
@@ -108,9 +124,9 @@ def call(world: World, method: str, request: Any, certificate_name: str | None) 
             return None
 
 
-@when(parsers.parse('"{certificate_name}" fetches new final models'))
-def fetches(world: World, certificate_name: str) -> None:
-    world["fetched"] = call(world, "FetchNewFinalModels", Empty(), certificate_name)
+@when(parsers.parse('"{hospital}" fetches new final models'))
+def fetches(world: World, hospital: str) -> None:
+    world["fetched"] = call(world, "FetchNewFinalModels", Empty(), hospital)
 
 
 @when("a hospital fetches new final models without naming itself")
@@ -120,17 +136,16 @@ def fetches_unnamed(world: World) -> None:
 
 @given(
     parsers.parse(
-        '"{certificate_name}" fetched new final models and acknowledged final model'
-        ' "{run_id}"'
+        '"{hospital}" fetched new final models and acknowledged final model "{run_id}"'
     )
 )
-def fetched_and_acknowledged(world: World, certificate_name: str, run_id: str) -> None:
-    fetches(world, certificate_name)
+def fetched_and_acknowledged(world: World, hospital: str, run_id: str) -> None:
+    fetches(world, hospital)
     call(
         world,
         "AcknowledgeFinalModels",
         messages_pb2.FinalModelAcknowledgement(run_ids=[run_id]),
-        certificate_name,
+        hospital,
     )
 
 

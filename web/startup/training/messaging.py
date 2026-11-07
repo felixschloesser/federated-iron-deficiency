@@ -15,13 +15,13 @@ from web.startup.training.models import Recipient, Release
 
 
 def recipient_of(context: grpc.ServicerContext) -> Recipient:
-    """The calling hospital, by the certificate name the call names itself by; a
-    call that names none, or a hospital the startup does not know, is refused
-    before anything is read."""
-    certificate_name = caller(context)
-    if certificate_name is None:
+    """The calling hospital, by the slug the call names it by; a call that names
+    none, or a hospital the startup does not know, is refused before anything is
+    read."""
+    slug = caller(context)
+    if slug is None:
         context.abort(grpc.StatusCode.UNAUTHENTICATED, "hospital_required")
-    recipient = Recipient.objects.filter(certificate_name=certificate_name).first()
+    recipient = Recipient.objects.filter(slug=slug).first()
     if recipient is None:
         context.abort(grpc.StatusCode.PERMISSION_DENIED, "unknown_hospital")
     return recipient

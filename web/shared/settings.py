@@ -33,16 +33,15 @@ FINAL_MODELS_DIR: Path | None = None
 # The training cohort the laboratory director provides, which the startup's
 # code at the hospital reads.
 TRAINING_COHORT_DIR: Path | None = None
-# The name the hospitals issued this practice and know it by, which its app
-# names itself by in each call (glossary.toml, certificate name); None, it
-# cannot call.
-PRACTICE_CERTIFICATE_NAME: str | None = None
-# The startup's final-models endpoint and the name the startup issued this
-# hospital; without the endpoint, no fetching.
+# Each party's name (glossary.toml, name), set by its own settings alone: shown
+# in its title bar and header, and, for a practice or a hospital, what it calls
+# another party as; None, it shows none and cannot call. Never the screening's
+# name.
+PRACTICE_NAME: str | None = None
+HOSPITAL_NAME: str | None = None
+STARTUP_NAME: str | None = None
+# The startup's final-models endpoint; without it, no fetching.
 STARTUP_ADDRESS: str | None = None
-HOSPITAL_CERTIFICATE_NAME: str | None = None
-# Shown in the title bar and header; never the screening's name.
-PARTY_NAME = ""
 
 
 def data_dir(party: str) -> Path:
@@ -92,16 +91,16 @@ def cookie_names(folder: Path) -> tuple[str, str]:
     return f"sessionid-{folder.name}", f"csrftoken-{folder.name}"
 
 
-# A Pico colour theme per party, so its pages are told apart at a glance; absent:
-# Pico's default. Only a vendored theme will do.
+# The Pico theme that sets the party's primary colour, so its pages are told
+# apart at a glance; absent: Pico's default. Only a vendored theme will do.
 PICO_DIR = BASE_DIR / "web" / "shared" / "static" / "css" / "vendor" / "pico-2.1.1"
-PARTY_COLOUR = os.environ.get("PARTY_COLOUR") or None
+PRIMARY_COLOUR = os.environ.get("PRIMARY_COLOUR") or None
 if (
-    PARTY_COLOUR is not None
-    and not (PICO_DIR / f"pico.{PARTY_COLOUR}.min.css").is_file()
+    PRIMARY_COLOUR is not None
+    and not (PICO_DIR / f"pico.{PRIMARY_COLOUR}.min.css").is_file()
 ):
     raise ImproperlyConfigured(
-        f"PARTY_COLOUR {PARTY_COLOUR!r} has no Pico theme in {PICO_DIR}."
+        f"PRIMARY_COLOUR {PRIMARY_COLOUR!r} has no Pico theme in {PICO_DIR}."
     )
 
 

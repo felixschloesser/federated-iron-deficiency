@@ -21,7 +21,7 @@ def test_a_lab_order_says_whether_its_indication_is_screened_and_nothing_more() 
     ("message", "fields"),
     [
         # No patient name, no blood values, no clinical indication, no general
-        # practitioner: the call's certificate name says which practice ordered.
+        # practitioner: the call's metadata says which practice ordered.
         (
             "LabOrder",
             {

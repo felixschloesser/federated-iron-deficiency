@@ -210,17 +210,13 @@ def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
 
 
 def practice_arguments() -> list[list[str]]:
-    """add_practice's arguments for every practice, its certificate name its
-    folder name: every hospital knows them all, as every practice may send it a
-    sample."""
-    return [
-        [slug, PRACTICES[cycle]]
-        for (_, slug), cycle in zip(practices(), CYCLES, strict=True)
-    ]
+    """add_practice's arguments for every practice, its name: every hospital
+    knows them all, as every practice may send it a sample."""
+    return [[PRACTICES[cycle]] for cycle in CYCLES]
 
 
 def add_practices(hospital: Path) -> None:
-    """Every practice, at the hospital, by its certificate name."""
+    """Every practice, at the hospital, by its name."""
     env = {
         **os.environ,
         "DJANGO_SETTINGS_MODULE": "web.hospital.settings",
@@ -237,12 +233,8 @@ def add_practices(hospital: Path) -> None:
 
 
 def hospital_arguments() -> list[list[str]]:
-    """add_hospital's arguments for every hospital: the certificate name the
-    startup issues it (its folder's name) and its name."""
-    return [
-        [slug, HOSPITALS[cycle]]
-        for (_, slug), cycle in zip(hospitals(), CYCLES, strict=True)
-    ]
+    """add_hospital's arguments for every hospital: its name."""
+    return [[HOSPITALS[cycle]] for cycle in CYCLES]
 
 
 def add_hospitals(startup: Path) -> None:

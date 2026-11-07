@@ -47,7 +47,7 @@ def fetch_final_models(*, now: datetime) -> list[str]:
             "Fetching needs STARTUP_ADDRESS, the screening models' folder and the"
             " training cohort's."
         )
-    metadata = calling_as(settings.HOSPITAL_CERTIFICATE_NAME)
+    metadata = calling_as(settings.HOSPITAL_NAME)
     if not training_cohorts(cohort_dir):
         raise TrainingCohortUnavailable("No training cohort to validate on.")
     with grpc.insecure_channel(address) as channel:

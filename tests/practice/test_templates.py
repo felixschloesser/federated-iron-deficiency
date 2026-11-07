@@ -6,17 +6,18 @@ from django.test import RequestFactory
 from pytest_django.fixtures import Settings
 
 
-def test_base_layout_renders(settings: Settings) -> None:
+def test_base_layout_without_a_name_names_no_party(settings: Settings) -> None:
+    settings.PRACTICE_NAME = None
     template = engines["django"].from_string(
         '{% extends "includes/base.html" %}{% block title %}Probe{% endblock %}'
     )
     html = template.render({}, RequestFactory().get("/"))
-    assert f"<title>Probe · {settings.PARTY_NAME}</title>" in html
+    assert "<title>Probe</title>" in html
     assert "screening" not in html.lower()
 
 
-def test_title_and_header_name_only_the_hospital(settings: Settings) -> None:
-    settings.PARTY_NAME = "AZ Diest"
+def test_title_and_header_name_only_the_party(settings: Settings) -> None:
+    settings.PRACTICE_NAME = "AZ Diest"
     template = engines["django"].from_string(
         '{% extends "includes/base.html" %}{% block title %}Probe{% endblock %}'
     )
@@ -31,8 +32,8 @@ def test_missing_variable_fails_the_render() -> None:
         template.render({})
 
 
-def test_a_party_colour_picks_its_pico_theme(settings: Settings) -> None:
-    settings.PARTY_COLOUR = "jade"
+def test_a_primary_colour_picks_its_pico_theme(settings: Settings) -> None:
+    settings.PRIMARY_COLOUR = "jade"
     template = engines["django"].from_string(
         '{% extends "includes/base.html" %}{% block title %}Probe{% endblock %}'
     )
@@ -41,8 +42,8 @@ def test_a_party_colour_picks_its_pico_theme(settings: Settings) -> None:
     assert "pico-2.1.1/pico.min.css" not in html
 
 
-def test_without_a_party_colour_pico_keeps_its_default(settings: Settings) -> None:
-    settings.PARTY_COLOUR = None
+def test_without_a_primary_colour_pico_keeps_its_default(settings: Settings) -> None:
+    settings.PRIMARY_COLOUR = None
     template = engines["django"].from_string(
         '{% extends "includes/base.html" %}{% block title %}Probe{% endblock %}'
     )

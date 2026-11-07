@@ -301,12 +301,11 @@ HOSPITAL = """\
     environment:
       DJANGO_SETTINGS_MODULE: web.hospital.settings
       DATA_DIR: /demo/hospitals/{slug}
-      PARTY_NAME: {name}
-      PARTY_COLOUR: {colour}
-      # The startup's final-models endpoint, and the name the startup issued this
-      # hospital.
+      # Its name: shown on its pages, and what it calls the startup as.
+      HOSPITAL_NAME: {name}
+      PRIMARY_COLOUR: {colour}
+      # The startup's final-models endpoint.
       STARTUP_ADDRESS: startup-final-models:8442
-      HOSPITAL_CERTIFICATE_NAME: {slug}
     volumes:
       - {type: volume, source: {slug}, target: /demo/hospitals/{slug}}
     # The laboratory director provides the training cohort and fetches final
@@ -335,9 +334,9 @@ PRACTICE = """\
     environment:
       DJANGO_SETTINGS_MODULE: web.practice.settings
       DATA_DIR: /demo/practices/{slug}
-      PARTY_NAME: {name}
-      PRACTICE_CERTIFICATE_NAME: {slug}
-      PARTY_COLOUR: {colour}
+      # Its name: shown on its pages, and what it calls each hospital as.
+      PRACTICE_NAME: {name}
+      PRIMARY_COLOUR: {colour}
     volumes:
       - {type: volume, source: {slug}, target: /demo/practices/{slug}}
     networks: [{slug}, messaging]

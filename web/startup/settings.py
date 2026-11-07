@@ -18,5 +18,5 @@ INSTALLED_APPS: list[str] = [
 ]
 ROLES = [Role.DATA_SCIENTIST]
 ROOT_URLCONF = "web.startup.urls"
-PARTY_NAME = os.environ.get("PARTY_NAME") or "Demo startup"
+STARTUP_NAME = os.environ.get("STARTUP_NAME")
 FINAL_MODELS_DIR = DATA_DIR / "final-models"

@@ -281,18 +281,16 @@ def test_the_hospital_serves_its_pages_and_its_messaging_each_on_one_network_onl
     assert spec["restart"] == "unless-stopped"
 
 
-def test_each_web_app_knows_its_party_name_and_colour() -> None:
+def test_each_web_app_knows_its_name_and_primary_colour() -> None:
     vendor = ROOT / "web/shared/static/css/vendor/pico-2.1.1"
     for cycle, (hospital_colour, practice_colour) in COLOURS.items():
         hospital = service(f"{hospital_slug(HOSPITALS[cycle])}-web")["environment"]
-        assert hospital["PARTY_NAME"] == HOSPITALS[cycle]
-        assert hospital["PARTY_COLOUR"] == hospital_colour
+        assert hospital["HOSPITAL_NAME"] == HOSPITALS[cycle]
+        assert hospital["PRIMARY_COLOUR"] == hospital_colour
         practice = service(f"{hospital_slug(PRACTICES[cycle])}-web")["environment"]
-        assert practice["PARTY_NAME"] == PRACTICES[cycle]
         # What every hospital registers it by (demo.demo.practice_arguments).
-        slug = hospital_slug(PRACTICES[cycle])
-        assert practice["PRACTICE_CERTIFICATE_NAME"] == slug
-        assert practice["PARTY_COLOUR"] == practice_colour
+        assert practice["PRACTICE_NAME"] == PRACTICES[cycle]
+        assert practice["PRIMARY_COLOUR"] == practice_colour
         for colour in (hospital_colour, practice_colour):
             assert (vendor / f"pico.{colour}.min.css").is_file(), colour
 
@@ -511,9 +509,8 @@ def test_the_startup_serves_its_pages_and_its_final_models_each_on_one_network_o
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_each_hospital_fetches_from_the_startup_by_its_certificate_name(
-    slug: str,
-) -> None:
+def test_each_hospital_fetches_from_the_startup_by_its_name(slug: str) -> None:
     environment = service(f"{slug}-web")["environment"]
     assert environment["STARTUP_ADDRESS"] == "startup-final-models:8442"
-    assert environment["HOSPITAL_CERTIFICATE_NAME"] == slug
+    # What the startup registers it by (demo.demo.hospital_arguments).
+    assert hospital_slug(environment["HOSPITAL_NAME"]) == slug

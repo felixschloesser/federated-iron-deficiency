@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import models, transaction
+from django.utils.text import slugify
 
 if TYPE_CHECKING:
     from web.shared.accounts.models import User
@@ -14,22 +15,37 @@ if TYPE_CHECKING:
 
 class RecipientManager(models.Manager["Recipient"]):
     @transaction.atomic
-    def add(self, *, certificate_name: str, name: str) -> "Recipient":
-        """Register a recipient hospital, or change its name."""
-        recipient, _ = self.update_or_create(
-            certificate_name=certificate_name, defaults={"name": name}
-        )
+    def add(self, *, name: str) -> "Recipient":
+        """Register a recipient hospital by its name, once; a name whose slug
+        another recipient has is refused."""
+        recipient = self.filter(name=name).first()
+        if recipient is None:
+            recipient = Recipient(name=name, slug=slugify(name))
+            recipient.full_clean()
+            recipient.save()
         return recipient
 
 
 class Recipient(models.Model):
-    """A hospital the startup registered by the certificate name it issued; it
-    may fetch every released final model, whether or not it trained."""
+    """A hospital the startup registered by its name (glossary.toml), which never
+    changes; it calls as the name's slug, and may fetch every released final
+    model, whether or not it trained."""
 
-    certificate_name = models.SlugField(max_length=100, unique=True)
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
+    # What the hospital's web app calls as; follows from the name.
+    slug = models.SlugField(max_length=100, editable=False)
 
     objects = RecipientManager()
+
+    class Meta:
+        constraints = (
+            models.UniqueConstraint(
+                fields=["slug"],
+                name="one_recipient_per_slug",
+                violation_error_code="slug_taken",
+                violation_error_message="Another hospital's name has this slug.",
+            ),
+        )
 
     def __str__(self) -> str:
         return self.name

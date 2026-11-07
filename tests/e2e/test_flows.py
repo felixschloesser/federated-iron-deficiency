@@ -109,8 +109,8 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
         *("-e", f"DATA_DIR=/demo/hospitals/{APP_HOSPITAL}"),
     ]
     compose(*as_hospital, *nhanes, "prepare", *demo_seed, "hospital", *seed)
-    # As prepare does: the hospital knows the practice by its folder name.
-    known = ["add_practice", APP_PRACTICE, "Huisartsenpraktijk De Ceder"]
+    # As prepare does: the hospital knows the practice by its name.
+    known = ["add_practice", "Huisartsenpraktijk De Ceder"]
     compose(*seeding, hospital_app, *manage, *known)
     # As prepare does: the practice's own image serves it, without the seeding.
     as_practice = [
@@ -308,7 +308,7 @@ def release(compose: Compose, journey: dict[str, Any]) -> None:
     as_startup += ["-e", "DJANGO_SETTINGS_MODULE=web.startup.settings"]
     as_startup += ["-e", "DATA_DIR=/demo/startup", "prepare"]
     compose(*as_startup, "python", "-m", "demo.seed", "startup")
-    compose(*seeding, *manage, "add_hospital", APP_HOSPITAL, "AZ Diest")
+    compose(*seeding, *manage, "add_hospital", "AZ Diest")
     up(compose, "startup-web")
     release_one = RELEASE.format(run_id=journey["training"])
     compose(*seeding, *manage, "shell", "-c", release_one)

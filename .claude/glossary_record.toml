@@ -26,11 +26,9 @@ rejected = ["participant (NHANES word; data origin only)"]
 ["practice"]
 rejected = ["client (WHO 13-2; the code's word until 2026-11-03)", "sender", "requester"]
 
-["certificate name"]
-rejected = ["practice ID (no source)", "hospital ID (no source)", "client ID (OAuth's word)", "RIZIV/INAMI number (identifies a doctor, not a practice)"]
-
-["practice name"]
-rejected = ["client name"]
+["name"]
+decided = "2026-11-07"
+rejected = ["certificate name (the report's word; the demo has no certificates)", "practice name (the same name, now one)", "registered name", "practice ID (no source)", "hospital ID (no source)", "client ID (OAuth's word)", "RIZIV/INAMI number (identifies a doctor, not a practice)", "client name"]
 
 ["order"]
 rejected = ["request (the laboratory's word)", "requisition (WHO)", "examination request (ISO 15189)"]

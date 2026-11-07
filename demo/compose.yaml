@@ -234,12 +234,11 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: web.hospital.settings
       DATA_DIR: /demo/hospitals/uz-leuven
-      PARTY_NAME: UZ Leuven
-      PARTY_COLOUR: jade
-      # The startup's final-models endpoint, and the name the startup issued this
-      # hospital.
+      # Its name: shown on its pages, and what it calls the startup as.
+      HOSPITAL_NAME: UZ Leuven
+      PRIMARY_COLOUR: jade
+      # The startup's final-models endpoint.
       STARTUP_ADDRESS: startup-final-models:8442
-      HOSPITAL_CERTIFICATE_NAME: uz-leuven
     volumes:
       - {type: volume, source: uz-leuven, target: /demo/hospitals/uz-leuven}
     # The laboratory director provides the training cohort and fetches final
@@ -297,12 +296,11 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: web.hospital.settings
       DATA_DIR: /demo/hospitals/heilig-hart-leuven
-      PARTY_NAME: Heilig Hart Leuven
-      PARTY_COLOUR: pumpkin
-      # The startup's final-models endpoint, and the name the startup issued this
-      # hospital.
+      # Its name: shown on its pages, and what it calls the startup as.
+      HOSPITAL_NAME: Heilig Hart Leuven
+      PRIMARY_COLOUR: pumpkin
+      # The startup's final-models endpoint.
       STARTUP_ADDRESS: startup-final-models:8442
-      HOSPITAL_CERTIFICATE_NAME: heilig-hart-leuven
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /demo/hospitals/heilig-hart-leuven}
     # The laboratory director provides the training cohort and fetches final
@@ -360,12 +358,11 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: web.hospital.settings
       DATA_DIR: /demo/hospitals/az-diest
-      PARTY_NAME: AZ Diest
-      PARTY_COLOUR: violet
-      # The startup's final-models endpoint, and the name the startup issued this
-      # hospital.
+      # Its name: shown on its pages, and what it calls the startup as.
+      HOSPITAL_NAME: AZ Diest
+      PRIMARY_COLOUR: violet
+      # The startup's final-models endpoint.
       STARTUP_ADDRESS: startup-final-models:8442
-      HOSPITAL_CERTIFICATE_NAME: az-diest
     volumes:
       - {type: volume, source: az-diest, target: /demo/hospitals/az-diest}
     # The laboratory director provides the training cohort and fetches final
@@ -389,9 +386,9 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: web.practice.settings
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-akker
-      PARTY_NAME: Huisartsenpraktijk De Akker
-      PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-akker
-      PARTY_COLOUR: green
+      # Its name: shown on its pages, and what it calls each hospital as.
+      PRACTICE_NAME: Huisartsenpraktijk De Akker
+      PRIMARY_COLOUR: green
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-akker, target: /demo/practices/huisartsenpraktijk-de-akker}
     networks: [huisartsenpraktijk-de-akker, messaging]
@@ -405,9 +402,9 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: web.practice.settings
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-berk
-      PARTY_NAME: Huisartsenpraktijk De Berk
-      PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-berk
-      PARTY_COLOUR: amber
+      # Its name: shown on its pages, and what it calls each hospital as.
+      PRACTICE_NAME: Huisartsenpraktijk De Berk
+      PRIMARY_COLOUR: amber
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-berk, target: /demo/practices/huisartsenpraktijk-de-berk}
     networks: [huisartsenpraktijk-de-berk, messaging]
@@ -421,9 +418,9 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: web.practice.settings
       DATA_DIR: /demo/practices/huisartsenpraktijk-de-ceder
-      PARTY_NAME: Huisartsenpraktijk De Ceder
-      PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-ceder
-      PARTY_COLOUR: purple
+      # Its name: shown on its pages, and what it calls each hospital as.
+      PRACTICE_NAME: Huisartsenpraktijk De Ceder
+      PRIMARY_COLOUR: purple
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-ceder, target: /demo/practices/huisartsenpraktijk-de-ceder}
     networks: [huisartsenpraktijk-de-ceder, messaging]

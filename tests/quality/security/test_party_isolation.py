@@ -214,9 +214,9 @@ def test_every_page_of_a_party_loads_in_its_own_web_app(
 
 
 def test_a_colour_without_a_vendored_pico_theme_is_refused() -> None:
-    result = settings_of("hospital", {"PARTY_COLOUR": "chartreuse"})
+    result = settings_of("hospital", {"PRIMARY_COLOUR": "chartreuse"})
     assert result.returncode != 0
-    assert "PARTY_COLOUR" in result.stderr
+    assert "PRIMARY_COLOUR" in result.stderr
 
 
 def setting(party: str, name: str, env: dict[str, str]) -> str:

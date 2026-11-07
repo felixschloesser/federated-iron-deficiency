@@ -5,7 +5,7 @@ Messages between the general practitioner's app and the hospital
 (tests/hospital/test_messaging.py), and between a hospital's web app and the
 startup (features/startup/release.feature). The client is always the one that
 asks, the practice or the hospital. No message says who sent it: the client
-names itself by its certificate name in each call's metadata
+names its party by its name's slug in each call's metadata
 (web/shared/messaging/identity.py), where mutual TLS would take it from the
 client's certificate; the demo leaves that out.
 """

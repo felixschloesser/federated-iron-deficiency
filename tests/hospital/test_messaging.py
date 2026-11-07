@@ -34,7 +34,7 @@ pytestmark = pytest.mark.django_db(transaction=True)
 @pytest.fixture
 def endpoint() -> Iterator[messages_pb2_grpc.LaboratoryStub]:
     """The hospital's endpoint, running, knowing practice "de-ceder"; a stub on it."""
-    Practice.objects.add(certificate_name="de-ceder", name="De Ceder")
+    Practice.objects.add(name="De Ceder")
     server, port = serve("127.0.0.1:0")
     with grpc.insecure_channel(f"127.0.0.1:{port}") as channel:
         yield messages_pb2_grpc.LaboratoryStub(channel)
@@ -42,7 +42,7 @@ def endpoint() -> Iterator[messages_pb2_grpc.LaboratoryStub]:
 
 
 # Each call names its practice in the call's metadata, as the app does.
-DE_CEDER = (("certificate-name", "de-ceder"),)
+DE_CEDER = (("party", "de-ceder"),)
 
 
 def lab_order(**fields: Any) -> messages_pb2.LabOrder:
@@ -76,8 +76,8 @@ def test_a_lab_order_is_recorded_as_sent(
     )
     assert (test_request.registered_sex, test_request.age) == (RegisteredSex.FEMALE, 32)
     assert test_request.ordered_at == NOW
-    # The practice by the certificate name it called as; no general practitioner.
-    assert test_request.sample.practice.certificate_name == "de-ceder"
+    # The practice its call named, by its name's slug; no general practitioner.
+    assert test_request.sample.practice.name == "De Ceder"
 
 
 def test_a_lab_order_without_a_test_is_refused(
@@ -121,7 +121,7 @@ def test_every_call_from_a_practice_the_hospital_does_not_know_is_refused(
     refused = refusal(
         getattr(endpoint, method.name),
         request_of(method),
-        metadata=(("certificate-name", "de-linde"),),
+        metadata=(("party", "de-linde"),),
     )
     assert (refused.code(), refused.details()) == (
         grpc.StatusCode.PERMISSION_DENIED,
@@ -167,13 +167,13 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
 
 
 @pytest.mark.django_db
-def test_add_practice_adds_it_then_changes_its_name() -> None:
-    """The hospital registers each practice it works with by the certificate name
-    it issued (glossary.toml); the name shown can change, the key cannot."""
-    call_command("add_practice", "de-ceder", "Huisartsenpraktijk De Ceder")
-    call_command("add_practice", "de-ceder", "Groepspraktijk De Ceder")
+def test_add_practice_adds_it_once_by_its_name() -> None:
+    """The hospital registers each practice it works with by its name, which
+    never changes (glossary.toml); its slug follows from the name."""
+    call_command("add_practice", "Huisartsenpraktijk De Ceder")
+    call_command("add_practice", "Huisartsenpraktijk De Ceder")
     practice = Practice.objects.get()
-    assert (practice.certificate_name, practice.name) == (
-        "de-ceder",
-        "Groepspraktijk De Ceder",
+    assert (practice.name, practice.slug) == (
+        "Huisartsenpraktijk De Ceder",
+        "huisartsenpraktijk-de-ceder",
     )

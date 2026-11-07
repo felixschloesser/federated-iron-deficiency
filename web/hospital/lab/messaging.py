@@ -20,13 +20,13 @@ def _value(choice: models.TextChoices | None) -> str:
 
 
 def practice_of(context: grpc.ServicerContext) -> Practice:
-    """The calling practice, by the certificate name the call names itself by; a
-    call that names none, or a practice the hospital does not know, is refused
-    before anything is read or recorded."""
-    certificate_name = caller(context)
-    if certificate_name is None:
+    """The calling practice, by the slug the call names it by; a call that names
+    none, or a practice the hospital does not know, is refused before anything is
+    read or recorded."""
+    slug = caller(context)
+    if slug is None:
         context.abort(grpc.StatusCode.UNAUTHENTICATED, "practice_required")
-    practice = Practice.objects.filter(certificate_name=certificate_name).first()
+    practice = Practice.objects.filter(slug=slug).first()
     if practice is None:
         context.abort(grpc.StatusCode.PERMISSION_DENIED, "unknown_practice")
     return practice

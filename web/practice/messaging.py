@@ -52,7 +52,7 @@ def _send(
             ordered_at=timestamp(order.ordered_at),
         ),
         timeout=timeout,
-        metadata=calling_as(settings.PRACTICE_CERTIFICATE_NAME),
+        metadata=calling_as(settings.PRACTICE_NAME),
     )
 
 
@@ -99,7 +99,7 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
     store and acknowledge them."""
     with open_laboratory(laboratory) as endpoint:
         _send_pending(endpoint, laboratory, now=now)
-        metadata = calling_as(settings.PRACTICE_CERTIFICATE_NAME)
+        metadata = calling_as(settings.PRACTICE_NAME)
         reports = endpoint.FetchNewLabReports(
             Empty(), timeout=TIMEOUT_SECONDS, metadata=metadata
         ).reports

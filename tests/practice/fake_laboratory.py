@@ -14,8 +14,8 @@ from web.shared.messaging.convert import timestamp
 
 
 def named(context: grpc.ServicerContext) -> str | None:
-    """The certificate name a call named itself by, read as any server reads it."""
-    name = dict(context.invocation_metadata()).get("certificate-name")
+    """The slug a call named its party by, read as any server reads it."""
+    name = dict(context.invocation_metadata()).get("party")
     return name if isinstance(name, str) else None
 
 
@@ -24,7 +24,7 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
     lab_orders: list[messages_pb2.LabOrder] = field(default_factory=list)
     reports: dict[str, messages_pb2.LabReport] = field(default_factory=dict)
     acknowledged: set[str] = field(default_factory=set)
-    # The certificate name each call named itself by, in order.
+    # The slug each call named its party by, in order.
     callers: list[str | None] = field(default_factory=list)
     # A status the endpoint answers every lab order with instead of recording it.
     refusal: grpc.StatusCode | None = None

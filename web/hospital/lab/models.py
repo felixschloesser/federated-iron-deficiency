@@ -10,6 +10,7 @@ from typing import TypedDict, assert_never
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Exists, OuterRef
+from django.utils.text import slugify
 from django_stubs_ext import WithAnnotations
 
 from ml.cohort import ELIGIBLE_AGES, ELIGIBLE_SEX
@@ -59,25 +60,36 @@ class NotScreened(models.TextChoices):
 
 class PracticeManager(models.Manager["Practice"]):
     @transaction.atomic
-    def add(self, *, certificate_name: str, name: str) -> Practice:
-        """Register a practice the hospital works with, or change its name."""
-        practice, _ = self.update_or_create(
-            certificate_name=certificate_name, defaults={"name": name}
-        )
+    def add(self, *, name: str) -> Practice:
+        """Register a practice the hospital works with by its name, once; a name
+        whose slug another practice has is refused."""
+        practice = self.filter(name=name).first()
+        if practice is None:
+            practice = Practice(name=name, slug=slugify(name))
+            practice.full_clean()
+            practice.save()
         return practice
 
 
 class Practice(models.Model):
-    """A practice the hospital works with, by the certificate name the hospital
-    issued it (glossary.toml): the lab's key for it, which the practice's app
-    sends in every message. With the report's mutual TLS it would come from the
-    practice's certificate instead; the demo leaves that out."""
+    """A practice the hospital works with, by its name (glossary.toml), which
+    never changes; its app calls as the name's slug."""
 
-    certificate_name = models.SlugField(max_length=100, unique=True)
-    # As the hospital knows the practice; never sent.
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
+    # What the practice's app calls as; follows from the name.
+    slug = models.SlugField(max_length=100, editable=False)
 
     objects = PracticeManager()
+
+    class Meta:
+        constraints = (
+            models.UniqueConstraint(
+                fields=["slug"],
+                name="one_practice_per_slug",
+                violation_error_code="slug_taken",
+                violation_error_message="Another practice's name has this slug.",
+            ),
+        )
 
     def __str__(self) -> str:
         return self.name
