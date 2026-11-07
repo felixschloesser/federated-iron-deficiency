@@ -1,9 +1,9 @@
-"""Local validation: how a hospital checks a final model on its own cohort
-before it may deploy it, and stores it with that validation. The cohort's split
-and standardization live here too, so training and validation split alike."""
+"""A cohort's split into training, validation and test rows, its
+standardization, and evaluating a model on a split. Training and validation
+split alike because both split here."""
 
-from datetime import datetime
-from pathlib import Path
+from collections.abc import Iterable
+from typing import NamedTuple
 
 import numpy as np
 import numpy.typing as npt
@@ -15,15 +15,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 from ml.cohort import FEATURES
-from ml.final_model import (
-    THRESHOLDS,
-    FinalModel,
-    Net,
-    final_model_path,
-    read,
-    standardization_tensor,
-    write,
-)
+from ml.final_model import Net
 
 SEED = 42
 
@@ -40,20 +32,36 @@ class TabularDataset(Dataset[Batch]):
     def __init__(
         self, features: npt.NDArray[np.float32], labels: npt.NDArray[np.float32]
     ) -> None:
-        self.X = torch.from_numpy(features)
-        self.y = torch.from_numpy(labels)
+        self.features = torch.from_numpy(features)
+        self.labels = torch.from_numpy(labels)
 
     def __len__(self) -> int:
-        return len(self.y)
+        return len(self.labels)
 
     def __getitem__(self, index: int) -> Batch:
-        return self.X[index], self.y[index]
+        return self.features[index], self.labels[index]
 
 
-def _split_frames(
-    dataframe: pd.DataFrame, seed: int
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    # Match the notebook's 64/16/20 split, stratified on the binary label.
+class Splits[Part](NamedTuple):
+    """A cohort's training, validation and test rows: 64/16/20."""
+
+    train: Part
+    validation: Part
+    test: Part
+
+
+class Evaluation(NamedTuple):
+    """A model on one split: mean BCE loss, AUROC, and each row's probability
+    beside its label."""
+
+    loss: float
+    auroc: float
+    probabilities: npt.NDArray[np.float32]
+    labels: npt.NDArray[np.float32]
+
+
+def _split_frames(dataframe: pd.DataFrame, seed: int) -> Splits[pd.DataFrame]:
+    # Stratified on the binary label, so every split holds both classes.
     train_df, test_df = train_test_split(
         dataframe,
         test_size=0.20,
@@ -66,26 +74,24 @@ def _split_frames(
         stratify=train_df["iron_deficient"],
         random_state=seed,
     )
-    return train_df, val_df, test_df
+    return Splits(train_df, val_df, test_df)
 
 
 def _training_stats(train_df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
-    # Use training statistics from this cycle only, as in the notebook.
+    # This cohort's training split only: no statistic leaves the hospital.
     return train_df[FEATURES].mean(), train_df[FEATURES].std().replace(0, 1.0)
 
 
 def standardization(
     cohort: pd.DataFrame, seed: int = SEED
 ) -> tuple[pd.Series, pd.Series]:
-    """Return the feature mean and std of one cycle's training split."""
-    return _training_stats(_split_frames(cohort, seed)[0])
+    """The feature mean and std of a cohort's training split."""
+    return _training_stats(_split_frames(cohort, seed).train)
 
 
-def _split_cycle(
-    dataframe: pd.DataFrame, seed: int
-) -> tuple[TabularDataset, TabularDataset, TabularDataset]:
-    train_df, val_df, test_df = _split_frames(dataframe, seed)
-    mean, std = _training_stats(train_df)
+def _split_cohort(dataframe: pd.DataFrame, seed: int) -> Splits[TabularDataset]:
+    frames = _split_frames(dataframe, seed)
+    mean, std = _training_stats(frames.train)
 
     def to_dataset(frame: pd.DataFrame) -> TabularDataset:
         # copy=True: pandas 3 may return a read-only view, which torch.from_numpy warns about.
@@ -95,135 +101,76 @@ def _split_cycle(
         labels = frame["iron_deficient"].to_numpy(dtype=np.float32, copy=True)
         return TabularDataset(features, labels)
 
-    return to_dataset(train_df), to_dataset(val_df), to_dataset(test_df)
+    return Splits(*(to_dataset(frame) for frame in frames))
 
 
 def load_data(
     cohort: pd.DataFrame,
     batch_size: int = 64,
     seed: int = SEED,
-) -> tuple[Loader, Loader, Loader]:
-    """Return train, validation, and test loaders for one cycle's cohort."""
-    trainset, valset, testset = _split_cycle(cohort, seed)
+) -> Splits[Loader]:
+    """A loader for each split of a cohort; only the training one shuffles."""
+    datasets = _split_cohort(cohort, seed)
     generator = torch.Generator().manual_seed(seed)
-    return (
-        DataLoader(trainset, batch_size=batch_size, shuffle=True, generator=generator),
-        DataLoader(valset, batch_size=256),
-        DataLoader(testset, batch_size=256),
+    return Splits(
+        DataLoader(
+            datasets.train, batch_size=batch_size, shuffle=True, generator=generator
+        ),
+        DataLoader(datasets.validation, batch_size=256),
+        DataLoader(datasets.test, batch_size=256),
     )
 
 
 @torch.no_grad()
-def evaluate(
-    net: nn.Module,
-    dataloader: Loader,
-    device: torch.device | None = None,
-) -> tuple[float, dict[str, float], np.ndarray, np.ndarray]:
-    """Return loss, AUROC, probabilities, and labels, matching the notebook."""
-    device = device or torch.device("cpu")
-    net.to(device).eval()
+def evaluate(net: nn.Module, dataloader: Loader) -> Evaluation:
+    """The model on every row of a loader."""
+    net.eval()
     criterion = nn.BCEWithLogitsLoss()
     total, num_examples = 0.0, 0
     probabilities, all_labels = [], []
 
     for features, labels in dataloader:
-        features, labels = features.to(device), labels.to(device)
         logits = net(features)
         total += criterion(logits, labels).item() * len(labels)
         num_examples += len(labels)
-        probabilities.append(torch.sigmoid(logits).cpu().numpy())
-        all_labels.append(labels.cpu().numpy())
+        probabilities.append(torch.sigmoid(logits).numpy())
+        all_labels.append(labels.numpy())
 
     probs = np.concatenate(probabilities)
     labels = np.concatenate(all_labels)
-    metrics = {"auroc": float(roc_auc_score(labels, probs))}
-    return total / num_examples, metrics, probs, labels
+    return Evaluation(
+        total / num_examples, float(roc_auc_score(labels, probs)), probs, labels
+    )
 
 
-def local_validation(
-    state_dict: dict[str, torch.Tensor], cohort: pd.DataFrame
-) -> tuple[dict[float, dict[str, int]], float]:
-    """The confusion matrix at each threshold a laboratory director chooses from,
-    and AUROC, on this cohort's validation split."""
+def _held_out(state_dict: dict[str, torch.Tensor], cohort: pd.DataFrame) -> Evaluation:
+    """The weights on the cohort's validation split."""
     net = Net()
     net.load_state_dict(state_dict)
-    _, valloader, _ = load_data(cohort)
-    _, metrics, probabilities, labels = evaluate(net, valloader)
-    deficient = labels == 1
+    return evaluate(net, load_data(cohort).validation)
+
+
+def confusion_matrices(
+    state_dict: dict[str, torch.Tensor],
+    cohort: pd.DataFrame,
+    thresholds: Iterable[float],
+) -> dict[float, dict[str, int]]:
+    """The weights' confusion matrix at each threshold, on the cohort's
+    validation split: a row is positive at a probability at or above it."""
+    evaluation = _held_out(state_dict, cohort)
+    actual = evaluation.labels == 1
     matrices = {}
-    for threshold in THRESHOLDS:
-        suggested = probabilities >= threshold
+    for threshold in thresholds:
+        predicted = evaluation.probabilities >= threshold
         matrices[threshold] = {
-            "true_positives": int((suggested & deficient).sum()),
-            "false_negatives": int((~suggested & deficient).sum()),
-            "false_positives": int((suggested & ~deficient).sum()),
-            "true_negatives": int((~suggested & ~deficient).sum()),
+            "true_positives": int((predicted & actual).sum()),
+            "false_negatives": int((~predicted & actual).sum()),
+            "false_positives": int((predicted & ~actual).sum()),
+            "true_negatives": int((~predicted & ~actual).sum()),
         }
-    return matrices, float(metrics["auroc"])
+    return matrices
 
 
-def receive_final_model(
-    directory: Path,
-    *,
-    run_id: int,
-    state_dict: dict[str, torch.Tensor],
-    cohort: pd.DataFrame,
-    federated: dict[str, float],
-    stored_at: datetime,
-) -> Path:
-    """Store a fetched final model; one fetched again is kept as it was.
-    Other weights under a stored run's ID are refused."""
-    path = final_model_path(directory, run_id)
-    if path.exists():
-        stored = read(path).state_dict
-        same = (
-            stored is not None
-            and stored.keys() == state_dict.keys()
-            and all(torch.equal(stored[name], state_dict[name]) for name in state_dict)
-        )
-        if not same:
-            raise FileExistsError(f"{path} holds other weights.")
-        return path
-    return store_final_model(
-        directory,
-        run_id=run_id,
-        state_dict=state_dict,
-        cohort=cohort,
-        federated=federated,
-        stored_at=stored_at,
-    )
-
-
-def store_final_model(
-    directory: Path,
-    *,
-    run_id: int,
-    state_dict: dict[str, torch.Tensor],
-    cohort: pd.DataFrame,
-    federated: dict[str, float],
-    stored_at: datetime,
-) -> Path:
-    """Store a training run's final model with this hospital's standardization.
-
-    `federated` is what the ServerApp aggregated; no other hospital's metrics
-    reach this file. A final model is never overwritten.
-    """
-    path = final_model_path(directory, run_id)
-    if path.exists():
-        raise FileExistsError(path)
-    mean, std = standardization(cohort)
-    matrices, local_auroc = local_validation(state_dict, cohort)
-    write(
-        path,
-        FinalModel(
-            state_dict=state_dict,
-            mean=standardization_tensor(mean),
-            std=standardization_tensor(std),
-            run_id=run_id,
-            stored_at=stored_at,
-            federated=federated,
-            confusion_matrices=matrices,
-            local_auroc=local_auroc,
-        ),
-    )
-    return path
+def auroc(state_dict: dict[str, torch.Tensor], cohort: pd.DataFrame) -> float:
+    """The weights' AUROC on the cohort's validation split."""
+    return _held_out(state_dict, cohort).auroc

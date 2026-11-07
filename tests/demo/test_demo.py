@@ -75,8 +75,8 @@ def test_every_hospital_knows_every_practice_by_its_folder_name() -> None:
     so each hospital registers every practice, by the certificate name its app
     sends: its folder name, as compose.yaml sets it."""
     from demo.demo import practice_arguments
-    from demo.topology import PRACTICES
-    from ml.dataset import CYCLES, hospital_slug
+    from demo.topology import PRACTICES, hospital_slug
+    from ml.dataset import CYCLES
 
     assert practice_arguments() == [
         [hospital_slug(PRACTICES[cycle]), PRACTICES[cycle]] for cycle in CYCLES
@@ -88,7 +88,8 @@ def test_the_startup_knows_every_hospital_by_the_name_its_web_app_sends() -> Non
     so the startup registers every one, by the certificate name its web app sends:
     its folder name, as compose.yaml sets it."""
     from demo.demo import hospital_arguments
-    from ml.dataset import CYCLES, HOSPITALS, hospital_slug
+    from demo.topology import HOSPITALS, hospital_slug
+    from ml.dataset import CYCLES
 
     assert hospital_arguments() == [
         [hospital_slug(HOSPITALS[cycle]), HOSPITALS[cycle]] for cycle in CYCLES
@@ -99,7 +100,8 @@ def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise() -> None
     """Every hospital's laboratory, its paired hospital's the primary one, so
     lab orders follow the hospitals' sizes by default."""
     from demo.demo import laboratory_arguments, messaging_host
-    from ml.dataset import CYCLES, HOSPITALS, hospital_slug
+    from demo.topology import HOSPITALS, hospital_slug
+    from ml.dataset import CYCLES
 
     for cycle in CYCLES:
         arguments = laboratory_arguments(cycle)
@@ -162,9 +164,9 @@ def test_each_partys_folder_holds_only_its_dfd_stores_and_keys(
         {"sex": ["Female"], "age": [30], "LBXFER": [20.0]}
         | {var: [1.0] for var in CBC_VARS}
     )
-    monkeypatch.setattr(ml.dataset, "load_lab_records", lambda cycle: records)
-    monkeypatch.setattr(ml.dataset, "load_new_samples", lambda: samples)
-    monkeypatch.setattr(ml.dataset, "load_ferritin", lambda: ferritin)
+    monkeypatch.setattr(ml.dataset, "participants", lambda cycle: records)
+    monkeypatch.setattr(ml.dataset, "new_cycle_participants", lambda: samples)
+    monkeypatch.setattr(ml.dataset, "new_cycle_ferritin", lambda: ferritin)
     # A folder prepared before the participants stayed with prepare.
     stale = [tmp_path / "hospitals" / hospitals()[0][1]]
     stale += [tmp_path / "practices" / practices()[0][1]]

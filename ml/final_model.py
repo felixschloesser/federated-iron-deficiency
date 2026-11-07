@@ -40,14 +40,10 @@ class Net(nn.Module):
             nn.Linear(h2, 1),
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        logits: torch.Tensor = self.net(x)
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        logits: torch.Tensor = self.net(features)
         return logits.squeeze(-1)
 
-
-# The thresholds a laboratory director chooses from: each hospital counts its
-# local validation at every one.
-THRESHOLDS = tuple(step / 20 for step in range(1, 20))
 
 # What torch.load raises on a file that is no model file, or none it loads safely.
 UNREADABLE_ERRORS = (
@@ -168,7 +164,8 @@ def write(path: Path, model: FinalModel) -> None:
 def from_bytes(data: bytes) -> FinalModel:
     """A final model from its file's bytes; an unreadable file gives an empty one."""
     try:
-        contents = torch.load(io.BytesIO(data))
+        # Never unpickle objects: the file crosses a trust boundary.
+        contents = torch.load(io.BytesIO(data), weights_only=True)
     except UNREADABLE_ERRORS:
         return FinalModel()
     if not isinstance(contents, dict):

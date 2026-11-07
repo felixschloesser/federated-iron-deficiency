@@ -1,35 +1,33 @@
-"""Local screening with a final model, outside the web app."""
-
-from pathlib import Path
+"""Inference: a final model's probability for one CBC (ml/inference.py)."""
 
 import pandas as pd
+import pytest
 
 from ml.cohort import CBC_VARS, FEATURES
 from ml.final_model import FinalModel, Net, standardization_tensor
-from ml.inference import screen
+from ml.inference import probability
 
 
-def test_screen_scores_only_eligible_women_and_returns_only_decisions(
-    tmp_path: Path,
-) -> None:
+def final_model() -> FinalModel:
     zeros = pd.Series(0.0, index=FEATURES)
-    model = FinalModel(
+    return FinalModel(
         state_dict=Net().state_dict(),
         mean=standardization_tensor(zeros),
         std=standardization_tensor(zeros + 1),
     )
-    samples = pd.DataFrame(
-        {
-            "sample_id": [1, 2, 3],
-            "sex": ["Female", "Male", "Female"],
-            "age": [30, 30, 60],
-            **{var: [1.0] * 3 for var in CBC_VARS},
-            "name": ["A", "B", "C"],  # A lab export may carry more than needed
-        }
-    )
 
-    results = screen(samples, model, threshold=0.5)
 
-    assert list(results.columns) == ["sample_id", "result"]
-    assert results["result"].iat[0] in {"ferritin suggested", "ferritin not suggested"}
-    assert results["result"].iloc[1:].tolist() == ["not screened"] * 2
+def test_a_complete_cbc_gets_a_probability() -> None:
+    cbc = dict.fromkeys(CBC_VARS, 1.0)
+    assert 0.0 <= probability(final_model(), cbc, age=30) <= 1.0
+
+
+def test_a_cbc_missing_a_value_is_refused() -> None:
+    cbc = dict.fromkeys(CBC_VARS[1:], 1.0)
+    with pytest.raises(ValueError, match="without all its values"):
+        probability(final_model(), cbc, age=30)
+
+
+def test_a_model_without_standardization_is_refused() -> None:
+    with pytest.raises(ValueError, match="cannot screen"):
+        probability(FinalModel(state_dict=Net().state_dict()), {}, age=30)

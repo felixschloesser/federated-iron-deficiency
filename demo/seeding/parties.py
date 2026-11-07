@@ -92,7 +92,7 @@ def seed_startup() -> list[str]:
 
 def seed_lab_records(csv: Path, provide: bool) -> str:
     """The hospital's lab records (DS1), once, from a CSV prepare wrote
-    (ml.dataset.load_lab_records); with `provide`, the laboratory director then
+    (ml.dataset.participants); with `provide`, the laboratory director then
     provides the training cohort, as on the Training cohort page."""
     from hospital.cohort.models import LabRecord, TrainingCohort
 

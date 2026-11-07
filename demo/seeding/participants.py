@@ -10,7 +10,7 @@ from typing import assert_never
 import pandas as pd
 
 from ml.cohort import ELIGIBLE_SEX, FERRITIN_CUTOFF, eligible
-from ml.dataset import load_ferritin, load_new_samples
+from ml.dataset import new_cycle_ferritin, new_cycle_participants
 from shared.vocabulary import RegisteredSex
 
 # Patients per practice unless --patients says otherwise; the groups share them.
@@ -43,7 +43,9 @@ class Group(enum.Enum):
 
 def load_nhanes() -> pd.DataFrame:
     """The 2021–2023 participants: sample ID, sex, age, 13 CBC values, ferritin."""
-    return load_new_samples().merge(load_ferritin(), on="sample_id", how="left")
+    return new_cycle_participants().merge(
+        new_cycle_ferritin(), on="sample_id", how="left"
+    )
 
 
 def choose(rows: pd.DataFrame, seed: int, patients: int = PATIENTS) -> pd.DataFrame:

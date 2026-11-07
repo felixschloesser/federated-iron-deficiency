@@ -142,12 +142,12 @@ def found_cohort(directory: "Path") -> "pd.DataFrame | None":
     folder, or None when it finds none."""
     from datasets import load_from_disk
 
-    snapshots = (
+    training_cohorts = (
         [path for path in directory.iterdir() if path.is_dir()]
         if directory.is_dir()
         else []
     )
-    if not snapshots:
+    if not training_cohorts:
         return None
-    (snapshot,) = snapshots
-    return load_from_disk(str(snapshot)).to_pandas()
+    (training_cohort,) = training_cohorts
+    return load_from_disk(str(training_cohort)).to_pandas()

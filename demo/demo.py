@@ -31,8 +31,8 @@ from demo.seeding.accounts import (
     LABORATORY_STAFF,
     PASSWORD,
 )
-from demo.topology import PATIENTS, PRACTICES, PROVIDED
-from ml.dataset import CYCLES, HOSPITALS, hospital_slug
+from demo.topology import HOSPITALS, PATIENTS, PRACTICES, PROVIDED, hospital_slug
+from ml.dataset import CYCLES
 
 ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API on this one address, the
@@ -279,7 +279,7 @@ def prepare_flower(demo_dir: Path) -> None:
 def prepare(demo_dir: Path) -> None:
     """Create what is missing: Flower's connection, each hospital's lab
     records, the NHANES data."""
-    from ml.dataset import load_ferritin, load_lab_records, load_new_samples
+    from ml.dataset import new_cycle_ferritin, new_cycle_participants, participants
 
     prepare_flower(demo_dir)
     for (_, slug), (_, practice_slug), cycle in zip(
@@ -301,7 +301,7 @@ def prepare(demo_dir: Path) -> None:
         (hospital / "cohort").mkdir(exist_ok=True)
         if not lab_records_csv(demo_dir, slug).exists():
             lab_records_csv(demo_dir, slug).parent.mkdir(parents=True, exist_ok=True)
-            from_hub(partial(load_lab_records, cycle)).to_csv(
+            from_hub(partial(participants, cycle)).to_csv(
                 lab_records_csv(demo_dir, slug), index=False
             )
         # Folders prepared before the cycle stayed with prepare held a copy.
@@ -312,8 +312,8 @@ def prepare(demo_dir: Path) -> None:
     if not nhanes_csv(demo_dir).exists():
         nhanes_csv(demo_dir).parent.mkdir(parents=True, exist_ok=True)
         nhanes = from_hub(
-            lambda: load_new_samples().merge(
-                load_ferritin(), on="sample_id", how="left"
+            lambda: new_cycle_participants().merge(
+                new_cycle_ferritin(), on="sample_id", how="left"
             )
         )
         nhanes.to_csv(nhanes_csv(demo_dir), index=False)

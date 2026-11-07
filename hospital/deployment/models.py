@@ -16,7 +16,7 @@ from hospital.deployment.model_files import (
     sha256,
 )
 from ml.final_model import FinalModel, final_model_path, from_bytes
-from ml.inference import suggests_ferritin
+from ml.inference import probability
 
 
 class NoUsableModel(models.TextChoices):
@@ -148,6 +148,6 @@ class Screener:
     final_model: FinalModel
 
     def suggests_ferritin(self, cbc: Mapping[str, float], age: int) -> bool:
-        return suggests_ferritin(
-            cbc, age, self.final_model, self.screening_model.threshold
-        )
+        """Whether the deployed model scores the CBC at or above the threshold the
+        laboratory director deployed it at."""
+        return probability(self.final_model, cbc, age) >= self.screening_model.threshold
