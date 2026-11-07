@@ -55,7 +55,7 @@ def test_a_changed_feature_changes_the_modules_that_load_it() -> None:
     touched = [
         "features/hospital/lab.feature",
         "tests/tools/test_audit.py",
-        "shared/views.py",
+        "web/shared/views.py",
     ]
     assert red_first.changed_modules(touched, modules) == {
         "tests/hospital/test_lab.py",

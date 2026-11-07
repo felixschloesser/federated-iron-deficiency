@@ -1,6 +1,6 @@
-"""Generate the gRPC code and typed stubs of shared/messaging/messages.proto.
+"""Generate the gRPC code and typed stubs of web/shared/messaging/messages.proto.
 
-python tools/generate_messages.py            # into shared/messaging/
+python tools/generate_messages.py            # into web/shared/messaging/
 python tools/generate_messages.py --out DIR  # elsewhere (the drift test)
 """
 
@@ -14,7 +14,7 @@ from pathlib import Path
 from grpc_tools import protoc
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTO_DIR = ROOT / "shared" / "messaging"
+PROTO_DIR = ROOT / "web" / "shared" / "messaging"
 GENERATED = (
     "messages_pb2.py",
     "messages_pb2.pyi",

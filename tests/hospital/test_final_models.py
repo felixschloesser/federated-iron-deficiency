@@ -10,11 +10,11 @@ import pytest
 import torch
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from hospital.deployment.model_files import store_fetched, store_screening_model
 from ml.cohort import CBC_VARS, FEATURES
 from ml.final_model import Net, Problem, read
 from ml.inference import probability
 from tests.conftest import World
+from web.hospital.deployment.model_files import store_fetched, store_screening_model
 
 STORED_AT = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
 FEDERATED = {"eval_auroc": 0.85, "eval_loss": 0.41}

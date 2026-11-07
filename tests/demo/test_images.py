@@ -56,7 +56,7 @@ def test_django_boots_without_the_training_data_libraries(party: str) -> None:
         " print(sorted(m for m in ('datasets', 'flwr_datasets') if m in sys.modules))"
     )
     environment = {key: value for key, value in os.environ.items() if key != "DATA_DIR"}
-    environment["DJANGO_SETTINGS_MODULE"] = f"{party}.settings"
+    environment["DJANGO_SETTINGS_MODULE"] = f"web.{party}.settings"
     result = subprocess.run(
         [sys.executable, "-c", code],
         cwd=ROOT,

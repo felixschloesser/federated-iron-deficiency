@@ -104,14 +104,11 @@ markers = [
 known-first-party = [
     "audit",
     "demo",
-    "hospital",
     "ml",
-    "practice",
     "red_first",
-    "shared",
-    "startup",
     "tests",
     "tools",
+    "web",
 ]
 
 # Torch on Linux from PyTorch's CPU index: the containers screen and train on

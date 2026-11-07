@@ -8,8 +8,8 @@ import pytest
 if TYPE_CHECKING:
     import pandas as pd
 
-    from shared.accounts.models import User
-    from shared.accounts.roles import Role
+    from web.shared.accounts.models import User
+    from web.shared.accounts.roles import Role
 from ml.cohort import CBC_VARS
 
 # The compose project and what runs in it, for every test that needs Docker
@@ -45,7 +45,7 @@ def world() -> World:
 
 
 def make_user(name: str, role: "Role") -> "User":
-    from shared.accounts.models import User
+    from web.shared.accounts.models import User
 
     return User.objects.create_user(username=name.lower().replace(" ", "-"), role=role)
 

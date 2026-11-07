@@ -16,7 +16,7 @@ ALLOWLIST = Path(".claude") / "audit_allowlist.toml"
 GLOSSARY = Path("glossary.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
 BUILD_OUTPUT = {"staticfiles"}
-# The parts of the training package any code under shared/ may import: the
+# The parts of the training package any code under web/shared/ may import: the
 # cohort's terms and the dataset's loaders (tests/quality/security/test_party_isolation.py).
 SHARED_SIDE = {"ml.cohort", "ml.dataset"}
 # What a party's code may import beyond: the hospital screens; the startup only
@@ -31,7 +31,9 @@ TRAINING_SIDES = {
 # Settings modules that are no party's: what every party shares, and mypy's.
 # The code every party shares; it has a settings.py too, the base of theirs.
 SHARED = "shared"
-ROLES_MODULE = Path(SHARED) / "accounts" / "roles.py"
+# Every Django app lives under web/: one folder per party, and shared/.
+WEB = Path("web")
+ROLES_MODULE = WEB / SHARED / "accounts" / "roles.py"
 
 # Split so that this file does not match its own patterns.
 SUPPRESSIONS = (
@@ -149,7 +151,7 @@ def listed_members(root: Path) -> list[str]:
     for path in files(root, "*.py"):
         # A party's settings list its roles; party_settings checks them instead.
         if path.relative_to(root).as_posix() in {
-            f"{party}/settings.py" for party in parties(root)
+            f"web/{party}/settings.py" for party in parties(root)
         }:
             continue
         for node in ast.walk(ast.parse(path.read_text())):
@@ -230,10 +232,10 @@ def get_mutation(root: Path) -> list[str]:
 
 def parties(root: Path) -> list[str]:
     """Each party: a folder at the top with a settings module of its own
-    (<party>/settings.py)."""
+    (web/<party>/settings.py)."""
     return sorted(
         path.parent.name
-        for path in root.glob("*/settings.py")
+        for path in (root / WEB).glob("*/settings.py")
         if path.parent.name != SHARED
     )
 
@@ -241,9 +243,7 @@ def parties(root: Path) -> list[str]:
 def _owner(parts: tuple[str, ...], known: list[str]) -> str | None:
     """The party whose folder holds this module, at the top or under tests/, by
     path or dotted name; None for shared code."""
-    if parts and parts[0] in known:
-        return parts[0]
-    if len(parts) > 1 and parts[0] == "tests" and parts[1] in known:
+    if len(parts) > 1 and parts[0] in {"web", "tests"} and parts[1] in known:
         return parts[1]
     return None
 
@@ -272,7 +272,7 @@ def training_imports(root: Path) -> list[str]:
     (tests/quality/security/test_party_isolation.py)."""
     known = parties(root)
     findings = []
-    for rel, line, module in _web_imports(root, frozenset({SHARED, *known})):
+    for rel, line, module in _web_imports(root, frozenset({"web"})):
         party = _owner(rel.parts, known)
         allowed = TRAINING_SIDES.get(party or "", SHARED_SIDE)
         if module.split(".")[0] != "ml" or module in allowed:
@@ -293,7 +293,7 @@ def party_imports(root: Path) -> list[str]:
     none (tests/quality/security/test_party_isolation.py)."""
     known = parties(root)
     findings = []
-    for rel, line, module in _web_imports(root, frozenset({SHARED, "tests", *known})):
+    for rel, line, module in _web_imports(root, frozenset({"web", "tests"})):
         imported = _owner(tuple(module.split(".")), known)
         importer = _owner(rel.parts, known)
         # Shared tests may still test every party; a party's tests only its own.
@@ -302,26 +302,27 @@ def party_imports(root: Path) -> list[str]:
             continue
         who = f"the {importer}'s code" if importer else "shared code"
         parts = module.split(".")
-        package = ".".join(parts[:2] if parts[0] == "tests" else parts[:1])
+        package = ".".join(parts[:2])
         findings.append(f"{rel.as_posix()}:{line}: {who} imports {package}")
     return findings
 
 
 # The analyser is an external system to the laboratory (glossary.toml); the
 # hospital's code knows it only through its port.
-ANALYSER = ("hospital", "analyser")
-ANALYSER_PORT = {"hospital.analyser", "hospital.analyser.port"}
+ANALYSER = ("web", "hospital", "analyser")
+ANALYSER_PORT = {"web.hospital.analyser", "web.hospital.analyser.port"}
 
 
 def analyser_port(root: Path) -> list[str]:
     """The hospital's code reaches the analyser only through
-    hospital/analyser/port.py; only the analyser's own code uses its models."""
+    web/hospital/analyser/port.py; only the analyser's own code uses its models."""
     return [
-        f"{rel.as_posix()}:{line}: imports {module}; use hospital.analyser.port"
-        for rel, line, module in _web_imports(root, frozenset({"hospital"}))
-        if module.startswith("hospital.analyser")
+        f"{rel.as_posix()}:{line}: imports {module}; use web.hospital.analyser.port"
+        for rel, line, module in _web_imports(root, frozenset({"web"}))
+        if rel.parts[1:2] == ("hospital",)
+        if module.startswith("web.hospital.analyser")
         and module not in ANALYSER_PORT
-        and rel.parts[:2] != ANALYSER
+        and rel.parts[:3] != ANALYSER
     ]
 
 
@@ -345,7 +346,7 @@ def _assigned_list(tree: ast.Module, name: str) -> list[ast.expr]:
 
 def _party_apps(root: Path, party: str) -> set[str]:
     """The Django apps in the party's folder, by module name."""
-    folder = root / party
+    folder = root / WEB / party
     return {
         ".".join(config.parent.relative_to(root).parts)
         for config in [*folder.glob("apps.py"), *folder.glob("*/apps.py")]
@@ -361,7 +362,7 @@ def party_settings(root: Path) -> list[str]:
     findings = []
     holders: dict[str, list[str]] = {}
     for party in known:
-        rel = f"{party}/settings.py"
+        rel = f"web/{party}/settings.py"
         tree = ast.parse((root / rel).read_text())
         installed = {
             element.value

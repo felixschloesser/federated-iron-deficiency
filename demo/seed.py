@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> str:
     """Seed the target; what it seeded, in one line."""
     options = parser().parse_args(argv)
     os.environ.setdefault(
-        "DJANGO_SETTINGS_MODULE", f"{PARTIES[options.target]}.settings"
+        "DJANGO_SETTINGS_MODULE", f"web.{PARTIES[options.target]}.settings"
     )
     django.setup()
     if not settings.DEBUG:
