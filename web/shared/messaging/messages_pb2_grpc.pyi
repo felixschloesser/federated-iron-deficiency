@@ -4,11 +4,14 @@ isort:skip_file
 Messages between the general practitioner's app and the hospital
 (tests/hospital/test_messaging.py), and between a hospital's web app and the
 startup (features/startup/release.feature). The client is always the one that
-asks, the practice or the hospital, and names itself by its certificate name in
-every message; the demo leaves out the report's mutual TLS.
+asks, the practice or the hospital. No message says who sent it: the client
+names its party by its name's slug in each call's metadata
+(web/shared/messaging/identity.py), where mutual TLS would take it from the
+client's certificate; the demo leaves that out.
 """
 
 from collections import abc as _abc
+from google.protobuf import empty_pb2 as _empty_pb2
 from grpc import aio as _aio
 from web.shared.messaging import messages_pb2 as _messages_pb2
 import abc as _abc_1
@@ -36,16 +39,16 @@ class LaboratoryStub:
     def __new__(cls, channel: _grpc.Channel) -> _Self: ...
     @_typing.overload
     def __new__(cls, channel: _aio.Channel) -> LaboratoryAsyncStub: ...
-    SendLabOrder: _grpc.UnaryUnaryMultiCallable[_messages_pb2.LabOrder, _messages_pb2.Received]
-    FetchNewLabReports: _grpc.UnaryUnaryMultiCallable[_messages_pb2.NewLabReportsRequest, _messages_pb2.LabReports]
-    AcknowledgeLabReports: _grpc.UnaryUnaryMultiCallable[_messages_pb2.Acknowledgement, _messages_pb2.Received]
+    SendLabOrder: _grpc.UnaryUnaryMultiCallable[_messages_pb2.LabOrder, _empty_pb2.Empty]
+    FetchNewLabReports: _grpc.UnaryUnaryMultiCallable[_empty_pb2.Empty, _messages_pb2.LabReports]
+    AcknowledgeLabReports: _grpc.UnaryUnaryMultiCallable[_messages_pb2.Acknowledgement, _empty_pb2.Empty]
 
 @_typing.type_check_only
 class LaboratoryAsyncStub(LaboratoryStub):
     def __init__(self, channel: _aio.Channel) -> None: ...
-    SendLabOrder: _aio.UnaryUnaryMultiCallable[_messages_pb2.LabOrder, _messages_pb2.Received]  # type: ignore[assignment]
-    FetchNewLabReports: _aio.UnaryUnaryMultiCallable[_messages_pb2.NewLabReportsRequest, _messages_pb2.LabReports]  # type: ignore[assignment]
-    AcknowledgeLabReports: _aio.UnaryUnaryMultiCallable[_messages_pb2.Acknowledgement, _messages_pb2.Received]  # type: ignore[assignment]
+    SendLabOrder: _aio.UnaryUnaryMultiCallable[_messages_pb2.LabOrder, _empty_pb2.Empty]  # type: ignore[assignment]
+    FetchNewLabReports: _aio.UnaryUnaryMultiCallable[_empty_pb2.Empty, _messages_pb2.LabReports]  # type: ignore[assignment]
+    AcknowledgeLabReports: _aio.UnaryUnaryMultiCallable[_messages_pb2.Acknowledgement, _empty_pb2.Empty]  # type: ignore[assignment]
 
 class LaboratoryServicer(metaclass=_abc_1.ABCMeta):
     @_abc_1.abstractmethod
@@ -53,12 +56,12 @@ class LaboratoryServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _messages_pb2.LabOrder,
         context: _ServicerContext,
-    ) -> _typing.Union[_messages_pb2.Received, _abc.Awaitable[_messages_pb2.Received]]: ...
+    ) -> _typing.Union[_empty_pb2.Empty, _abc.Awaitable[_empty_pb2.Empty]]: ...
 
     @_abc_1.abstractmethod
     def FetchNewLabReports(
         self,
-        request: _messages_pb2.NewLabReportsRequest,
+        request: _empty_pb2.Empty,
         context: _ServicerContext,
     ) -> _typing.Union[_messages_pb2.LabReports, _abc.Awaitable[_messages_pb2.LabReports]]: ...
 
@@ -67,7 +70,7 @@ class LaboratoryServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _messages_pb2.Acknowledgement,
         context: _ServicerContext,
-    ) -> _typing.Union[_messages_pb2.Received, _abc.Awaitable[_messages_pb2.Received]]: ...
+    ) -> _typing.Union[_empty_pb2.Empty, _abc.Awaitable[_empty_pb2.Empty]]: ...
 
 def add_LaboratoryServicer_to_server(servicer: LaboratoryServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
 
@@ -76,20 +79,20 @@ class FinalModelsStub:
     def __new__(cls, channel: _grpc.Channel) -> _Self: ...
     @_typing.overload
     def __new__(cls, channel: _aio.Channel) -> FinalModelsAsyncStub: ...
-    FetchNewFinalModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.NewFinalModelsRequest, _messages_pb2.NewFinalModels]
-    AcknowledgeFinalModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.FinalModelAcknowledgement, _messages_pb2.Received]
+    FetchNewFinalModels: _grpc.UnaryUnaryMultiCallable[_empty_pb2.Empty, _messages_pb2.NewFinalModels]
+    AcknowledgeFinalModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.FinalModelAcknowledgement, _empty_pb2.Empty]
 
 @_typing.type_check_only
 class FinalModelsAsyncStub(FinalModelsStub):
     def __init__(self, channel: _aio.Channel) -> None: ...
-    FetchNewFinalModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.NewFinalModelsRequest, _messages_pb2.NewFinalModels]  # type: ignore[assignment]
-    AcknowledgeFinalModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.FinalModelAcknowledgement, _messages_pb2.Received]  # type: ignore[assignment]
+    FetchNewFinalModels: _aio.UnaryUnaryMultiCallable[_empty_pb2.Empty, _messages_pb2.NewFinalModels]  # type: ignore[assignment]
+    AcknowledgeFinalModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.FinalModelAcknowledgement, _empty_pb2.Empty]  # type: ignore[assignment]
 
 class FinalModelsServicer(metaclass=_abc_1.ABCMeta):
     @_abc_1.abstractmethod
     def FetchNewFinalModels(
         self,
-        request: _messages_pb2.NewFinalModelsRequest,
+        request: _empty_pb2.Empty,
         context: _ServicerContext,
     ) -> _typing.Union[_messages_pb2.NewFinalModels, _abc.Awaitable[_messages_pb2.NewFinalModels]]: ...
 
@@ -98,6 +101,6 @@ class FinalModelsServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _messages_pb2.FinalModelAcknowledgement,
         context: _ServicerContext,
-    ) -> _typing.Union[_messages_pb2.Received, _abc.Awaitable[_messages_pb2.Received]]: ...
+    ) -> _typing.Union[_empty_pb2.Empty, _abc.Awaitable[_empty_pb2.Empty]]: ...
 
 def add_FinalModelsServicer_to_server(servicer: FinalModelsServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...

@@ -131,7 +131,12 @@ def main(argv: list[str]) -> None:
     environment = dict(os.environ)
     seeded = set_up(environment)
     address = environment.get("DEMO_ADDRESS", "")
-    name = environment.get("PARTY_NAME", "The startup")
+    name = (
+        environment.get("PRACTICE_NAME")
+        or environment.get("HOSPITAL_NAME")
+        or environment.get("STARTUP_NAME")
+        or "The startup"
+    )
     print(f"{name} ready at {address}: {seeded}", flush=True)
     os.execvp(argv[0], argv)
 

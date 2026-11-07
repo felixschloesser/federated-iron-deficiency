@@ -68,11 +68,11 @@ x-hospital-web: &hospital-web
 x-hospital-environment: &hospital-environment
   DJANGO_SETTINGS_MODULE: web.hospital.settings
   DATA_DIR: /data
-  # Every practice, by the certificate name its app sends.
+  # Every practice, by its name.
   DEMO_REGISTER: |
-    add_practice huisartsenpraktijk-de-akker 'Huisartsenpraktijk De Akker'
-    add_practice huisartsenpraktijk-de-berk 'Huisartsenpraktijk De Berk'
-    add_practice huisartsenpraktijk-de-ceder 'Huisartsenpraktijk De Ceder'
+    add_practice 'Huisartsenpraktijk De Akker'
+    add_practice 'Huisartsenpraktijk De Berk'
+    add_practice 'Huisartsenpraktijk De Ceder'
   # The startup's final-models endpoint.
   STARTUP_ADDRESS: startup-final-models:8442
 
@@ -222,9 +222,9 @@ services:
       DEMO_ADDRESS: http://startup.localhost:${DEMO_HTTP_PORT:-80}
       # Every hospital, as a recipient of released final models.
       DEMO_REGISTER: |
-        add_hospital uz-leuven 'UZ Leuven'
-        add_hospital heilig-hart-leuven 'Heilig Hart Leuven'
-        add_hospital az-diest 'AZ Diest'
+        add_hospital 'UZ Leuven'
+        add_hospital 'Heilig Hart Leuven'
+        add_hospital 'AZ Diest'
     volumes:
       - {type: volume, source: startup, target: /data}
       - {type: volume, source: startup, target: /data/final-models, read_only: true, volume: {subpath: final-models}}
@@ -277,10 +277,9 @@ services:
       DEMO_ADDRESS: http://uz-leuven.localhost:${DEMO_HTTP_PORT:-80}
       # Its laboratory director provided the training cohort at start.
       DEMO_PROVIDE: "1"
-      PARTY_NAME: UZ Leuven
-      PARTY_COLOUR: jade
-      # The name the startup issued this hospital.
-      HOSPITAL_CERTIFICATE_NAME: uz-leuven
+      # Its name: shown on its pages, and what it calls the startup as.
+      HOSPITAL_NAME: UZ Leuven
+      PRIMARY_COLOUR: jade
     volumes:
       - {type: volume, source: uz-leuven, target: /data}
       - ../.demo/nhanes/uz-leuven:/nhanes:ro
@@ -330,10 +329,9 @@ services:
       DEMO_ADDRESS: http://heilig-hart-leuven.localhost:${DEMO_HTTP_PORT:-80}
       # Its laboratory director provided the training cohort at start.
       DEMO_PROVIDE: "1"
-      PARTY_NAME: Heilig Hart Leuven
-      PARTY_COLOUR: pumpkin
-      # The name the startup issued this hospital.
-      HOSPITAL_CERTIFICATE_NAME: heilig-hart-leuven
+      # Its name: shown on its pages, and what it calls the startup as.
+      HOSPITAL_NAME: Heilig Hart Leuven
+      PRIMARY_COLOUR: pumpkin
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /data}
       - ../.demo/nhanes/heilig-hart-leuven:/nhanes:ro
@@ -381,10 +379,9 @@ services:
     environment:
       <<: *hospital-environment
       DEMO_ADDRESS: http://az-diest.localhost:${DEMO_HTTP_PORT:-80}
-      PARTY_NAME: AZ Diest
-      PARTY_COLOUR: violet
-      # The name the startup issued this hospital.
-      HOSPITAL_CERTIFICATE_NAME: az-diest
+      # Its name: shown on its pages, and what it calls the startup as.
+      HOSPITAL_NAME: AZ Diest
+      PRIMARY_COLOUR: violet
     volumes:
       - {type: volume, source: az-diest, target: /data}
       - ../.demo/nhanes/az-diest:/nhanes:ro
@@ -406,9 +403,9 @@ services:
         add_laboratory 'UZ Leuven' uz-leuven-messaging:8441 --primary
         add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-messaging:8441
         add_laboratory 'AZ Diest' az-diest-messaging:8441
-      PARTY_NAME: Huisartsenpraktijk De Akker
-      PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-akker
-      PARTY_COLOUR: green
+      # Its name: shown on its pages, and what it calls each hospital as.
+      PRACTICE_NAME: Huisartsenpraktijk De Akker
+      PRIMARY_COLOUR: green
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-akker, target: /data}
       - ../.demo/nhanes/huisartsenpraktijk-de-akker:/nhanes:ro
@@ -424,9 +421,9 @@ services:
         add_laboratory 'UZ Leuven' uz-leuven-messaging:8441
         add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-messaging:8441 --primary
         add_laboratory 'AZ Diest' az-diest-messaging:8441
-      PARTY_NAME: Huisartsenpraktijk De Berk
-      PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-berk
-      PARTY_COLOUR: amber
+      # Its name: shown on its pages, and what it calls each hospital as.
+      PRACTICE_NAME: Huisartsenpraktijk De Berk
+      PRIMARY_COLOUR: amber
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-berk, target: /data}
       - ../.demo/nhanes/huisartsenpraktijk-de-berk:/nhanes:ro
@@ -442,9 +439,9 @@ services:
         add_laboratory 'UZ Leuven' uz-leuven-messaging:8441
         add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-messaging:8441
         add_laboratory 'AZ Diest' az-diest-messaging:8441 --primary
-      PARTY_NAME: Huisartsenpraktijk De Ceder
-      PRACTICE_CERTIFICATE_NAME: huisartsenpraktijk-de-ceder
-      PARTY_COLOUR: purple
+      # Its name: shown on its pages, and what it calls each hospital as.
+      PRACTICE_NAME: Huisartsenpraktijk De Ceder
+      PRIMARY_COLOUR: purple
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-ceder, target: /data}
       - ../.demo/nhanes/huisartsenpraktijk-de-ceder:/nhanes:ro

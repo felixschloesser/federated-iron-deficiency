@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from django.utils.text import slugify
 
 from ml.dataset import CYCLES
 
@@ -73,8 +74,9 @@ def pairs() -> list[tuple[str, str, str, int]]:
 
 
 def name(slug: str) -> str:
-    """A party's name, as its web app shows it."""
-    found: str = service(f"{slug}-web")["environment"]["PARTY_NAME"]
+    """A practice's or hospital's name, as its web app shows it and calls as."""
+    environment = service(f"{slug}-web")["environment"]
+    found: str = environment.get("PRACTICE_NAME") or environment["HOSPITAL_NAME"]
     return found
 
 
@@ -317,18 +319,13 @@ def test_the_hospital_serves_its_pages_and_its_messaging_each_on_one_network_onl
     assert spec["restart"] == "unless-stopped"
 
 
-def test_each_web_app_knows_its_party_name_and_colour() -> None:
+def test_each_web_app_knows_its_name_and_primary_colour() -> None:
     vendor = ROOT / "web/shared/static/css/vendor/pico-2.1.1"
     for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS:
         environment = service(f"{slug}-web")["environment"]
-        assert environment["PARTY_NAME"], slug
-        colour = environment["PARTY_COLOUR"]
+        assert name(slug), slug
+        colour = environment["PRIMARY_COLOUR"]
         assert (vendor / f"pico.{colour}.min.css").is_file(), (slug, colour)
-    for slug in PRACTICE_SLUGS:
-        # What every hospital registers it by.
-        assert (
-            service(f"{slug}-web")["environment"]["PRACTICE_CERTIFICATE_NAME"] == slug
-        )
 
 
 def test_no_practice_service_runs_on_a_timer() -> None:
@@ -572,12 +569,11 @@ def test_the_startup_serves_its_pages_and_its_final_models_each_on_one_network_o
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_each_hospital_fetches_from_the_startup_by_its_certificate_name(
-    slug: str,
-) -> None:
+def test_each_hospital_fetches_from_the_startup_by_its_name(slug: str) -> None:
     environment = service(f"{slug}-web")["environment"]
     assert environment["STARTUP_ADDRESS"] == "startup-final-models:8442"
-    assert environment["HOSPITAL_CERTIFICATE_NAME"] == slug
+    # What it calls the startup as: its name's slug, its folder name.
+    assert slugify(environment["HOSPITAL_NAME"]) == slug
 
 
 def registered(name: str) -> list[list[str]]:
@@ -587,26 +583,23 @@ def registered(name: str) -> list[list[str]]:
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_every_hospital_knows_every_practice_by_its_folder_name(slug: str) -> None:
+def test_every_hospital_knows_every_practice_by_its_name(slug: str) -> None:
     """Any practice may send a sample to any hospital
     (features/practice/ordering.feature), so each hospital registers every
-    practice, by the certificate name its app sends: its folder name."""
+    practice, by the name its app calls as, whose slug is its folder name."""
     assert registered(f"{slug}-web") == [
-        ["add_practice", practice, name(practice)] for practice in PRACTICE_SLUGS
+        ["add_practice", name(practice)] for practice in PRACTICE_SLUGS
     ]
+    assert [slugify(name(practice)) for practice in PRACTICE_SLUGS] == PRACTICE_SLUGS
 
 
-def test_the_startup_knows_every_hospital_by_the_name_its_web_app_sends() -> None:
+def test_the_startup_knows_every_hospital_by_the_name_its_web_app_calls_as() -> None:
     """Any hospital may fetch released final models
     (features/startup/release.feature), so the startup registers every one, by
-    the certificate name its web app sends."""
+    the name its web app calls as."""
     assert registered("startup-web") == [
-        ["add_hospital", hospital, name(hospital)] for hospital in HOSPITAL_SLUGS
+        ["add_hospital", name(hospital)] for hospital in HOSPITAL_SLUGS
     ]
-    for slug in HOSPITAL_SLUGS:
-        assert (
-            service(f"{slug}-web")["environment"]["HOSPITAL_CERTIFICATE_NAME"] == slug
-        )
 
 
 @pytest.mark.parametrize(("paired", "practice"), [(h, p) for _, h, p, _ in pairs()])

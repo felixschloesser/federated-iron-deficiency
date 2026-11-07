@@ -22,11 +22,9 @@ INSTALLED_APPS: list[str] = [
 ]
 ROLES = [Role.LABORATORY_STAFF, Role.LABORATORY_DIRECTOR]
 ROOT_URLCONF = "web.hospital.urls"
-PARTY_NAME = os.environ.get("PARTY_NAME") or "Demo hospital"
+HOSPITAL_NAME = os.environ.get("HOSPITAL_NAME")
 SCREENING_MODELS_DIR = DATA_DIR / "screening-models"
 TRAINING_COHORT_DIR = DATA_DIR / "cohort"
-# The startup's final-models endpoint (host:port) and the name the startup issued
-# this hospital and knows it by (glossary.toml, certificate name); without the
-# endpoint, the hospital offers no fetching.
+# The startup's final-models endpoint (host:port); without it, the hospital
+# offers no fetching.
 STARTUP_ADDRESS = os.environ.get("STARTUP_ADDRESS") or None
-HOSPITAL_CERTIFICATE_NAME = os.environ.get("HOSPITAL_CERTIFICATE_NAME", "demo-hospital")

@@ -10,6 +10,8 @@ from typing import Any
 import grpc
 import pytest
 from django.core.management import call_command
+from google.protobuf.empty_pb2 import Empty
+from google.protobuf.message_factory import GetMessageClass
 
 from web.hospital.analyser.models import Participant
 from web.hospital.lab.messaging import serve
@@ -32,17 +34,20 @@ pytestmark = pytest.mark.django_db(transaction=True)
 @pytest.fixture
 def endpoint() -> Iterator[messages_pb2_grpc.LaboratoryStub]:
     """The hospital's endpoint, running, knowing practice "de-ceder"; a stub on it."""
-    Practice.objects.add(certificate_name="de-ceder", name="De Ceder")
+    Practice.objects.add(name="De Ceder")
     server, port = serve("127.0.0.1:0")
     with grpc.insecure_channel(f"127.0.0.1:{port}") as channel:
         yield messages_pb2_grpc.LaboratoryStub(channel)
     server.stop(grace=None)
 
 
+# Each call names its practice in the call's metadata, as the app does.
+DE_CEDER = (("party", "de-ceder"),)
+
+
 def lab_order(**fields: Any) -> messages_pb2.LabOrder:
-    """A lab order from "de-ceder" for a CBC, screened; `fields` override."""
+    """A lab order for a CBC, screened; `fields` override."""
     values: dict[str, Any] = {
-        "certificate_name": "de-ceder",
         "sample_id": "1-1",
         "test": messages_pb2.TEST_CBC,
         "screened_indication": True,
@@ -53,16 +58,16 @@ def lab_order(**fields: Any) -> messages_pb2.LabOrder:
     return messages_pb2.LabOrder(**values)
 
 
-def refusal(call: Any, request: Any) -> grpc.RpcError:
+def refusal(call: Any, request: Any, metadata: Any = DE_CEDER) -> grpc.RpcError:
     with pytest.raises(grpc.RpcError) as refused:
-        call(request, timeout=10)
+        call(request, timeout=10, metadata=metadata)
     return refused.value
 
 
 def test_a_lab_order_is_recorded_as_sent(
     endpoint: messages_pb2_grpc.LaboratoryStub,
 ) -> None:
-    endpoint.SendLabOrder(lab_order(), timeout=10)
+    endpoint.SendLabOrder(lab_order(), timeout=10, metadata=DE_CEDER)
     test_request = TestRequest.objects.select_related("sample__practice").get()
     assert test_request.sample.sample_id == "1-1"
     assert (test_request.test, test_request.screened_indication) == (
@@ -71,19 +76,8 @@ def test_a_lab_order_is_recorded_as_sent(
     )
     assert (test_request.registered_sex, test_request.age) == (RegisteredSex.FEMALE, 32)
     assert test_request.ordered_at == NOW
-    # The practice by the certificate name it sent; no general practitioner.
-    assert test_request.sample.practice.certificate_name == "de-ceder"
-
-
-def test_a_lab_order_that_names_no_practice_is_refused(
-    endpoint: messages_pb2_grpc.LaboratoryStub,
-) -> None:
-    refused = refusal(endpoint.SendLabOrder, lab_order(certificate_name=""))
-    assert (refused.code(), refused.details()) == (
-        grpc.StatusCode.INVALID_ARGUMENT,
-        "practice_required",
-    )
-    assert not TestRequest.objects.exists()
+    # The practice its call named, by its name's slug; no general practitioner.
+    assert test_request.sample.practice.name == "De Ceder"
 
 
 def test_a_lab_order_without_a_test_is_refused(
@@ -102,12 +96,33 @@ def test_a_lab_order_without_a_test_is_refused(
 CALLS = list(messages_pb2.DESCRIPTOR.services_by_name["Laboratory"].methods)
 
 
+def request_of(method: Any) -> Any:
+    """An empty request of the call's own type."""
+    return GetMessageClass(method.input_type)()
+
+
 @pytest.mark.parametrize("method", CALLS, ids=[method.name for method in CALLS])
-def test_every_message_from_a_practice_the_hospital_does_not_know_is_refused(
+def test_every_call_that_names_no_practice_is_refused(
     endpoint: messages_pb2_grpc.LaboratoryStub, method: Any
 ) -> None:
-    request = getattr(messages_pb2, method.input_type.name)(certificate_name="de-linde")
-    refused = refusal(getattr(endpoint, method.name), request)
+    """The caller must say who it is before anything is read or recorded."""
+    refused = refusal(getattr(endpoint, method.name), request_of(method), metadata=())
+    assert (refused.code(), refused.details()) == (
+        grpc.StatusCode.UNAUTHENTICATED,
+        "practice_required",
+    )
+    assert not TestRequest.objects.exists()
+
+
+@pytest.mark.parametrize("method", CALLS, ids=[method.name for method in CALLS])
+def test_every_call_from_a_practice_the_hospital_does_not_know_is_refused(
+    endpoint: messages_pb2_grpc.LaboratoryStub, method: Any
+) -> None:
+    refused = refusal(
+        getattr(endpoint, method.name),
+        request_of(method),
+        metadata=(("party", "de-linde"),),
+    )
     assert (refused.code(), refused.details()) == (
         grpc.StatusCode.PERMISSION_DENIED,
         "unknown_practice",
@@ -134,31 +149,31 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
     TestRequest.objects.filter(pk=test_request.pk).update(
         screening_result=ScreeningResult.FERRITIN_SUGGESTED, not_screened_reason=None
     )
-    fetch = messages_pb2.NewLabReportsRequest(certificate_name="de-ceder")
-
-    (report,) = endpoint.FetchNewLabReports(fetch, timeout=10).reports
+    (report,) = endpoint.FetchNewLabReports(
+        Empty(), timeout=10, metadata=DE_CEDER
+    ).reports
     assert (report.report_id, report.sample_id) == (str(test_request.pk), "1-1")
     assert report.test == messages_pb2.TEST_CBC
     assert report.ferritin_suggested is True
     assert report.released_at.ToDatetime(tzinfo=UTC) == NOW
 
     endpoint.AcknowledgeLabReports(
-        messages_pb2.Acknowledgement(
-            certificate_name="de-ceder", report_ids=[report.report_id]
-        ),
+        messages_pb2.Acknowledgement(report_ids=[report.report_id]),
         timeout=10,
+        metadata=DE_CEDER,
     )
-    assert list(endpoint.FetchNewLabReports(fetch, timeout=10).reports) == []
+    fetched = endpoint.FetchNewLabReports(Empty(), timeout=10, metadata=DE_CEDER)
+    assert list(fetched.reports) == []
 
 
 @pytest.mark.django_db
-def test_add_practice_adds_it_then_changes_its_name() -> None:
-    """The hospital registers each practice it works with by the certificate name
-    it issued (glossary.toml); the name shown can change, the key cannot."""
-    call_command("add_practice", "de-ceder", "Huisartsenpraktijk De Ceder")
-    call_command("add_practice", "de-ceder", "Groepspraktijk De Ceder")
+def test_add_practice_adds_it_once_by_its_name() -> None:
+    """The hospital registers each practice it works with by its name, which
+    never changes (glossary.toml); its slug follows from the name."""
+    call_command("add_practice", "Huisartsenpraktijk De Ceder")
+    call_command("add_practice", "Huisartsenpraktijk De Ceder")
     practice = Practice.objects.get()
-    assert (practice.certificate_name, practice.name) == (
-        "de-ceder",
-        "Groepspraktijk De Ceder",
+    assert (practice.name, practice.slug) == (
+        "Huisartsenpraktijk De Ceder",
+        "huisartsenpraktijk-de-ceder",
     )

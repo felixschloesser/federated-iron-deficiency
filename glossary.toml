@@ -34,13 +34,9 @@ source = "Report, Use case"
 meaning = "A general practitioner's practice, which orders tests at the hospital through its app; it has one general practitioner. The laboratory holds each sample by the practice that sent it"
 source = "Report, \"Federated version\": \"Each GP practice runs its own app\"; \"Design choices and assumptions\", DF24: \"Lab orders, with the sending practice\""
 
-["certificate name"]
-meaning = "The name a serving party issued its client and registers it by: a hospital its practices (`add_practice`, `PRACTICE_CERTIFICATE_NAME`), the startup its recipient hospitals (`add_hospital`, `HOSPITAL_CERTIFICATE_NAME`). Sent in every request; the demo trusts it as sent, with mutual TLS it would come from the client's certificate. A name the server does not know is refused"
-source = "Report, Solutions table, mutual TLS: \"each hospital is its own CA and tells practices apart by certificate name\"; \"the startup is its own CA and tells recipient hospitals apart by certificate name\""
-
-["practice name"]
-meaning = "The practice's own name (`PARTY_NAME`), shown on its pages; the hospital registers it beside the certificate name, which is the lab's key, and it is never sent"
-source = "Report, \"Design choices and assumptions\", DF24: \"Lab orders, with the sending practice\"; the names in demo/compose.yaml (`PARTY_NAME: Huisartsenpraktijk De Akker`)"
+["name"]
+meaning = "A party's own name, which never changes: shown on its pages (`PRACTICE_NAME`, `HOSPITAL_NAME`, `STARTUP_NAME`, each set by that party's settings alone; a party they name none shows \"Demo\", which it never calls as), and the name a hospital registers a practice by (`add_practice`) and the startup a recipient hospital (`add_hospital`). A practice or a hospital calls another party as its name's slug (\"Huisartsenpraktijk De Ceder\" calls as `huisartsenpraktijk-de-ceder`), in each call's metadata; the demo believes it, and with mutual TLS the slug would be what the caller's certificate carries. A call naming no party, or one the server does not know, is refused, and so is registering a name whose slug another party has"
+source = "the names in demo/compose.yaml (`PRACTICE_NAME: Huisartsenpraktijk De Akker`); Report, Solutions table, mutual TLS: \"tells practices apart by certificate name\", which the slug stands for while the demo has no certificates"
 
 ["order"]
 meaning = "The practice's word: what the general practitioner places, with its clinical indication, which never leaves the practice. Each party speaks its own language: the practice orders, the wire carries a lab order, the laboratory works on a test request"
@@ -219,7 +215,7 @@ meaning = "The hospital's explicit request: a final model enters a hospital only
 source = "Report, P5, DF33: \"a recipient hospital's laboratory director fetches it\"; as a practice fetches new lab reports (FetchNewLabReports)"
 
 ["recipient hospital"]
-meaning = "A hospital the startup registers (`add_hospital`) and issues a certificate name; it may fetch every released final model"
+meaning = "A hospital the startup registers by its name (`add_hospital`); it may fetch every released final model"
 source = "Report, federated version: \"Any hospital the startup registers is a recipient, whether or not it trained\""
 
 ["lab report"]

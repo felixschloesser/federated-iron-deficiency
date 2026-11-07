@@ -53,10 +53,8 @@ def test_a_hospital_provides_its_training_cohort_only_when_told() -> None:
 
 
 def test_a_party_registers_only_whom_it_knows() -> None:
-    lines = "add_practice de-ceder 'Huisartsenpraktijk De Ceder'\n\n"
-    assert registrations(lines) == [
-        ["add_practice", "de-ceder", "Huisartsenpraktijk De Ceder"]
-    ]
+    lines = "add_practice 'Huisartsenpraktijk De Ceder'\n\n"
+    assert registrations(lines) == [["add_practice", "Huisartsenpraktijk De Ceder"]]
     with pytest.raises(SystemExit):
         registrations("flush --no-input\n")
 

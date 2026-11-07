@@ -3,6 +3,7 @@
 import grpc
 import warnings
 
+from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 from web.shared.messaging import messages_pb2 as web_dot_shared_dot_messaging_dot_messages__pb2
 
 GRPC_GENERATED_VERSION = '1.81.1'
@@ -37,17 +38,17 @@ class LaboratoryStub:
         self.SendLabOrder = channel.unary_unary(
                 '/messaging.v1.Laboratory/SendLabOrder',
                 request_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.LabOrder.SerializeToString,
-                response_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.Received.FromString,
+                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 _registered_method=True)
         self.FetchNewLabReports = channel.unary_unary(
                 '/messaging.v1.Laboratory/FetchNewLabReports',
-                request_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewLabReportsRequest.SerializeToString,
+                request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
                 response_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.LabReports.FromString,
                 _registered_method=True)
         self.AcknowledgeLabReports = channel.unary_unary(
                 '/messaging.v1.Laboratory/AcknowledgeLabReports',
                 request_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.Acknowledgement.SerializeToString,
-                response_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.Received.FromString,
+                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 _registered_method=True)
 
 
@@ -78,17 +79,17 @@ def add_LaboratoryServicer_to_server(servicer, server):
             'SendLabOrder': grpc.unary_unary_rpc_method_handler(
                     servicer.SendLabOrder,
                     request_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.LabOrder.FromString,
-                    response_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.Received.SerializeToString,
+                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
             'FetchNewLabReports': grpc.unary_unary_rpc_method_handler(
                     servicer.FetchNewLabReports,
-                    request_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewLabReportsRequest.FromString,
+                    request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                     response_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.LabReports.SerializeToString,
             ),
             'AcknowledgeLabReports': grpc.unary_unary_rpc_method_handler(
                     servicer.AcknowledgeLabReports,
                     request_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.Acknowledgement.FromString,
-                    response_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.Received.SerializeToString,
+                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -117,7 +118,7 @@ class Laboratory:
             target,
             '/messaging.v1.Laboratory/SendLabOrder',
             web_dot_shared_dot_messaging_dot_messages__pb2.LabOrder.SerializeToString,
-            web_dot_shared_dot_messaging_dot_messages__pb2.Received.FromString,
+            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options,
             channel_credentials,
             insecure,
@@ -143,7 +144,7 @@ class Laboratory:
             request,
             target,
             '/messaging.v1.Laboratory/FetchNewLabReports',
-            web_dot_shared_dot_messaging_dot_messages__pb2.NewLabReportsRequest.SerializeToString,
+            google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             web_dot_shared_dot_messaging_dot_messages__pb2.LabReports.FromString,
             options,
             channel_credentials,
@@ -171,7 +172,7 @@ class Laboratory:
             target,
             '/messaging.v1.Laboratory/AcknowledgeLabReports',
             web_dot_shared_dot_messaging_dot_messages__pb2.Acknowledgement.SerializeToString,
-            web_dot_shared_dot_messaging_dot_messages__pb2.Received.FromString,
+            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options,
             channel_credentials,
             insecure,
@@ -194,13 +195,13 @@ class FinalModelsStub:
         """
         self.FetchNewFinalModels = channel.unary_unary(
                 '/messaging.v1.FinalModels/FetchNewFinalModels',
-                request_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModelsRequest.SerializeToString,
+                request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
                 response_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModels.FromString,
                 _registered_method=True)
         self.AcknowledgeFinalModels = channel.unary_unary(
                 '/messaging.v1.FinalModels/AcknowledgeFinalModels',
                 request_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.FinalModelAcknowledgement.SerializeToString,
-                response_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.Received.FromString,
+                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 _registered_method=True)
 
 
@@ -224,13 +225,13 @@ def add_FinalModelsServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'FetchNewFinalModels': grpc.unary_unary_rpc_method_handler(
                     servicer.FetchNewFinalModels,
-                    request_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModelsRequest.FromString,
+                    request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                     response_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModels.SerializeToString,
             ),
             'AcknowledgeFinalModels': grpc.unary_unary_rpc_method_handler(
                     servicer.AcknowledgeFinalModels,
                     request_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.FinalModelAcknowledgement.FromString,
-                    response_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.Received.SerializeToString,
+                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -258,7 +259,7 @@ class FinalModels:
             request,
             target,
             '/messaging.v1.FinalModels/FetchNewFinalModels',
-            web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModelsRequest.SerializeToString,
+            google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModels.FromString,
             options,
             channel_credentials,
@@ -286,7 +287,7 @@ class FinalModels:
             target,
             '/messaging.v1.FinalModels/AcknowledgeFinalModels',
             web_dot_shared_dot_messaging_dot_messages__pb2.FinalModelAcknowledgement.SerializeToString,
-            web_dot_shared_dot_messaging_dot_messages__pb2.Received.FromString,
+            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options,
             channel_credentials,
             insecure,

@@ -365,8 +365,8 @@ def test_error_page_renders_without_a_request() -> None:
     assert "Something went wrong" in render_to_string("500.html")
 
 
-def test_error_page_names_the_hospital(settings: Settings) -> None:
-    settings.PARTY_NAME = "AZ Diest"
+def test_error_page_names_the_party(settings: Settings) -> None:
+    settings.PRACTICE_NAME = "AZ Diest"
     response = ServerErrorView.as_view()(RequestFactory().get("/"))
     assert isinstance(response, HttpResponseServerError)
     assert b"<title>Something went wrong \xc2\xb7 AZ Diest</title>" in response.content

@@ -35,13 +35,11 @@ def make_laboratory_director(name: str) -> "User":
     return make_user(name, Role.LABORATORY_DIRECTOR)
 
 
-def make_practice(certificate_name: str = "practice") -> "Practice":
-    """A practice the hospital works with, by its certificate name."""
+def make_practice(name: str = "Practice") -> "Practice":
+    """A practice the hospital works with, by its name."""
     from web.hospital.lab.models import Practice
 
-    return Practice.objects.add(
-        certificate_name=certificate_name, name=certificate_name.title()
-    )
+    return Practice.objects.add(name=name)
 
 
 def make_tube() -> "Participant":
