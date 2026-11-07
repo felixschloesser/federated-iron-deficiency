@@ -85,6 +85,7 @@ HEAD = """\
 name: iron-deficiency
 
 # Each image is built once, by the first service that names it (prepare,
+# startup-web, the first hospital,
 # flower-server-app, the first practice); every other service uses it as built.
 # Every container runs as one user, so the volumes and, on Linux, where a bind
 # mount keeps numeric IDs, .demo/ never mix the images' own users (49999, 1000).
@@ -98,8 +99,20 @@ x-health: &health
   start_interval: 2s
   interval: 5m
 
-x-web: &web
-  image: ${COMPOSE_PROJECT_NAME}-web
+# One image per party's web app, each with only that party's apps and the
+# shared ones; prepare's holds everything, to set up every party.
+x-prepare: &prepare
+  image: ${COMPOSE_PROJECT_NAME}-prepare
+  user: *user
+
+x-hospital-web: &hospital-web
+  image: ${COMPOSE_PROJECT_NAME}-hospital-web
+  user: *user
+  depends_on:
+    prepare: {condition: service_completed_successfully}
+
+x-startup-web: &startup-web
+  image: ${COMPOSE_PROJECT_NAME}-startup-web
   user: *user
   depends_on:
     prepare: {condition: service_completed_successfully}
@@ -127,9 +140,8 @@ services:
   # Out-of-band setup, not drawn in the DFDs: lab records,
   # databases. The one container that sees every party's folder.
   prepare:
-    <<: *web
-    build: {context: .., dockerfile: demo/web.Dockerfile}
-    depends_on: {}
+    <<: *prepare
+    build: {context: .., dockerfile: demo/prepare.Dockerfile}
     # A fresh volume belongs to root: hand each to the demo user, then drop to it.
     user: root
     entrypoint:
@@ -194,7 +206,7 @@ MIDDLE = """\
 
   # E1, the data scientist, submits from inside TB2: `docker compose run --rm train`.
   train:
-    <<: *web
+    <<: *startup-web
     profiles: [train]
     depends_on:
       flower-superlink: {condition: service_healthy}
@@ -211,7 +223,8 @@ MIDDLE = """\
   # web apps only the final-models endpoint (P5).
   # On startup to reach the SuperLink, which so neither the proxy nor a hospital reaches.
   startup-web:
-    <<: *web
+    <<: *startup-web
+    build: {context: .., dockerfile: demo/party-web.Dockerfile, args: {PARTY: startup}}
     command:
       - bash
       - -c
@@ -266,8 +279,8 @@ HOSPITAL = """\
     networks: [{slug}-flower-client-app]
 
   {slug}-web:
-    <<: *web
-    # One container, two servers, each on a name only one network knows: the
+    <<: *hospital-web
+{build}    # One container, two servers, each on a name only one network knows: the
     # proxy reaches the pages, the practice only the lab-order endpoint (tests/quality/security/test_running_containers.py).
     # Either one stopping stops the container, and compose restarts it.
     command:
@@ -332,6 +345,10 @@ PRACTICE = """\
 """
 
 PRACTICE_BUILD = "    build: {context: .., dockerfile: demo/practice-web.Dockerfile}\n"
+HOSPITAL_BUILD = (
+    "    build: {context: .., dockerfile: demo/party-web.Dockerfile,"
+    " args: {PARTY: hospital}}\n"
+)
 
 PROXY = """\
   # Between the browser and the parties, like the internet: routes each
@@ -415,8 +432,10 @@ def compose() -> str:
         for kind, slug in folders
     )
     text += MIDDLE
-    for name, slug, colour in hospitals():
-        text += fill(HOSPITAL, name=name, slug=slug, colour=colour)
+    for index, (name, slug, colour) in enumerate(hospitals()):
+        # The first hospital builds the image the others use as built.
+        build = HOSPITAL_BUILD if index == 0 else ""
+        text += fill(HOSPITAL, name=name, slug=slug, colour=colour, build=build)
     text += PRACTICE_INTRO
     for index, (name, slug, colour) in enumerate(practices()):
         # The first practice builds the image the others use as built.

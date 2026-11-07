@@ -187,6 +187,7 @@ def test_the_startups_web_app_reaches_the_superlink_and_not_its_state(
     """The startup's web app submits training runs to the SuperLink; the
     SuperLink's state is the SuperLink's alone. Pass: from the web app's
     container the SuperLink answers and its state folder is empty."""
+    build(compose, "startup-web")
     sight = probe(compose, "startup-web", STARTUP_SIGHT)
     expected = {"superlink": "open", "state": []}
     # This test has failed now and then with no trace of why: when it fails,
@@ -226,3 +227,32 @@ def test_the_project_creates_no_network_of_a_party_not_under_test(
     networks = {name.removeprefix(f"{project}_") for name in listing.stdout.split()}
     assert {APP_HOSPITAL, APP_PRACTICE} <= networks, networks
     assert networks.isdisjoint(NOT_UNDER_TEST), networks
+
+
+# Which party's Django apps an image holds, from inside one of its containers.
+PACKAGES = """
+import importlib.util, json
+print(json.dumps(sorted(
+    party for party in ("hospital", "practice", "startup")
+    if importlib.util.find_spec(f"web.{party}") is not None
+)))
+"""
+
+
+@pytest.mark.parametrize(
+    ("party", "service"),
+    [
+        ("hospital", f"{APP_HOSPITAL}-web"),
+        ("practice", f"{APP_PRACTICE}-web"),
+        ("startup", "startup-web"),
+    ],
+)
+def test_a_partys_image_holds_only_its_own_django_apps(
+    compose: Compose, superlink: None, party: str, service: str
+) -> None:
+    """Each party runs only its own code: its image holds its own Django apps and
+    the shared ones, never another party's. Pass: in a container of the party's
+    web app, of web.hospital, web.practice and web.startup only its own
+    imports. (superlink: prepare's folders, which the startup's web app mounts.)"""
+    build(compose, f"{party}-web")
+    assert probe(compose, service, PACKAGES) == [party]
