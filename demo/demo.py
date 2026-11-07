@@ -279,7 +279,11 @@ def prepare_flower(demo_dir: Path) -> None:
 def prepare(demo_dir: Path) -> None:
     """Create what is missing: Flower's connection, each hospital's lab
     records, the NHANES data."""
-    from ml.dataset import new_cycle_ferritin, new_cycle_participants, participants
+    from ml.dataset import (
+        new_cycle_ferritin_and_crp,
+        new_cycle_participants,
+        participants,
+    )
 
     prepare_flower(demo_dir)
     for (_, slug), (_, practice_slug), cycle in zip(
@@ -313,7 +317,7 @@ def prepare(demo_dir: Path) -> None:
         nhanes_csv(demo_dir).parent.mkdir(parents=True, exist_ok=True)
         nhanes = from_hub(
             lambda: new_cycle_participants().merge(
-                new_cycle_ferritin(), on="sample_id", how="left"
+                new_cycle_ferritin_and_crp(), on="sample_id", how="left"
             )
         )
         nhanes.to_csv(nhanes_csv(demo_dir), index=False)

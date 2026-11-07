@@ -165,11 +165,11 @@ def new_cycle_participants() -> pd.DataFrame:
     )
 
 
-def new_cycle_ferritin() -> pd.DataFrame:
-    """The 2021–2023 participants' ferritin, keyed by sample ID. Kept apart from
-    new_cycle_participants: the screening never sees ferritin."""
-    ferritin = _load_cycle(NEW_CYCLE_YEAR)[["SEQN", "LBXFER"]]
-    return ferritin.rename(columns={"SEQN": "sample_id"})
+def new_cycle_ferritin_and_crp() -> pd.DataFrame:
+    """The 2021–2023 participants' ferritin and CRP (mg/L), keyed by sample ID.
+    Kept apart from new_cycle_participants: the screening never sees either."""
+    iron = _load_cycle(NEW_CYCLE_YEAR)[["SEQN", "LBXFER", "CRP"]]
+    return iron.rename(columns={"SEQN": "sample_id"})
 
 
 if __name__ == "__main__":
