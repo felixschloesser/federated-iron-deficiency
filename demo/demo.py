@@ -24,15 +24,15 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from demo.topology import HOSPITALS, PATIENTS, PRACTICES, PROVIDED, hospital_slug
-from ml.dataset import CYCLES
-from shared.seeding.accounts import (
+from demo.seeding.accounts import (
     DATA_SCIENTIST,
     GENERAL_PRACTITIONER,
     LABORATORY_DIRECTOR,
     LABORATORY_STAFF,
     PASSWORD,
 )
+from demo.topology import HOSPITALS, PATIENTS, PRACTICES, PROVIDED, hospital_slug
+from ml.dataset import CYCLES
 
 ROOT = Path(__file__).resolve().parents[1]
 # Flower 1.40 serves every SuperLink API on this one address, the
@@ -78,7 +78,7 @@ def lab_records_csv(demo_dir: Path, slug: str) -> Path:
 
 
 def lab_record_arguments(demo_dir: Path) -> dict[str, list[str]]:
-    """seed_lab_records's arguments for each hospital, by folder name: its lab
+    """python -m demo.seed lab-records's arguments for each hospital, by folder name: its lab
     records, and whether its laboratory director provides the training cohort."""
     return {
         slug: [
@@ -100,6 +100,11 @@ def practices() -> list[tuple[int, str]]:
 
 def manage(*args: str) -> list[str]:
     return [sys.executable, str(ROOT / "manage.py"), *args]
+
+
+def seed_demo(target: str, *args: str) -> list[str]:
+    """python -m demo.seed, from the project, so it finds the demo package."""
+    return [sys.executable, "-m", "demo.seed", target, *args]
 
 
 def from_hub[T](load: Callable[[], T], attempts: int = 4) -> T:
@@ -135,9 +140,7 @@ def tube_seeds(nhanes: Path) -> list[list[str]]:
     return [seed_arguments(partition, nhanes) for partition, _ in hospitals()]
 
 
-def prepare_web(
-    folder: Path, party: str, seed_command: str, seeds: list[list[str]]
-) -> None:
+def prepare_web(folder: Path, party: str, seeds: list[list[str]]) -> None:
     """Migrate the party's database and seed its demo accounts, once per seed."""
     env = {
         **os.environ,
@@ -149,7 +152,11 @@ def prepare_web(
     for seed in seeds:
         # Quiet: the summary at startup names the accounts once.
         subprocess.run(
-            manage(seed_command, *seed), env=env, check=True, stdout=subprocess.DEVNULL
+            seed_demo(party, *seed),
+            env=env,
+            check=True,
+            cwd=ROOT,
+            stdout=subprocess.DEVNULL,
         )
 
 
@@ -230,9 +237,10 @@ def seed_lab_records(hospital: Path, arguments: list[str]) -> None:
         "DJANGO_DEBUG": "1",
     }
     subprocess.run(
-        manage("seed_lab_records", *arguments),
+        seed_demo("lab-records", *arguments),
         env=env,
         check=True,
+        cwd=ROOT,
         stdout=subprocess.DEVNULL,
     )
 
@@ -326,7 +334,6 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
             (
                 hospital_dir(demo_dir, hospital),
                 "hospital",
-                "seed_hospital",
                 tube_seeds(nhanes),
                 HOSPITALS[cycle],
                 cycle,
@@ -334,7 +341,6 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
             (
                 practice_dir(demo_dir, practice),
                 "practice",
-                "seed_practice",
                 [seed_arguments(partition, nhanes)],
                 PRACTICES[cycle],
                 cycle,
@@ -344,15 +350,15 @@ def prepare_webs(demo_dir: Path) -> dict[str, str]:
     # The startup's web app seeds only its data scientist, once.
     webs.insert(
         0,
-        (startup_dir(demo_dir), "startup", "seed_startup", [[]], "the startup", ""),
+        (startup_dir(demo_dir), "startup", [[]], "the startup", ""),
     )
     statuses = {}
     # Every step's label as wide as the longest, so the bar does not jump.
-    width = len("Preparing ") + max(len(web[4]) for web in webs)
+    width = len("Preparing ") + max(len(web[3]) for web in webs)
     with tqdm(total=len(webs) + len(hospitals()), unit="step", leave=False) as bar:
-        for folder, party, seed_command, seeds, name, cycle in webs:
+        for folder, party, seeds, name, cycle in webs:
             bar.set_description_str(f"{'Preparing ' + name:<{width}}")
-            prepare_web(folder, party, seed_command, seeds)
+            prepare_web(folder, party, seeds)
             if party == "practice":
                 add_laboratories(folder, cycle)
             if party == "hospital":

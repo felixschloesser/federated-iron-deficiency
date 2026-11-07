@@ -315,15 +315,13 @@ ANALYSER_PORT = {"hospital.analyser", "hospital.analyser.port"}
 
 def analyser_port(root: Path) -> list[str]:
     """The hospital's code reaches the analyser only through
-    hospital/analyser/port.py; the analyser's own code and the commands that
-    stock the demo's stand-in may use its models."""
+    hospital/analyser/port.py; only the analyser's own code uses its models."""
     return [
         f"{rel.as_posix()}:{line}: imports {module}; use hospital.analyser.port"
         for rel, line, module in _web_imports(root, frozenset({"hospital"}))
         if module.startswith("hospital.analyser")
         and module not in ANALYSER_PORT
         and rel.parts[:2] != ANALYSER
-        and "management" not in rel.parts
     ]
 
 

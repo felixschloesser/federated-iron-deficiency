@@ -252,15 +252,15 @@ def test_only_the_hospital_imports_the_screening(tmp_path: Path) -> None:
         {
             "hospital/lab/models.py": code,
             "practice/views.py": code,
-            "shared/seeding/command.py": code,
+            "shared/vocabulary.py": code,
             "startup/training/views.py": code,
         },
     )
     assert audit.run(root)["training_imports"] == [
         "practice/views.py:2: imports ml.inference, the hospital's code",
         "practice/views.py:3: imports ml.final_model, the hospital's or the startup's code",
-        "shared/seeding/command.py:2: imports ml.inference, the hospital's code",
-        "shared/seeding/command.py:3: imports ml.final_model, the hospital's or the startup's code",
+        "shared/vocabulary.py:2: imports ml.inference, the hospital's code",
+        "shared/vocabulary.py:3: imports ml.final_model, the hospital's or the startup's code",
         "startup/training/views.py:2: imports ml.inference, the hospital's code",
     ]
 
@@ -325,9 +325,6 @@ def test_the_hospital_reaches_the_analyser_only_through_its_port(
             "hospital/lab/models.py": "from hospital.analyser import port\n"
             "from hospital.analyser.models import Participant\n",
             "hospital/analyser/port.py": "from hospital.analyser.models import Participant\n",
-            "hospital/lab/management/commands/seed_hospital.py": (
-                "from hospital.analyser.models import Participant\n"
-            ),
         },
     )
     assert audit.run(root)["analyser_port"] == [

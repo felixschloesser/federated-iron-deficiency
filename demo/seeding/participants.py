@@ -1,24 +1,16 @@
-"""Demo seeding both parties share: accounts, and which NHANES participants.
+"""Which NHANES participants the demo seeds, and their made-up parts.
 
 Each party seeds the same participants for the same seed: the practice its
-patients (seed_practice), the hospital what their tubes would measure
-(seed_hospital)."""
+patients, the hospital what the analyser measures for them
+(demo/seeding/parties.py)."""
 
 import enum
-from collections.abc import Hashable
-from pathlib import Path
-from typing import Any, assert_never
+from typing import assert_never
 
 import pandas as pd
-from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError, CommandParser
-from django.db import transaction
 
 from ml.cohort import ELIGIBLE_SEX, FERRITIN_CUTOFF, eligible
 from ml.dataset import new_cycle_ferritin, new_cycle_participants
-from shared.accounts.models import User
-from shared.accounts.roles import Role
-from shared.seeding.accounts import PASSWORD
 from shared.vocabulary import RegisteredSex
 
 # Patients per practice unless --patients says otherwise; the groups share them.
@@ -127,53 +119,3 @@ def patient_name(nhanes_number: int, sex: RegisteredSex) -> str:
         f"{first[nhanes_number % len(first)]}"
         f" {SURNAMES[nhanes_number // len(first) % len(SURNAMES)]}"
     )
-
-
-def user(username: str, role: Role | None) -> User:
-    account, created = User.objects.get_or_create(
-        username=username, defaults={"role": role}
-    )
-    if created:
-        account.set_password(PASSWORD)
-        account.save()
-    return account
-
-
-class SeedCommand(BaseCommand):
-    """Seeds one party's records for the chosen participants; `seed` says which."""
-
-    help = __doc__
-
-    def add_arguments(self, parser: CommandParser) -> None:
-        parser.add_argument(
-            "--seed", type=int, default=0, help="other patients for each hospital"
-        )
-        parser.add_argument(
-            "--nhanes", type=Path, help="a CSV of load_nhanes() instead of the network"
-        )
-        parser.add_argument(
-            "--patients",
-            type=int,
-            default=PATIENTS,
-            help="how many participants; the practice and its hospital need the same",
-        )
-
-    def seed(self, rows: list[dict[Hashable, Any]]) -> list[str]:
-        """Create this party's accounts and records; return the usernames."""
-        raise NotImplementedError
-
-    def handle(self, *args: Any, **options: Any) -> None:
-        if not settings.DEBUG:
-            raise CommandError(
-                "Demo accounts share a known password; run with DJANGO_DEBUG=1."
-            )
-        nhanes = pd.read_csv(options["nhanes"]) if options["nhanes"] else load_nhanes()
-        chosen = choose(nhanes, seed=options["seed"], patients=options["patients"])
-        rows = with_made_up_ferritin(chosen, nhanes).to_dict("records")
-        with transaction.atomic():
-            accounts = self.seed(rows)
-            user("no-role", None)  # Has no role: for the refusal at login.
-        self.stdout.write(
-            f"Accounts {', '.join(accounts)} and no-role, password {PASSWORD};"
-            f" {len(rows)} NHANES participants"
-        )

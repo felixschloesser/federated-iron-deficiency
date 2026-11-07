@@ -1,5 +1,5 @@
-"""The demo's seeded accounts: the seed commands create them, demo/demo.py names
-them. No Django imports, so the launcher may import this outside any party."""
+"""The demo's seeded accounts: demo/seeding/parties.py creates them, demo/demo.py
+names them. No Django imports, so the launcher may import this outside any party."""
 
 PASSWORD = "demo-pass-2026"
 LABORATORY_STAFF = "staff"

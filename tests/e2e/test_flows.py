@@ -89,7 +89,7 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
     compose: Compose, hospital_app: str, proxy: None, tmp_path: Path
 ) -> None:
     build(compose, "practice-web")
-    from shared.seeding.accounts import PASSWORD
+    from demo.seeding.accounts import PASSWORD
     from tests.conftest import nhanes_rows
 
     # The same participants at both parties, from a small NHANES file, so no
@@ -101,7 +101,8 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
     nhanes = ["-v", f"{csv}:/tmp/nhanes.csv:ro"]
     seed = ["--seed", "0", "--nhanes", "/tmp/nhanes.csv"]
     manage = ["python", "manage.py"]
-    compose(*seeding, *nhanes, hospital_app, *manage, "seed_hospital", *seed)
+    demo_seed = ["python", "-m", "demo.seed"]
+    compose(*seeding, *nhanes, hospital_app, *demo_seed, "hospital", *seed)
     # As prepare does: the hospital knows the practice by its folder name.
     known = ["add_practice", APP_PRACTICE, "Huisartsenpraktijk De Ceder"]
     compose(*seeding, hospital_app, *manage, *known)
@@ -112,7 +113,7 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
         *("-e", f"DATA_DIR=/demo/practices/{APP_PRACTICE}"),
     ]
     compose(*as_practice, "prepare", *manage, "migrate", "-v0")
-    compose(*as_practice, *nhanes, "prepare", *manage, "seed_practice", *seed)
+    compose(*as_practice, *nhanes, "prepare", *demo_seed, "practice", *seed)
     address = f"{APP_HOSPITAL}-messaging:8441"
     compose(*as_practice, "prepare", *manage, "add_laboratory", "AZ Diest", address)
     up(compose, practice)
@@ -295,8 +296,9 @@ def stored_at(compose: Compose, hospital: str) -> dict[str, str]:
 def release(compose: Compose, journey: dict[str, Any]) -> None:
     seeding = ["run", "--rm", "--no-deps", "-e", "DJANGO_DEBUG=1", "startup-web"]
     manage = ["python", "manage.py"]
+    demo_seed = ["python", "-m", "demo.seed"]
     compose(*seeding, *manage, "migrate", "-v0")
-    compose(*seeding, *manage, "seed_startup")
+    compose(*seeding, *demo_seed, "startup")
     compose(*seeding, *manage, "add_hospital", APP_HOSPITAL, "AZ Diest")
     up(compose, "startup-web")
     release_one = RELEASE.format(run_id=journey["training"])

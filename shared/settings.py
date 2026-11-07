@@ -59,7 +59,7 @@ def databases(folder: Path) -> dict[str, Any]:
     return {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": folder / "shared.sqlite3",
+            "NAME": folder / "web.sqlite3",
             # Two processes write this file (the web app, and messaging): take the
             # write lock at BEGIN, so the second waits instead of failing on its
             # first write.
@@ -67,7 +67,7 @@ def databases(folder: Path) -> dict[str, Any]:
             # A file, not memory: Django never closes an in-memory database, so
             # the messaging endpoint's threads would leave their connections open
             # in tests.
-            "TEST": {"NAME": folder / "test-shared.sqlite3"},
+            "TEST": {"NAME": folder / "test-web.sqlite3"},
         }
     }
 
