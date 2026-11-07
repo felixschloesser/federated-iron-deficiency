@@ -242,7 +242,7 @@ def test_model_updates_connect_only_the_superlink_and_the_supernodes() -> None:
 def test_each_practice_reaches_every_hospitals_lab_order_endpoint_and_nothing_else(
     practice: str,
 ) -> None:
-    """A practice chooses the laboratory per sample (features/practice/messaging.feature); its laboratories are
+    """A practice chooses the laboratory per sample (features/practice/ordering.feature); its laboratories are
     rows add_laboratory made, not environment variables."""
     spec = service(f"{practice}-web")
     assert set(spec["networks"]) == {practice, "messaging"}
@@ -250,7 +250,7 @@ def test_each_practice_reaches_every_hospitals_lab_order_endpoint_and_nothing_el
 
 
 def test_one_messaging_network_holds_every_hospital_and_practice_only() -> None:
-    """Every practice may send to every hospital (features/practice/messaging.feature): one crossing, TB3-TB1,
+    """Every practice may send to every hospital (features/practice/ordering.feature): one crossing, TB3-TB1,
     like the internet between them; separate networks would isolate nothing."""
     members = {
         name
@@ -298,7 +298,7 @@ def test_each_web_app_knows_its_party_name_and_colour() -> None:
 
 
 def test_no_practice_service_runs_on_a_timer() -> None:
-    # Lab reports come only on Check for reports (features/practice/messaging.feature).
+    # Lab reports come only on Check for reports (tests/practice/test_messaging.py).
     for name, spec in config()["services"].items():
         assert "REPORT_CHECK_SECONDS" not in (spec.get("environment") or {}), name
 

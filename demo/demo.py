@@ -131,7 +131,7 @@ def seed_arguments(partition: int, nhanes: Path) -> list[str]:
 
 def tube_seeds(nhanes: Path) -> list[list[str]]:
     """Every practice's participants, for a hospital's analyser stand-in: any
-    practice may send it a sample (features/practice/messaging.feature)."""
+    practice may send it a sample (features/practice/ordering.feature)."""
     return [seed_arguments(partition, nhanes) for partition, _ in hospitals()]
 
 
@@ -170,7 +170,7 @@ def laboratory_arguments(practice_cycle: str) -> list[list[str]]:
 def practice_arguments() -> list[list[str]]:
     """add_practice's arguments for every practice, its certificate name its
     folder name: every hospital knows them all, as every practice may send it a
-    sample (features/practice/messaging.feature)."""
+    sample (features/practice/ordering.feature)."""
     return [
         [slug, PRACTICES[cycle]]
         for (_, slug), cycle in zip(practices(), CYCLES, strict=True)
@@ -238,7 +238,7 @@ def seed_lab_records(hospital: Path, arguments: list[str]) -> None:
 
 
 def add_laboratories(practice: Path, practice_cycle: str) -> None:
-    """Every hospital's laboratory, at its lab-order endpoint (features/practice/messaging.feature)."""
+    """Every hospital's laboratory, at its lab-order endpoint (features/practice/ordering.feature)."""
     env = {
         **os.environ,
         "DJANGO_SETTINGS_MODULE": "practice.settings",
