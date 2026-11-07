@@ -25,6 +25,14 @@ HOSPITAL = "uz-leuven"
 # Not UZ Leuven, whose web.sqlite3 is the ClientApp probe's bait, not a database.
 APP_HOSPITAL = "az-diest"
 APP_PRACTICE = "huisartsenpraktijk-de-ceder"
+# FedAvg trains only with at least two hospitals available.
+SECOND_HOSPITAL = "heilig-hart-leuven"
+HOSPITAL_SLUGS = (HOSPITAL, SECOND_HOSPITAL, APP_HOSPITAL)
+PRACTICE_SLUGS = (
+    "huisartsenpraktijk-de-akker",
+    "huisartsenpraktijk-de-berk",
+    APP_PRACTICE,
+)
 
 Compose = Callable[..., subprocess.CompletedProcess[str]]
 # Each compose fixture's project name, for the checks that look at Docker itself.
@@ -32,7 +40,13 @@ PROJECT: dict[Compose, str] = {}
 # One file for every worktree: their container runs share one Docker engine.
 LOCK = Path(tempfile.gettempdir()) / "iron-deficiency-containers.lock"
 # The images compose.yaml builds.
-IMAGES = ("prepare", "hospital-web", "startup-web", "practice-web", "superexec")
+IMAGES = (
+    "nhanes-download",
+    "hospital-web",
+    "startup-web",
+    "practice-web",
+    "superexec",
+)
 # Each project's images built so far: a test run builds each once.
 BUILT: dict[str, set[str]] = {}
 
@@ -71,10 +85,19 @@ def compose(
     # The proxy joins every party's network in the demo; here only the hospital
     # and practice under test, so the project takes the networks it tests.
     override = folder / "demo" / "test-override.yaml"
+    # The hospitals train on a synthetic cohort here, not on one their director
+    # provides; the practice under test knows only the hospital under test.
     override.write_text(
         "services:\n  proxy:\n"
         f"    networks: !override [{APP_HOSPITAL}, {APP_PRACTICE}]\n"
+        + "".join(
+            f'  {slug}-web:\n    environment: {{DEMO_PROVIDE: "0"}}\n'
+            for slug in (HOSPITAL, SECOND_HOSPITAL)
+        )
+        + f"  {APP_PRACTICE}-web:\n    environment:\n"
+        f"      DEMO_REGISTER: add_laboratory 'AZ Diest' {APP_HOSPITAL}-messaging:8441 --primary\n"
     )
+    write_nhanes_extracts(folder / ".demo" / "nhanes")
     name = f"test-{uuid.uuid4().hex[:8]}"
 
     def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -142,7 +165,7 @@ def compose_folder(compose: Compose) -> Path:
     services = json.loads(compose("config", "--format", "json").stdout)["services"]
     (downloads,) = [
         Path(volume["source"])
-        for volume in services["prepare"]["volumes"]
+        for volume in services["nhanes-download"]["volumes"]
         if volume["target"] == "/demo/huggingface"
     ]
     folder = downloads.parent.parent
@@ -165,13 +188,39 @@ def up(compose: Compose, service: str) -> None:
     )
 
 
+def write_nhanes_extracts(folder: Path) -> None:
+    """Small NHANES extracts for every party, as nhanes-download writes them
+    (demo/nhanes.py), so no test downloads: every practice's patients, and each
+    hospital's analyser stand-in measuring them all."""
+    from demo.seeding.participants import choose, with_made_up_ferritin
+    from tests.conftest import nhanes_rows
+
+    rows = nhanes_rows()
+    patients = with_made_up_ferritin(choose(rows, seed=0), rows)
+    records = rows.dropna(subset=["LBXFER"]).assign(pregnant=False)
+    for slug in HOSPITAL_SLUGS:
+        (folder / slug).mkdir(parents=True, exist_ok=True)
+        patients.to_csv(folder / slug / "participants.csv", index=False)
+        records.to_csv(folder / slug / "lab-records.csv", index=False)
+    for slug in PRACTICE_SLUGS:
+        (folder / slug).mkdir(parents=True, exist_ok=True)
+        patients.to_csv(folder / slug / "patients.csv", index=False)
+
+
+def in_party(compose: Compose, service: str, script: str) -> str:
+    """Run Python in a party's running web container, as its own user: only what
+    that party could do. Its last line of output, if any."""
+    result = compose("exec", "-T", service, "python", "-c", script)
+    return (result.stdout.strip().splitlines() or [""])[-1]
+
+
 def synthetic_cohort(hospital: str) -> str:
     """Python that gives a hospital a synthetic cohort the real ClientApp trains
     on, as if its laboratory director provided it (in a folder of its own, as
     ml.training_cohort writes it), and an empty screening-models folder: random
     values in the real columns, both labels; what a model learns from it is no matter."""
     return (
-        f"; hospital = Path('/demo/hospitals/{hospital}');"
+        "; hospital = Path('/data');"
         " (hospital / 'screening-models').mkdir(exist_ok=True);"
         " import numpy as np, pandas as pd; from datasets import Dataset;"
         " from ml.cohort import FEATURES; rng = np.random.default_rng(0);"
@@ -183,18 +232,10 @@ def synthetic_cohort(hospital: str) -> str:
 
 @pytest.fixture(scope="session")
 def superlink(compose: Compose) -> None:
-    """Flower's part of `prepare`, into the party volumes, then the SuperLink."""
-    build(compose, "prepare")
-    compose(
-        "run",
-        "--rm",
-        "--no-deps",
-        "prepare",
-        "python",
-        "-c",
-        "from pathlib import Path; from demo.demo import prepare_flower;"
-        " prepare_flower(Path('/demo'))",
-    )
+    """The startup's web app, which brings the SuperLink's folder and writes
+    flwr-home's connection (demo/party.py), then the SuperLink."""
+    build(compose, "startup-web")
+    up(compose, "startup-web")
     up(compose, "flower-superlink")
 
 
@@ -204,17 +245,13 @@ def flower(compose: Compose, superlink: None) -> None:
     Leuven holds a synthetic cohort and, beside it, a database the ClientApp
     must never see."""
     # flwr runs in the startup's train service, on the startup's image.
-    build(compose, "superexec", "startup-web")
-    compose(
-        "run",
-        "--rm",
-        "--no-deps",
-        "prepare",
-        "python",
-        "-c",
-        "from pathlib import Path"
-        + synthetic_cohort(HOSPITAL)
-        + f"; (Path('/demo/hospitals/{HOSPITAL}') / 'web.sqlite3').write_text('lab orders')",
+    build(compose, "superexec", "hospital-web")
+    # The hospital's web app brings its cohort folder and holds its database.
+    up(compose, f"{HOSPITAL}-web")
+    in_party(
+        compose,
+        f"{HOSPITAL}-web",
+        "from pathlib import Path" + synthetic_cohort(HOSPITAL),
     )
     compose(
         "up",
@@ -259,25 +296,9 @@ def wait_until_online(compose: Compose, nodes: int = 1) -> None:
 @pytest.fixture(scope="session")
 def hospital_app(compose: Compose) -> str:
     """AZ Diest's web app running: its pages and its lab-order endpoint."""
-    build(compose, "prepare", "hospital-web")
-    compose(
-        "run",
-        "--rm",
-        "--no-deps",
-        "prepare",
-        "python",
-        "-c",
-        "from pathlib import Path;"
-        " from demo.demo import hospital_dir;"
-        f" hospital = hospital_dir(Path('/demo'), {APP_HOSPITAL!r});"
-        # A volume's subpath must exist before a container mounts it.
-        " (hospital / 'screening-models').mkdir(exist_ok=True);"
-        # The web app mounts the cohort, read-only, to validate fetched final models.
-        " (hospital / 'cohort').mkdir(exist_ok=True)",
-    )
+    build(compose, "hospital-web")
     name = f"{APP_HOSPITAL}-web"
-    compose("run", "--rm", "--no-deps", name, "python", "manage.py", "migrate", "-v0")
-    # Healthy once both its servers answer (its health check).
+    # It sets itself up as it starts; healthy once both its servers answer.
     up(compose, name)
     return name
 

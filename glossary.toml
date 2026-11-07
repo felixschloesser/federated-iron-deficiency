@@ -36,7 +36,7 @@ source = "Report, \"Federated version\": \"Each GP practice runs its own app\"; 
 
 ["name"]
 meaning = "A party's own name, which never changes: shown on its pages (`PRACTICE_NAME`, `HOSPITAL_NAME`, `STARTUP_NAME`, each set by that party's settings alone; a party they name none shows \"Demo\", which it never calls as), and the name a hospital registers a practice by (`add_practice`) and the startup a recipient hospital (`add_hospital`). A practice or a hospital calls another party as its name's slug (\"Huisartsenpraktijk De Ceder\" calls as `huisartsenpraktijk-de-ceder`), in each call's metadata; the demo believes it, and with mutual TLS the slug would be what the caller's certificate carries. A call naming no party, or one the server does not know, is refused, and so is registering a name whose slug another party has"
-source = "demo.toml's names (`practice = \"Huisartsenpraktijk De Akker\"`); Report, Solutions table, mutual TLS: \"tells practices apart by certificate name\", which the slug stands for while the demo has no certificates"
+source = "the names in demo/compose.yaml (`PRACTICE_NAME: Huisartsenpraktijk De Akker`); Report, Solutions table, mutual TLS: \"tells practices apart by certificate name\", which the slug stands for while the demo has no certificates"
 
 ["order"]
 meaning = "The practice's word: what the general practitioner places, with its clinical indication, which never leaves the practice. Each party speaks its own language: the practice orders, the wire carries a lab order, the laboratory works on a test request"

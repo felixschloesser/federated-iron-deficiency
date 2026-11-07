@@ -45,6 +45,13 @@ demo-dir = "" # Absolute folder for final models (demo/README.md); empty: ~/.cac
 wandb-api-key = "" # Pass at submit time: -c "wandb-api-key='$WANDB_API_KEY'"
 
 [dependency-groups]
+# nhanes-download's image (demo/nhanes-download.Dockerfile): reading the pinned
+# NHANES file and choosing each party's extract; no Django, PyTorch or Flower.
+nhanes = [
+    "huggingface-hub",
+    "pandas>=2.2.0",
+    "pyarrow",
+]
 dev = [
     "django-stubs>=6.1.2",
     "grpcio-tools>=1.81.1",
@@ -76,7 +83,7 @@ default-groups = ["dev", "web"]
 [tool.mypy]
 # .claude holds the audit, a commit gate kept out of readers' way.
 mypy_path = "typings:.claude"
-# Runtime output of demo/demo.py (gitignored), holding unpacked copies of the app.
+# The demo's folder on the host (gitignored): downloads and NHANES extracts.
 exclude = ["^\\.demo/"]
 plugins = ["mypy_django_plugin.main"]
 

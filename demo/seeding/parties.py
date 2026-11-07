@@ -2,11 +2,12 @@
 the chosen NHANES participants. Runs inside that party's Django
 (python -m demo.seed); the accounts share a known password."""
 
+import csv
+import math
 from collections.abc import Hashable
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -19,13 +20,26 @@ from demo.seeding.accounts import (
     LABORATORY_STAFF,
     PASSWORD,
 )
-from demo.seeding.participants import patient_name
+from demo.seeding.names import patient_name
 from ml.cohort import CBC_VARS
 from web.shared.accounts.models import User
 from web.shared.accounts.roles import Role
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 
 Rows = list[dict[Hashable, Any]]
+
+
+def measured(value: object) -> float | None:
+    """A value from a CSV or a table: None where it is blank or not a number."""
+    if value is None or value == "":
+        return None
+    number = float(str(value))
+    return None if math.isnan(number) else number
+
+
+def read_rows(path: Path) -> Rows:
+    with path.open(newline="") as file:
+        return list(csv.DictReader(file))
 
 
 def user(username: str, role: Role | None) -> User:
@@ -52,8 +66,8 @@ def seed_hospital(rows: Rows) -> list[str]:
             seqn=int(row["sample_id"]),
             defaults={
                 "cbc": {var: float(row[var]) for var in CBC_VARS},
-                "ferritin": None if pd.isna(ferritin) else float(ferritin),
-                "made_up_ferritin": None if pd.isna(made_up) else float(made_up),
+                "ferritin": measured(ferritin),
+                "made_up_ferritin": measured(made_up),
             },
         )
     user("no-role", None)  # Has no role: for the refusal at login.
@@ -75,7 +89,7 @@ def seed_practice(rows: Rows) -> list[str]:
             defaults={
                 "name": patient_name(seqn, sex),
                 "registered_sex": sex,
-                "age": int(row["age"]),
+                "age": int(float(row["age"])),
             },
         )
     user("no-role", None)
@@ -99,9 +113,9 @@ def indication(pregnant: bool, number: int) -> ClinicalIndication:
     return screened[number % len(screened)]
 
 
-def seed_lab_records(csv: Path, provide: bool) -> str:
-    """The hospital's lab records (DS1), once, from a CSV prepare wrote
-    (ml.dataset.participants); with `provide`, the laboratory director then
+def seed_lab_records(csv_path: Path, provide: bool) -> str:
+    """The hospital's lab records (DS1), once, from nhanes-download's CSV
+    (demo/nhanes.py); with `provide`, the laboratory director then
     provides the training cohort, as on the Training cohort page."""
     from web.hospital.cohort.models import LabRecord, TrainingCohort
 
@@ -110,17 +124,19 @@ def seed_lab_records(csv: Path, provide: bool) -> str:
             LabRecord.objects.bulk_create(
                 LabRecord(
                     registered_sex=RegisteredSex.of_nhanes(str(row["sex"])),
-                    age=int(row["age"]),
+                    age=int(float(row["age"])),
                     cbc={
-                        var: float(row[var])
+                        var: value
                         for var in CBC_VARS
-                        if not pd.isna(row[var])
+                        if (value := measured(row[var])) is not None
                     },
-                    ferritin=None if pd.isna(row["LBXFER"]) else float(row["LBXFER"]),
-                    crp=None if pd.isna(row["CRP"]) else float(row["CRP"]),
-                    clinical_indication=indication(bool(row["pregnant"]), number),
+                    ferritin=measured(row["LBXFER"]),
+                    crp=measured(row["CRP"]),
+                    clinical_indication=indication(
+                        str(row["pregnant"]) == "True", number
+                    ),
                 )
-                for number, row in enumerate(pd.read_csv(csv).to_dict("records"))
+                for number, row in enumerate(read_rows(csv_path))
             )
     summary = f"{LabRecord.objects.count()} lab records"
     if not provide:
@@ -136,7 +152,7 @@ def seed_lab_records(csv: Path, provide: bool) -> str:
             directory=settings.TRAINING_COHORT_DIR, by=director, now=timezone.now()
         )
     except ValidationError as error:
-        # Provided on an earlier run of prepare: nothing to do.
+        # Provided on an earlier start: nothing to do.
         if [refusal.code for refusal in error.error_list] != ["unchanged"]:
             raise SystemExit(" ".join(error.messages)) from error
     return f"{summary}; training cohort provided"

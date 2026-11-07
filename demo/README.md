@@ -6,9 +6,9 @@ runs in its own containers, which see only that party's folder under `.demo/`
 (gitignored), on Docker networks that follow the report's trust boundaries.
 So "UZ Leuven's data never reaches the startup" holds because no network or
 mount connects them, not merely because the code is careful. Who the parties
-are, and each one's colour and number of seeded patients, is declared in
-`demo/demo.toml`. `demo/compose.yaml` and `demo/proxy.conf` are generated from it:
-after editing it, run `uv run python -m demo.topology`.
+are, and each one's colour, whom it knows and how many patients it seeds, is
+written in `demo/compose.yaml`, in each party's own services; `demo/proxy.conf`
+routes each party's name to its web app.
 
 ## 1. Install Docker
 
@@ -22,7 +22,7 @@ not a process of the report's DFDs:
 
 | DFD element | Where it runs |
 |---|---|
-| DS1 Lab records | each hospital's NHANES cycle, which `prepare` seeds into its database |
+| DS1 Lab records | each hospital's NHANES cycle, which its web app seeds into its database when it first starts |
 | P1 Extract training cohort | *Provide the training cohort* on `<hospital>-web`, by its laboratory director; *Withdraw* takes it back |
 | P2 Train locally | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
 | P3 Relay messages | `flower-superlink` |
@@ -42,8 +42,8 @@ id -u   # if this prints 1000, skip this step
 echo "DEMO_USER=$(id -u):$(id -g)" > .env
 ```
 
-Every container writes `.demo/` as one user, by default `1000:1000`, the first
-account on most Linux machines. On Linux a mounted folder keeps numeric user
+nhanes-download, the one container that writes `.demo/`, writes it as this user,
+by default `1000:1000`, the first account on most Linux machines. On Linux a mounted folder keeps numeric user
 IDs, so without this your own account could not edit or delete `.demo/`. On a
 Mac, Docker maps IDs for you.
 
@@ -53,17 +53,23 @@ Mac, Docker maps IDs for you.
 docker compose up --build --abort-on-container-failure
 ```
 
-The first start takes a while. It builds three images (the hospitals'
+The first start takes a while. It builds the images (the hospitals'
 web apps, the practices' leaner ones without PyTorch or Flower, and the
 startup's Flower app with PyTorch, CPU only), then runs these steps in order:
 
-1. **prepare** creates what each party needs and the DFDs do not draw:
-   each hospital's lab records (its NHANES cycle) and the 2021–2023
-   blood counts (downloaded from Hugging Face; set `HF_TOKEN` in `.env` if
-   it refuses), and each party's database with its demo accounts. It is the
-   only container that sees every party's folder: setup done once, out of
-   band.
-2. Everything else starts: the startup's SuperLink and ServerApp; per
+1. **nhanes-download** writes the public NHANES extracts each party seeds
+   from, one folder per party in `.demo/nhanes/`: each hospital's lab records
+   (its cycle) and its analyser's participants, each practice's patients
+   (from the 2021–2023 blood counts). It is the only container that reaches
+   the internet (Hugging Face; set `HF_TOKEN` in `.env` if it refuses), and it
+   sees no party's folder. Once the extracts exist, it is done in a second.
+2. **Each party's web app sets itself up** as it starts (`demo/party.py`), as
+   each organisation would its own system: it migrates its database, seeds it
+   from its own extract (read-only, the only one it sees) with its demo
+   accounts, registers whom it knows, and prints the line saying where it is.
+   Docker gives a fresh volume the folders the party's image brings, so no
+   container needs root. No container sees another party's folder.
+3. Everything else starts, each part after what it needs: the startup's SuperLink and ServerApp; per
    hospital a SuperNode, the startup's ClientApp (in a container that sees
    only the cohort and the final models and reaches only its SuperNode), the
    web app and the endpoint that receives lab orders; per practice its web
@@ -72,10 +78,10 @@ startup's Flower app with PyTorch, CPU only), then runs these steps in order:
 `--abort-on-container-failure` stops every party when one fails, so a broken
 setup never looks half alive. Ctrl-C stops them all.
 
-Later starts reuse what `prepare` made and are quick. A party's database
-from before the code's migrations were reset cannot migrate: `prepare` renames
-it to `web.sqlite3.before-reset`, beside it in the volume, and prepares a new
-one.
+Later starts reuse what each party made and are quick. A party's database
+from before the code's migrations were reset cannot migrate: its web app
+renames it to `web.sqlite3.before-reset`, beside it in the volume, and starts a
+new one.
 
 The demo has no TLS, SuperNode authentication or mutual TLS: every connection
 is plaintext and the SuperLink admits any node. The report describes these
@@ -142,10 +148,9 @@ screening comes back to the practice.
   training cohorts, final models, the SuperLink's state and the databases.
   `docker compose down -v` deletes them all, so the next `up` starts over;
   `.demo/` on your machine keeps only what that must not cost you: the
-  Hugging Face downloads (`.demo/huggingface/`), with the NHANES 2021–2023
-  cycle the seeded patients come from; no party's folder holds that cycle.
-  `prepare` still asks Hugging Face, but downloads nothing twice.
-- When a change to `demo.toml` or the topology renames or drops a network,
+  Hugging Face downloads (`.demo/huggingface/`) and the extracts made from
+  them (`.demo/nhanes/`), so the next `up` downloads nothing.
+- When a change to `demo/compose.yaml` renames or drops a network,
   `docker compose down --remove-orphans` leaves the old one behind, and Docker
   has room for only about 30 networks. With the demo stopped,
   `docker network prune --filter label=com.docker.compose.project=iron-deficiency`

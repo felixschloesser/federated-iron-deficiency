@@ -7,6 +7,7 @@ import pytest
 from pytest_django.fixtures import Settings
 
 from demo.seed import main
+from demo.seeding import names
 from demo.seeding import participants as seeding
 from tests.conftest import PEOPLE, nhanes_rows
 from web.practice.models import Patient
@@ -81,15 +82,15 @@ def test_patients_get_fictional_flemish_names_matching_their_sex(seeded: None) -
     for patient in Patient.objects.all():
         first, last = patient.name.split(" ", 1)
         sex = RegisteredSex(patient.registered_sex)
-        assert first in seeding.first_names(sex), patient.name
-        assert last in seeding.SURNAMES, patient.name
+        assert first in names.first_names(sex), patient.name
+        assert last in names.SURNAMES, patient.name
     assert Patient.objects.values("name").distinct().count() > 1
 
 
 def test_a_patients_name_is_the_same_on_every_seed() -> None:
     female = RegisteredSex.FEMALE
-    assert seeding.patient_name(135318, female) == seeding.patient_name(135318, female)
-    assert seeding.patient_name(135318, female) != seeding.patient_name(135319, female)
+    assert names.patient_name(135318, female) == names.patient_name(135318, female)
+    assert names.patient_name(135318, female) != names.patient_name(135319, female)
 
 
 def test_the_number_of_patients_is_a_parameter(development: None) -> None:
@@ -98,3 +99,19 @@ def test_the_number_of_patients_is_a_parameter(development: None) -> None:
     # Shared by the groups, the first ones rounding up: 2, 2, 1, 1.
     assert Patient.objects.filter(age=30).count() == 2
     assert Patient.objects.filter(age=70).count() == 1
+
+
+def test_seeds_from_nhanes_downloads_extract(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """nhanes-download's extract, as NHANES writes ages: 30.0, not 30
+    (demo/nhanes.py)."""
+    settings.DEBUG = True
+    rows = nhanes_rows().astype({"age": float})
+    extract = tmp_path / "patients.csv"
+    seeding.with_made_up_ferritin(seeding.choose(rows, seed=0), rows).to_csv(
+        extract, index=False
+    )
+    main(["practice", "--rows", str(extract)])
+    assert Patient.objects.count() == 3 * len(PEOPLE)
+    assert set(Patient.objects.values_list("age", flat=True)) <= {30, 25, 35, 70}

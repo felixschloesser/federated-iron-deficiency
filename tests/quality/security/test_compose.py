@@ -13,25 +13,23 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from django.utils.text import slugify
 
-from demo.topology import COLOURS, HOSPITALS, PRACTICES, hospital_slug
 from ml.dataset import CYCLES
 
 ROOT = Path(__file__).resolve().parents[3]
-HOSPITAL_SLUGS = [hospital_slug(HOSPITALS[cycle]) for cycle in CYCLES]
-PRACTICE_SLUGS = [hospital_slug(PRACTICES[cycle]) for cycle in CYCLES]
 # Each practice sends to the hospital of the same cycle (demo/README.md).
 STARTUP_SERVICES = {
-    "prepare",
     "flower-superlink",
     "flower-server-app",
     "train",
     "startup-web",
 }
-# Out-of-band setup (report, assumptions): the one service that sees every party.
-SETUP_SERVICES = {"prepare"}
-# What a reset keeps, on the host: the downloads.
-HOST_FOLDERS = {"huggingface"}
+# Out-of-band setup (report, assumptions): nhanes-download, the one service
+# that reaches the internet, sees no party's folder.
+SETUP_SERVICES = {"nhanes-download"}
+# What a reset keeps, on the host: the downloads and the extracts made from them.
+HOST_FOLDERS = {"huggingface", "nhanes"}
 # Between the browser and the parties, like the internet: it sees only names.
 NETWORK_SERVICES = {"proxy"}
 
@@ -64,8 +62,39 @@ def service(name: str) -> dict[str, Any]:
     return found
 
 
+def pairs() -> list[tuple[str, str, str, int]]:
+    """nhanes-download's --pair arguments, as compose.yaml writes them: each
+    hospital with its NHANES cycle, its practice and the practice's patients."""
+    command: list[str] = service("nhanes-download")["command"]
+    return [
+        (command[at + 1], command[at + 2], command[at + 3], int(command[at + 4]))
+        for at, part in enumerate(command)
+        if part == "--pair"
+    ]
+
+
+def name(slug: str) -> str:
+    """A practice's or hospital's name, as its web app shows it and calls as."""
+    environment = service(f"{slug}-web")["environment"]
+    found: str = environment.get("PRACTICE_NAME") or environment["HOSPITAL_NAME"]
+    return found
+
+
+HOSPITAL_SLUGS = [hospital for _, hospital, _, _ in pairs()]
+PRACTICE_SLUGS = [practice for _, _, practice, _ in pairs()]
+
+
+def test_the_demo_pairs_exactly_the_hospitals_training_knows() -> None:
+    """Each hospital trains on its NHANES cycle (ml.dataset.CYCLES). Pass: compose
+    names each cycle once, in that order, each with a hospital and a practice
+    whose web apps run."""
+    assert [cycle for cycle, _, _, _ in pairs()] == list(CYCLES)
+    for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS:
+        assert f"{slug}-web" in config()["services"], slug
+
+
 def volume_folder(volume: str) -> str:
-    """The party folder a named volume holds, as prepare lays it out under /demo."""
+    """The party a named volume belongs to, as a folder name."""
     if volume == "startup":
         return "startup"
     if volume in HOSPITAL_SLUGS:
@@ -115,11 +144,14 @@ def test_every_web_app_names_its_party_and_its_folder() -> None:
     assert web_apps
     for name, environment in web_apps.items():
         assert environment["DJANGO_SETTINGS_MODULE"].endswith(".settings"), name
-        assert environment.get("DATA_DIR", "").startswith("/demo/"), name
+        # The folder the party's image brings (demo/party.py).
+        assert environment.get("DATA_DIR") == "/data", name
 
 
 def test_one_service_per_process_of_each_party() -> None:
     assert set(config()["services"]) == STARTUP_SERVICES | NETWORK_SERVICES | {
+        "nhanes-download"
+    } | {
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
         for role in ("flower-supernode", "flower-client-app", "web")
@@ -129,17 +161,23 @@ def test_one_service_per_process_of_each_party() -> None:
 def test_each_service_mounts_only_its_own_partys_folder() -> None:
     parties = ["startup"] + [volume_folder(slug) for slug in HOSPITAL_SLUGS]
     parties += [volume_folder(slug) for slug in PRACTICE_SLUGS]
-    assert mounts("prepare") == {
-        **{f"/demo/{folder}": (folder, False) for folder in parties},
-        **{f"/demo/{name}": (f"bind:.demo/{name}", False) for name in HOST_FOLDERS},
+    # The public NHANES data only: no party's folder.
+    assert mounts("nhanes-download") == {
+        f"/demo/{name}": (f"bind:.demo/{name}", False) for name in HOST_FOLDERS
     }
+    seen = set()
     for name in set(config()["services"]) - SETUP_SERVICES - NETWORK_SERVICES:
         folder = party_folder(name)
-        for target, (source, _) in mounts(name).items():
-            # A party volume, never the host: `down -v` leaves no party data.
-            assert source.startswith(folder), (name, source)
-            # Every container sees a folder at the path prepare wrote it to.
-            assert target == f"/demo/{source}", (name, target)
+        for source, read_only in mounts(name).values():
+            if source.startswith("bind:"):
+                # Its own NHANES extract, read-only: no other party's.
+                assert source == f"bind:.demo/nhanes/{folder.split('/')[-1]}", name
+                assert read_only, name
+            else:
+                # Its own party's volume: `down -v` leaves no party data.
+                assert source.startswith(folder), (name, source)
+                seen.add(folder)
+    assert seen == set(parties)
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
@@ -153,7 +191,10 @@ def test_the_hospitals_web_app_writes_the_cohort_and_its_screening_models(
     unmasked, and the startup's code writes nothing at the hospital."""
     name = f"{slug}-web"
     assert "tmpfs" not in service(name)
-    assert mounts(name) == {f"/demo/hospitals/{slug}": (f"hospitals/{slug}", False)}
+    assert mounts(name) == {
+        "/data": (f"hospitals/{slug}", False),
+        "/nhanes": (f"bind:.demo/nhanes/{slug}", True),
+    }
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
@@ -200,13 +241,10 @@ def test_the_startups_web_app_reads_the_final_models_and_not_the_superlinks_stat
     None
 ):
     spec = service("startup-web")
-    assert set(spec["tmpfs"]) == {"/demo/startup/superlink"}
-    assert mounts("startup-web")["/demo/startup/final-models"] == (
-        "startup/final-models",
-        True,
-    )
+    assert set(spec["tmpfs"]) == {"/data/superlink"}
+    assert mounts("startup-web")["/data/final-models"] == ("startup/final-models", True)
     assert spec["environment"]["DJANGO_SETTINGS_MODULE"] == "web.startup.settings"
-    assert spec["environment"]["DATA_DIR"] == "/demo/startup"
+    assert spec["environment"]["DATA_DIR"] == "/data"
 
 
 @pytest.mark.parametrize("slug", ["startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS])
@@ -283,16 +321,11 @@ def test_the_hospital_serves_its_pages_and_its_messaging_each_on_one_network_onl
 
 def test_each_web_app_knows_its_name_and_primary_colour() -> None:
     vendor = ROOT / "web/shared/static/css/vendor/pico-2.1.1"
-    for cycle, (hospital_colour, practice_colour) in COLOURS.items():
-        hospital = service(f"{hospital_slug(HOSPITALS[cycle])}-web")["environment"]
-        assert hospital["HOSPITAL_NAME"] == HOSPITALS[cycle]
-        assert hospital["PRIMARY_COLOUR"] == hospital_colour
-        practice = service(f"{hospital_slug(PRACTICES[cycle])}-web")["environment"]
-        # What every hospital registers it by (demo.demo.practice_arguments).
-        assert practice["PRACTICE_NAME"] == PRACTICES[cycle]
-        assert practice["PRIMARY_COLOUR"] == practice_colour
-        for colour in (hospital_colour, practice_colour):
-            assert (vendor / f"pico.{colour}.min.css").is_file(), colour
+    for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS:
+        environment = service(f"{slug}-web")["environment"]
+        assert name(slug), slug
+        colour = environment["PRIMARY_COLOUR"]
+        assert (vendor / f"pico.{colour}.min.css").is_file(), (slug, colour)
 
 
 def test_no_practice_service_runs_on_a_timer() -> None:
@@ -324,26 +357,53 @@ def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
         for source, _ in mounts(name).values()
         if source.startswith("bind:")
     }
-    assert binds == {("prepare", f"bind:.demo/{name}") for name in HOST_FOLDERS} | {
-        ("proxy", "bind:demo/proxy.conf")
+    extracts = {
+        (f"{slug}-web", f"bind:.demo/nhanes/{slug}")
+        for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS
     }
-    assert service("prepare")["environment"]["HF_HOME"] == "/demo/huggingface"
+    assert binds == {
+        ("nhanes-download", f"bind:.demo/{name}") for name in HOST_FOLDERS
+    } | extracts | {("proxy", "bind:demo/proxy.conf")}
+    assert service("nhanes-download")["environment"]["HF_HOME"] == "/demo/huggingface"
+
+
+def test_only_nhanes_download_reaches_the_internet() -> None:
+    """Threat: a party's data leaving through a container that reaches the
+    internet. Pass: nhanes-download, which sees no party's folder, is the only
+    service on the one network that is not internal."""
+    networks = config()["networks"]
+    outside = {name for name, spec in networks.items() if not spec.get("internal")}
+    on_outside = {
+        name
+        for name, spec in config()["services"].items()
+        if outside & set(spec.get("networks") or {})
+    }
+    assert "setup" in outside
+    reaching = {
+        name for name in on_outside if "setup" in config()["services"][name]["networks"]
+    }
+    assert reaching == {"nhanes-download"}
 
 
 @pytest.mark.parametrize(
     ("demo_user", "user"), [(None, "1000:1000"), ("1234:5678", "1234:5678")]
 )
 def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -> None:
-    # A fresh volume belongs to root, and on Linux a bind mount keeps numeric
-    # IDs: every container writes as one user, by default the first account of
-    # most Linux machines. Only prepare starts as root, to hand them over.
+    # Every container that touches a party's volume runs as our images' app
+    # user, who owns the folders each image brings into a fresh volume: none
+    # needs root. Only nhanes-download writes to the host, where on Linux a bind
+    # mount keeps numeric IDs: it starts as root, to hand .demo/ to DEMO_USER.
     services = config(demo_user)["services"]
-    users = {spec.get("user") for name, spec in services.items() if name != "prepare"}
-    assert users == {user}
-    prepare = services["prepare"]
-    assert prepare["user"] == "root"
-    assert prepare["environment"]["DEMO_USER"] == user
-    script = prepare["entrypoint"][-2]
+    users = {
+        spec.get("user")
+        for name, spec in services.items()
+        if name not in SETUP_SERVICES
+    }
+    assert users == {"1000:1000"}
+    download = services["nhanes-download"]
+    assert download["user"] == "root"
+    assert download["environment"]["DEMO_USER"] == user
+    script = download["entrypoint"][-2]
     assert "chown" in script
     assert "exec setpriv" in script
 
@@ -392,7 +452,7 @@ def test_each_project_runs_images_of_its_own() -> None:
         if not spec["image"].startswith(("flwr/", "nginx:"))
     }
     assert built == {
-        "some-project-prepare",
+        "some-project-nhanes-download",
         "some-project-hospital-web",
         "some-project-startup-web",
         "some-project-practice-web",
@@ -512,5 +572,58 @@ def test_the_startup_serves_its_pages_and_its_final_models_each_on_one_network_o
 def test_each_hospital_fetches_from_the_startup_by_its_name(slug: str) -> None:
     environment = service(f"{slug}-web")["environment"]
     assert environment["STARTUP_ADDRESS"] == "startup-final-models:8442"
-    # What the startup registers it by (demo.demo.hospital_arguments).
-    assert hospital_slug(environment["HOSPITAL_NAME"]) == slug
+    # What it calls the startup as: its name's slug, its folder name.
+    assert slugify(environment["HOSPITAL_NAME"]) == slug
+
+
+def registered(name: str) -> list[list[str]]:
+    from demo.party import registrations
+
+    return registrations(service(name)["environment"].get("DEMO_REGISTER", ""))
+
+
+@pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
+def test_every_hospital_knows_every_practice_by_its_name(slug: str) -> None:
+    """Any practice may send a sample to any hospital
+    (features/practice/ordering.feature), so each hospital registers every
+    practice, by the name its app calls as, whose slug is its folder name."""
+    assert registered(f"{slug}-web") == [
+        ["add_practice", name(practice)] for practice in PRACTICE_SLUGS
+    ]
+    assert [slugify(name(practice)) for practice in PRACTICE_SLUGS] == PRACTICE_SLUGS
+
+
+def test_the_startup_knows_every_hospital_by_the_name_its_web_app_calls_as() -> None:
+    """Any hospital may fetch released final models
+    (features/startup/release.feature), so the startup registers every one, by
+    the name its web app calls as."""
+    assert registered("startup-web") == [
+        ["add_hospital", name(hospital)] for hospital in HOSPITAL_SLUGS
+    ]
+
+
+@pytest.mark.parametrize(("paired", "practice"), [(h, p) for _, h, p, _ in pairs()])
+def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise(
+    paired: str, practice: str
+) -> None:
+    """Every hospital's laboratory, its paired hospital's the primary one, so lab
+    orders follow the hospitals' sizes by default."""
+    commands = registered(f"{practice}-web")
+    assert [command[1] for command in commands] == [name(h) for h in HOSPITAL_SLUGS]
+    for command, hospital in zip(commands, HOSPITAL_SLUGS, strict=True):
+        assert command[2] == f"{hospital}-messaging:8441"
+        assert ("--primary" in command) is (hospital == paired)
+
+
+def test_two_hospitals_provide_their_training_cohort_at_start() -> None:
+    """AZ Diest's laboratory director has not, so a training run shows a hospital
+    taking no part until its director provides one."""
+    provides = {
+        slug: service(f"{slug}-web")["environment"].get("DEMO_PROVIDE") == "1"
+        for slug in HOSPITAL_SLUGS
+    }
+    assert provides == {
+        "uz-leuven": True,
+        "heilig-hart-leuven": True,
+        "az-diest": False,
+    }
