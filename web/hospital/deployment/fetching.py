@@ -33,7 +33,7 @@ def unreachable(error: grpc.RpcError) -> bool:
     }
 
 
-def fetch_final_models(*, now: datetime) -> list[str]:
+def fetch_final_models(*, now: datetime) -> list[int]:
     """Fetch the released final models this hospital has not stored, validate
     each on the training cohort its laboratory director provided, store it, then
     acknowledge them; the run IDs stored. One the hospital holds other weights
@@ -66,7 +66,7 @@ def fetch_final_models(*, now: datetime) -> list[str]:
             try:
                 store_fetched(
                     directory,
-                    run_id=int(model.run_id),
+                    run_id=model.run_id,
                     state_dict=state_dict,
                     cohort=cohort,
                     federated=dict(model.federated),

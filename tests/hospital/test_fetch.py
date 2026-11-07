@@ -33,7 +33,7 @@ def offered(run_id: str, seed: int) -> messages_pb2.FinalModel:
     """A released final model as the startup's endpoint sends it (DF33)."""
     torch.manual_seed(seed)
     return messages_pb2.FinalModel(
-        run_id=run_id,
+        run_id=int(run_id),
         weights=to_bytes(FinalModel(state_dict=Net().state_dict())),
         federated=FEDERATED,
     )
@@ -117,7 +117,7 @@ def holds_validated(world: World, name: str) -> None:
 
 @then(parsers.parse('the startup is told the hospital stored final model "{run_id}"'))
 def acknowledged(world: World, run_id: str) -> None:
-    assert world["startup"].acknowledged == [run_id]
+    assert world["startup"].acknowledged == [int(run_id)]
     assert world["startup"].callers == ["uz-leuven"]
 
 

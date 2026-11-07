@@ -144,7 +144,7 @@ def fetched_and_acknowledged(world: World, hospital: str, run_id: str) -> None:
     call(
         world,
         "AcknowledgeFinalModels",
-        messages_pb2.FinalModelAcknowledgement(run_ids=[run_id]),
+        messages_pb2.FinalModelAcknowledgement(run_ids=[int(run_id)]),
         hospital,
     )
 

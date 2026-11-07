@@ -26,7 +26,7 @@ from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#web/shared/messaging/messages.proto\x12\x0cmessaging.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xce\x01\n\x08LabOrder\x12\x11\n\tsample_id\x18\x01 \x01(\t\x12 \n\x04test\x18\x02 \x01(\x0e\x32\x12.messaging.v1.Test\x12\x1b\n\x13screened_indication\x18\x03 \x01(\x08\x12\x33\n\x0eregistered_sex\x18\x04 \x01(\x0e\x32\x1b.messaging.v1.RegisteredSex\x12\x0b\n\x03\x61ge\x18\x05 \x01(\r\x12.\n\nordered_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\x87\x02\n\tLabReport\x12\x11\n\treport_id\x18\x01 \x01(\t\x12\x11\n\tsample_id\x18\x02 \x01(\t\x12 \n\x04test\x18\x03 \x01(\x0e\x32\x12.messaging.v1.Test\x12\x35\n\x07results\x18\x04 \x03(\x0b\x32$.messaging.v1.LabReport.ResultsEntry\x12/\n\x0breleased_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x1a\n\x12\x66\x65rritin_suggested\x18\x06 \x01(\x08\x1a.\n\x0cResultsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"6\n\nLabReports\x12(\n\x07reports\x18\x01 \x03(\x0b\x32\x17.messaging.v1.LabReport\"%\n\x0f\x41\x63knowledgement\x12\x12\n\nreport_ids\x18\x01 \x03(\t\"\x9b\x01\n\nFinalModel\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12\x0f\n\x07weights\x18\x02 \x01(\x0c\x12:\n\tfederated\x18\x03 \x03(\x0b\x32\'.messaging.v1.FinalModel.FederatedEntry\x1a\x30\n\x0e\x46\x65\x64\x65ratedEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"@\n\x0eNewFinalModels\x12.\n\x0c\x66inal_models\x18\x01 \x03(\x0b\x32\x18.messaging.v1.FinalModel\",\n\x19\x46inalModelAcknowledgement\x12\x0f\n\x07run_ids\x18\x01 \x03(\t*=\n\x04Test\x12\x14\n\x10TEST_UNSPECIFIED\x10\x00\x12\x0c\n\x08TEST_CBC\x10\x01\x12\x11\n\rTEST_FERRITIN\x10\x02*c\n\rRegisteredSex\x12\x1e\n\x1aREGISTERED_SEX_UNSPECIFIED\x10\x00\x12\x19\n\x15REGISTERED_SEX_FEMALE\x10\x01\x12\x17\n\x13REGISTERED_SEX_MALE\x10\x02\x32\xe4\x01\n\nLaboratory\x12>\n\x0cSendLabOrder\x12\x16.messaging.v1.LabOrder\x1a\x16.google.protobuf.Empty\x12\x46\n\x12\x46\x65tchNewLabReports\x12\x16.google.protobuf.Empty\x1a\x18.messaging.v1.LabReports\x12N\n\x15\x41\x63knowledgeLabReports\x12\x1d.messaging.v1.Acknowledgement\x1a\x16.google.protobuf.Empty2\xb5\x01\n\x0b\x46inalModels\x12K\n\x13\x46\x65tchNewFinalModels\x12\x16.google.protobuf.Empty\x1a\x1c.messaging.v1.NewFinalModels\x12Y\n\x16\x41\x63knowledgeFinalModels\x12\'.messaging.v1.FinalModelAcknowledgement\x1a\x16.google.protobuf.Emptyb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#web/shared/messaging/messages.proto\x12\x0cmessaging.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdb\x01\n\x08LabOrder\x12\x11\n\tsample_id\x18\x01 \x01(\t\x12 \n\x04test\x18\x02 \x01(\x0e\x32\x12.messaging.v1.Test\x12\x1b\n\x13screened_indication\x18\x03 \x01(\x08\x12\x33\n\x0eregistered_sex\x18\x04 \x01(\x0e\x32\x1b.messaging.v1.RegisteredSex\x12\x10\n\x03\x61ge\x18\x05 \x01(\rH\x00\x88\x01\x01\x12.\n\nordered_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampB\x06\n\x04_age\"\x87\x02\n\tLabReport\x12\x11\n\treport_id\x18\x01 \x01(\x04\x12\x11\n\tsample_id\x18\x02 \x01(\t\x12 \n\x04test\x18\x03 \x01(\x0e\x32\x12.messaging.v1.Test\x12\x35\n\x07results\x18\x04 \x03(\x0b\x32$.messaging.v1.LabReport.ResultsEntry\x12/\n\x0breleased_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x1a\n\x12\x66\x65rritin_suggested\x18\x06 \x01(\x08\x1a.\n\x0cResultsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"6\n\nLabReports\x12(\n\x07reports\x18\x01 \x03(\x0b\x32\x17.messaging.v1.LabReport\"%\n\x0f\x41\x63knowledgement\x12\x12\n\nreport_ids\x18\x01 \x03(\x04\"\x9b\x01\n\nFinalModel\x12\x0e\n\x06run_id\x18\x01 \x01(\x04\x12\x0f\n\x07weights\x18\x02 \x01(\x0c\x12:\n\tfederated\x18\x03 \x03(\x0b\x32\'.messaging.v1.FinalModel.FederatedEntry\x1a\x30\n\x0e\x46\x65\x64\x65ratedEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"@\n\x0eNewFinalModels\x12.\n\x0c\x66inal_models\x18\x01 \x03(\x0b\x32\x18.messaging.v1.FinalModel\",\n\x19\x46inalModelAcknowledgement\x12\x0f\n\x07run_ids\x18\x01 \x03(\x04*=\n\x04Test\x12\x14\n\x10TEST_UNSPECIFIED\x10\x00\x12\x0c\n\x08TEST_CBC\x10\x01\x12\x11\n\rTEST_FERRITIN\x10\x02*c\n\rRegisteredSex\x12\x1e\n\x1aREGISTERED_SEX_UNSPECIFIED\x10\x00\x12\x19\n\x15REGISTERED_SEX_FEMALE\x10\x01\x12\x17\n\x13REGISTERED_SEX_MALE\x10\x02\x32\xe4\x01\n\nLaboratory\x12>\n\x0cSendLabOrder\x12\x16.messaging.v1.LabOrder\x1a\x16.google.protobuf.Empty\x12\x46\n\x12\x46\x65tchNewLabReports\x12\x16.google.protobuf.Empty\x1a\x18.messaging.v1.LabReports\x12N\n\x15\x41\x63knowledgeLabReports\x12\x1d.messaging.v1.Acknowledgement\x1a\x16.google.protobuf.Empty2\xb5\x01\n\x0b\x46inalModels\x12K\n\x13\x46\x65tchNewFinalModels\x12\x16.google.protobuf.Empty\x1a\x1c.messaging.v1.NewFinalModels\x12Y\n\x16\x41\x63knowledgeFinalModels\x12\'.messaging.v1.FinalModelAcknowledgement\x1a\x16.google.protobuf.Emptyb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,30 +37,30 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_LABREPORT_RESULTSENTRY']._serialized_options = b'8\001'
   _globals['_FINALMODEL_FEDERATEDENTRY']._loaded_options = None
   _globals['_FINALMODEL_FEDERATEDENTRY']._serialized_options = b'8\001'
-  _globals['_TEST']._serialized_start=955
-  _globals['_TEST']._serialized_end=1016
-  _globals['_REGISTEREDSEX']._serialized_start=1018
-  _globals['_REGISTEREDSEX']._serialized_end=1117
+  _globals['_TEST']._serialized_start=968
+  _globals['_TEST']._serialized_end=1029
+  _globals['_REGISTEREDSEX']._serialized_start=1031
+  _globals['_REGISTEREDSEX']._serialized_end=1130
   _globals['_LABORDER']._serialized_start=116
-  _globals['_LABORDER']._serialized_end=322
-  _globals['_LABREPORT']._serialized_start=325
-  _globals['_LABREPORT']._serialized_end=588
-  _globals['_LABREPORT_RESULTSENTRY']._serialized_start=542
-  _globals['_LABREPORT_RESULTSENTRY']._serialized_end=588
-  _globals['_LABREPORTS']._serialized_start=590
-  _globals['_LABREPORTS']._serialized_end=644
-  _globals['_ACKNOWLEDGEMENT']._serialized_start=646
-  _globals['_ACKNOWLEDGEMENT']._serialized_end=683
-  _globals['_FINALMODEL']._serialized_start=686
-  _globals['_FINALMODEL']._serialized_end=841
-  _globals['_FINALMODEL_FEDERATEDENTRY']._serialized_start=793
-  _globals['_FINALMODEL_FEDERATEDENTRY']._serialized_end=841
-  _globals['_NEWFINALMODELS']._serialized_start=843
-  _globals['_NEWFINALMODELS']._serialized_end=907
-  _globals['_FINALMODELACKNOWLEDGEMENT']._serialized_start=909
-  _globals['_FINALMODELACKNOWLEDGEMENT']._serialized_end=953
-  _globals['_LABORATORY']._serialized_start=1120
-  _globals['_LABORATORY']._serialized_end=1348
-  _globals['_FINALMODELS']._serialized_start=1351
-  _globals['_FINALMODELS']._serialized_end=1532
+  _globals['_LABORDER']._serialized_end=335
+  _globals['_LABREPORT']._serialized_start=338
+  _globals['_LABREPORT']._serialized_end=601
+  _globals['_LABREPORT_RESULTSENTRY']._serialized_start=555
+  _globals['_LABREPORT_RESULTSENTRY']._serialized_end=601
+  _globals['_LABREPORTS']._serialized_start=603
+  _globals['_LABREPORTS']._serialized_end=657
+  _globals['_ACKNOWLEDGEMENT']._serialized_start=659
+  _globals['_ACKNOWLEDGEMENT']._serialized_end=696
+  _globals['_FINALMODEL']._serialized_start=699
+  _globals['_FINALMODEL']._serialized_end=854
+  _globals['_FINALMODEL_FEDERATEDENTRY']._serialized_start=806
+  _globals['_FINALMODEL_FEDERATEDENTRY']._serialized_end=854
+  _globals['_NEWFINALMODELS']._serialized_start=856
+  _globals['_NEWFINALMODELS']._serialized_end=920
+  _globals['_FINALMODELACKNOWLEDGEMENT']._serialized_start=922
+  _globals['_FINALMODELACKNOWLEDGEMENT']._serialized_end=966
+  _globals['_LABORATORY']._serialized_start=1133
+  _globals['_LABORATORY']._serialized_end=1361
+  _globals['_FINALMODELS']._serialized_start=1364
+  _globals['_FINALMODELS']._serialized_end=1545
 # @@protoc_insertion_point(module_scope)

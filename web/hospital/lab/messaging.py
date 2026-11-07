@@ -52,7 +52,7 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
                         RegisteredSex,
                     )
                 ),
-                "age": request.age,
+                "age": request.age if request.HasField("age") else None,
                 "ordered_at": moment(request.ordered_at)
                 if request.HasField("ordered_at")
                 else None,
@@ -74,7 +74,7 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
         return messages_pb2.LabReports(
             reports=[
                 messages_pb2.LabReport(
-                    report_id=str(test_request.pk),
+                    report_id=test_request.pk,
                     sample_id=test_request.sample.sample_id,
                     test=to_proto(Test(test_request.test), messages_pb2.Test),
                     results=test_request.results or {},
@@ -92,7 +92,7 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
     ) -> Empty:
         TestRequest.objects.acknowledge(
             practice=practice_of(context),
-            report_ids=[int(report_id) for report_id in request.report_ids],
+            report_ids=list(request.report_ids),
             now=timezone.now(),
         )
         return Empty()

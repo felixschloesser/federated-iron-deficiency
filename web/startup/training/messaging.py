@@ -51,7 +51,7 @@ class FinalModelsService(messages_pb2_grpc.FinalModelsServicer):
     ) -> Empty:
         Release.objects.acknowledge(
             recipient=recipient_of(context),
-            run_ids=list(request.run_ids),
+            run_ids=[str(run_id) for run_id in request.run_ids],
             now=timezone.now(),
         )
         return Empty()

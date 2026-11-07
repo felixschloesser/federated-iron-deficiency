@@ -22,7 +22,7 @@ def named(context: grpc.ServicerContext) -> str | None:
 @dataclass
 class FakeStartup(messages_pb2_grpc.FinalModelsServicer):
     offered: list[messages_pb2.FinalModel] = field(default_factory=list)
-    acknowledged: list[str] = field(default_factory=list)
+    acknowledged: list[int] = field(default_factory=list)
     # The slug each fetch named its party by, in order.
     callers: list[str | None] = field(default_factory=list)
 
