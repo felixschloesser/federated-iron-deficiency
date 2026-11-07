@@ -14,6 +14,12 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
 
+from practice import messaging
+from practice.models import Laboratory, LabReport, Order, Patient
+from shared.accounts.models import User
+from shared.messaging import messages_pb2
+from shared.vocabulary import ClinicalIndication, RegisteredSex
+from shared.vocabulary import Test as OrderedTest
 from tests.conftest import World
 from tests.practice.conftest import (
     Running,
@@ -23,12 +29,6 @@ from tests.practice.conftest import (
     suggest_ferritin_on,
 )
 from tests.practice.fake_laboratory import FakeLaboratory
-from web.accounts.models import User
-from web.messaging import messages_pb2
-from web.practice import messaging
-from web.practice.models import Laboratory, LabReport, Order, Patient
-from web.vocabulary import ClinicalIndication, RegisteredSex
-from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 30, 10, 0, tzinfo=UTC)
 # The stand-in serves from its own threads; the app's database stays in the test.

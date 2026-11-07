@@ -4,8 +4,8 @@ import pytest
 from django.core.management import call_command
 from pytest_django.fixtures import Settings
 
-from web.accounts.models import User
-from web.accounts.roles import Role, role_of
+from shared.accounts.models import User
+from shared.accounts.roles import Role, role_of
 
 pytestmark = pytest.mark.django_db
 

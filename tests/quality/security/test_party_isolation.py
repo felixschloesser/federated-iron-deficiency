@@ -1,9 +1,9 @@
 """Each party's software and data stay inside its trust boundary.
 
 Quality attribute: isolation of the parties. A web app is the one party its
-settings module names (web.settings.hospital, .practice or .startup) and reads
+settings module names (hospital.settings, .practice or .startup) and reads
 only its folder, DATA_DIR; it installs, migrates and serves only its own
-party's apps. Code under web/
+party's apps. Code under shared/
 imports from the training package only ml.cohort and ml.dataset; the
 hospital's also ml.final_model, ml.inference and ml.training_cohort, to write
 the training cohort its laboratory director provides, the startup's also
@@ -51,7 +51,7 @@ def settings_of(party: str, env: dict[str, str]) -> subprocess.CompletedProcess[
         [sys.executable, "-c", code],
         check=False,
         cwd=ROOT,
-        env={**BASE_ENV, "DJANGO_SETTINGS_MODULE": f"web.settings.{party}", **env},
+        env={**BASE_ENV, "DJANGO_SETTINGS_MODULE": f"{party}.settings", **env},
         capture_output=True,
         text=True,
     )
@@ -62,9 +62,11 @@ PARTIES = ["hospital", "practice", "startup"]
 
 @pytest.mark.parametrize("party", PARTIES)
 def test_a_partys_database_lives_in_its_folder(tmp_path: Path, party: str) -> None:
-    """Pass: the party's database is DATA_DIR's web.sqlite3."""
+    """Pass: the party's database is DATA_DIR's shared.sqlite3."""
     result = settings_of(party, {"DATA_DIR": str(tmp_path)})
-    assert result.stdout.splitlines()[0] == str(tmp_path / "web.sqlite3"), result.stderr
+    assert result.stdout.splitlines()[0] == str(tmp_path / "shared.sqlite3"), (
+        result.stderr
+    )
 
 
 def test_the_startup_keeps_its_final_models_in_its_folder(tmp_path: Path) -> None:
@@ -76,9 +78,9 @@ def test_the_startup_keeps_its_final_models_in_its_folder(tmp_path: Path) -> Non
 @pytest.mark.parametrize("party", PARTIES)
 def test_without_a_folder_a_party_keeps_its_data_in_the_checkouts(party: str) -> None:
     """A checkout without DATA_DIR (development, the tests) is still one party
-    with a folder of its own. Pass: its database is .data/<party>/web.sqlite3."""
+    with a folder of its own. Pass: its database is .data/<party>/shared.sqlite3."""
     result = settings_of(party, {})
-    expected = ROOT / ".data" / party / "web.sqlite3"
+    expected = ROOT / ".data" / party / "shared.sqlite3"
     assert result.stdout.splitlines()[0] == str(expected), result.stderr
 
 
@@ -94,7 +96,7 @@ def run_manage(party: str, env: dict[str, str], *args: str) -> None:
         cwd=ROOT,
         env={
             **BASE_ENV,
-            "DJANGO_SETTINGS_MODULE": f"web.settings.{party}",
+            "DJANGO_SETTINGS_MODULE": f"{party}.settings",
             "DJANGO_DEBUG": "1",
             **env,
         },
@@ -105,7 +107,7 @@ def run_manage(party: str, env: dict[str, str], *args: str) -> None:
 def tables_after_migrating(party: str, folder: Path) -> set[str]:
     """The tables of a `party` web app's database in `folder`, once migrated."""
     run_manage(party, {"DATA_DIR": str(folder)}, "migrate", "-v0")
-    with closing(sqlite3.connect(folder / "web.sqlite3")) as database:
+    with closing(sqlite3.connect(folder / "shared.sqlite3")) as database:
         return {
             name
             for (name,) in database.execute(
@@ -144,8 +146,8 @@ def test_a_partys_database_holds_only_its_own_partys_tables(
 SMOKE = """
 from django.test import Client
 from django.urls import reverse
-from web.accounts.models import User
-from web.accounts.roles import Role, role_of
+from shared.accounts.models import User
+from shared.accounts.roles import Role, role_of
 
 for user in User.objects.order_by("username"):
     role = role_of(user)
@@ -155,7 +157,7 @@ for user in User.objects.order_by("username"):
     client.force_login(user)
     urls = [link["url"] for link in role.nav_links()]
     if role is Role.GENERAL_PRACTITIONER:
-        from web.practice.models import Patient
+        from practice.models import Patient
 
         patient = Patient.objects.first()
         urls.append(reverse("practice:patient", kwargs={"pk": patient.pk}))
@@ -191,7 +193,7 @@ def test_every_page_of_a_party_loads_in_its_own_web_app(
         cwd=ROOT,
         env={
             **BASE_ENV,
-            "DJANGO_SETTINGS_MODULE": f"web.settings.{party}",
+            "DJANGO_SETTINGS_MODULE": f"{party}.settings",
             "DJANGO_ALLOWED_HOSTS": "testserver",
             **env,
         },
@@ -217,7 +219,7 @@ def setting(party: str, name: str, env: dict[str, str]) -> str:
         [sys.executable, "-c", code],
         check=True,
         cwd=ROOT,
-        env={**BASE_ENV, "DJANGO_SETTINGS_MODULE": f"web.settings.{party}", **env},
+        env={**BASE_ENV, "DJANGO_SETTINGS_MODULE": f"{party}.settings", **env},
         capture_output=True,
         text=True,
     ).stdout.strip()

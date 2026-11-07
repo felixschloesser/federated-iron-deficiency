@@ -15,7 +15,7 @@ def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool 
     settings = config.getoption("ds", default=None) or os.environ.get(
         "DJANGO_SETTINGS_MODULE", ""
     )
-    party = settings.removeprefix("web.settings.") if settings else None
+    party = settings.removesuffix(".settings") if settings else None
     if collection_path.parent == TESTS and collection_path.name in PARTIES:
         return collection_path.name != party
     if collection_path.parent == TESTS and party is not None:

@@ -1,0 +1,33 @@
+from django.urls import path, register_converter
+
+from practice import views
+from practice.converters import TestConverter
+
+register_converter(TestConverter, "test")
+
+app_name = "practice"
+urlpatterns = [
+    path("patients/", views.PatientIndexView.as_view(), name="patients"),
+    path("patients/<int:pk>/", views.PatientDetailView.as_view(), name="patient"),
+    path(
+        "patients/<int:patient>/collect-sample/",
+        views.CollectSampleView.as_view(),
+        name="collect_sample",
+    ),
+    path(
+        "patients/<int:patient>/samples/<int:sample>/orders/<test:test>/",
+        views.NewOrderView.as_view(),
+        name="order",
+    ),
+    path(
+        "patients/<int:patient>/check-for-reports/",
+        views.CheckForReportsView.as_view(),
+        name="patient_check_for_reports",
+    ),
+    path("orders/", views.OrderIndexView.as_view(), name="orders"),
+    path(
+        "orders/check-for-reports/",
+        views.CheckForReportsView.as_view(),
+        name="check_for_reports",
+    ),
+]

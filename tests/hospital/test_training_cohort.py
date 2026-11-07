@@ -11,6 +11,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.fixtures import Settings
 
 from ml.cohort import FEATURES
+from shared.vocabulary import RegisteredSex
 from tests.conftest import World
 from tests.hospital.conftest import (
     found_cohort,
@@ -18,7 +19,6 @@ from tests.hospital.conftest import (
     make_laboratory_director,
     make_laboratory_staff_member,
 )
-from web.vocabulary import RegisteredSex
 
 NOW = datetime(2026, 11, 6, 9, 0, tzinfo=UTC)
 pytestmark = pytest.mark.django_db
@@ -80,14 +80,14 @@ def more_records(count: int) -> None:
     )
 )
 def only_records(count: int, deficient: int) -> None:
-    from web.hospital.cohort.models import LabRecord
+    from hospital.cohort.models import LabRecord
 
     LabRecord.objects.all().delete()
     make_lab_records(count, iron_deficient=deficient)
 
 
 def provide(world: World, cohort_dir: Path) -> None:
-    from web.hospital.cohort.models import TrainingCohort
+    from hospital.cohort.models import TrainingCohort
 
     try:
         TrainingCohort.objects.provide(
@@ -99,7 +99,7 @@ def provide(world: World, cohort_dir: Path) -> None:
 
 @given("the laboratory director provided the training cohort")
 def provided(world: World, cohort_dir: Path) -> None:
-    from web.hospital.cohort.models import TrainingCohort
+    from hospital.cohort.models import TrainingCohort
 
     world["earlier"] = TrainingCohort.objects.provide(
         directory=cohort_dir, by=world["director"], now=NOW
@@ -113,7 +113,7 @@ def provides(world: World, cohort_dir: Path) -> None:
 
 @when("the laboratory director withdraws the training cohort")
 def withdraws(world: World, cohort_dir: Path) -> None:
-    from web.hospital.cohort.models import TrainingCohort
+    from hospital.cohort.models import TrainingCohort
 
     try:
         TrainingCohort.objects.withdraw(
@@ -139,7 +139,7 @@ def staff_tries(
 
 @then("no training cohort is provided")
 def none_provided(cohort_dir: Path) -> None:
-    from web.hospital.cohort.models import TrainingCohort
+    from hospital.cohort.models import TrainingCohort
 
     assert TrainingCohort.objects.provided() is None
     assert found_cohort(cohort_dir) is None
@@ -152,7 +152,7 @@ def none_provided(cohort_dir: Path) -> None:
     )
 )
 def summary(count: int, deficient: int) -> None:
-    from web.hospital.cohort.models import LabRecord
+    from hospital.cohort.models import LabRecord
 
     held = LabRecord.objects.summary()
     assert (held.past_patients, held.iron_deficient) == (count, deficient)
@@ -178,7 +178,7 @@ def finds_none(cohort_dir: Path) -> None:
 
 @then(parsers.parse('the training cohort is provided by "{name}", with its SHA-256'))
 def provided_by(cohort_dir: Path, name: str) -> None:
-    from web.hospital.cohort.models import TrainingCohort
+    from hospital.cohort.models import TrainingCohort
 
     cohort = TrainingCohort.objects.provided()
     assert cohort is not None
@@ -190,7 +190,7 @@ def provided_by(cohort_dir: Path, name: str) -> None:
 
 
 def assert_withdrawn_by(cohort_id: int, name: str) -> None:
-    from web.hospital.cohort.models import TrainingCohort
+    from hospital.cohort.models import TrainingCohort
 
     cohort = TrainingCohort.objects.get(pk=cohort_id)
     assert cohort.withdrawn_by is not None
@@ -200,7 +200,7 @@ def assert_withdrawn_by(cohort_id: int, name: str) -> None:
 
 @then(parsers.parse('the training cohort is recorded as withdrawn by "{name}"'))
 def withdrawn(world: World, name: str) -> None:
-    from web.hospital.cohort.models import TrainingCohort
+    from hospital.cohort.models import TrainingCohort
 
     assert TrainingCohort.objects.provided() is None
     assert_withdrawn_by(world["earlier"].pk, name)
@@ -208,7 +208,7 @@ def withdrawn(world: World, name: str) -> None:
 
 @then(parsers.parse('the earlier training cohort is recorded as withdrawn by "{name}"'))
 def earlier_withdrawn(world: World, name: str) -> None:
-    from web.hospital.cohort.models import TrainingCohort
+    from hospital.cohort.models import TrainingCohort
 
     assert_withdrawn_by(world["earlier"].pk, name)
     current = TrainingCohort.objects.provided()

@@ -73,7 +73,7 @@ def git(*args: str) -> str:
 # One run per party's settings, and one for the tests outside the party
 # folders: no run holds two parties (conftest.py).
 RUNS: list[list[str]] = [
-    *([f"--ds=web.settings.{party}"] for party in ("hospital", "practice", "startup")),
+    *([f"--ds={party}.settings"] for party in ("hospital", "practice", "startup")),
     [],
 ]
 

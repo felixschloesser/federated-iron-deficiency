@@ -8,10 +8,10 @@ from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 from django.db import IntegrityError, transaction
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
+from practice.models import Order
+from shared.vocabulary import ClinicalIndication, RegisteredSex
+from shared.vocabulary import Test as OrderedTest
 from tests.conftest import World
-from web.practice.models import Order
-from web.vocabulary import ClinicalIndication, RegisteredSex
-from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 29, 9, 0, tzinfo=UTC)
 TESTS = {"a CBC": OrderedTest.CBC, "ferritin": OrderedTest.FERRITIN}
@@ -28,8 +28,8 @@ def test_a_practice_has_one_general_practitioner() -> None:
 
 @when(parsers.parse('general practitioner "{name}" is added to the practice'))
 def add_general_practitioner(world: World, name: str) -> None:
-    from web.accounts.models import User
-    from web.accounts.roles import Role
+    from shared.accounts.models import User
+    from shared.accounts.roles import Role
 
     added = User(username=name, role=Role.GENERAL_PRACTITIONER)
     added.set_unusable_password()
@@ -137,7 +137,7 @@ def order_refused_on(world: World, code: str, field: str) -> None:
     )
 )
 def sample_has_lab_report(world: World, suggestion: str) -> None:
-    from web.practice.models import LabReport
+    from practice.models import LabReport
 
     sample = world["sample"]
     cbc = sample.place_order(
@@ -250,7 +250,7 @@ def numbered_sample(
 
 @given(parsers.parse('the practice works with laboratories "{first}" and "{second}"'))
 def laboratories(first: str, second: str) -> None:
-    from web.practice.models import Laboratory
+    from practice.models import Laboratory
 
     for name in (first, second):
         Laboratory.objects.create(name=name, address="127.0.0.1:1")
@@ -264,7 +264,7 @@ def laboratories(first: str, second: str) -> None:
 def collect_for(
     world: World, general_practitioner: str, patient: str, laboratory: str
 ) -> None:
-    from web.practice.models import Laboratory
+    from practice.models import Laboratory
 
     world["sample"] = world["patients"][patient].collect_sample(
         laboratory=Laboratory.objects.get(name=laboratory),
@@ -279,7 +279,7 @@ def sample_goes_to(world: World, laboratory: str) -> None:
 
 @when(parsers.parse('"{laboratory}" is made the primary laboratory'))
 def make_primary(laboratory: str) -> None:
-    from web.practice.models import Laboratory
+    from practice.models import Laboratory
 
     Laboratory.objects.add(
         name=laboratory,
@@ -290,7 +290,7 @@ def make_primary(laboratory: str) -> None:
 
 @then(parsers.parse('"{primary}" is the primary laboratory and "{other}" is not'))
 def is_primary(primary: str, other: str) -> None:
-    from web.practice.models import Laboratory
+    from practice.models import Laboratory
 
     laboratory = Laboratory.objects.primary()
     assert laboratory is not None
@@ -300,7 +300,7 @@ def is_primary(primary: str, other: str) -> None:
 
 @when("both are written straight to the database as primary")
 def both_primary(world: World) -> None:
-    from web.practice.models import Laboratory
+    from practice.models import Laboratory
 
     try:
         with transaction.atomic():

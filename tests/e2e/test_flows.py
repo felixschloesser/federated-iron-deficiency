@@ -89,8 +89,8 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
     compose: Compose, hospital_app: str, proxy: None, tmp_path: Path
 ) -> None:
     build(compose, "practice-web")
+    from shared.seeding.accounts import PASSWORD
     from tests.conftest import nhanes_rows
-    from web.seeding.accounts import PASSWORD
 
     # The same participants at both parties, from a small NHANES file, so no
     # download: what prepare does for the demo, for one hospital and its practice.
@@ -108,7 +108,7 @@ def test_a_cbc_goes_from_the_practice_to_the_laboratory_and_back(
     # As prepare does: the practice's own image serves it, without the seeding.
     as_practice = [
         *seeding,
-        *("-e", "DJANGO_SETTINGS_MODULE=web.settings.practice"),
+        *("-e", "DJANGO_SETTINGS_MODULE=practice.settings"),
         *("-e", f"DATA_DIR=/demo/practices/{APP_PRACTICE}"),
     ]
     compose(*as_practice, "prepare", *manage, "migrate", "-v0")

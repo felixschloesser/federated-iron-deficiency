@@ -150,7 +150,7 @@ screening comes back to the practice.
   removes this demo's networks that no container uses; the next `up` creates
   the ones it needs again.
 - To look into a party's database while the demo runs:
-  `docker compose exec uz-leuven-web python -m sqlite3 /demo/hospitals/uz-leuven/web.sqlite3`.
+  `docker compose exec uz-leuven-web python -m sqlite3 /demo/hospitals/uz-leuven/shared.sqlite3`.
 
 The demo's output folder was `demo/` until 2026-11-05; `demo/` now holds the
 demo's source. Move what you have once:
@@ -175,9 +175,9 @@ models. Without Docker, run each party as its own web app, each on a port of its
 own; its data goes to `.data/<party>/` in the checkout:
 
     export DJANGO_DEBUG=1
-    DJANGO_SETTINGS_MODULE=web.settings.hospital uv run python manage.py migrate
-    DJANGO_SETTINGS_MODULE=web.settings.hospital uv run python manage.py seed_hospital
-    DJANGO_SETTINGS_MODULE=web.settings.hospital uv run python manage.py runserver 8001
-    DJANGO_SETTINGS_MODULE=web.settings.practice uv run python manage.py migrate
-    DJANGO_SETTINGS_MODULE=web.settings.practice uv run python manage.py seed_practice
-    DJANGO_SETTINGS_MODULE=web.settings.practice uv run python manage.py runserver 8002
+    DJANGO_SETTINGS_MODULE=hospital.settings uv run python manage.py migrate
+    DJANGO_SETTINGS_MODULE=hospital.settings uv run python manage.py seed_hospital
+    DJANGO_SETTINGS_MODULE=hospital.settings uv run python manage.py runserver 8001
+    DJANGO_SETTINGS_MODULE=practice.settings uv run python manage.py migrate
+    DJANGO_SETTINGS_MODULE=practice.settings uv run python manage.py seed_practice
+    DJANGO_SETTINGS_MODULE=practice.settings uv run python manage.py runserver 8002

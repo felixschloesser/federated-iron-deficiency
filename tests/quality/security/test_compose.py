@@ -114,7 +114,7 @@ def test_every_web_app_names_its_party_and_its_folder() -> None:
     }
     assert web_apps
     for name, environment in web_apps.items():
-        assert environment["DJANGO_SETTINGS_MODULE"].startswith("web.settings."), name
+        assert environment["DJANGO_SETTINGS_MODULE"].endswith(".settings"), name
         assert environment.get("DATA_DIR", "").startswith("/demo/"), name
 
 
@@ -201,7 +201,7 @@ def test_the_startups_web_app_reads_the_final_models_and_not_the_superlinks_stat
         "startup/final-models",
         True,
     )
-    assert spec["environment"]["DJANGO_SETTINGS_MODULE"] == "web.settings.startup"
+    assert spec["environment"]["DJANGO_SETTINGS_MODULE"] == "startup.settings"
     assert spec["environment"]["DATA_DIR"] == "/demo/startup"
 
 
@@ -276,7 +276,7 @@ def test_the_hospital_serves_its_pages_and_its_messaging_each_on_one_network_onl
 
 
 def test_each_web_app_knows_its_party_name_and_colour() -> None:
-    vendor = ROOT / "web/static/css/vendor/pico-2.1.1"
+    vendor = ROOT / "shared/static/css/vendor/pico-2.1.1"
     for cycle, (hospital_colour, practice_colour) in COLOURS.items():
         hospital = service(f"{hospital_slug(HOSPITALS[cycle])}-web")["environment"]
         assert hospital["PARTY_NAME"] == HOSPITALS[cycle]
@@ -454,7 +454,7 @@ def test_no_running_service_has_debug_on() -> None:
 def test_the_startups_web_server_outwaits_a_submission() -> None:
     # A request that outlives gunicorn's worker timeout ends without the page
     # saying why; the submission gives up first.
-    from web.startup.training.runs import SUBMIT_TIMEOUT_SECONDS
+    from startup.training.runs import SUBMIT_TIMEOUT_SECONDS
 
     command = service("startup-web")["command"]
     timeouts = [

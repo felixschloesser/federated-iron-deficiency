@@ -6,11 +6,11 @@ import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from ml.cohort import CBC_VARS
+from practice.models import LabReport, Order, Patient
+from shared.vocabulary import ClinicalIndication
+from shared.vocabulary import Test as OrderedTest
 from tests.conftest import World
 from tests.practice.conftest import collect_and_order
-from web.practice.models import LabReport, Order, Patient
-from web.vocabulary import ClinicalIndication
-from web.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 30, 12, 0, tzinfo=UTC)
 # A distinct value per CBC variable, so a value under the wrong name shows.
@@ -164,7 +164,7 @@ def ferritin_not_offered(world: World) -> None:
 
 
 def test_every_cbc_value_and_ferritin_has_a_name_in_cbc_order() -> None:
-    from web.vocabulary import RESULT_NAMES
+    from shared.vocabulary import RESULT_NAMES
 
     assert list(RESULT_NAMES) == [*CBC_VARS, "LBXFER", "MADE_UP_LBXFER"]
 
@@ -173,6 +173,6 @@ def test_every_cbc_value_and_ferritin_has_a_name_in_cbc_order() -> None:
     ("value", "shown"), [(7.0, "7"), (4.16, "4.16"), (10.7, "10.7"), (363.0, "363")]
 )
 def test_a_value_shows_as_measured(value: float, shown: str) -> None:
-    from web.practice.models import ResultValue
+    from practice.models import ResultValue
 
     assert ResultValue("LBXHGB", "Hemoglobin", "g/dL", value).shown == shown

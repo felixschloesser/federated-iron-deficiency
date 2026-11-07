@@ -44,6 +44,16 @@ rejected = [
     "laboratory worker",
 ]
 
+["analyser"]
+source = "Report, P9 \"Analyse samples\": \"laboratory staff run the analyser\"; DF36 \"Results: the analyser's values for each test request\""
+why = "The instrument that measures a sample for a test; an external system to the laboratory, simulated in the demo from NHANES participants (hospital/analyser/). The laboratory knows it only through measure() in hospital/analyser/port.py; inside the simulator, NHANES's own words (participant, SEQN) are right"
+rejected = [
+    "nhanes (the demo data's origin, not what the app is)",
+    "instrument (WHO LQMS's general word; the report says analyser)",
+    "stand-in (says how it is built, not what it is)",
+    "tube (the glossary's rejected word for the container)",
+]
+
 ["patient"]
 source = "Report, Use case"
 why = "The report's word"
@@ -309,7 +319,7 @@ rejected = ["cutoff (reserved for ferritin's 15 ng/mL)"]
 
 ["messaging"]
 source = "Report, P8 \"Messaging endpoint\""
-why = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (web/messaging/, serve_messages)"
+why = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (shared/messaging/, serve_messages)"
 rejected = ["API", "integration"]
 
 ["lab report"]

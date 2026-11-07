@@ -6,7 +6,10 @@
 !LICENSE
 !manage.py
 !ml/
-!web/
+!shared/
+!hospital/
+!practice/
+!startup/
 # The demo's code and topology only: never a stray download or CA under demo/.
 !demo/*.py
 !demo/demo.toml

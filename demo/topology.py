@@ -197,12 +197,12 @@ MIDDLE = """\
   # proxy, which so never reaches the SuperLink.
   startup-web:
     <<: *web
-    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    command: [gunicorn, shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      DJANGO_SETTINGS_MODULE: web.settings.startup
+      DJANGO_SETTINGS_MODULE: startup.settings
       DATA_DIR: /demo/startup
       FLWR_HOME: /demo/startup/flwr-home
     volumes:
@@ -248,7 +248,7 @@ HOSPITAL = """\
       - -c
       - |
         trap 'kill $$(jobs -p)' TERM INT
-        gunicorn web.wsgi --bind={slug}-pages:8000 --workers=2 --access-logfile=- &
+        gunicorn shared.wsgi --bind={slug}-pages:8000 --workers=2 --access-logfile=- &
         python manage.py serve_messages {slug}-messaging:8441 &
         wait -n
         exit 1
@@ -259,7 +259,7 @@ HOSPITAL = """\
       <<: *health
       test: [CMD, python, -c, "import socket, urllib.request; urllib.request.urlopen(urllib.request.Request('http://{slug}-pages:8000/login/', headers={'Host': 'localhost'}), timeout=5); socket.create_connection(('{slug}-messaging', 8441)).close()"]
     environment:
-      DJANGO_SETTINGS_MODULE: web.settings.hospital
+      DJANGO_SETTINGS_MODULE: hospital.settings
       DATA_DIR: /demo/hospitals/{slug}
       PARTY_NAME: {name}
       PARTY_COLOUR: {colour}
@@ -283,12 +283,12 @@ PRACTICE_INTRO = """\
 PRACTICE = """\
   {slug}-web:
     <<: *practice-web
-{build}    command: [gunicorn, web.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+{build}    command: [gunicorn, shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
     environment:
-      DJANGO_SETTINGS_MODULE: web.settings.practice
+      DJANGO_SETTINGS_MODULE: practice.settings
       DATA_DIR: /demo/practices/{slug}
       PARTY_NAME: {name}
       PRACTICE_CERTIFICATE_NAME: {slug}
