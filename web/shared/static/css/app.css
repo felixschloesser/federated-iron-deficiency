@@ -226,6 +226,16 @@ article dl dd {
   article dl dd + dt {
     margin-top: calc(var(--pico-spacing) / 2);
   }
+
+  /* Stacked, a term would read as one more value. */
+  article dl dt {
+    font-weight: 600;
+  }
+}
+
+/* A card's heading may hold a 20-digit run ID: it wraps, not widens the page. */
+.card-header h2 {
+  overflow-wrap: anywhere;
 }
 
 /* A link that looks like a button: it leads somewhere, so it stays a link
