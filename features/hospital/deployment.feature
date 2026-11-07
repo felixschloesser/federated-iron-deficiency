@@ -58,6 +58,17 @@ Feature: Deploying a screening model
     Then the screening models show "1", deployed, at threshold 0.5 with sensitivity 7 of 10, specificity 37 of 42, positive predictive value 7 of 12, negative predictive value 37 of 40, AUROC 0.84
     And they show "2", at threshold 0.5 with sensitivity 8 of 10, specificity 36 of 42, positive predictive value 8 of 14, negative predictive value 36 of 38, AUROC 0.86
 
+  Scenario Outline: Each measure of local validation carries its 95% confidence interval
+    Given a measure of <part> of <whole>
+    Then it reads <percent>, with a 95% confidence interval of <interval>
+
+    Examples:
+      | part | whole | percent | interval |
+      | 7    | 10    | 70%     | 40–89%   |
+      | 0    | 10    | 0%      | 0–28%    |
+      | 10   | 10    | 100%    | 72–100%  |
+      | 0    | 0     | none    | none     |
+
   Scenario Outline: A screening model that cannot be deployed says why
     Given screening model "3" that <problem>
     Then screening model "3" cannot be deployed, with reason code "<code>"
