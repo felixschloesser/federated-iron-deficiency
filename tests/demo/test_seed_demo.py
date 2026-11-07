@@ -1,6 +1,6 @@
 """Each party seeds the same NHANES participants for the same seed: the practice
-its patients, the hospital what their tubes would measure (seed_practice,
-seed_hospital). Each seeds its own folder in a process of its own, as the demo
+its patients, the hospital what their tubes would measure (python -m demo.seed practice,
+hospital). Each seeds its own folder in a process of its own, as the demo
 does; what each party seeds alone is in tests/<party>/test_seeding.py."""
 
 import os
@@ -29,15 +29,17 @@ def seed(party: str, folder: Path, nhanes: Path, seed_value: str) -> None:
     manage = [sys.executable, str(ROOT / "manage.py")]
     subprocess.run([*manage, "migrate", "-v0"], env=env, check=True)
     subprocess.run(
-        [*manage, f"seed_{party}", "--nhanes", str(nhanes), "--seed", seed_value],
+        [sys.executable, "-m", "demo.seed", party, "--nhanes", str(nhanes)]
+        + ["--seed", seed_value],
         env=env,
         check=True,
+        cwd=ROOT,
         capture_output=True,
     )
 
 
 def column(folder: Path, query: str) -> set[str]:
-    with closing(sqlite3.connect(folder / "shared.sqlite3")) as database:
+    with closing(sqlite3.connect(folder / "web.sqlite3")) as database:
         return {str(value) for (value,) in database.execute(query)}
 
 
