@@ -1,5 +1,5 @@
 """Seed the hospital's lab records (DS1) from a CSV prepare wrote
-(ml.dataset.load_lab_records), once; with --provide, the laboratory director
+(ml.dataset.participants), once; with --provide, the laboratory director
 then provides the training cohort, as on the Training cohort page."""
 
 from pathlib import Path

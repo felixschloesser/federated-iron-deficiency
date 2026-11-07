@@ -1,5 +1,7 @@
-"""Who the cohort holds and what the model reads: names only, no third-party
-imports, so a web app can use them without the training data libraries."""
+"""Who the cohort holds and what the model reads: the kernel the training code
+and the hospital share. Names only, no third-party imports, so a web app can use
+them without the training data libraries. A change here changes both: the
+hospital's scenarios and the training code's."""
 
 from typing import TYPE_CHECKING
 

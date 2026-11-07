@@ -2,20 +2,13 @@
 file per training run, which recipient hospitals fetch once it is released."""
 
 from collections.abc import Mapping, Sized
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 import torch
 from torch import nn
 
-from ml.dataset import CYCLES, HOSPITALS, hospital_slug
-from ml.final_model import (
-    FinalModel,
-    final_model_path,
-    final_model_paths,
-    read,
-    write,
-)
+from ml.final_model import FinalModel, final_model_path, write
 from ml.validation import Loader
 
 
@@ -25,21 +18,15 @@ def train(
     epochs: int = 1,
     lr: float = 1e-3,
     weight_decay: float = 1e-4,
-    device: torch.device | None = None,
-    optimiser: torch.optim.Optimizer | None = None,
 ) -> float:
     """Train for ``epochs`` epochs and return sample-weighted mean BCE loss."""
-    device = device or torch.device("cpu")
-    net.to(device).train()
+    net.train()
     criterion = nn.BCEWithLogitsLoss()
-    optimiser = optimiser or torch.optim.Adam(
-        net.parameters(), lr=lr, weight_decay=weight_decay
-    )
+    optimiser = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
     total, num_examples = 0.0, 0
 
     for _ in range(epochs):
         for features, labels in trainloader:
-            features, labels = features.to(device), labels.to(device)
             optimiser.zero_grad()
             loss = criterion(net(features), labels)
             loss.backward()
@@ -71,12 +58,6 @@ TRAINING_PARAMETERS = (
 
 # Where final models live when no demo directory is configured.
 DEFAULT_DEMO_DIR = Path.home() / ".cache" / "iron-deficiency"
-
-
-def hospital_screening_models(demo_dir: Path, partition_id: int) -> Path:
-    """The screening-models folder of the hospital that holds this partition."""
-    cycle = list(CYCLES)[partition_id]  # Partition IDs follow CYCLES order
-    return demo_dir / "hospitals" / hospital_slug(HOSPITALS[cycle]) / "screening-models"
 
 
 def startup_final_models(demo_dir: Path) -> Path:
@@ -116,11 +97,3 @@ def keep_final_model(
         ),
     )
     return path
-
-
-def latest_final_model(directory: Path) -> Path:
-    """The final model stored last in a folder."""
-    unknown = datetime.min.replace(tzinfo=UTC)
-    return max(
-        final_model_paths(directory), key=lambda path: read(path).stored_at or unknown
-    )

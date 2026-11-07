@@ -1,5 +1,7 @@
-"""Screening models as files in the hospital's folder: what the laboratory
-director sees of each, and why one cannot be deployed (features/hospital/deployment.feature)."""
+"""Screening models as files in the hospital's folder: storing a fetched final
+model with this hospital's standardization and local validation
+(features/hospital/final_models.feature), what the laboratory director sees of
+each, and why one cannot be deployed (features/hospital/deployment.feature)."""
 
 import hashlib
 from dataclasses import dataclass, field
@@ -7,10 +9,26 @@ from datetime import datetime
 from pathlib import Path
 from typing import assert_never
 
+import pandas as pd
+import torch
 from django.db import models
 from django.utils import formats, timezone
 
-from ml.final_model import Problem, final_model_paths, from_bytes
+from ml.final_model import (
+    FinalModel,
+    Problem,
+    final_model_path,
+    final_model_paths,
+    from_bytes,
+    read,
+    standardization_tensor,
+    write,
+)
+from ml.validation import auroc, confusion_matrices, standardization
+
+# The thresholds a laboratory director chooses from: local validation counts
+# at every one.
+THRESHOLDS = tuple(step / 20 for step in range(1, 20))
 
 
 def model_name(stored_at: datetime | None, run_id: str) -> str:
@@ -148,3 +166,68 @@ def screening_models(directory: Path | None) -> list[ScreeningModelFile]:
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def store_screening_model(
+    directory: Path,
+    *,
+    run_id: int,
+    state_dict: dict[str, torch.Tensor],
+    cohort: pd.DataFrame,
+    federated: dict[str, float],
+    stored_at: datetime,
+) -> Path:
+    """Store a fetched final model as a screening model, with this hospital's
+    standardization and its local validation on the training cohort. `federated`
+    is what the ServerApp aggregated; no other hospital's metrics reach the
+    file. One is never overwritten."""
+    path = final_model_path(directory, run_id)
+    if path.exists():
+        raise FileExistsError(path)
+    mean, std = standardization(cohort)
+    write(
+        path,
+        FinalModel(
+            state_dict=state_dict,
+            mean=standardization_tensor(mean),
+            std=standardization_tensor(std),
+            run_id=run_id,
+            stored_at=stored_at,
+            federated=federated,
+            confusion_matrices=confusion_matrices(state_dict, cohort, THRESHOLDS),
+            local_auroc=auroc(state_dict, cohort),
+        ),
+    )
+    return path
+
+
+def store_fetched(
+    directory: Path,
+    *,
+    run_id: int,
+    state_dict: dict[str, torch.Tensor],
+    cohort: pd.DataFrame,
+    federated: dict[str, float],
+    stored_at: datetime,
+) -> Path:
+    """Store a fetched final model; one fetched again is kept as it was. Other
+    weights under a stored run's ID are refused."""
+    path = final_model_path(directory, run_id)
+    if path.exists():
+        stored = read(path).state_dict
+        same = (
+            stored is not None
+            and stored.keys() == state_dict.keys()
+            and all(torch.equal(stored[name], state_dict[name]) for name in state_dict)
+        )
+        if not same:
+            raise FileExistsError(f"{path} holds other weights.")
+        return path
+    return store_screening_model(
+        directory,
+        run_id=run_id,
+        state_dict=state_dict,
+        cohort=cohort,
+        federated=federated,
+        stored_at=stored_at,
+    )

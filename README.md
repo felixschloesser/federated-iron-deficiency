@@ -11,8 +11,8 @@ small hospital. Each holds a different
 and 2017–2018, keeping fixed 50% and 25% samples for the medium and small
 hospitals. Each client trains on its own locally standardized data.
 
-After training, the ServerApp deploys the final model to every hospital, and
-each hospital screens new blood counts locally with `ml.inference`.
+After training, the startup keeps the final model. Once its data scientist
+releases it, each hospital fetches it and screens new blood counts with it.
 
 ## Changes from `@javier/iron-deficiency`
 
@@ -45,14 +45,15 @@ and three Belgian hospitals.
   as a new file named after the training run ID in its screening-models
   folder, with its own standardization and a local validation on
   its validation split: the confusion matrix at each threshold from 0.05 to
-  0.95 in steps of 0.05, and AUROC (`ml/training.py`). A
+  0.95 in steps of 0.05, and AUROC (`hospital/deployment/model_files.py`). A
   hospital decides itself which final model to deploy, and at which threshold. The startup keeps a copy of every final
   model in `<demo-dir>/startup/final-models/`, so the assessment can cover how
   the model is used, not only how it is trained.
-- **Local screening** (`ml/inference.py`). Only registered women
-  aged 18–49 are scored, as the model was trained on them alone. Only each
-  sample ID and its decision leave the screening, with no scores or other input
-  columns.
+- **Screening at the hospital.** `ml/inference.py` gives a CBC's probability
+  of iron deficiency; the hospital compares it with the threshold its
+  laboratory director deployed the model at. Only registered women aged 18–49
+  are scored, as the model was trained on them alone. The lab report carries
+  only whether ferritin is suggested, never the score.
 - **Seeded training.** The initial weights and dropout are seeded, so repeated
   runs give the same flags.
 - **Tests** for the screening, run with `pytest`.
@@ -66,29 +67,27 @@ then add the registered SuperNode to the deployment federation of interest. See
 and
 [Connect SuperNodes to SuperGrid](https://flower.ai/docs/framework/how-to-connect-supernodes-to-supergrid.html).
 
-Each SuperNode loads one survey cycle from its own disk. To generate demo
-partitions, download the cohorts and save one partition per cycle
-(`demo_data/2005-2006`, `demo_data/2015-2016`, ...), plus new blood counts to
-screen (`demo_data/new_samples.csv`, from the unused 2021–2023 cycle):
+Each SuperNode reads the training cohort in its `data-path`, as a hospital's
+web app writes it when its laboratory director provides one. To write one per
+cycle from NHANES instead (`demo_data/2005-2006`, `demo_data/2015-2016`, ...):
 
 ```shell
 python -m ml.dataset --out-dir demo_data
 ```
 
-Then pass each SuperNode the path to its partition, and where to store the
-deployed model, through its node configuration. For example:
+Then pass each SuperNode its folder through its node configuration. For
+example:
 
 ```shell
 flower-supernode \
   --superlink fleet-supergrid.flower.ai:443 \
   --auth-supernode-private-key ~/path/to/supernode/private/key \
-  --node-config "data-path='/path/to/demo_data/2005-2006' final-models-path='/path/to/final-models'" \
+  --node-config "data-path='/path/to/demo_data/2005-2006'" \
   --allow-runtime-dependency-installation # optional
 ```
 
 Launch the other two SuperNodes in the same way, pointing `data-path` to the
-`2015-2016` and `2017-2018` partitions and `final-models-path` to their own
-folders.
+`2015-2016` and `2017-2018` folders.
 
 Once the three SuperNodes are online and part of the federation, follow
 [Run Flower Apps on SuperGrid](https://flower.ai/docs/framework/how-to-run-flower-apps-on-supergrid.html)
@@ -112,12 +111,9 @@ flwr federation simulation-config @<username>/<federation-name> supergrid --num-
 flwr run . supergrid --federation @<username>/<federation-name>
 ```
 
-On SuperGrid, the final models stay with the virtual SuperNodes. To screen
-with them, run the simulation on your machine instead. Each virtual SuperNode
-then stores its final model in `<demo-dir>/hospitals/<hospital>/screening-models/`,
-where the hospitals are `uz-leuven`, `heilig-hart-leuven` and `az-diest`
-(partitions 0, 1 and 2). `demo-dir` must be absolute; it defaults to
-`~/.cache/iron-deficiency`:
+To keep the final models, run the simulation on your machine instead. The
+ServerApp keeps each in `<demo-dir>/startup/final-models/<run-id>.pt`;
+`demo-dir` must be absolute and defaults to `~/.cache/iron-deficiency`:
 
 ```shell
 flwr run . --federation-config "num-supernodes=3" --run-config "demo-dir='$PWD/.demo'" --stream
@@ -135,22 +131,8 @@ The whole scenario in containers, one network per trust boundary: see
 
 ## Screen new blood counts
 
-Each hospital screens a lab export of new blood counts with its deployed model.
-The export is a CSV with `sample_id`, registered `sex`, `age`, and the 13
-blood-count variables; other columns are ignored. Only women aged 18–49 are
-screened, as the model was trained on them alone:
-
-```shell
-python -m ml.inference \
-  --model ~/.cache/iron-deficiency/hospitals/az-diest/screening-models/<run-id>.pt \
-  --input demo_data/new_samples.csv \
-  --threshold 0.5 \
-  --output screening-results.csv
-```
-
-The output holds only each `sample_id` and its screening result: `ferritin
-suggested`, `ferritin not suggested`, or `not screened`. The threshold is the one the hospital deploys the model
-at; a training run sets none.
+Hospitals fetch released final models and screen with them in their own web
+app: see `demo/README.md`.
 
 ## Tests
 

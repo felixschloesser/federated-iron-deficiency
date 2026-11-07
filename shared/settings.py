@@ -26,7 +26,7 @@ DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 ROLES: list[Role] = []
 # The party's own folder (data_dir()).
 DATA_DIR: Path | None = None
-# The hospital's screening models (features/final_models.feature).
+# The hospital's screening models (features/hospital/final_models.feature).
 SCREENING_MODELS_DIR: Path | None = None
 # The startup's copy of every final model (features/startup/training.feature).
 FINAL_MODELS_DIR: Path | None = None
