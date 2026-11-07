@@ -164,7 +164,7 @@ def receives(world: World, run_id: str, auroc: float) -> None:
     from ml.final_model import Net, from_bytes
 
     (model,) = world["fetched"].final_models
-    assert model.run_id == run_id
+    assert model.run_id == int(run_id)
     state_dict = from_bytes(model.weights).state_dict
     assert state_dict is not None
     assert state_dict.keys() == Net().state_dict().keys()
