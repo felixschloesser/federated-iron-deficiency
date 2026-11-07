@@ -301,7 +301,7 @@ def hospital_fetches(compose: Compose, journey: dict[str, Any]) -> None:
     " validation"
 )
 def stored(compose: Compose, journey: dict[str, Any]) -> None:
-    assert journey["fetched"] == [journey["training"]]
+    assert journey["fetched"] == [int(journey["training"])]
     held = stored_at(compose, APP_HOSPITAL)
     assert list(held) == [f"{journey['training']}.pt"], held
     path = f"/data/screening-models/{journey['training']}.pt"

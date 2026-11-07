@@ -1,11 +1,10 @@
 """The startup's final-models endpoint (P5): a recipient hospital fetches the
-released final models it has not stored yet, and acknowledges those it stored
+released final models it does not hold, saying which it holds
 (web/shared/messaging/messages.proto, features/startup/release.feature)."""
 
 import grpc
 from django.conf import settings
 from django.utils import timezone
-from google.protobuf.empty_pb2 import Empty
 
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
 from web.shared.messaging.endpoint import start, with_database
@@ -32,29 +31,26 @@ class FinalModelsService(messages_pb2_grpc.FinalModelsServicer):
 
     @with_database
     def FetchNewFinalModels(
-        self, request: Empty, context: grpc.ServicerContext
+        self, request: messages_pb2.NewFinalModelsRequest, context: grpc.ServicerContext
     ) -> messages_pb2.NewFinalModels:
         recipient = recipient_of(context)
-        offered = (
-            released_final_model(settings.FINAL_MODELS_DIR, release.final_model_run_id)
-            for release in Release.objects.new_for(recipient)
-        )
-        return messages_pb2.NewFinalModels(
-            final_models=[model for model in offered if model is not None]
-        )
-
-    @with_database
-    def AcknowledgeFinalModels(
-        self,
-        request: messages_pb2.FinalModelAcknowledgement,
-        context: grpc.ServicerContext,
-    ) -> Empty:
-        Release.objects.acknowledge(
-            recipient=recipient_of(context),
-            run_ids=[str(run_id) for run_id in request.run_ids],
+        held = [str(run_id) for run_id in request.held_run_ids]
+        offered = [
+            model
+            for release in Release.objects.not_held(held)
+            if (
+                model := released_final_model(
+                    settings.FINAL_MODELS_DIR, release.final_model_run_id
+                )
+            )
+            is not None
+        ]
+        Release.objects.record_fetched(
+            recipient=recipient,
+            run_ids=[str(model.run_id) for model in offered],
             now=timezone.now(),
         )
-        return Empty()
+        return messages_pb2.NewFinalModels(final_models=offered)
 
 
 def serve(address: str) -> tuple[grpc.Server, int]:

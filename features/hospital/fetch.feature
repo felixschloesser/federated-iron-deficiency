@@ -1,9 +1,9 @@
 Feature: A hospital fetches final models when its laboratory director asks
   A final model enters the hospital only when its laboratory director fetches
   new final models: the hospital's own web app asks the startup's
-  final-models endpoint as the hospital, by its name (DF33), validates
-  each final model on the hospital's test split (DF34), stores it under
-  its training run's ID (DF17) and acknowledges it. The startup's code at the
+  final-models endpoint as the hospital, by its name, saying which final models
+  it holds (DF33), validates each final model on the hospital's test split
+  (DF34) and stores it under its training run's ID (DF17). The startup's code at the
   hospital writes nothing there (tests/quality/security/test_compose.py).
   Each scenario's last step is its response measure, true or false.
 
@@ -17,7 +17,11 @@ Feature: A hospital fetches final models when its laboratory director asks
   Scenario: The laboratory director fetches new final models
     When the laboratory director fetches new final models
     Then the hospital holds "11.pt" with its local validation and the AUROC across hospitals
-    And the startup is told the hospital stored final model "11"
+
+  Scenario: The next fetch tells the startup which final models the hospital holds
+    Given the laboratory director fetched new final models
+    When the laboratory director fetches new final models
+    Then the startup is told the hospital holds final model "11"
 
   Scenario: A final model fetched again is never overwritten
     Given the laboratory director fetched new final models

@@ -52,10 +52,12 @@ class Recipient(models.Model):
 
 
 class ReleaseQuerySet(models.QuerySet["Release"]):
-    def new_for(self, recipient: Recipient) -> "ReleaseQuerySet":
-        """The released final models this recipient has not stored yet, oldest
-        release first."""
-        return self.exclude(fetches__recipient=recipient).order_by("released_at", "pk")
+    def not_held(self, held_run_ids: list[str]) -> "ReleaseQuerySet":
+        """The released final models a recipient does not hold, of the run IDs it
+        says it holds; oldest release first."""
+        return self.exclude(final_model_run_id__in=held_run_ids).order_by(
+            "released_at", "pk"
+        )
 
     def with_fetches(self) -> "ReleaseQuerySet":
         """Each release with the recipients that fetched it, for the final models page."""
@@ -73,10 +75,10 @@ class ReleaseQuerySet(models.QuerySet["Release"]):
         return release
 
     @transaction.atomic
-    def acknowledge(
+    def record_fetched(
         self, *, recipient: Recipient, run_ids: list[str], now: datetime
     ) -> None:
-        """`recipient` stored these released final models: offer them no more."""
+        """`recipient` was sent these released final models; the first time counts."""
         for release in self.filter(final_model_run_id__in=run_ids):
             Fetch.objects.get_or_create(
                 release=release, recipient=recipient, defaults={"fetched_at": now}
@@ -97,7 +99,7 @@ class Release(models.Model):
         return f"Final model {self.final_model_run_id}, released"
 
     def fetched_by(self) -> list[Recipient]:
-        """The recipient hospitals that stored it, by name."""
+        """The recipient hospitals that fetched it, by name."""
         return sorted(
             (fetch.recipient for fetch in self.fetches.all()),
             key=lambda each: each.name,
@@ -105,7 +107,8 @@ class Release(models.Model):
 
 
 class Fetch(models.Model):
-    """A recipient hospital stored a released final model: its acknowledgement."""
+    """A recipient hospital fetched a released final model: the startup sent it,
+    whether or not the hospital stored it."""
 
     release = models.ForeignKey(
         Release, on_delete=models.PROTECT, related_name="fetches"

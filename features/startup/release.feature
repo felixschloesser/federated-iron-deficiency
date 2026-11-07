@@ -24,11 +24,16 @@ Feature: The startup releases final models; recipient hospitals fetch them
     Then it receives final model "7" with its weights and AUROC across hospitals 0.81
     And it receives no run configuration
 
-  Scenario: A recipient hospital gets each released final model once
+  Scenario: A recipient hospital is not sent a final model it holds
     Given data scientist "Data One" released final model "7"
-    And "UZ Leuven" fetched new final models and acknowledged final model "7"
-    When "UZ Leuven" fetches new final models
+    When "UZ Leuven" fetches new final models, holding final model "7"
     Then it receives no final model
+
+  Scenario: A final model fetched but not held is sent again
+    Given data scientist "Data One" released final model "7"
+    And "UZ Leuven" fetched new final models
+    When "UZ Leuven" fetches new final models
+    Then it receives final model "7" with its weights and AUROC across hospitals 0.81
 
   Scenario: A hospital the startup does not know is refused
     Given data scientist "Data One" released final model "7"
@@ -52,6 +57,6 @@ Feature: The startup releases final models; recipient hospitals fetch them
 
   Scenario: The startup shows which hospitals fetched a final model
     Given data scientist "Data One" released final model "7"
-    And "UZ Leuven" fetched new final models and acknowledged final model "7"
+    And "UZ Leuven" fetched new final models
     When the data scientist opens the final models
     Then final model "7" shows "Fetched by UZ Leuven"
