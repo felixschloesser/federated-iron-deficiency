@@ -222,9 +222,11 @@ def _database(folder: Path, migrations: list[tuple[str, str]]) -> Path:
     import sqlite3
 
     path = folder / "web.sqlite3"
-    with sqlite3.connect(path) as database:
+    database = sqlite3.connect(path)
+    with database:
         database.execute("CREATE TABLE django_migrations (app TEXT, name TEXT)")
         database.executemany("INSERT INTO django_migrations VALUES (?, ?)", migrations)
+    database.close()
     return path
 
 
