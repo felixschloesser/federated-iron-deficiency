@@ -70,8 +70,8 @@ meaning = "The sex in the patient's record, which may differ from the person's; 
 source = "Report, Data table"
 
 ["sample ID"]
-meaning = "The number on a sample's label that links its lab order, results and lab report. The patient number and the sample's number for that patient, e.g. 135318-2"
-source = "Report, DF23 and Data table"
+meaning = "The number on a sample's label that links its lab order, results and lab report, e.g. 135318. The practice takes each from its stock, once, for a sample of a patient of the same registered sex, nearest in age; a patient's samples carry different ones. The demo's stock holds NHANES participants' numbers, so the analyser stand-in measures the blood of the participant a sample ID names"
+source = "Report, DF23 and Data table; one number per sample, each issued once: WHO LQMS 5-3, p. 64, each sample labelled with \"a unique identification number\""
 
 ["sample"]
 meaning = "Blood collected from one patient at one time; each order is on one sample, and one sample may carry a CBC and a later ferritin"

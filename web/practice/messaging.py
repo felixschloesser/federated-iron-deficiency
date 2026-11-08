@@ -42,7 +42,7 @@ def _send(
     )
     endpoint.SendLabOrder(
         messages_pb2.LabOrder(
-            sample_id=order.sample.sample_id,
+            sample_id=order.sample.sample_id.value,
             test=to_proto(Test(order.test), messages_pb2.Test),
             clinical_indication=to_proto(indication, messages_pb2.ClinicalIndication),
             registered_sex=to_proto(
@@ -66,7 +66,7 @@ def _send_pending(
     pending = (
         Order.objects.not_sent()
         .filter(sample__laboratory=laboratory)
-        .select_related("sample__patient")
+        .select_related("sample__patient", "sample__sample_id")
     )
     sent = 0
     for order in pending:
@@ -166,7 +166,7 @@ def _store(report: ReceivedLabReport, laboratory: Laboratory, *, now: datetime) 
     incomplete, stays unacknowledged instead of holding back the others, and a
     laboratory reports only on the samples it was sent."""
     order = Order.objects.filter(
-        sample__sample_id=report.sample_id,
+        sample__sample_id__value=report.sample_id,
         sample__laboratory=laboratory,
         test=report.test,
     ).first()
