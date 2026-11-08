@@ -911,6 +911,7 @@ source = { editable = "." }
 default-groups = ["dev", "web"]
 dependencies = [
     { name = "flwr" },
+    { name = "huggingface-hub" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "pyarrow" },
@@ -955,6 +956,7 @@ web = [
 [package.metadata]
 requires-dist = [
     { name = "flwr", specifier = ">=1.40.0" },
+    { name = "huggingface-hub" },
     { name = "numpy", specifier = ">=2.0.0" },
     { name = "pandas", specifier = ">=2.2.0" },
     { name = "pyarrow" },
