@@ -301,7 +301,7 @@ def test_placing_an_order_returns_to_the_patient_and_confirms(
     )
     assert response.status_code == 302
     assert response["Location"] == patient_url(patient)
-    sample_id = patient.samples.get().sample_id
+    sample_id = patient.samples.get().sample_id.value
     assertContains(
         client.get(response["Location"]), f"CBC ordered on sample {sample_id}."
     )
@@ -411,11 +411,11 @@ def test_ordering_on_a_sample_says_so_and_adds_no_sample(
     client.post(order_url(client, patient, OrderedTest.CBC), {"indication": "other"})
     suggest_ferritin(patient)
     url = sample_order_url(patient, OrderedTest.FERRITIN)
-    sample_id = patient.samples.get().sample_id
+    sample_id = patient.samples.get().sample_id.value
     assertContains(client.get(url), f"On sample {sample_id}")
     assert client.post(url).status_code == 302
     assert patient.samples.count() == 1
-    assert Order.objects.filter(sample__sample_id=sample_id).count() == 2
+    assert Order.objects.filter(sample__sample_id__value=sample_id).count() == 2
 
 
 def test_an_order_that_would_be_refused_returns_to_the_patient(
@@ -525,7 +525,7 @@ def test_ferritin_ordered_beside_a_suggestion_shows_under_it(
         fetched_at="2026-10-30T12:05:00+00:00",
     )
     response = client.post(sample_order_url(patient, OrderedTest.FERRITIN), follow=True)
-    sample_id = patient.samples.get().sample_id
+    sample_id = patient.samples.get().sample_id.value
     assertContains(response, f"Ferritin ordered on sample {sample_id}.")
     (sample,) = response.context["samples"]
     # The CBC first, then the ferritin ordered beside its suggestion.

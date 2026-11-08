@@ -59,7 +59,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         patient = self.object
         samples = (
-            patient.samples.select_related("laboratory")
+            patient.samples.select_related("laboratory", "sample_id")
             .prefetch_related(
                 Prefetch(
                     "orders",
@@ -101,9 +101,9 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
     context_object_name = "orders"
 
     def get_queryset(self) -> QuerySet[Order]:
-        orders = Order.objects.select_related("sample__patient").annotate(
-            lab_report_released_at=F("lab_report__released_at")
-        )
+        orders = Order.objects.select_related(
+            "sample__patient", "sample__sample_id"
+        ).annotate(lab_report_released_at=F("lab_report__released_at"))
         return orders.order_by("-ordered_at", "-pk")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
@@ -159,9 +159,15 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSample
         return {**super().get_context_data(**kwargs), "patient": self.patient}
 
     def form_valid(self, form: CollectSampleForm) -> HttpResponse:
-        sample = self.patient.collect_sample(
-            laboratory=form.cleaned_data["laboratory"], now=timezone.now()
-        )
+        try:
+            sample = self.patient.collect_sample(
+                laboratory=form.cleaned_data["laboratory"], now=timezone.now()
+            )
+        except ValidationError as error:
+            for field, errors in error.error_dict.items():
+                # The stock of sample IDs is no field of the form: the summary says it.
+                form.add_error(field if field in form.fields else None, errors)
+            return self.form_invalid(form)
         messages.success(self.request, f"Sample {sample.sample_id} collected.")
         # Straight to the routine first test; any other is ordered from the sample.
         return redirect(
@@ -184,7 +190,9 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
 
     @cached_property
     def sample(self) -> Sample:
-        return get_object_or_404(self.patient.samples, pk=self.kwargs["sample"])
+        return get_object_or_404(
+            self.patient.samples.select_related("sample_id"), pk=self.kwargs["sample"]
+        )
 
     def get_form_kwargs(self) -> dict[str, Any]:
         return {**super().get_form_kwargs(), "test": self.kwargs["test"]}

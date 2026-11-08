@@ -48,7 +48,7 @@ DE_CEDER = (("party", "de-ceder"),)
 def lab_order(**fields: Any) -> messages_pb2.LabOrder:
     """A lab order for a CBC, for suspected anaemia; `fields` override."""
     values: dict[str, Any] = {
-        "sample_id": "1-1",
+        "sample_id": "1",
         "test": messages_pb2.TEST_CBC,
         "clinical_indication": messages_pb2.CLINICAL_INDICATION_SUSPECTED_ANAEMIA,
         "registered_sex": messages_pb2.REGISTERED_SEX_FEMALE,
@@ -89,7 +89,7 @@ def test_a_lab_order_is_recorded_as_sent(
 ) -> None:
     endpoint.SendLabOrder(lab_order(), timeout=10, metadata=DE_CEDER)
     test_request = TestRequest.objects.select_related("sample__practice").get()
-    assert test_request.sample.sample_id == "1-1"
+    assert test_request.sample.sample_id == "1"
     assert (test_request.test, test_request.clinical_indication) == (
         OrderedTest.CBC,
         ClinicalIndication.SUSPECTED_ANAEMIA,
@@ -193,7 +193,7 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
     test_request = TestRequest.objects.receive(
         practice=Practice.objects.get(),
         details=LabOrderDetails(
-            sample_id="1-1",
+            sample_id="1",
             test=OrderedTest.CBC,
             clinical_indication=ClinicalIndication.SUSPECTED_ANAEMIA,
             registered_sex=RegisteredSex.FEMALE,
@@ -208,7 +208,7 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
     (report,) = endpoint.FetchNewLabReports(
         Empty(), timeout=10, metadata=DE_CEDER
     ).reports
-    assert (report.report_id, report.sample_id) == (test_request.pk, "1-1")
+    assert (report.report_id, report.sample_id) == (test_request.pk, "1")
     assert report.test == messages_pb2.TEST_CBC
     assert report.ferritin_suggested is True
     assert report.released_at.ToDatetime(tzinfo=UTC) == NOW

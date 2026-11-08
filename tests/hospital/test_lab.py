@@ -26,16 +26,20 @@ scenarios("hospital/lab.feature")
 
 
 def tube(world: World, patient: str) -> Participant:
-    """What the patient's samples measure, at the hospital's analyser stand-in."""
+    """What the patient's latest sample, or the next one, measures at the
+    hospital's analyser stand-in: the participant its sample ID names."""
     return Participant.objects.get(seqn=world["patients"][patient]["seqn"])
 
 
 def place(world: World, test: str, patient: str) -> None:
-    """A new sample of the patient arriving with its lab order."""
+    """A new sample of the patient arriving with its lab order, under its own
+    sample ID: a later sample of the patient names another participant."""
     record = world["patients"][patient]
+    if record["samples"]:
+        record["seqn"] = make_tube().seqn
     record["samples"] += 1
     world["test_request"] = receive_lab_order(
-        f"{record['seqn']}-{record['samples']}",
+        str(record["seqn"]),
         TESTS[test],
         NOW,
         sex=record["sex"],

@@ -1,5 +1,6 @@
-"""The practice's demo data (python -m demo.seed practice): its general practitioner, and a
-patient for each NHANES participant it was given, with a made-up name."""
+"""The practice's demo data (python -m demo.seed practice): its general practitioner, its
+stock of sample IDs, and a patient, with a made-up name, for each participant of
+the stock marked a patient."""
 
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from demo.seed import main
 from demo.seeding import names
 from demo.seeding import participants as seeding
 from tests.conftest import PEOPLE, nhanes_rows
-from web.practice.models import Patient
+from web.practice.models import Patient, SampleId
 from web.shared.accounts.models import User
 from web.shared.accounts.roles import Role, role_of
 from web.shared.vocabulary import RegisteredSex
@@ -38,12 +39,27 @@ def test_seeds_its_one_general_practitioner(seeded: None) -> None:
 
 
 def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
-    rows = nhanes_rows().set_index("sample_id")
+    rows = nhanes_rows()
     assert Patient.objects.count() == 3 * len(PEOPLE)
+    seeded_people = {(row["sex"].lower(), row["age"]) for _, row in rows.iterrows()}
     for patient in Patient.objects.all():
-        row = rows.loc[int(patient.patient_number)]
-        assert patient.registered_sex == str(row["sex"]).lower()
-        assert patient.age == row["age"]
+        assert (patient.registered_sex, patient.age) in seeded_people
+
+
+def test_seeds_three_sample_ids_for_each_patient_holding_its_participant(
+    seeded: None,
+) -> None:
+    """The stock holds each patient's own participant, so a patient's first sample
+    usually carries that participant's blood (demo/seeding/participants.py)."""
+    rows = nhanes_rows().set_index("sample_id")
+    assert SampleId.objects.count() == 3 * Patient.objects.count()
+    for sample_id in SampleId.objects.all():
+        row = rows.loc[int(sample_id.value)]
+        assert sample_id.registered_sex == str(row["sex"]).lower()
+        assert sample_id.age == row["age"]
+    patients = seeding.choose(nhanes_rows(), seed=0)
+    stocked = set(SampleId.objects.values_list("value", flat=True))
+    assert {str(seqn) for seqn in patients["sample_id"]} <= stocked
 
 
 def test_running_twice_changes_nothing(seeded: None) -> None:
@@ -108,8 +124,8 @@ def test_seeds_from_nhanes_downloads_extract(
     (demo/nhanes.py)."""
     settings.DEBUG = True
     rows = nhanes_rows().astype({"age": float})
-    extract = tmp_path / "patients.csv"
-    seeding.with_made_up_ferritin(seeding.choose(rows, seed=0), rows).to_csv(
+    extract = tmp_path / "sample-ids.csv"
+    seeding.stock(rows, seed=0)[["sample_id", "sex", "age", "patient"]].to_csv(
         extract, index=False
     )
     main(["practice", "--rows", str(extract)])
