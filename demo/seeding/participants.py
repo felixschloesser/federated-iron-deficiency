@@ -1,8 +1,8 @@
 """Which NHANES participants the demo seeds, and their made-up parts.
 
-Each party seeds the same participants for the same seed: the practice its
-patients, the hospital what the analyser measures for them
-(demo/seeding/parties.py)."""
+Each party seeds the same participants for the same seed: the practice its stock
+of sample IDs (their numbers) and its patients (some of them), the hospital what
+its analyser measures for each sample ID (demo/seeding/parties.py)."""
 
 import enum
 from typing import assert_never
@@ -14,6 +14,8 @@ from ml.dataset import new_cycle_ferritin_and_crp, new_cycle_participants
 
 # Patients per practice unless --patients says otherwise; the groups share them.
 PATIENTS = 12
+# Sample IDs in a practice's stock for each of its patients.
+SAMPLE_IDS_PER_PATIENT = 3
 
 
 class Group(enum.Enum):
@@ -64,6 +66,16 @@ def choose(rows: pd.DataFrame, seed: int, patients: int = PATIENTS) -> pd.DataFr
             for number, group in enumerate(groups)
         ]
     )
+
+
+def stock(rows: pd.DataFrame, seed: int, patients: int = PATIENTS) -> pd.DataFrame:
+    """A practice's stock of sample IDs: SAMPLE_IDS_PER_PATIENT participants for
+    each patient, drawn as choose() draws, so they hold the `patients` participants
+    choose() would give, marked `patient`: a patient's first sample usually
+    carries their own participant's blood."""
+    chosen = choose(rows, seed, patients * SAMPLE_IDS_PER_PATIENT)
+    patient_ids = set(choose(rows, seed, patients)["sample_id"])
+    return chosen.assign(patient=chosen["sample_id"].isin(patient_ids))
 
 
 def with_made_up_ferritin(chosen: pd.DataFrame, nhanes: pd.DataFrame) -> pd.DataFrame:

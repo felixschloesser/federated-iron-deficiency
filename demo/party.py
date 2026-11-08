@@ -85,7 +85,7 @@ def seeding(party: str, environment: dict[str, str]) -> list[list[str]]:
                 ["lab-records", "--csv", str(NHANES / "lab-records.csv"), *provide],
             ]
         case "practice":
-            return [["practice", "--rows", str(NHANES / "patients.csv")]]
+            return [["practice", "--rows", str(NHANES / "sample-ids.csv")]]
         case "startup":
             return [["startup"]]
         case _:

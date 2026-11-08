@@ -8,6 +8,7 @@ from pytest_django.fixtures import Settings
 
 from demo.seed import main
 from demo.seeding import participants as seeding
+from demo.seeding.participants import SAMPLE_IDS_PER_PATIENT
 from ml.cohort import CBC_VARS
 from tests.conftest import PEOPLE, nhanes_rows
 from web.hospital.analyser.models import MADE_UP_FERRITIN, Participant
@@ -39,13 +40,15 @@ def test_seeds_its_staff(seeded: None) -> None:
     assert User.objects.get(username="staff").check_password("demo-pass-2026")
 
 
-def test_seeds_three_participants_of_each_group_from_nhanes(seeded: None) -> None:
-    assert Participant.objects.count() == 3 * len(PEOPLE)
+def test_seeds_a_participant_for_each_sample_id_of_the_stock(seeded: None) -> None:
+    """Three sample IDs for each of 12 patients: nine participants of each group
+    (demo/seeding/participants.py)."""
+    assert Participant.objects.count() == SAMPLE_IDS_PER_PATIENT * 3 * len(PEOPLE)
     for group, (_, _, ferritin) in enumerate(PEOPLE):
         participants = Participant.objects.filter(
-            seqn__range=(1000 + 10 * group, 1009 + 10 * group)
+            seqn__range=(1000 + 100 * group, 1099 + 100 * group)
         )
-        assert participants.count() == 3
+        assert participants.count() == SAMPLE_IDS_PER_PATIENT * 3
         for participant in participants:
             assert participant.ferritin == ferritin
             # NHANES did not measure them: a value made up from the women who
@@ -57,7 +60,7 @@ def test_seeds_three_participants_of_each_group_from_nhanes(seeded: None) -> Non
 def test_running_twice_changes_nothing(seeded: None) -> None:
     main(["hospital"])
     assert User.objects.count() == 3
-    assert Participant.objects.count() == 3 * len(PEOPLE)
+    assert Participant.objects.count() == SAMPLE_IDS_PER_PATIENT * 3 * len(PEOPLE)
 
 
 def test_refuses_outside_development(settings: Settings) -> None:
@@ -72,16 +75,16 @@ def test_reads_participants_from_a_csv(settings: Settings, tmp_path: Path) -> No
     csv = tmp_path / "nhanes.csv"
     nhanes_rows().to_csv(csv, index=False)
     main(["hospital", "--nhanes", str(csv)])
-    assert Participant.objects.count() == 3 * len(PEOPLE)
+    assert Participant.objects.count() == SAMPLE_IDS_PER_PATIENT * 3 * len(PEOPLE)
 
 
 def test_eligible_women_without_ferritin_are_never_seeded(seeded: None) -> None:
-    assert not Participant.objects.filter(seqn__range=(1040, 1049)).exists()
+    assert not Participant.objects.filter(seqn__range=(1400, 1499)).exists()
 
 
 def test_the_number_of_participants_is_a_parameter(development: None) -> None:
     main(["hospital", "--patients", "6"])
-    assert Participant.objects.count() == 6
+    assert Participant.objects.count() == SAMPLE_IDS_PER_PATIENT * 6
 
 
 def test_a_made_up_ferritin_is_reported_under_its_own_name() -> None:

@@ -51,12 +51,27 @@ Feature: Collecting a sample and ordering tests on it
     When "Dr. Demo A" asks whether a CBC can be ordered for "Test Patient 1"
     Then it would not be refused
 
-  Scenario: A collected sample gets the patient's next sample ID
+  Scenario: A collected sample is the patient's, collected at the current time
     Then the sample is sample 1 of "Test Patient 1", collected at the current time
 
-  Scenario: A patient can give several samples
+  Scenario: A sample takes the unused sample ID of the patient's sex nearest in age
+    Given the practice's stock of sample IDs holds only "200001" (female, 50), "200002" (female, 34) and "200003" (male, 32)
+    When "Dr. Demo A" collects a sample from "Test Patient 1"
+    Then the sample is sample 2 of "Test Patient 1", with sample ID "200002"
+
+  Scenario: A patient's samples carry different sample IDs
     When "Dr. Demo A" collects a sample from "Test Patient 1"
     Then the sample is sample 2 of "Test Patient 1", collected at the current time
+    And the samples of "Test Patient 1" carry different sample IDs
+
+  Scenario: Without a sample ID left for the patient collecting is refused
+    Given the practice's stock of sample IDs holds only "200003" (male, 32)
+    When "Dr. Demo A" collects a sample from "Test Patient 1"
+    Then the collection is refused with code "no_sample_id" on field "sample_id"
+
+  Scenario: The database holds each sample ID to one sample
+    When a second sample with the first sample's ID is written straight to the database
+    Then the database refuses it
 
   Scenario: Several tests go on one sample
     Given the sample has a CBC lab report suggesting ferritin
