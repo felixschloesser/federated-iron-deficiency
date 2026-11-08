@@ -291,7 +291,14 @@ def test_a_lab_report_missing_any_part_is_not_stored(
     """A lab report is complete or not stored (messages.proto): the practice
     never fills a part the hospital left out, such as no ferritin suggestion."""
     placed, report_id = released_ferritin(fake_laboratory.laboratory)
-    fake_laboratory.laboratory.reports[report_id].ClearField(part)
+    full = fake_laboratory.laboratory.reports[report_id]
+    fake_laboratory.laboratory.reports[report_id] = messages_pb2.LabReport(
+        **{
+            field.name: getattr(full, field.name)
+            for field in full.DESCRIPTOR.fields
+            if field.name != part
+        }
+    )
     assert messaging.check_for_lab_reports(practice, now=NOW) == 0
     assert not LabReport.objects.filter(order=placed).exists()
     assert fake_laboratory.laboratory.acknowledged == set()

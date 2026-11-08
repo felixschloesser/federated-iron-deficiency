@@ -5,10 +5,13 @@ validation (model_files.py) (web/shared/messaging/messages.proto,
 features/hospital/fetch.feature). The startup's code at the hospital writes
 nothing here."""
 
+from dataclasses import dataclass
 from datetime import datetime
 
 import grpc
 import pandas as pd
+import protovalidate
+import torch
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
@@ -33,9 +36,34 @@ def unreachable(error: grpc.RpcError) -> bool:
     }
 
 
+@dataclass(frozen=True)
+class OfferedFinalModel:
+    """A final model as the startup sends it (DF37), every part present and its
+    weights read."""
+
+    run_id: int
+    state_dict: dict[str, torch.Tensor]
+    federated_auroc: float
+
+
+def offered_final_model(message: messages_pb2.FinalModel) -> OfferedFinalModel | None:
+    """The final model a message holds; None if it breaks the contract or its
+    weights are unreadable or do not fit the network."""
+    if protovalidate.collect_violations(message):
+        return None
+    state_dict = weights_from_bytes(message.weights)
+    if state_dict is None:
+        return None
+    return OfferedFinalModel(
+        run_id=message.run_id,
+        state_dict=state_dict,
+        federated_auroc=message.federated_auroc,
+    )
+
+
 def fetch_final_models(*, now: datetime) -> list[int]:
     """Fetch the released final models this hospital does not hold, telling the
-    startup which it holds, validate each on the training cohort its laboratory
+    startup which it holds, validate each complete one on the training cohort its laboratory
     director provided and store it; the run IDs stored. One the hospital holds
     other weights for is never overwritten. Raises TrainingCohortUnavailable,
     before asking the startup, when no training cohort was provided, and
@@ -60,9 +88,9 @@ def fetch_final_models(*, now: datetime) -> list[int]:
         ).final_models
         cohort: pd.DataFrame | None = None
         stored = []
-        for model in offered:
-            state_dict = weights_from_bytes(model.weights)
-            if state_dict is None:
+        for message in offered:
+            model = offered_final_model(message)
+            if model is None:
                 continue
             if cohort is None:
                 _, cohort = read_training_cohort(cohort_dir, None)
@@ -70,7 +98,7 @@ def fetch_final_models(*, now: datetime) -> list[int]:
                 store_fetched(
                     directory,
                     run_id=model.run_id,
-                    state_dict=state_dict,
+                    state_dict=model.state_dict,
                     cohort=cohort,
                     federated_auroc=model.federated_auroc,
                     stored_at=now,
