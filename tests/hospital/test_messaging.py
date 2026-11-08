@@ -185,7 +185,7 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
     ).run_analyser(directory=None, now=NOW)
     # As the deployed screening model would have decided (features/hospital/screening.feature).
     TestRequest.objects.filter(pk=test_request.pk).update(
-        screening_result=ScreeningResult.FERRITIN_SUGGESTED, not_screened_reason=None
+        screening_result=ScreeningResult.FERRITIN_SUGGESTED
     )
     (report,) = endpoint.FetchNewLabReports(
         Empty(), timeout=10, metadata=DE_CEDER

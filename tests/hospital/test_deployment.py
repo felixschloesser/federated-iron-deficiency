@@ -260,9 +260,9 @@ def no_usable_model(world: World) -> object:
 
 @then("there is no deployed screening model")
 def no_deployed_model(world: World) -> None:
-    from web.hospital.deployment.models import NotScreened
+    from web.hospital.deployment.models import NoUsableModel
 
-    assert no_usable_model(world) is NotScreened.NO_DEPLOYED_MODEL
+    assert no_usable_model(world) is NoUsableModel.NO_DEPLOYED_MODEL
 
 
 @then(parsers.parse('screening models "{first}" and "{second}" can be deployed'))
