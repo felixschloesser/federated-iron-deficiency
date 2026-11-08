@@ -1,0 +1,121 @@
+# The hospital's words (sources: web/shared/glossary.toml's header).
+
+["laboratory staff"]
+meaning = "The hospital's people who run the analyser on the test requests; one account each (`Role.LABORATORY_STAFF`)"
+source = "WHO LQMS, the handbook's word for the people who work in the laboratory (44 uses; e.g. ch. 5, Sample management)"
+
+["analyser"]
+meaning = "The instrument that measures a sample for a test; an external system to the laboratory, simulated in the demo from NHANES participants (web/hospital/analyser/). The laboratory knows it only through measure() in web/hospital/analyser/port.py; inside the simulator, NHANES's own words (participant, SEQN) are right"
+source = "Report, P9 \"Analyse samples\": \"laboratory staff run the analyser\"; DF36 \"Results: the analyser's values for each test request\""
+
+["test request"]
+meaning = "The laboratory's word for what it analyses and screens: one test on a sample, received from a lab order"
+source = "WHO LQMS: \"test requests\" are a laboratory input; \"the test request must be complete\" (12 uses); UZ Leuven's laboratory forms are aanvraagformulieren, request forms"
+
+["screened indication"]
+meaning = "A clinical indication the hospital screens a CBC for: its rule, decided at the hospital from the lab order's indication (features/hospital/screening.feature)"
+source = "Report, Data table: \"the three screened indications\""
+
+["not eligible"]
+meaning = "The not-screened reason when the screening excludes a CBC (an indication not screened, not female, or not aged 18–49), never which condition (features/hospital/screening.feature)"
+source = "Built from the report's Use case: the screening applies to one group, women aged 18–49 with a screened indication (features/hospital/screening.feature)"
+
+["stored sample"]
+meaning = "A sample the laboratory already holds: a later test is measured on it"
+source = "WHO LQMS 5-5, p. 68, \"stored samples\""
+
+["analysed"]
+meaning = "A test request the analyser has measured; its results are recorded"
+source = "Report, P9 \"Analyse samples\""
+
+["screening"]
+meaning = "Running the deployed screening model on an analysed CBC to decide whether to suggest ferritin to the general practitioner"
+source = "Report, P10 \"Screen CBC\""
+
+["inference"]
+meaning = "The training package's word for running the trained model on new blood counts (ml.inference), beside training; the hospital's word for the same step stays screening"
+source = "PyTorch documentation, *Saving and Loading Models*: call model.eval() \"before running inference\""
+
+["screening result"]
+meaning = "What screening records per CBC: one of the three below, with the reason when not screened (features/hospital/screening.feature) and the screening model when screened (features/hospital/screening.feature)"
+source = "Report, DF31 \"screening result\", P10"
+
+["ferritin suggested / ferritin not suggested / not screened"]
+meaning = "The three screening results: the model suggests ferritin, it does not, or the CBC was not screened (not eligible, or no usable deployed model)"
+source = "Report, Use case \"a comment to the lab report suggesting ferritin\"; \"not screened\" from Federated version"
+
+["screening model"]
+meaning = "A final model as the hospital holds it, in its `screening-models/` folder: what the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. Its file holds every part (weights, this hospital's standardization, run ID, when it was stored, AUROC across hospitals, local validation) or is unreadable, and an unreadable one is not listed"
+source = "Built from the report's words: P10 *Screen CBC* and \"the model\" (Use case)"
+
+["deploy"]
+meaning = "The laboratory director's decision that a screening model screens this hospital's patients, at the threshold they choose"
+source = "Report, Use case: the model \"is then deployed to every hospital\""
+
+["deployed model"]
+meaning = "The screening model this hospital deployed last; the only one that screens"
+source = "Report, DF30 \"Deployed final model\""
+
+["laboratory director"]
+meaning = "The person who decides which screening model screens a hospital's patients, and who provides its training cohort; one per hospital"
+source = "WHO LQMS ch. 2, p. 21: the director assesses \"all potential risks … including services to patients\" (20 uses)"
+
+["lab record"]
+meaning = "What the laboratory holds of a past patient: registered sex, age, the CBC values, the ferritin and CRP results and the clinical indication of its order; what the training cohort is extracted from. Kept apart from the test requests (DS8) and the analyser stand-in"
+source = "Report, DS1 \"Lab records\"; DF1 \"Past CBC and ferritin results\""
+
+["past patient"]
+meaning = "Whom the training cohort holds a row for: an eligible woman with a complete CBC ordered for a screened indication, a ferritin and a CRP result in the lab records"
+source = "Report, DF2 \"Cohort: 13 CBC values, age and label per past patient\""
+
+["training cohort"]
+meaning = "What the startup's code at this hospital trains on: the 13 CBC values, age and whether iron deficient, per past patient; nothing else. Exists only once the laboratory director provides it"
+source = "Report, DS2 \"Training cohort\""
+
+["provide"]
+meaning = "The laboratory director's decision that the startup's code at this hospital may train on the training cohort; the page says it goes to that code, which runs inside the hospital"
+source = "Project decision"
+
+["withdraw"]
+meaning = "The laboratory director takes the training cohort back: the startup's code at this hospital finds none from its next round, and the hospital takes no part in training until it is provided again"
+source = "Project decision"
+
+["local validation"]
+meaning = "A screening model on this hospital's own test split, which no training run saw or was chosen on: the confusion matrix at each threshold from 0.05 to 0.95, as counts, then AUROC; what the laboratory director chooses a threshold from"
+source = "Built from *validation* (report, DF10 \"validation example count\")"
+
+["sensitivity"]
+meaning = "Iron-deficient women of the local validation whom the screening model suggests ferritin for, shown as counts and a percentage"
+source = "WHO LQMS 3-3, p. 40: test methods are \"evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)\""
+
+["95% confidence interval"]
+meaning = "Beside each sensitivity, specificity and predictive value, and the AUROC here: the range it would likely fall in on other past patients like these, so the laboratory director sees how little 13 iron-deficient women pin a measure down, and that two models' AUROCs a few hundredths apart are not told apart. Shown as \"95% CI 40–89%\" and \"0.84 (95% CI 0.68–1.00)\""
+source = "WHO ferritin guideline (who2020), PDF p. 38: \"95% confidence interval [CI]: 0.914–1.263\""
+
+["specificity"]
+meaning = "Women without iron deficiency whom it does not suggest ferritin for"
+source = "WHO LQMS 3-3, p. 40: test methods are \"evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)\""
+
+["positive predictive value"]
+meaning = "Ferritin suggestions that were right: what a suggestion is worth to the general practitioner"
+source = "WHO LQMS 3-3, p. 40: test methods are \"evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)\""
+
+["negative predictive value"]
+meaning = "Women without a suggestion who were not iron deficient: what a silent lab report is worth (features/practice/reports.feature)"
+source = "WHO LQMS 3-3, p. 40: test methods are \"evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)\""
+
+["threshold"]
+meaning = "The score above which the deployed model suggests ferritin; the laboratory director chooses it when deploying, from local validation. A final model carries none"
+source = "Report, Design choices"
+
+["fetch"]
+meaning = "The hospital's explicit request: a final model enters a hospital only when its laboratory director fetches new final models, through the hospital's own web app"
+source = "Report, P5, DF33: \"a recipient hospital's laboratory director fetches it\"; as a practice fetches new lab reports (FetchNewLabReports)"
+
+["inflammation"]
+meaning = "When a past patient counts as iron deficient below 70 ng/mL instead of 15: a CRP above 5 mg/L. Ferritin rises with inflammation, so the lower cutoff would miss her"
+source = "WHO ferritin guideline (who2020), recommendation 1.2, PDF p. 11: \"In individuals with infection or inflammation, a ferritin concentration below … 70 µg/L in adults\"; PDF p. 15: \"elevated inflammation (as defined by a CRP concentration >5 mg/L\""
+
+["CRP, mg/L"]
+meaning = "The lab result that says whether a past patient had inflammation; it makes the label and stays in the lab records. A past patient without one stays out of the training cohort, and the director sees how many"
+source = "WHO ferritin guideline (who2020), PDF p. 29: \"C-reactive protein (CRP)\"; NHANES HSCRP codebooks (LBXHSCRP, mg/L)"

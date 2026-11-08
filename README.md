@@ -32,7 +32,8 @@ releases it, each hospital fetches it and screens new blood counts with it.
 - `features/`: the requirements as Gherkin scenarios, one folder per party, the
   ones crossing parties at the top.
 - `tests/`: the scenarios' steps and the other tests (see Tests below).
-- `glossary.toml`: the domain's words, what each means and where it comes from.
+- `web/<party>/glossary.toml`: each party's words, what each means and where it
+  comes from; the words the parties share are in `web/shared/glossary.toml`.
 
 ## Changes from `@javier/iron-deficiency`
 
