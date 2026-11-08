@@ -1,6 +1,8 @@
 """Views of the general practitioner side: status, redirects, form error codes,
 query counts."""
 
+import re
+
 import pytest
 from django.http import HttpResponseServerError
 from django.template.loader import render_to_string
@@ -722,3 +724,19 @@ def test_a_patients_page_marks_patients_current(client: Client) -> None:
         f'<a href="{reverse("practice:patients")}" aria-current="page">Patients</a>',
         html=True,
     )
+
+
+@pytest.mark.parametrize("laboratories", [0, 2])
+def test_the_error_summary_links_to_the_laboratory_choice_on_the_page(
+    client: Client, general_practitioner: User, patient: Patient, laboratories: int
+) -> None:
+    """The summary's link lands on the choice: its first button, or the empty
+    group of a practice not yet set up."""
+    from web.practice.models import Laboratory
+
+    for number in range(laboratories):
+        Laboratory.objects.create(name=f"Lab {number}", address="127.0.0.1:1")
+    response = logged_in(client, general_practitioner).post(collect_url(patient))
+    page = response.content.decode()
+    (target,) = re.findall(r'<li><a href="#([^"]+)">Laboratory:', page)
+    assert f'id="{target}"' in page
