@@ -5,8 +5,8 @@ from datetime import datetime
 from pathlib import Path
 
 from ml.final_model import (
-    final_model_path,
-    final_model_paths,
+    model_file_path,
+    model_file_paths,
     read_final_model,
     weights_to_bytes,
 )
@@ -50,7 +50,7 @@ def final_models(directory: Path | None) -> list[KeptFinalModel]:
             federated_auroc=model.federated_auroc,
             run_configuration=model.run_configuration,
         )
-        for path in final_model_paths(directory)
+        for path in model_file_paths(directory)
         if (model := read_final_model(path)) is not None
     ]
     return sorted(kept, key=lambda model: model.stored_at, reverse=True)
@@ -58,15 +58,15 @@ def final_models(directory: Path | None) -> list[KeptFinalModel]:
 
 def released_final_model(
     directory: Path | None, run_id: str
-) -> messages_pb2.FinalModel | None:
+) -> messages_pb2.ScreeningModel | None:
     """A released final model as a recipient hospital fetches it (DF33): its
     weights only, the AUROC across hospitals, and its run ID; never its run
     configuration. None for a run the startup kept no readable model of."""
-    path = None if directory is None else final_model_path(directory, run_id)
+    path = None if directory is None else model_file_path(directory, run_id)
     model = None if path is None or not path.is_file() else read_final_model(path)
     if model is None:
         return None
-    return messages_pb2.FinalModel(
+    return messages_pb2.ScreeningModel(
         run_id=model.run_id,
         weights=weights_to_bytes(model.state_dict),
         federated_auroc=model.federated_auroc,

@@ -8,7 +8,7 @@ from pathlib import Path
 import torch
 from torch import nn
 
-from ml.final_model import FinalModel, final_model_path, write_final_model
+from ml.final_model import FinalModel, model_file_path, write_final_model
 from ml.validation import Loader
 
 
@@ -85,7 +85,7 @@ def keep_final_model(
 ) -> Path:
     """Keep the startup's copy of a training run's final model (DS4): what every
     hospital was sent, without any hospital's standardization or validation."""
-    path = final_model_path(directory, run_id)
+    path = model_file_path(directory, run_id)
     write_final_model(
         path,
         FinalModel(

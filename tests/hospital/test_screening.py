@@ -13,7 +13,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from ml.cohort import CBC_VARS, FEATURES, eligible
 from ml.final_model import (
     Net,
-    final_model_path,
+    model_file_path,
     standardization_tensor,
     write_contents,
 )
@@ -70,7 +70,7 @@ CONFUSION_MATRICES = {
 
 def write_model(directory: Path, run_id: str, local_auroc: float) -> None:
     zeros = pd.Series(0.0, index=FEATURES)
-    path = final_model_path(directory, run_id)
+    path = model_file_path(directory, run_id)
     path.unlink(missing_ok=True)  # "changed on disk" replaces the deployed file
     write_contents(
         path,
@@ -220,10 +220,10 @@ def screened(world: World) -> None:
         " its SHA-256 and threshold {threshold:g}"
     )
 )
-def records_final_model(world: World, run_id: str, threshold: float) -> None:
+def records_screening_model(world: World, run_id: str, threshold: float) -> None:
     screening_model = world["test_request"].screened_by
     assert screening_model.run_id == run_id
-    path = final_model_path(world["screening_models_dir"], run_id)
+    path = model_file_path(world["screening_models_dir"], run_id)
     assert screening_model.sha256 == sha256(path.read_bytes())
     assert screening_model.threshold == threshold
 

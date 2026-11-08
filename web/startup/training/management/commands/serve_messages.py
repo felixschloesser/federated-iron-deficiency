@@ -1,4 +1,4 @@
-"""Run the startup's final-models endpoint (features/startup/release.feature) until stopped."""
+"""Run the startup's messaging endpoint (features/startup/release.feature) until stopped."""
 
 from typing import Any
 
@@ -15,7 +15,7 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         server, _ = serve(options["address"])
-        self.stdout.write(f"Final-models endpoint on {options['address']}")
+        self.stdout.write(f"Messaging endpoint on {options['address']}")
         # The demo sends stdout to a file, which would hold the line until exit.
         self.stdout.flush()
         server.wait_for_termination()

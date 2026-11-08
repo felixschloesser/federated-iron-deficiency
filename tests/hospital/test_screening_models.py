@@ -1,5 +1,5 @@
-"""Scenarios: final models as each hospital stores them
-(features/hospital/final_models.feature); and reading one back."""
+"""Scenarios: screening models as each hospital stores them
+(features/hospital/screening_models.feature); and reading one back."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,7 +27,7 @@ FEDERATED_AUROC = 0.85
 pytestmark = pytest.mark.django_db
 
 
-scenarios("hospital/final_models.feature")
+scenarios("hospital/screening_models.feature")
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ def hospital(tmp_path: Path, cohort: pd.DataFrame) -> World:
 
 @given(
     parsers.parse(
-        "the hospital stored the final models of runs {first:d} and {second:d}"
+        "the hospital stored the screening models of runs {first:d} and {second:d}"
     )
 )
 def stored_two(hospital: World, first: int, second: int) -> None:
@@ -68,7 +68,7 @@ def stored_two(hospital: World, first: int, second: int) -> None:
 
 @given(
     parsers.parse(
-        "the disk fills up while the final model of run {run_id:d} is written"
+        "the disk fills up while the screening model of run {run_id:d} is written"
     )
 )
 def disk_full(monkeypatch: pytest.MonkeyPatch, run_id: int) -> None:
@@ -80,7 +80,9 @@ def disk_full(monkeypatch: pytest.MonkeyPatch, run_id: int) -> None:
 
 
 @when(
-    parsers.re(r"the hospital stores the final model of run (?P<run_id>\d+)( again)?")
+    parsers.re(
+        r"the hospital stores the screening model of run (?P<run_id>\d+)( again)?"
+    )
 )
 def stores(hospital: World, run_id: str) -> None:
     try:
@@ -105,8 +107,8 @@ def holds_two(hospital: World, first: str, second: str) -> None:
     "the AUROC across hospitals and the local validation"
 )
 def holds_metadata(hospital: World) -> None:
-    final_model = torch.load(hospital["path"])
-    assert set(final_model) == {
+    screening_model = torch.load(hospital["path"])
+    assert set(screening_model) == {
         "state_dict",
         "mean",
         "std",
@@ -116,14 +118,14 @@ def holds_metadata(hospital: World) -> None:
         "confusion_matrices",
         "local_auroc",
     }
-    assert final_model["run_id"] == 11
-    assert final_model["stored_at"] == STORED_AT.isoformat()
+    assert screening_model["run_id"] == 11
+    assert screening_model["stored_at"] == STORED_AT.isoformat()
 
 
 @then("it holds no threshold")
 def holds_no_threshold(hospital: World) -> None:
-    final_model = torch.load(hospital["path"])
-    assert not any("threshold" in key for key in final_model)
+    screening_model = torch.load(hospital["path"])
+    assert not any("threshold" in key for key in screening_model)
 
 
 @then("storing it is refused")
@@ -142,7 +144,7 @@ def unchanged(hospital: World, name: str) -> None:
     assert (hospital["folder"] / name).read_bytes() == hospital["before"]
 
 
-@then("the hospital holds no final model")
+@then("the hospital holds no screening model")
 def holds_none(hospital: World) -> None:
     assert list(hospital["folder"].iterdir()) == []
 
@@ -181,7 +183,7 @@ def only_aggregate(hospital: World) -> None:
     assert torch.load(hospital["path"])["federated_auroc"] == FEDERATED_AUROC
 
 
-# Reading a stored final model back, as the hospital's web app does.
+# Reading a stored screening model back, as the hospital's web app does.
 
 
 def read(path: Path) -> ScreeningModel:
@@ -190,7 +192,7 @@ def read(path: Path) -> ScreeningModel:
     return file
 
 
-def test_a_final_model_screens_like_a_deployment(
+def test_a_screening_model_screens_like_a_deployment(
     tmp_path: Path, cohort: pd.DataFrame
 ) -> None:
     file = read(store(tmp_path, cohort, run_id=11))
@@ -198,7 +200,7 @@ def test_a_final_model_screens_like_a_deployment(
     assert 0.0 <= probability(file.state_dict, file.mean, file.std, cbc, age=30) <= 1.0
 
 
-def test_a_stored_final_model_reads_back_whole(
+def test_a_stored_screening_model_reads_back_whole(
     tmp_path: Path, cohort: pd.DataFrame
 ) -> None:
     file = read(store(tmp_path, cohort, run_id=11))
@@ -214,7 +216,7 @@ def test_a_file_that_is_no_model_reads_as_none(tmp_path: Path) -> None:
 
 
 def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
-    """The weights seeded by run_id, fetched as the final model of as_run."""
+    """The weights seeded by run_id, fetched as the screening model of as_run."""
     torch.manual_seed(run_id)
     return store_fetched(
         hospital["folder"],
@@ -226,14 +228,16 @@ def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
     )
 
 
-@given(parsers.parse("the hospital received the final model of run {run_id:d}"))
+@given(parsers.parse("the hospital received the screening model of run {run_id:d}"))
 def received(hospital: World, run_id: int) -> None:
     receive(hospital, run_id)
     hospital["before"] = (hospital["folder"] / f"{run_id}.pt").read_bytes()
 
 
 @when(
-    parsers.re(r"the hospital receives the final model of run (?P<run_id>\d+)( again)?")
+    parsers.re(
+        r"the hospital receives the screening model of run (?P<run_id>\d+)( again)?"
+    )
 )
 def receives(hospital: World, run_id: str) -> None:
     try:
@@ -249,7 +253,7 @@ def receiving_succeeds(hospital: World) -> None:
 
 @when(
     parsers.parse(
-        "the hospital receives other weights as the final model of run {run_id:d}"
+        "the hospital receives other weights as the screening model of run {run_id:d}"
     )
 )
 def receives_other(hospital: World, run_id: int) -> None:

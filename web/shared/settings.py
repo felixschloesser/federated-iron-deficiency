@@ -40,7 +40,7 @@ TRAINING_COHORT_DIR: Path | None = None
 PRACTICE_NAME: str | None = None
 HOSPITAL_NAME: str | None = None
 STARTUP_NAME: str | None = None
-# The startup's final-models endpoint; without it, no fetching.
+# The startup's messaging endpoint; without it, no fetching.
 STARTUP_ADDRESS: str | None = None
 
 

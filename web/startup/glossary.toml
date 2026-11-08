@@ -1,11 +1,15 @@
 # The startup's words (sources: web/shared/glossary.toml's header).
 
+["final model"]
+meaning = "The model one training run ends with, kept at the startup with its run ID; the word belongs only inside federated learning. Once the data scientist releases it, hospitals fetch it as a screening model. Its file holds every part (weights, run ID, when it was stored, AUROC across hospitals, run configuration) or is unreadable"
+source = "Report, DS4 \"Startup's final models\""
+
 ["release"]
-meaning = "The data scientist's act that lets recipient hospitals fetch a final model; nothing leaves the startup before it"
+meaning = "The data scientist's act that lets recipient hospitals fetch a final model as a screening model; nothing leaves the startup before it"
 source = "Report, federated version: the data scientist sees the final models \"and releases one\" (P5, DF15, DF32)"
 
 ["recipient hospital"]
-meaning = "A hospital the startup registers by its name (`add_hospital`); it may fetch every released final model"
+meaning = "A hospital the startup registers by its name (`add_hospital`); it may fetch every released final model as a screening model"
 source = "Report, federated version: \"Any hospital the startup registers is a recipient, whether or not it trained\""
 
 ["data scientist"]

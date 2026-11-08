@@ -37,7 +37,7 @@ uv run --frozen python .claude/audit.py
 
 Rigour goes where the assessment is decided.
 
-- **Core**: what crosses a party boundary (the messages in `web/shared/messaging/`, each party's messaging module, what a lab order, lab report or final model carries), who logs in where, screening (`web/hospital/lab/`, `web/hospital/deployment/`), the training cohort (`web/hospital/cohort/`) and `ml/`. All the rules below apply: scenarios, glossary words, a guard with its own code for each condition, constraints.
+- **Core**: what crosses a party boundary (the messages in `web/shared/messaging/`, each party's messaging module, what a lab order, lab report or screening model carries), who logs in where, screening (`web/hospital/lab/`, `web/hospital/deployment/`), the training cohort (`web/hospital/cohort/`) and `ml/`. All the rules below apply: scenarios, glossary words, a guard with its own code for each condition, constraints.
 - **Supporting**: everything else, such as the ordering and index pages, the training run list, seeding and `demo/`. Plain Django: view tests (status, redirect, error codes) are enough, and a scenario only where another party or the report relies on the behaviour. Red first, the gates and the design rules still apply.
 
 ## Vocabulary first

@@ -13,7 +13,8 @@ and 2017–2018, keeping fixed 50% and 25% samples for the medium and small
 hospitals. Each client trains on its own locally standardized data.
 
 After training, the startup keeps the final model. Once its data scientist
-releases it, each hospital fetches it and screens new blood counts with it.
+releases it, it reaches each hospital as a screening model, which the hospital
+fetches and screens new blood counts with.
 
 ## Layout
 
@@ -60,14 +61,14 @@ and three Belgian hospitals.
   can stand in for new blood counts screened after training.
 - **Final models.** The original app stops after training. Here the startup
   keeps each final model, and its data scientist releases one; a hospital's
-  laboratory director then fetches it, with the aggregated evaluation metrics,
+  laboratory director then fetches it as a screening model, with the aggregated evaluation metrics,
   from the startup's web app over gRPC, never through Flower: the startup's
   code at a hospital writes nothing there. The hospital's own web app stores it
   as a new file named after the training run ID in its screening-models
   folder, with its own standardization and a local validation on
   its test split, which no training run saw or was chosen on: the confusion matrix at each threshold from 0.05 to
   0.95 in steps of 0.05, and AUROC (`hospital/deployment/model_files.py`). A
-  hospital decides itself which final model to deploy, and at which threshold. The startup keeps a copy of every final
+  hospital decides itself which screening model to deploy, and at which threshold. The startup keeps a copy of every final
   model in `<demo-dir>/startup/final-models/`, so the assessment can cover how
   the model is used, not only how it is trained.
 - **Screening at the hospital.** `ml/inference.py` gives a CBC's probability
@@ -152,8 +153,8 @@ The whole scenario in containers, one network per trust boundary: see
 
 ## Screen new blood counts
 
-Hospitals fetch released final models and screen with them in their own web
-app: see `demo/README.md`.
+Hospitals fetch released final models as screening models and screen with
+them in their own web app: see `demo/README.md`.
 
 ## Tests
 

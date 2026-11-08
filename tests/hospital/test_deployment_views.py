@@ -13,7 +13,7 @@ from pytest_django.fixtures import Settings
 from tests.hospital.conftest import (
     make_laboratory_director,
     make_laboratory_staff_member,
-    write_final_model,
+    write_screening_model,
 )
 from web.hospital.deployment.models import Deployment
 from web.shared.accounts.models import User
@@ -41,7 +41,7 @@ def screening_models_dir(tmp_path: Path, settings: Settings) -> Path:
     directory.mkdir()
     settings.SCREENING_MODELS_DIR = directory
     stored_at = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
-    write_final_model(directory, "1", VALIDATION, stored_at)
+    write_screening_model(directory, "1", VALIDATION, stored_at)
     (directory / "2.pt").write_bytes(b"not a model")
     return directory
 
@@ -190,7 +190,7 @@ def test_without_a_screening_models_folder(
     settings.SCREENING_MODELS_DIR = None
     assertContains(
         client.get(reverse("deployment:screening_models")),
-        "No final model fetched yet.",
+        "No screening model fetched yet.",
     )
 
 
