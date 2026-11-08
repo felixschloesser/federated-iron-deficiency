@@ -15,7 +15,7 @@ from ml.training_cohort import TrainingCohortUnavailable
 from web.hospital.deployment.fetching import fetch_final_models, unreachable
 from web.hospital.deployment.forms import DeployForm
 from web.hospital.deployment.model_files import screening_models
-from web.hospital.deployment.models import Deployment, NoUsableModel
+from web.hospital.deployment.models import Deployment, NotScreened
 from web.shared.accounts.mixins import RoleRequiredMixin
 from web.shared.accounts.roles import Role
 
@@ -36,11 +36,9 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
             **super().get_context_data(**kwargs),
             "screening_models": screening_models(settings.SCREENING_MODELS_DIR),
             "deployed": None
-            if isinstance(deployed, NoUsableModel)
+            if isinstance(deployed, NotScreened)
             else deployed.screening_model,
-            "no_usable_model": deployed
-            if isinstance(deployed, NoUsableModel)
-            else None,
+            "no_usable_model": deployed if isinstance(deployed, NotScreened) else None,
             "history": history,
             # Only a hospital that knows the startup's endpoint can fetch.
             "post_actions": [
