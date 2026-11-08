@@ -17,7 +17,6 @@ COPY --chown=app pyproject.toml uv.lock /app/
 RUN --mount=type=cache,target=/tmp/.cache/uv,uid=1000,gid=1000 uv sync --locked --no-dev --group web --no-install-package ray --no-install-project
 COPY --chown=app README.md LICENSE manage.py /app/
 COPY --chown=app ml/ /app/ml/
-COPY --chown=app buf/ /app/buf/
 COPY --chown=app web/__init__.py /app/web/
 COPY --chown=app web/shared/ /app/web/shared/
 COPY --chown=app web/hospital/ /app/web/hospital/

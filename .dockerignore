@@ -7,7 +7,6 @@
 !manage.py
 !ml/
 !web/
-!buf/
 # The demo's code only: never a stray download or CA under demo/.
 !demo/*.py
 !demo/seeding/

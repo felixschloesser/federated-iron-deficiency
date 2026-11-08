@@ -31,13 +31,19 @@ def to_proto[Value: int](
     return enum.Value(f"{_prefix(enum)}_{name}")
 
 
-def from_proto[Value: int, Choices: models.TextChoices](
-    value: Value, enum: _EnumTypeWrapper[Value], choices: type[Choices]
-) -> Choices:
-    """The vocabulary member of a proto enum value. Only a receiver's parser calls
-    it, on a message that passed the contract's validation, which takes only the
-    values the enum names; never UNSPECIFIED, which is none and never sent."""
-    return choices[enum.Name(value).removeprefix(f"{_prefix(enum)}_")]
+def from_proto[Value: int](
+    value: Value, enum: _EnumTypeWrapper[Value], choices: type[models.TextChoices]
+) -> str | None:
+    """The vocabulary value a proto enum value names, for the receiver's model to
+    parse; None for UNSPECIFIED, which is none. A number the enum does not name
+    stays that number, which is no choice, so the model refuses it."""
+    if value == 0:
+        return None
+    try:
+        name = enum.Name(value)
+    except ValueError:
+        return str(value)
+    return str(choices[name.removeprefix(f"{_prefix(enum)}_")])
 
 
 def timestamp(moment: datetime) -> Timestamp:
