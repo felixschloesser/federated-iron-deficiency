@@ -1,11 +1,10 @@
 """The hospital's messaging endpoint: gRPC, plaintext in the demo (web/shared/messaging/messages.proto)."""
 
 import grpc
-from django.db import models
+import protovalidate
 from django.utils import timezone
 from google.protobuf.empty_pb2 import Empty
 
-from web.hospital.lab.forms import LabOrderForm
 from web.hospital.lab.models import LabOrderDetails, Practice, TestRequest
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
 from web.shared.messaging.convert import from_proto, moment, timestamp, to_proto
@@ -13,11 +12,6 @@ from web.shared.messaging.endpoint import start, with_database
 from web.shared.messaging.identity import caller
 from web.shared.messaging.rejection import rejected
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
-
-
-def _value(choice: models.TextChoices | None) -> str:
-    """A choice as the form reads it; empty for none, which a required field refuses."""
-    return "" if choice is None else choice.value
 
 
 def practice_of(context: grpc.ServicerContext) -> Practice:
@@ -33,44 +27,45 @@ def practice_of(context: grpc.ServicerContext) -> Practice:
     return practice
 
 
+def lab_order_details(
+    request: messages_pb2.LabOrder,
+) -> LabOrderDetails | list[protovalidate.Violation]:
+    """What a lab order says, or the contract's rules it breaks (messages.proto):
+    the reasons the laboratory rejects it with."""
+    violations = protovalidate.collect_violations(request)
+    if violations:
+        return violations
+    return LabOrderDetails(
+        sample_id=request.sample_id,
+        test=from_proto(request.test, messages_pb2.Test, Test),
+        clinical_indication=from_proto(
+            request.clinical_indication,
+            messages_pb2.ClinicalIndication,
+            ClinicalIndication,
+        )
+        if request.clinical_indication
+        else None,
+        registered_sex=from_proto(
+            request.registered_sex, messages_pb2.RegisteredSex, RegisteredSex
+        ),
+        age=request.age,
+        ordered_at=moment(request.ordered_at),
+    )
+
+
 class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
-    """Receives lab orders and hands out lab reports, like a view: form, service."""
+    """Receives lab orders and hands out lab reports, like a view: parse, then the
+    service."""
 
     @with_database
     def SendLabOrder(
         self, request: messages_pb2.LabOrder, context: grpc.ServicerContext
     ) -> Empty:
         practice = practice_of(context)
-        form = LabOrderForm(
-            {
-                "sample_id": request.sample_id,
-                "test": _value(from_proto(request.test, messages_pb2.Test, Test)),
-                "clinical_indication": _value(
-                    from_proto(
-                        request.clinical_indication,
-                        messages_pb2.ClinicalIndication,
-                        ClinicalIndication,
-                    )
-                ),
-                "registered_sex": _value(
-                    from_proto(
-                        request.registered_sex,
-                        messages_pb2.RegisteredSex,
-                        RegisteredSex,
-                    )
-                ),
-                "age": request.age if request.HasField("age") else None,
-                "ordered_at": moment(request.ordered_at)
-                if request.HasField("ordered_at")
-                else None,
-            }
-        )
-        if not form.is_valid():
-            context.abort_with_status(rejected(form.errors.as_data()))
-        TestRequest.objects.receive(
-            practice=practice,
-            details=LabOrderDetails(**form.cleaned_data),
-        )
+        details = lab_order_details(request)
+        if isinstance(details, list):
+            context.abort_with_status(rejected(details))
+        TestRequest.objects.receive(practice=practice, details=details)
         return Empty()
 
     @with_database
