@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
+from ml.cohort import FEATURES
 from tests.conftest import World
 
 NOW = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
@@ -23,7 +24,7 @@ def keep(directory: Path, run_id: str, auroc: float, at: datetime) -> None:
         directory,
         run_id=int(run_id),
         state_dict=Net().state_dict(),
-        federated={"eval_auroc": auroc},
+        federated_auroc=auroc,
         run_configuration={"num-server-rounds": 3, "batch-size": 64},
         stored_at=at,
     )
@@ -56,6 +57,37 @@ def server_app_keeps(world: World, run_id: str, auroc: float) -> None:
 def startup_kept(world: World, run_id: str, day: int, hour: int, minute: int) -> None:
     at = datetime(2026, 10, day, hour, minute, tzinfo=UTC)
     keep(world["final_models_dir"], run_id, 0.85, at)
+
+
+# A file that is not whole, as each scenario row names it: the part it leaves
+# out, or the features its weights were trained on.
+NOT_WHOLE: dict[str, tuple[str | None, int]] = {
+    "holds weights that do not fit the network": (None, 5),
+    "lacks its weights": ("state_dict", len(FEATURES)),
+}
+
+
+@given(parsers.parse('the startup\'s file of run "{run_id}" {problem}'))
+def not_whole(world: World, run_id: str, problem: str) -> None:
+    import torch
+
+    from ml.final_model import Net, final_model_path
+
+    path = final_model_path(world["final_models_dir"], run_id)
+    if problem == "is not a readable model file":
+        path.write_bytes(b"not a model")
+        return
+    left_out, n_features = NOT_WHOLE[problem]
+    contents: dict[str, object] = {
+        "state_dict": Net(n_features=n_features).state_dict(),
+        "run_id": int(run_id),
+        "stored_at": NOW.isoformat(),
+        "federated_auroc": 0.85,
+        "run_configuration": {"num-server-rounds": 3},
+    }
+    if left_out is not None:
+        del contents[left_out]
+    torch.save(contents, path)
 
 
 def listed(world: World) -> list[str]:
@@ -262,7 +294,7 @@ def server_app_keeps_configured(
         world["final_models_dir"],
         run_id=int(run_id),
         state_dict=Net().state_dict(),
-        federated={"eval_auroc": 0.86},
+        federated_auroc=0.86,
         run_configuration=training_parameters(run_config),
         stored_at=NOW,
     )
@@ -286,9 +318,10 @@ def shows_configuration(world: World, run_id: str, shown: str) -> None:
     )
 )
 def holds_no_secret(world: World, run_id: str) -> None:
-    from ml.final_model import final_model_path, read
+    from ml.final_model import final_model_path, read_final_model
 
-    kept = read(final_model_path(world["final_models_dir"], run_id))
+    kept = read_final_model(final_model_path(world["final_models_dir"], run_id))
+    assert kept is not None
     assert "wandb-api-key" not in kept.run_configuration
     assert "demo-dir" not in kept.run_configuration
 

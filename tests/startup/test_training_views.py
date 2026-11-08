@@ -29,7 +29,8 @@ def final_models_dir(tmp_path: Path, settings: Settings) -> Path:
         directory,
         run_id=7,
         state_dict=Net().state_dict(),
-        federated={"eval_auroc": 0.861},
+        federated_auroc=0.861,
+        run_configuration={},
         stored_at=datetime(2026, 10, 30, 9, 0, tzinfo=UTC),
     )
     return directory
@@ -64,7 +65,7 @@ def test_a_final_models_run_configuration_is_listed(
         final_models_dir,
         run_id=8,
         state_dict=Net().state_dict(),
-        federated={"eval_auroc": 0.8},
+        federated_auroc=0.8,
         run_configuration={"num-server-rounds": 5, "batch-size": 128},
         stored_at=datetime(2026, 10, 31, 9, 0, tzinfo=UTC),
     )

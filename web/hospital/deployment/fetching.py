@@ -12,7 +12,7 @@ import pandas as pd
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-from ml.final_model import final_model_paths, from_bytes
+from ml.final_model import final_model_paths, weights_from_bytes
 from ml.training_cohort import (
     TrainingCohortUnavailable,
     read_training_cohort,
@@ -61,7 +61,7 @@ def fetch_final_models(*, now: datetime) -> list[int]:
         cohort: pd.DataFrame | None = None
         stored = []
         for model in offered:
-            state_dict = from_bytes(model.weights).state_dict
+            state_dict = weights_from_bytes(model.weights)
             if state_dict is None:
                 continue
             if cohort is None:
@@ -72,7 +72,7 @@ def fetch_final_models(*, now: datetime) -> list[int]:
                     run_id=model.run_id,
                     state_dict=state_dict,
                     cohort=cohort,
-                    federated=dict(model.federated),
+                    federated_auroc=model.federated_auroc,
                     stored_at=now,
                 )
             except FileExistsError:

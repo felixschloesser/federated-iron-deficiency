@@ -8,7 +8,7 @@ from pathlib import Path
 import torch
 from torch import nn
 
-from ml.final_model import FinalModel, final_model_path, write
+from ml.final_model import FinalModel, final_model_path, write_final_model
 from ml.validation import Loader
 
 
@@ -79,21 +79,21 @@ def keep_final_model(
     *,
     run_id: int,
     state_dict: dict[str, torch.Tensor],
-    federated: dict[str, float],
+    federated_auroc: float,
     stored_at: datetime,
-    run_configuration: dict[str, int | float] | None = None,
+    run_configuration: dict[str, int | float],
 ) -> Path:
     """Keep the startup's copy of a training run's final model (DS4): what every
     hospital was sent, without any hospital's standardization or validation."""
     path = final_model_path(directory, run_id)
-    write(
+    write_final_model(
         path,
         FinalModel(
             state_dict=state_dict,
             run_id=run_id,
             stored_at=stored_at,
-            federated=federated,
-            run_configuration=run_configuration or {},
+            federated_auroc=federated_auroc,
+            run_configuration=run_configuration,
         ),
     )
     return path

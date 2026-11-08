@@ -8,7 +8,6 @@ from flwr.app import (
     ArrayRecord,
     ConfigRecord,
     Context,
-    MetricRecord,
 )
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, Result
@@ -81,22 +80,17 @@ def training_run(grid: Grid, context: Context, directory: Path) -> None:
     )
 
     # Only the federated aggregate of the last round; no hospital's own metrics.
-    last_round = max(result.evaluate_metrics_clientapp, default=None)
-    federated = (
-        result.evaluate_metrics_clientapp[last_round]
-        if last_round is not None
-        else MetricRecord()
-    )
+    # A run without one keeps no final model: KeyError or ValueError, loudly.
+    last_round = max(result.evaluate_metrics_clientapp)
+    federated_auroc = result.evaluate_metrics_clientapp[last_round]["eval_auroc"]
+    if not isinstance(federated_auroc, (int, float)):
+        raise TypeError(f"The AUROC across hospitals is no number: {federated_auroc}")
     # No threshold: each hospital's laboratory director chooses one.
     keep_final_model(
         directory,
         run_id=context.run_id,
         state_dict=result.arrays.to_torch_state_dict(),
-        federated={
-            name: float(value)
-            for name, value in federated.items()
-            if isinstance(value, (int, float))
-        },
+        federated_auroc=float(federated_auroc),
         run_configuration=training_parameters(context.run_config),
         stored_at=datetime.now(UTC),
     )

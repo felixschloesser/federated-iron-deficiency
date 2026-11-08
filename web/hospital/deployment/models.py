@@ -11,9 +11,10 @@ from typing import assert_never
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
-from ml.final_model import FinalModel, final_model_path, from_bytes
+from ml.final_model import final_model_path
 from ml.inference import probability
 from web.hospital.deployment.model_files import (
+    ScreeningModelFile,
     model_name,
     screening_model_file,
     sha256,
@@ -49,9 +50,8 @@ class ScreeningModel(models.Model):
 
     run_id = models.CharField(max_length=64)
     sha256 = models.CharField(max_length=64)
-    # Absent in a file that does not record them.
-    stored_at = models.DateTimeField(null=True, blank=True)
-    federated_auroc = models.FloatField(null=True, blank=True)
+    stored_at = models.DateTimeField()
+    federated_auroc = models.FloatField()
     threshold = models.FloatField()
     # The confusion matrix at the threshold, and AUROC.
     local_validation = models.JSONField(default=dict)
@@ -75,7 +75,7 @@ class ScreeningModel(models.Model):
 
     @property
     def name(self) -> str:
-        return model_name(self.stored_at, self.run_id)
+        return model_name(self.stored_at)
 
 
 class DeploymentManager(models.Manager["Deployment"]):
@@ -86,17 +86,13 @@ class DeploymentManager(models.Manager["Deployment"]):
         """Make a screening model in the hospital's folder the deployed model, at a
         threshold its local validation holds, from `now`."""
         path = None if directory is None else final_model_path(directory, run_id)
-        if path is None or not path.is_file():
-            raise ValidationError(
-                f"There is no model of run {run_id}.", code="not_found"
-            )
         # One read: what is checked is what is hashed.
-        data = path.read_bytes()
-        file = screening_model_file(run_id, data)
-        if file.problem is not None:
+        data = path.read_bytes() if path is not None and path.is_file() else None
+        file = None if data is None else screening_model_file(data)
+        # A missing file and an unreadable one alike: neither is listed.
+        if data is None or file is None:
             raise ValidationError(
-                f"{file.name} cannot be deployed: {file.problem.label}.",
-                code=file.problem.value,
+                f"There is no readable model of run {run_id}.", code="not_found"
             )
         validation = file.at(threshold)
         if validation is None:
@@ -116,10 +112,7 @@ class DeploymentManager(models.Manager["Deployment"]):
             defaults={
                 "stored_at": file.stored_at,
                 "federated_auroc": file.federated_auroc,
-                "local_validation": {
-                    **validation.counts,
-                    **({} if file.local_auroc is None else {"auroc": file.local_auroc}),
-                },
+                "local_validation": {**validation.counts, "auroc": file.local_auroc},
             },
         )
         return self.create(screening_model=screening_model, deployed_at=now)
@@ -140,9 +133,10 @@ class DeploymentManager(models.Manager["Deployment"]):
             else final_model_path(directory, screening_model.run_id)
         )
         data = path.read_bytes() if path is not None and path.is_file() else None
-        if data is None or sha256(data) != screening_model.sha256:
+        file = None if data is None else screening_model_file(data)
+        if data is None or file is None or sha256(data) != screening_model.sha256:
             return NotScreened.DEPLOYED_MODEL_CHANGED
-        return Screener(screening_model, from_bytes(data))
+        return Screener(screening_model, file)
 
 
 class Deployment(models.Model):
@@ -161,9 +155,11 @@ class Screener:
     """The deployed model, loaded from the very bytes whose hash was checked (features/hospital/screening.feature)."""
 
     screening_model: ScreeningModel
-    final_model: FinalModel
+    file: ScreeningModelFile
 
     def suggests_ferritin(self, cbc: Mapping[str, float], age: int) -> bool:
         """Whether the deployed model scores the CBC at or above the threshold the
         laboratory director deployed it at."""
-        return probability(self.final_model, cbc, age) >= self.screening_model.threshold
+        file = self.file
+        score = probability(file.state_dict, file.mean, file.std, cbc, age)
+        return score >= self.screening_model.threshold

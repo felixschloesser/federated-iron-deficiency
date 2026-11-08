@@ -7,7 +7,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 from pytest_django import DjangoAssertNumQueries
-from pytest_django.asserts import assertContains
+from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
 
 from tests.hospital.conftest import (
@@ -113,7 +113,9 @@ def test_models_page(
         html=True,
     )
     assertContains(response, "<dt>AUROC across hospitals</dt><dd>0.87</dd>", html=True)
-    assertContains(response, "Cannot be deployed: not a readable model file")
+    # The unreadable file is no screening model: it is not listed.
+    assertContains(response, "<small>run 1</small>", count=1)
+    assertNotContains(response, "<small>run 2</small>")
     assertContains(response, "No screening model is deployed")
 
 
@@ -152,7 +154,7 @@ def test_a_refused_deployment_says_why(
 ) -> None:
     url = reverse("deployment:deploy", kwargs={"run_id": "2"})
     response = client.post(url, {"threshold": "0.5"}, follow=True)
-    assertContains(response, "not a readable model file")
+    assertContains(response, "There is no readable model of run 2.")
     assert not Deployment.objects.exists()
 
 
@@ -213,10 +215,11 @@ def test_screening_status_before_and_after_deploying(
     screening_models_dir: Path,
     settings: Settings,
 ) -> None:
-    assert status(settings) == "2 screening models, none deployed"
+    # The unreadable "2.pt" is no screening model.
+    assert status(settings) == "1 screening model, none deployed"
     client.post(
         reverse("deployment:deploy", kwargs={"run_id": "1"}), {"threshold": "0.5"}
     )
     assert (
-        status(settings) == "Screening model of 30 Oct 2026, 10:00 deployed (2 in all)"
+        status(settings) == "Screening model of 30 Oct 2026, 10:00 deployed (1 in all)"
     )

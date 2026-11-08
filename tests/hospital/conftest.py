@@ -100,7 +100,7 @@ def write_final_model(
         "std": torch.ones(len(FEATURES)),
         "run_id": run_id,
         "stored_at": stored_at.isoformat(),
-        "federated": {"eval_auroc": 0.87},
+        "federated_auroc": 0.87,
         "confusion_matrices": validation,
         "local_auroc": local_auroc,
     }
