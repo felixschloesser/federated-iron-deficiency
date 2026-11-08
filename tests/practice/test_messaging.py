@@ -37,7 +37,7 @@ pytestmark = pytest.mark.django_db
 
 def latest_sample_id(patient: Patient) -> str:
     """The sample ID of the patient's latest sample."""
-    return patient.samples.latest("pk").sample_id
+    return patient.samples.latest("pk").sample_id.value
 
 
 @pytest.fixture
@@ -70,7 +70,7 @@ def test_a_placed_order_reaches_the_hospital_as_its_lab_order(
 ) -> None:
     placed = send_cbc(practice, ClinicalIndication.UNEXPLAINED_FATIGUE)
     (sent,) = fake_laboratory.laboratory.lab_orders
-    assert sent.sample_id == placed.sample.sample_id
+    assert sent.sample_id == placed.sample.sample_id.value
     assert sent.test == messages_pb2.TEST_CBC
     assert (
         sent.clinical_indication == messages_pb2.CLINICAL_INDICATION_UNEXPLAINED_FATIGUE
@@ -103,7 +103,7 @@ def test_a_rejected_lab_order_keeps_its_reason_and_is_sent_no_more(
     """The laboratory's reason for rejection (WHO LQMS 5-4, p. 66) is kept on the
     order, which is never sent again: the general practitioner orders anew."""
     placed = place_cbc("Test Patient 1")
-    fake_laboratory.laboratory.rejects[placed.sample.sample_id] = AGE_REQUIRED
+    fake_laboratory.laboratory.rejects[placed.sample.sample_id.value] = AGE_REQUIRED
     messaging.send_pending_lab_orders(practice, now=NOW)
     messaging.send_pending_lab_orders(practice, now=NOW)
     order = Order.objects.get(pk=placed.pk)
@@ -118,12 +118,12 @@ def test_a_rejected_lab_order_holds_back_no_other_and_reports_still_arrive(
 ) -> None:
     """One lab order the laboratory rejects is that order's fault alone."""
     rejected = place_cbc("Test Patient 2")
-    fake_laboratory.laboratory.rejects[rejected.sample.sample_id] = AGE_REQUIRED
+    fake_laboratory.laboratory.rejects[rejected.sample.sample_id.value] = AGE_REQUIRED
     accepted = place_cbc("Test Patient 3")
     placed, report_id = released_ferritin(fake_laboratory.laboratory)
     assert messaging.check_for_lab_reports(practice, now=NOW) == 1
     sent = [order.sample_id for order in fake_laboratory.laboratory.lab_orders]
-    assert accepted.sample.sample_id in sent
+    assert accepted.sample.sample_id.value in sent
     assert LabReport.objects.filter(order=placed).exists()
     assert report_id in fake_laboratory.laboratory.acknowledged
 
@@ -233,7 +233,7 @@ def released_ferritin(
         patient=record, test=OrderedTest.FERRITIN, indication=None, now=NOW
     )
     report_id = laboratory.release(
-        placed.sample.sample_id,
+        placed.sample.sample_id.value,
         messages_pb2.TEST_FERRITIN,
         NOW,
         ferritin_suggested=ferritin_suggested,
@@ -462,7 +462,7 @@ def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
     placed = sample.place_order(test=OrderedTest.FERRITIN, indication=None, now=NOW)
     # AZ Diest releases a lab report on it anyway.
     report_id = fake_laboratory.laboratory.release(
-        sample.sample_id, messages_pb2.TEST_FERRITIN, NOW
+        sample.sample_id.value, messages_pb2.TEST_FERRITIN, NOW
     )
     assert messaging.check_for_lab_reports(practice, now=NOW) == 0
     assert not LabReport.objects.filter(order=placed).exists()

@@ -76,22 +76,25 @@ def seed_hospital(rows: Rows) -> list[str]:
 
 @transaction.atomic
 def seed_practice(rows: Rows) -> list[str]:
-    """The practice's general practitioner, and a patient for each chosen
-    participant, whose samples start with its number."""
-    from web.practice.models import Patient
+    """The practice's general practitioner, its stock of sample IDs (the chosen
+    participants' numbers, registered sex and age), and, once, a patient for each
+    participant marked a patient."""
+    from web.practice.models import Patient, SampleId
 
     user(GENERAL_PRACTITIONER, Role.GENERAL_PRACTITIONER)
+    seed_patients = not Patient.objects.exists()
     for row in rows:
         seqn = int(row["sample_id"])
         sex = RegisteredSex.of_nhanes(str(row["sex"]))
-        Patient.objects.get_or_create(
-            patient_number=str(seqn),
-            defaults={
-                "name": patient_name(seqn, sex),
-                "registered_sex": sex,
-                "age": int(float(row["age"])),
-            },
+        age = int(float(row["age"]))
+        SampleId.objects.get_or_create(
+            value=str(seqn), defaults={"registered_sex": sex, "age": age}
         )
+        # A CSV says True as text, a table as a bool.
+        if seed_patients and str(row["patient"]) == "True":
+            Patient.objects.create(
+                name=patient_name(seqn, sex), registered_sex=sex, age=age
+            )
     user("no-role", None)
     return [GENERAL_PRACTITIONER]
 

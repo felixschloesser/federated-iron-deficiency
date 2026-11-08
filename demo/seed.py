@@ -40,12 +40,13 @@ def parser() -> argparse.ArgumentParser:
         "--patients",
         type=int,
         default=None,
-        help="how many participants; the practice and its hospital need the same",
+        help="how many patients; the practice's stock and its hospital's analyser"
+        " hold three sample IDs for each, and need the same",
     )
     arguments.add_argument(
         "--rows",
         type=Path,
-        help="the chosen participants, as nhanes-download wrote them (demo/nhanes.py)",
+        help="the party's NHANES extract, as nhanes-download wrote it (demo/nhanes.py)",
     )
     arguments.add_argument(
         "--csv", type=Path, help="lab-records: nhanes-download's CSV"
@@ -73,7 +74,7 @@ def chosen_rows(options: argparse.Namespace) -> list[dict[object, object]]:
         pd.read_csv(options.nhanes) if options.nhanes else participants.load_nhanes()
     )
     patients = options.patients or participants.PATIENTS
-    chosen = participants.choose(nhanes, seed=options.seed, patients=patients)
+    chosen = participants.stock(nhanes, seed=options.seed, patients=patients)
     rows: list[dict[object, object]] = participants.with_made_up_ferritin(
         chosen, nhanes
     ).to_dict("records")

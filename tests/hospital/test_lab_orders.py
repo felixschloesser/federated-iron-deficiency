@@ -61,7 +61,7 @@ def sends(practice: str, sample_id: str) -> None:
     )
 )
 def released(name: str, sample_id: str, practice: str) -> None:
-    Participant.objects.create(seqn=int(sample_id.split("-")[0]), cbc={})
+    Participant.objects.create(seqn=int(sample_id), cbc={})
     receive(practice, sample_id, OrderedTest.FERRITIN).run_analyser(
         directory=None, now=NOW
     )

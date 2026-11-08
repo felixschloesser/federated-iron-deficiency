@@ -233,21 +233,24 @@ def up(compose: Compose, service: str) -> None:
 
 def write_nhanes_extracts(folder: Path) -> None:
     """Small NHANES extracts for every party, as nhanes-download writes them
-    (demo/nhanes.py), so no test downloads: every practice's patients, and each
-    hospital's analyser stand-in measuring them all."""
-    from demo.seeding.participants import choose, with_made_up_ferritin
+    (demo/nhanes.py), so no test downloads: every practice's stock of sample IDs,
+    and each hospital's analyser stand-in measuring them all."""
+    from demo.seeding.participants import stock, with_made_up_ferritin
     from tests.conftest import nhanes_rows
 
     rows = nhanes_rows()
-    patients = with_made_up_ferritin(choose(rows, seed=0), rows)
+    sample_ids = stock(rows, seed=0)
+    participants = with_made_up_ferritin(sample_ids, rows)
     records = rows.dropna(subset=["LBXFER"]).assign(pregnant=False)
     for slug in HOSPITAL_SLUGS:
         (folder / slug).mkdir(parents=True, exist_ok=True)
-        patients.to_csv(folder / slug / "participants.csv", index=False)
+        participants.to_csv(folder / slug / "participants.csv", index=False)
         records.to_csv(folder / slug / "lab-records.csv", index=False)
     for slug in PRACTICE_SLUGS:
         (folder / slug).mkdir(parents=True, exist_ok=True)
-        patients.to_csv(folder / slug / "patients.csv", index=False)
+        sample_ids[["sample_id", "sex", "age", "patient"]].to_csv(
+            folder / slug / "sample-ids.csv", index=False
+        )
 
 
 def in_party(compose: Compose, service: str, script: str) -> str:

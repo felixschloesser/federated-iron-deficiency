@@ -44,7 +44,7 @@ def column(folder: Path, query: str) -> set[str]:
 
 
 @pytest.mark.parametrize("seed_value", ["0", "1"])
-def test_the_practice_and_the_hospital_seed_the_same_participants(
+def test_the_hospitals_analyser_holds_a_tube_for_every_sample_id_of_the_practice(
     tmp_path: Path, seed_value: str
 ) -> None:
     nhanes = tmp_path / "nhanes.csv"
@@ -53,6 +53,6 @@ def test_the_practice_and_the_hospital_seed_the_same_participants(
     seed("hospital", hospital, nhanes, seed_value)
     seed("practice", practice, nhanes, seed_value)
     tubes = column(hospital, "SELECT seqn FROM analyser_participant")
-    patients = column(practice, "SELECT patient_number FROM practice_patient")
+    sample_ids = column(practice, "SELECT value FROM practice_sampleid")
     assert tubes
-    assert patients == tubes
+    assert sample_ids == tubes

@@ -1,6 +1,7 @@
 """Scenarios: ordering a test (features/practice/ordering.feature), and the practice's one
 general practitioner (features/practice/access.feature)."""
 
+import re
 from datetime import UTC, datetime
 
 import pytest
@@ -10,7 +11,7 @@ from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from tests.conftest import World
 from tests.practice.conftest import a_laboratory
-from web.practice.models import Order, Sample
+from web.practice.models import Order, Sample, SampleId
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
 
@@ -59,9 +60,12 @@ def indication_named(text: str) -> ClinicalIndication:
 @given(parsers.parse('"{general_practitioner}" collected a sample from "{patient}"'))
 @when(parsers.parse('"{general_practitioner}" collects a sample from "{patient}"'))
 def collect(world: World, general_practitioner: str, patient: str) -> None:
-    world["sample"] = world["patients"][patient].collect_sample(
-        laboratory=a_laboratory(), now=NOW
-    )
+    try:
+        world["sample"] = world["patients"][patient].collect_sample(
+            laboratory=a_laboratory(), now=NOW
+        )
+    except ValidationError as error:
+        world["error"] = error
 
 
 @when(
@@ -244,8 +248,7 @@ def numbered_sample(
 ) -> None:
     sample = world["sample"] if what == "sample" else world["order"].sample
     record = world["patients"][patient]
-    assert sample.patient == record
-    assert sample.sample_id == f"{record.patient_number}-{number}"
+    assert sample == record.samples.order_by("pk")[int(number) - 1]
     if now:
         assert sample.collected_at == NOW
 
@@ -314,13 +317,67 @@ def both_primary(world: World) -> None:
 @when("a sample without a laboratory is written straight to the database")
 def sample_without_laboratory(world: World) -> None:
     record = world["patients"]["Test Patient 1"]
+    unused = SampleId.objects.unused().first()
+    assert unused is not None
+    try:
+        with transaction.atomic():
+            Sample.objects.create(patient=record, sample_id=unused, collected_at=NOW)
+    except IntegrityError as error:
+        world["integrity_error"] = error
+
+
+@when("a second sample with the first sample's ID is written straight to the database")
+def second_sample_same_id(world: World) -> None:
+    first = world["sample"]
     try:
         with transaction.atomic():
             Sample.objects.create(
-                patient=record, sample_id=record.next_sample_id(), collected_at=NOW
+                patient=first.patient,
+                sample_id=first.sample_id,
+                collected_at=NOW,
+                laboratory=first.laboratory,
             )
     except IntegrityError as error:
         world["integrity_error"] = error
+
+
+STOCKED = re.compile(r'"(?P<value>\d+)" \((?P<sex>\w+), (?P<age>\d+)\)')
+
+
+@given(parsers.re(r"the practice's stock of sample IDs holds only (?P<stock>.+)$"))
+def stock_holds_only(stock: str) -> None:
+    SampleId.objects.unused().delete()
+    for match in STOCKED.finditer(stock):
+        SampleId.objects.create(
+            value=match["value"],
+            registered_sex=RegisteredSex(match["sex"]),
+            age=int(match["age"]),
+        )
+
+
+@then(
+    parsers.re(
+        r'the sample is sample (?P<number>\d+) of "(?P<patient>[^"]+)",'
+        r' with sample ID "(?P<value>\d+)"$'
+    )
+)
+def sample_with_id(world: World, number: str, patient: str, value: str) -> None:
+    sample = world["sample"]
+    assert sample == world["patients"][patient].samples.order_by("pk")[int(number) - 1]
+    assert sample.sample_id.value == value
+
+
+@then(parsers.parse('the collection is refused with code "{code}" on field "{field}"'))
+def collection_refused(world: World, code: str, field: str) -> None:
+    assert [error.code for error in world["error"].error_dict[field]] == [code]
+
+
+@then(parsers.parse('the samples of "{patient}" carry different sample IDs'))
+def different_sample_ids(world: World, patient: str) -> None:
+    values = [
+        sample.sample_id.value for sample in world["patients"][patient].samples.all()
+    ]
+    assert len(values) == len(set(values)) > 1
 
 
 @when(parsers.parse('the laboratory rejects its lab order because "{reason}"'))
