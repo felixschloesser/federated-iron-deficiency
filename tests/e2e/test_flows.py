@@ -306,9 +306,10 @@ def stored(compose: Compose, journey: dict[str, Any]) -> None:
     assert list(held) == [f"{journey['training']}.pt"], held
     path = f"/data/screening-models/{journey['training']}.pt"
     script = (
-        "from pathlib import Path; from ml.final_model import read;"
-        f" model = read(Path({path!r}));"
-        " print(model.problem() is None and bool(model.confusion_matrices))"
+        "from pathlib import Path;"
+        " from web.hospital.deployment.model_files import screening_model_file;"
+        f" model = screening_model_file(Path({path!r}).read_bytes());"
+        " print(model is not None)"
     )
     assert in_party(compose, f"{APP_HOSPITAL}-web", script) == "True"
 

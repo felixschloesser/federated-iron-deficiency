@@ -20,6 +20,17 @@ Feature: The startup's training runs
   Scenario: No final model yet
     Then the startup's final models are none
 
+  Scenario Outline: A final model file that is not whole is not listed
+    Given the startup kept the final model of run "1" at 30 Oct 2026, 14:02
+    And the startup's file of run "2" <problem>
+    Then the startup's final models are "1"
+
+    Examples:
+      | problem                                   |
+      | is not a readable model file              |
+      | holds weights that do not fit the network |
+      | lacks its weights                         |
+
   Scenario: Submitting a training run
     When the data scientist submits a training run
     Then the SuperLink receives a run without a screening threshold

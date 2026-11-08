@@ -12,17 +12,13 @@
 {% for model in screening_models %}
 <article>
   <header class="card-header">
-    <h2>{% if model.stored_at %}Screening model of <span class="no-wrap">{{ model.stored_at|date:"j M Y, H:i" }}</span>{% else %}{{ model.name }}{% endif %}</h2>
-    {% if model.problem %}<p>Cannot be deployed: {{ model.problem.label }}</p>
-    {% elif deployed and model.run_id == deployed.run_id %}<p><strong>Deployed at threshold {{ deployed.threshold|floatformat:2 }}</strong></p>{% endif %}
+    <h2>Screening model of <span class="no-wrap">{{ model.stored_at|date:"j M Y, H:i" }}</span></h2>
+    {% if deployed and model.run_id == deployed.run_id %}<p><strong>Deployed at threshold {{ deployed.threshold|floatformat:2 }}</strong></p>{% endif %}
   </header>
-  {% if model.local_auroc is not None or model.federated_auroc is not None %}
   <dl>
-    {% if model.local_auroc is not None %}<dt>AUROC here</dt><dd>{{ model.local_auroc|floatformat:2 }}{% if model.local_auroc_interval %} <span class="no-wrap">(95% CI {{ model.local_auroc_interval }})</span>{% endif %}</dd>{% endif %}
-    {% if model.federated_auroc is not None %}<dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>{% endif %}
+    <dt>AUROC here</dt><dd>{{ model.local_auroc|floatformat:2 }} <span class="no-wrap">(95% CI {{ model.local_auroc_interval }})</span></dd>
+    <dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>
   </dl>
-  {% endif %}
-  {% if not model.problem %}
   {% url "deployment:deploy" model.run_id as deploy_url %}
   <form method="post" action="{{ deploy_url }}">
     {% csrf_token %}
@@ -45,7 +41,6 @@
     </fieldset>
     <button aria-label="Deploy {{ model.name }} at the chosen threshold">Deploy</button>
   </form>
-  {% endif %}
   <footer><small>run {{ model.run_id }}</small></footer>
 </article>
 {% empty %}

@@ -1,12 +1,13 @@
 Feature: Final models at each hospital
   When the laboratory director fetches a final model (features/hospital/fetch.feature),
   the hospital's web app stores it in the screening-models folder: a new file named
-  after its training run's ID, never overwriting one, with the federated metrics the startup sent,
+  after its training run's ID, never overwriting one, with the AUROC across hospitals the startup sent,
   and its local validation on this hospital's test split, which no training run
   trained or was chosen on: a confusion
   matrix at each threshold the laboratory director may choose, and AUROC. The
   training run sets no threshold. Its metadata holds only this hospital's local validation and the
-  federated aggregate, never another hospital's metrics.
+  federated aggregate, never another hospital's metrics. A file is read whole:
+  one that lacks a part reads as no screening model.
 
   Background:
     Given a hospital's training cohort
@@ -14,7 +15,7 @@ Feature: Final models at each hospital
   Scenario: Each run's final model is a file of its own
     When the hospital stores the final model of run 11
     Then the hospital holds "11.pt"
-    And it holds the weights, standardization, run ID, when it was stored, the federated metrics and the local validation
+    And it holds the weights, standardization, run ID, when it was stored, the AUROC across hospitals and the local validation
     And it holds no threshold
 
   Scenario: A final model is never overwritten
@@ -31,7 +32,7 @@ Feature: Final models at each hospital
 
   Scenario: A hospital learns no other hospital's metrics
     When the hospital stores the final model of run 11
-    Then its federated metrics are exactly the aggregate the ServerApp sent
+    Then its AUROC across hospitals is exactly the aggregate the ServerApp sent
 
   Scenario: The web app never reads half a final model
     Given the disk fills up while the final model of run 11 is written

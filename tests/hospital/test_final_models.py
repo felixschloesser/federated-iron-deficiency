@@ -11,13 +11,18 @@ import torch
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from ml.cohort import CBC_VARS, FEATURES
-from ml.final_model import Net, Problem, read
+from ml.final_model import Net
 from ml.inference import probability
 from tests.conftest import World
-from web.hospital.deployment.model_files import store_fetched, store_screening_model
+from web.hospital.deployment.model_files import (
+    ScreeningModelFile,
+    screening_model_file,
+    store_fetched,
+    store_screening_model,
+)
 
 STORED_AT = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
-FEDERATED = {"eval_auroc": 0.85, "eval_loss": 0.41}
+FEDERATED_AUROC = 0.85
 # Files only; declared like every party's scenario module.
 pytestmark = pytest.mark.django_db
 
@@ -40,7 +45,7 @@ def store(directory: Path, cohort: pd.DataFrame, run_id: int) -> Path:
         run_id=run_id,
         state_dict=Net().state_dict(),
         cohort=cohort,
-        federated=FEDERATED,
+        federated_auroc=FEDERATED_AUROC,
         stored_at=STORED_AT,
     )
 
@@ -97,7 +102,7 @@ def holds_two(hospital: World, first: str, second: str) -> None:
 
 @then(
     "it holds the weights, standardization, run ID, when it was stored, "
-    "the federated metrics and the local validation"
+    "the AUROC across hospitals and the local validation"
 )
 def holds_metadata(hospital: World) -> None:
     final_model = torch.load(hospital["path"])
@@ -107,7 +112,7 @@ def holds_metadata(hospital: World) -> None:
         "std",
         "run_id",
         "stored_at",
-        "federated",
+        "federated_auroc",
         "confusion_matrices",
         "local_auroc",
     }
@@ -171,37 +176,41 @@ def an_auroc(hospital: World) -> None:
     assert 0.0 <= torch.load(hospital["path"])["local_auroc"] <= 1.0
 
 
-@then("its federated metrics are exactly the aggregate the ServerApp sent")
+@then("its AUROC across hospitals is exactly the aggregate the ServerApp sent")
 def only_aggregate(hospital: World) -> None:
-    assert torch.load(hospital["path"])["federated"] == FEDERATED
+    assert torch.load(hospital["path"])["federated_auroc"] == FEDERATED_AUROC
 
 
 # Reading a stored final model back, as the hospital's web app does.
 
 
+def read(path: Path) -> ScreeningModelFile:
+    file = screening_model_file(path.read_bytes())
+    assert file is not None
+    return file
+
+
 def test_a_final_model_screens_like_a_deployment(
     tmp_path: Path, cohort: pd.DataFrame
 ) -> None:
-    final_model = read(store(tmp_path, cohort, run_id=11))
+    file = read(store(tmp_path, cohort, run_id=11))
     cbc = {var: float(cohort[var].iloc[0]) for var in CBC_VARS}
-    assert 0.0 <= probability(final_model, cbc, age=30) <= 1.0
+    assert 0.0 <= probability(file.state_dict, file.mean, file.std, cbc, age=30) <= 1.0
 
 
 def test_a_stored_final_model_reads_back_whole(
     tmp_path: Path, cohort: pd.DataFrame
 ) -> None:
-    final_model = read(store(tmp_path, cohort, run_id=11))
-    assert final_model.problem() is None
-    assert final_model.stored_at == STORED_AT
-    assert final_model.federated == FEDERATED
-    assert len(final_model.confusion_matrices) == 19
-    assert final_model.local_auroc is not None
+    file = read(store(tmp_path, cohort, run_id=11))
+    assert file.run_id == "11"
+    assert file.stored_at == STORED_AT
+    assert file.federated_auroc == FEDERATED_AUROC
+    assert len(file.local_validation) == 19
+    assert 0.0 <= file.local_auroc <= 1.0
 
 
-def test_a_file_that_is_no_model_reads_as_unreadable(tmp_path: Path) -> None:
-    path = tmp_path / "11.pt"
-    path.write_bytes(b"not a model")
-    assert read(path).problem() is Problem.UNREADABLE
+def test_a_file_that_is_no_model_reads_as_none(tmp_path: Path) -> None:
+    assert screening_model_file(b"not a model") is None
 
 
 def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
@@ -212,7 +221,7 @@ def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
         run_id=run_id if as_run is None else as_run,
         state_dict=Net().state_dict(),
         cohort=hospital["cohort"],
-        federated=FEDERATED,
+        federated_auroc=FEDERATED_AUROC,
         stored_at=STORED_AT,
     )
 

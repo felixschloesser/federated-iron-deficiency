@@ -1,13 +1,13 @@
-"""The final model: its network, and its file, the one format the ClientApp
-writes and every reader, the startup's and the hospital's, reads."""
+"""The final model: its network, and its files: the startup's copy, the weights
+on the wire, and how the hospital's screening model file is written and read.
+A file is read whole or not at all."""
 
-import enum
 import io
 import os
 import pickle
 import tempfile
 import zipfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -54,47 +54,21 @@ UNREADABLE_ERRORS = (
     zipfile.BadZipFile,
 )
 
-
-class Problem(enum.Enum):
-    """Why a final model's file cannot screen: the first that applies."""
-
-    UNREADABLE = "unreadable"
-    FEATURES_DIFFER = "features_differ"
-    LOCAL_VALIDATION_MISSING = "local_validation_missing"
-    STANDARDIZATION_MISSING = "standardization_missing"
+# What reading a part raises when a file lacks it or holds something else there.
+MISSING_PART_ERRORS = (KeyError, TypeError, ValueError, AttributeError)
 
 
 @dataclass(frozen=True)
 class FinalModel:
-    """A final model as its file holds it; any part may be missing from an old or
-    damaged file, which problem() then names."""
+    """A final model as the startup keeps it: every part, or no final model."""
 
-    state_dict: dict[str, torch.Tensor] | None = None
-    # This hospital's standardization, in FEATURES order.
-    mean: torch.Tensor | None = None
-    std: torch.Tensor | None = None
-    run_id: int | str | None = None
-    stored_at: datetime | None = None
-    # Only what the ServerApp aggregated; no other hospital's metrics.
-    federated: dict[str, float] = field(default_factory=dict)
-    # Local validation: the confusion matrix at each threshold, and AUROC.
-    confusion_matrices: dict[float, dict[str, int]] = field(default_factory=dict)
-    local_auroc: float | None = None
-    # The startup's copy only: the training parameters the run was configured with.
-    run_configuration: dict[str, int | float] = field(default_factory=dict)
-
-    def problem(self) -> Problem | None:
-        if self.state_dict is None:
-            return Problem.UNREADABLE
-        try:
-            Net().load_state_dict(self.state_dict)
-        except RuntimeError:
-            return Problem.FEATURES_DIFFER
-        if not self.confusion_matrices:
-            return Problem.LOCAL_VALIDATION_MISSING
-        if self.mean is None or self.std is None:
-            return Problem.STANDARDIZATION_MISSING
-        return None
+    state_dict: dict[str, torch.Tensor]
+    run_id: int
+    stored_at: datetime
+    # Only what the ServerApp aggregated; no hospital's own metrics.
+    federated_auroc: float
+    # The training parameters the run was configured with.
+    run_configuration: dict[str, int | float]
 
 
 def standardization_tensor(values: pd.Series) -> torch.Tensor:
@@ -113,36 +87,29 @@ def final_model_paths(directory: Path) -> list[Path]:
     return [path for path in directory.glob("*.pt") if path.stem.isdigit()]
 
 
-def file_contents(model: FinalModel) -> dict[str, Any]:
-    """What the file holds of a final model; parts it lacks, or holds empty, are
-    left out."""
-    held: dict[str, Any] = {
-        "state_dict": model.state_dict,
-        "mean": model.mean,
-        "std": model.std,
-        "run_id": model.run_id,
-        "stored_at": model.stored_at.isoformat() if model.stored_at else None,
-        "federated": model.federated,
-        "confusion_matrices": model.confusion_matrices,
-        "local_auroc": model.local_auroc,
-        "run_configuration": model.run_configuration,
-    }
-    return {
-        key: value
-        for key, value in held.items()
-        if value is not None and not (isinstance(value, dict) and not value)
-    }
+def fitting_weights(state_dict: object) -> dict[str, torch.Tensor]:
+    """The weights, if they fit Net(); TypeError if they do not."""
+    if not isinstance(state_dict, dict):
+        raise TypeError("No weights.")
+    try:
+        Net().load_state_dict(state_dict)
+    except RuntimeError as error:
+        raise TypeError("The weights do not fit the network.") from error
+    return state_dict
 
 
-def to_bytes(model: FinalModel) -> bytes:
-    """A final model in the one file format, as bytes."""
-    buffer = io.BytesIO()
-    torch.save(file_contents(model), buffer)
-    return buffer.getvalue()
+def load_contents(data: bytes) -> dict[str, Any] | None:
+    """What a file's bytes hold; None if they hold no dict torch loads safely."""
+    try:
+        # Never unpickle objects: the file crosses a trust boundary.
+        contents = torch.load(io.BytesIO(data), weights_only=True)
+    except UNREADABLE_ERRORS:
+        return None
+    return contents if isinstance(contents, dict) else None
 
 
-def write(path: Path, model: FinalModel) -> None:
-    """Store a final model; one is never overwritten."""
+def write_contents(path: Path, contents: dict[str, Any]) -> None:
+    """Store a file's contents; one is never overwritten."""
     if path.exists():
         raise FileExistsError(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -155,40 +122,55 @@ def write(path: Path, model: FinalModel) -> None:
     os.close(descriptor)
     partial = Path(name)
     try:
-        torch.save(file_contents(model), partial)
+        torch.save(contents, partial)
         os.link(partial, path)
     finally:
         partial.unlink(missing_ok=True)
 
 
-def from_bytes(data: bytes) -> FinalModel:
-    """A final model from its file's bytes; an unreadable file gives an empty one."""
-    try:
-        # Never unpickle objects: the file crosses a trust boundary.
-        contents = torch.load(io.BytesIO(data), weights_only=True)
-    except UNREADABLE_ERRORS:
-        return FinalModel()
-    if not isinstance(contents, dict):
-        return FinalModel()
-    stored_at = contents.get("stored_at")
-    local_auroc = contents.get("local_auroc")
-    # An older file's single "threshold" and "local_validation" are not read: it
-    # has no local validation at the thresholds a director chooses from.
-    return FinalModel(
-        state_dict=contents.get("state_dict"),
-        mean=contents.get("mean"),
-        std=contents.get("std"),
-        run_id=contents.get("run_id"),
-        stored_at=datetime.fromisoformat(stored_at) if stored_at else None,
-        federated=dict(contents.get("federated", {})),
-        confusion_matrices={
-            float(threshold): dict(counts)
-            for threshold, counts in contents.get("confusion_matrices", {}).items()
+def write_final_model(path: Path, model: FinalModel) -> None:
+    """Store the startup's copy of a final model; one is never overwritten."""
+    write_contents(
+        path,
+        {
+            "state_dict": model.state_dict,
+            "run_id": model.run_id,
+            "stored_at": model.stored_at.isoformat(),
+            "federated_auroc": model.federated_auroc,
+            "run_configuration": model.run_configuration,
         },
-        local_auroc=float(local_auroc) if local_auroc is not None else None,
-        run_configuration=dict(contents.get("run_configuration", {})),
     )
 
 
-def read(path: Path) -> FinalModel:
-    return from_bytes(path.read_bytes())
+def read_final_model(path: Path) -> FinalModel | None:
+    """The startup's copy of a final model; None if the file is unreadable, lacks
+    a part, or its weights do not fit the network."""
+    contents = load_contents(path.read_bytes())
+    if contents is None:
+        return None
+    try:
+        return FinalModel(
+            state_dict=fitting_weights(contents["state_dict"]),
+            run_id=int(contents["run_id"]),
+            stored_at=datetime.fromisoformat(contents["stored_at"]),
+            federated_auroc=float(contents["federated_auroc"]),
+            run_configuration=dict(contents["run_configuration"]),
+        )
+    except MISSING_PART_ERRORS:
+        return None
+
+
+def weights_to_bytes(state_dict: dict[str, torch.Tensor]) -> bytes:
+    """A final model's weights as they cross the wire."""
+    buffer = io.BytesIO()
+    torch.save(state_dict, buffer)
+    return buffer.getvalue()
+
+
+def weights_from_bytes(data: bytes) -> dict[str, torch.Tensor] | None:
+    """Weights from the wire; None if unreadable or they do not fit the network."""
+    contents = load_contents(data)
+    try:
+        return None if contents is None else fitting_weights(contents)
+    except MISSING_PART_ERRORS:
+        return None

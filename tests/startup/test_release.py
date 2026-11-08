@@ -55,7 +55,7 @@ def kept(
         settings.FINAL_MODELS_DIR,
         run_id=int(run_id),
         state_dict=Net().state_dict(),
-        federated={"eval_auroc": auroc},
+        federated_auroc=auroc,
         run_configuration={"num-server-rounds": 3, "batch-size": 64},
         stored_at=NOW,
     )
@@ -160,24 +160,30 @@ def receives_none(world: World) -> None:
     )
 )
 def receives(world: World, run_id: str, auroc: float) -> None:
-    from ml.final_model import Net, from_bytes
+    from ml.final_model import Net, weights_from_bytes
 
     (model,) = world["fetched"].final_models
     assert model.run_id == int(run_id)
-    state_dict = from_bytes(model.weights).state_dict
+    state_dict = weights_from_bytes(model.weights)
     assert state_dict is not None
     assert state_dict.keys() == Net().state_dict().keys()
-    assert model.federated["eval_auroc"] == pytest.approx(auroc)
+    assert model.federated_auroc == pytest.approx(auroc)
 
 
 @then("it receives no run configuration")
 def no_run_configuration(world: World) -> None:
-    from ml.final_model import from_bytes
+    import io
+
+    import torch
+
+    from ml.final_model import Net
 
     (model,) = world["fetched"].final_models
-    assert from_bytes(model.weights).run_configuration == {}
+    # The weights are a plain state dict: nothing but the network's parameters.
+    weights = torch.load(io.BytesIO(model.weights), weights_only=True)
+    assert weights.keys() == Net().state_dict().keys()
     fields = {field.name for field in messages_pb2.FinalModel.DESCRIPTOR.fields}
-    assert fields == {"run_id", "weights", "federated"}
+    assert fields == {"run_id", "weights", "federated_auroc"}
 
 
 @then("fetching is refused as unknown hospital")
