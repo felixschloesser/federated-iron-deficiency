@@ -53,20 +53,20 @@ services:
         add_practice 'Huisartsenpraktijk De Berk'
         add_practice 'Huisartsenpraktijk De Ceder'
       # The startup's final-models endpoint.
-      STARTUP_ADDRESS: startup-final-models:8442
+      STARTUP_ADDRESS: startup-grpc:8442
 
   # A hospital's lab-order endpoint, the only thing its practices reach
   # (tests/quality/security/test_running_containers.py).
-  hospital-messaging:
+  hospital-grpc:
     extends: endpoint
     image: ${COMPOSE_PROJECT_NAME}-hospital-web
-    command: [python, manage.py, serve_messages, 0.0.0.0:8441]
+    command: [python, manage.py, grpcrunserver, 0.0.0.0:8441]
     environment:
       DJANGO_SETTINGS_MODULE: web.hospital.settings
       DATA_DIR: /data
     healthcheck:
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8441)).close()"]
-    networks: [messaging]
+    networks: [lab-orders]
 
   # A practice's web app: Django and gRPC only, no training package
   # dependencies.

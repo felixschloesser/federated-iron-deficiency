@@ -82,7 +82,7 @@ meaning = "The model one training run ends with, kept at the startup with its ru
 source = "Report, DS4 \"Startup's final models\", DS5 \"Final models\""
 
 ["messaging"]
-meaning = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (web/shared/messaging/, serve_messages)"
+meaning = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (web/shared/messaging/, grpcrunserver)"
 source = "Report, P8 \"Receive lab orders\" and P12 \"Send lab reports\", the messages between practice and hospital (DF23, DF25)"
 
 ["lab report"]

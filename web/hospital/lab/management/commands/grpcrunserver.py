@@ -1,4 +1,4 @@
-"""Run the hospital's messaging endpoint (web/shared/messaging/messages.proto) until stopped."""
+"""Run the hospital's lab-order endpoint (web/shared/messaging/messages.proto) until stopped."""
 
 from typing import Any
 
