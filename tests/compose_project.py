@@ -120,6 +120,8 @@ def compose(
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
     folder = tmp_path_factory.mktemp("compose")
     (folder / "demo").mkdir()
+    # compose.yaml's services extend kinds.yaml, found from the project folder.
+    shutil.copy(ROOT / "demo" / "kinds.yaml", folder / "demo")
     # The proxy joins every party's network in the demo; here only the hospital
     # and practice under test, so the project takes the networks it tests.
     override = folder / "demo" / "test-override.yaml"
