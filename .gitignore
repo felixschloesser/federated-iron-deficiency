@@ -9,7 +9,15 @@ staticfiles/
 # Per-user compose settings, such as DEMO_USER
 .env
 .DS_Store
-/.demo/
+# The demo's downloads and extracts; the two folders themselves come with the
+# checkout, so they belong to whoever cloned it (demo/compose.yaml).
+/.demo/*
+!/.demo/huggingface/
+!/.demo/nhanes/
+/.demo/huggingface/*
+/.demo/nhanes/*
+!/.demo/huggingface/.gitkeep
+!/.demo/nhanes/.gitkeep
 # Demo output from before demo/ held source: mv demo/browser-ca demo/huggingface .demo/
 /demo/browser-ca/
 /demo/huggingface/
