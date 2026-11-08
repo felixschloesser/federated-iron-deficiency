@@ -88,6 +88,14 @@ def released_misfit(world: World, run_id: str) -> None:
     )
 
 
+@given(parsers.parse('the startup released final model "{run_id}" without its {part}'))
+def released_without(world: World, run_id: str, part: str) -> None:
+    """Every part but one, as a startup that left it out would send it."""
+    model = offered(run_id, seed=1)
+    model.ClearField(part)
+    world["startup"].offered.append(model)
+
+
 @then(parsers.parse('the hospital holds only "{name}"'))
 def holds_only(world: World, name: str) -> None:
     assert [path.name for path in world["folder"].iterdir()] == [name]
