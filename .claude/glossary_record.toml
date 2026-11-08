@@ -116,8 +116,9 @@ rejected = ["model (too generic; Django's `Model`)", "final model (kept for trai
 ["deploy"]
 rejected = ["activate", "release", "roll out", "deployment for a party's running copy (that is a party's web app)"]
 
-["deployed model"]
-rejected = ["active release", "fingerprint"]
+["deployed screening model"]
+decided = "2026-11-08"
+rejected = ["active release", "fingerprint", "deployed model (drops whose model it is; the word until 2026-11-08)", "deployed final model (the report's word; at the hospital a final model is a screening model)", "ScreeningModel (the code's name for the row until 2026-11-08)"]
 
 ["laboratory director"]
 rejected = ["clinical biologist (not in either source)", "quality manager (WHO: runs the quality system, does not decide)", "laboratory manager"]

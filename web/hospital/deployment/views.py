@@ -29,15 +29,15 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         deployed = Deployment.objects.screener(settings.SCREENING_MODELS_DIR)
-        history = Deployment.objects.select_related("screening_model").order_by(
-            "-deployed_at", "-pk"
-        )
+        history = Deployment.objects.select_related(
+            "deployed_screening_model"
+        ).order_by("-deployed_at", "-pk")
         return {
             **super().get_context_data(**kwargs),
             "screening_models": screening_models(settings.SCREENING_MODELS_DIR),
             "deployed": None
             if isinstance(deployed, NotScreened)
-            else deployed.screening_model,
+            else deployed.deployed_screening_model,
             "no_usable_model": deployed if isinstance(deployed, NotScreened) else None,
             "history": history,
             # Only a hospital that knows the startup's endpoint can fetch.
@@ -100,7 +100,7 @@ class DeployView(LaboratoryDirectorRequiredMixin, View):
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            deployed = deployment.screening_model
+            deployed = deployment.deployed_screening_model
             messages.success(
                 request,
                 f"{deployed.name} deployed at threshold {deployed.threshold:.2f}.",

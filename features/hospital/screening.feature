@@ -1,5 +1,5 @@
 Feature: Screening a CBC
-  The deployed model screens a CBC only for a screened indication (suspected
+  The deployed screening model screens a CBC only for a screened indication (suspected
   anaemia, suspected irritable bowel syndrome or unexplained fatigue; the lab
   order names the clinical indication and the hospital decides) in a woman
   aged 18–49. Only the result, the
@@ -14,7 +14,7 @@ Feature: Screening a CBC
   Scenario Outline: The model's decision becomes the result
     Given the laboratory director deployed "1" at threshold 0.5
     And a CBC sample of a woman aged 30 for a screened indication
-    And the deployed model scores the sample <side> the threshold
+    And the deployed screening model scores the sample <side> the threshold
     When laboratory staff run the analyser
     Then the screening result is "<result>"
 
@@ -26,7 +26,7 @@ Feature: Screening a CBC
   Scenario Outline: The lab report says only whether ferritin is suggested
     Given the laboratory director deployed "1" at threshold 0.5
     And a CBC sample of a woman aged 30 for a screened indication
-    And the deployed model scores the sample <side> the threshold
+    And the deployed screening model scores the sample <side> the threshold
     When laboratory staff run the analyser
     Then the lab report is released <suggested> ferritin suggested
 
@@ -72,7 +72,7 @@ Feature: Screening a CBC
     When laboratory staff run the analyser
     Then no stored field of the sample or its screening result holds a score
 
-  Scenario Outline: Without a usable deployed model the CBC is released not screened
+  Scenario Outline: Without a usable deployed screening model the CBC is released not screened
     Given <state>
     And a CBC sample of a woman aged 30 for a screened indication
     When laboratory staff run the analyser

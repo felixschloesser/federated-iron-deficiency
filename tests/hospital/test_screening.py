@@ -1,4 +1,4 @@
-"""Scenarios: screening a CBC in the lab app with a deployed model
+"""Scenarios: screening a CBC in the lab app with a deployed screening model
 (features/hospital/screening.feature)."""
 
 from datetime import UTC, datetime
@@ -174,7 +174,9 @@ def ferritin_sample(world: World, age: int) -> None:
     lab_sample(world, OrderedTest.FERRITIN, None, RegisteredSex.FEMALE, age)
 
 
-@given(parsers.parse("the deployed model scores the sample {side} the threshold"))
+@given(
+    parsers.parse("the deployed screening model scores the sample {side} the threshold")
+)
 def scores(world: World, side: str) -> None:
     Participant.objects.filter(seqn=int(world["test_request"].sample.sample_id)).update(
         cbc={var: SIDES[side] if var == DECIDING else 0.0 for var in CBC_VARS}

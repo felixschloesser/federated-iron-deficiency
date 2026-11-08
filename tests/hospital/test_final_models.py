@@ -15,8 +15,8 @@ from ml.final_model import Net
 from ml.inference import probability
 from tests.conftest import World
 from web.hospital.deployment.model_files import (
-    ScreeningModelFile,
-    screening_model_file,
+    ScreeningModel,
+    read_screening_model,
     store_fetched,
     store_screening_model,
 )
@@ -184,8 +184,8 @@ def only_aggregate(hospital: World) -> None:
 # Reading a stored final model back, as the hospital's web app does.
 
 
-def read(path: Path) -> ScreeningModelFile:
-    file = screening_model_file(path.read_bytes())
+def read(path: Path) -> ScreeningModel:
+    file = read_screening_model(path.read_bytes())
     assert file is not None
     return file
 
@@ -210,7 +210,7 @@ def test_a_stored_final_model_reads_back_whole(
 
 
 def test_a_file_that_is_no_model_reads_as_none(tmp_path: Path) -> None:
-    assert screening_model_file(b"not a model") is None
+    assert read_screening_model(b"not a model") is None
 
 
 def receive(hospital: World, run_id: int, as_run: int | None = None) -> Path:
