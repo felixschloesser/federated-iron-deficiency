@@ -88,6 +88,21 @@ def released_misfit(world: World, run_id: str) -> None:
     )
 
 
+@given(parsers.parse('the startup released final model "{run_id}" without its {part}'))
+def released_without(world: World, run_id: str, part: str) -> None:
+    """Every part but one, as a startup that left it out would send it."""
+    full = offered(run_id, seed=1)
+    world["startup"].offered.append(
+        messages_pb2.FinalModel(
+            **{
+                field.name: getattr(full, field.name)
+                for field in full.DESCRIPTOR.fields
+                if field.name != part
+            }
+        )
+    )
+
+
 @then(parsers.parse('the hospital holds only "{name}"'))
 def holds_only(world: World, name: str) -> None:
     assert [path.name for path in world["folder"].iterdir()] == [name]
