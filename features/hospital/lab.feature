@@ -62,7 +62,7 @@ Feature: Analysing samples
 
   Scenario: The lab never sees a patient's name
     Given a CBC order for "Test Patient 1"
-    Then the lab's samples hold sample ID, registered sex, age, test, whether the indication is screened and results, and no general practitioner
+    Then the lab's samples hold sample ID, registered sex, age, test, clinical indication and results, and no general practitioner
     And the lab's records relate to nothing outside the hospital
 
   Scenario: Laboratory staff see nothing of a patient's screening

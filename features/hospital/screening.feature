@@ -1,7 +1,8 @@
 Feature: Screening a CBC
   The deployed model screens a CBC only for a screened indication (suspected
-  anaemia, suspected irritable bowel syndrome or unexplained fatigue, which the
-  lab order does not name) in a woman aged 18–49. Only the result, the
+  anaemia, suspected irritable bowel syndrome or unexplained fatigue; the lab
+  order names the clinical indication and the hospital decides) in a woman
+  aged 18–49. Only the result, the
   not-screened reason and the screening model that produced it are stored,
   never a score; a CBC outside the screening is not eligible, never why.
 

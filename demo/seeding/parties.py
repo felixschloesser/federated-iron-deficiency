@@ -109,7 +109,9 @@ def indication(pregnant: bool, number: int) -> ClinicalIndication:
     found pregnant, else one of the screened indications in turn."""
     if pregnant:
         return ClinicalIndication.START_OF_PREGNANCY
-    screened = ClinicalIndication.screened()
+    from web.hospital.lab.models import screened_indications
+
+    screened = screened_indications()
     return screened[number % len(screened)]
 
 

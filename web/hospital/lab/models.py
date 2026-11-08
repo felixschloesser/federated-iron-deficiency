@@ -16,7 +16,36 @@ from django_stubs_ext import WithAnnotations
 from ml.cohort import ELIGIBLE_AGES, ELIGIBLE_SEX
 from web.hospital.analyser import port as analyser
 from web.hospital.deployment.models import Deployment, NoUsableModel, ScreeningModel
-from web.shared.vocabulary import RegisteredSex, Test
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
+
+
+def is_screened_indication(indication: ClinicalIndication) -> bool:
+    """Whether the hospital screens a CBC ordered for this indication: the
+    guidelines order a CBC without ferritin first, so a suggestion can add something."""
+    match indication:
+        case (
+            ClinicalIndication.SUSPECTED_ANAEMIA
+            | ClinicalIndication.SUSPECTED_IBS
+            | ClinicalIndication.UNEXPLAINED_FATIGUE
+        ):
+            return True
+        case (
+            ClinicalIndication.START_OF_PREGNANCY
+            | ClinicalIndication.CKD_FOLLOW_UP
+            | ClinicalIndication.OTHER
+        ):
+            return False
+        case _:
+            assert_never(indication)
+
+
+def screened_indications() -> list[ClinicalIndication]:
+    """Every indication whose CBC the hospital screens."""
+    return [
+        indication
+        for indication in ClinicalIndication
+        if is_screened_indication(indication)
+    ]
 
 
 class ScreeningResult(models.TextChoices):
@@ -122,8 +151,8 @@ class LabOrderDetails:
 
     sample_id: str
     test: Test
-    # Whether the indication is a screened one; never which indication.
-    screened_indication: bool
+    # Absent for ferritin, which takes none.
+    clinical_indication: ClinicalIndication | None
     registered_sex: RegisteredSex
     age: int
     ordered_at: datetime
@@ -180,7 +209,7 @@ class TestRequestManager(models.Manager["TestRequest"]):
             sample=sample,
             test=details.test,
             defaults={
-                "screened_indication": details.screened_indication,
+                "clinical_indication": details.clinical_indication,
                 "registered_sex": details.registered_sex,
                 "age": details.age,
                 "ordered_at": details.ordered_at,
@@ -207,9 +236,10 @@ class TestRequest(models.Model):
         Sample, on_delete=models.PROTECT, related_name="test_requests"
     )
     test = models.CharField(max_length=8, choices=Test.choices)
-    # Whether the general practitioner's indication is a screened one;
-    # the laboratory never learns which indication.
-    screened_indication = models.BooleanField(default=False)
+    # Why the general practitioner ordered it; absent for ferritin.
+    clinical_indication = models.CharField(
+        max_length=19, choices=ClinicalIndication.choices, null=True, blank=True
+    )
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
     # No general practitioner: the sample's practice says who ordered.
@@ -253,7 +283,8 @@ class TestRequest(models.Model):
         registered sex other than female, or an age outside the trained range.
         Which of them is never recorded: nobody acts on it."""
         eligible = (
-            self.screened_indication
+            self.clinical_indication is not None
+            and is_screened_indication(ClinicalIndication(self.clinical_indication))
             and self.registered_sex == RegisteredSex.of_nhanes(ELIGIBLE_SEX)
             and ELIGIBLE_AGES[0] <= self.age <= ELIGIBLE_AGES[1]
         )

@@ -24,6 +24,7 @@ from ml.cohort import (
     iron_deficient,
 )
 from ml.training_cohort import remove_training_cohort, sha256, write_training_cohort
+from web.hospital.lab.models import screened_indications
 from web.shared.accounts.models import User
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 
@@ -55,7 +56,7 @@ class LabRecordQuerySet(models.QuerySet["LabRecord"]):
         return self.filter(
             registered_sex=RegisteredSex.of_nhanes(ELIGIBLE_SEX),
             age__range=ELIGIBLE_AGES,
-            clinical_indication__in=ClinicalIndication.screened(),
+            clinical_indication__in=screened_indications(),
             ferritin__isnull=False,
             cbc__has_keys=CBC_VARS,
         ).order_by("pk")

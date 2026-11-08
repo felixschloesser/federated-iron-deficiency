@@ -20,20 +20,30 @@ enum Test {
   TEST_FERRITIN = 2;
 }
 
+enum ClinicalIndication {
+  CLINICAL_INDICATION_UNSPECIFIED = 0;
+  CLINICAL_INDICATION_SUSPECTED_ANAEMIA = 1;
+  CLINICAL_INDICATION_SUSPECTED_IBS = 2;
+  CLINICAL_INDICATION_UNEXPLAINED_FATIGUE = 3;
+  CLINICAL_INDICATION_START_OF_PREGNANCY = 4;
+  CLINICAL_INDICATION_CKD_FOLLOW_UP = 5;
+  CLINICAL_INDICATION_OTHER = 6;
+}
+
 enum RegisteredSex {
   REGISTERED_SEX_UNSPECIFIED = 0;
   REGISTERED_SEX_FEMALE = 1;
   REGISTERED_SEX_MALE = 2;
 }
 
-// DF23. No patient name, no blood values, no clinical indication (tests/quality/privacy/test_messages.py): the
-// tube's values are measured at the hospital, and of the indication the
-// laboratory needs only whether it is screened (features/hospital/screening.feature). The hospital's form still
-// checks every field.
+// DF23. No patient name, no blood values (tests/quality/privacy/test_messages.py): the
+// tube's values are measured at the hospital. The clinical indication is one of
+// the choices, from which the laboratory decides whether to screen
+// (features/hospital/screening.feature). The hospital's form still checks every field.
 message LabOrder {
   string sample_id = 1;
   Test test = 2;
-  bool screened_indication = 3;     // false when absent: never screened by mistake
+  ClinicalIndication clinical_indication = 3;  // absent for ferritin; absent is never screened
   RegisteredSex registered_sex = 4;
   optional uint32 age = 5;          // absent is no age, never age 0: refused
   google.protobuf.Timestamp ordered_at = 6;

@@ -11,7 +11,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from tests.conftest import World
 from web.hospital.analyser.models import Participant
 from web.hospital.lab.models import LabOrderDetails, Practice, Sample, TestRequest
-from web.shared.vocabulary import RegisteredSex
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 30, 10, 0, tzinfo=UTC)
@@ -32,7 +32,9 @@ def receive(practice: str, sample_id: str, test: OrderedTest) -> TestRequest:
         details=LabOrderDetails(
             sample_id=sample_id,
             test=test,
-            screened_indication=test.takes_indication(),
+            clinical_indication=ClinicalIndication.SUSPECTED_ANAEMIA
+            if test.takes_indication()
+            else None,
             registered_sex=RegisteredSex.FEMALE,
             age=32,
             ordered_at=NOW,

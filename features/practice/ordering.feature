@@ -77,10 +77,9 @@ Feature: Collecting a sample and ordering tests on it
     When "Dr. Demo A" collects a sample from "Test Patient 1" for "AZ Diest"
     Then the sample goes to "AZ Diest"
 
-  Scenario: A practice with laboratories names one for every sample
-    Given the practice works with laboratories "UZ Leuven" and "AZ Diest"
-    When "Dr. Demo A" collects a sample from "Test Patient 1"
-    Then the collection is refused with code "laboratory_required" on field "laboratory"
+  Scenario: The database holds every sample to a laboratory
+    When a sample without a laboratory is written straight to the database
+    Then the database refuses it
 
   Scenario: A practice has one primary laboratory
     Given the practice works with laboratories "UZ Leuven" and "AZ Diest"

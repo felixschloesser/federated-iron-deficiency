@@ -28,6 +28,7 @@ from web.hospital.lab.models import (
     Sample,
     ScreeningResult,
     TestRequest,
+    is_screened_indication,
 )
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
@@ -121,7 +122,7 @@ def changed_on_disk(world: World, run_id: str) -> None:
 def lab_sample(
     world: World,
     test: OrderedTest,
-    screened_indication: bool,
+    clinical_indication: ClinicalIndication | None,
     sex: RegisteredSex,
     age: int,
 ) -> None:
@@ -134,7 +135,7 @@ def lab_sample(
         details=LabOrderDetails(
             sample_id=str(seqn),
             test=test,
-            screened_indication=screened_indication,
+            clinical_indication=clinical_indication,
             registered_sex=sex,
             age=age,
             ordered_at=NOW,
@@ -144,7 +145,13 @@ def lab_sample(
 
 @given(parsers.parse("a CBC sample of a woman aged {age:d} for a screened indication"))
 def eligible_cbc(world: World, age: int) -> None:
-    lab_sample(world, OrderedTest.CBC, True, RegisteredSex.FEMALE, age)
+    lab_sample(
+        world,
+        OrderedTest.CBC,
+        ClinicalIndication.SUSPECTED_ANAEMIA,
+        RegisteredSex.FEMALE,
+        age,
+    )
 
 
 @given(
@@ -155,13 +162,17 @@ def eligible_cbc(world: World, age: int) -> None:
     )
 )
 def cbc(world: World, indication: str, sex: str, age: str) -> None:
-    screened = indication == "for a screened indication"
-    lab_sample(world, OrderedTest.CBC, screened, RegisteredSex(sex), int(age))
+    chosen = (
+        ClinicalIndication.SUSPECTED_ANAEMIA
+        if indication == "for a screened indication"
+        else ClinicalIndication.OTHER
+    )
+    lab_sample(world, OrderedTest.CBC, chosen, RegisteredSex(sex), int(age))
 
 
 @given(parsers.parse("a ferritin sample of a woman aged {age:d}"))
 def ferritin_sample(world: World, age: int) -> None:
-    lab_sample(world, OrderedTest.FERRITIN, False, RegisteredSex.FEMALE, age)
+    lab_sample(world, OrderedTest.FERRITIN, None, RegisteredSex.FEMALE, age)
 
 
 @given(parsers.parse("the deployed model scores the sample {side} the threshold"))
@@ -279,7 +290,7 @@ def test_only_a_reason_without_a_usable_model_is_a_model_problem(
 def test_screened_indications_are_where_the_guidelines_order_a_cbc_without_ferritin(
     indication: str, screened: bool
 ) -> None:
-    assert ClinicalIndication(indication).is_screened() is screened
+    assert is_screened_indication(ClinicalIndication(indication)) is screened
 
 
 def test_every_indication_is_answered() -> None:
@@ -298,6 +309,10 @@ def test_every_indication_is_answered() -> None:
 def test_the_lab_screens_exactly_whom_the_model_was_trained_on(
     sex: RegisteredSex, age: int
 ) -> None:
-    test_request = TestRequest(screened_indication=True, registered_sex=sex, age=age)
+    test_request = TestRequest(
+        clinical_indication=ClinicalIndication.SUSPECTED_ANAEMIA,
+        registered_sex=sex,
+        age=age,
+    )
     trained_on = eligible(pd.Series([sex.label]), pd.Series([age])).iloc[0]
     assert (test_request.not_eligible() is None) == trained_on

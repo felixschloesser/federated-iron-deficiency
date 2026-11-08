@@ -12,7 +12,7 @@ from web.shared.messaging.convert import from_proto, moment, timestamp, to_proto
 from web.shared.messaging.endpoint import start, with_database
 from web.shared.messaging.identity import caller
 from web.shared.messaging.rejection import rejected
-from web.shared.vocabulary import RegisteredSex, Test
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
 def _value(choice: models.TextChoices | None) -> str:
@@ -45,7 +45,13 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
             {
                 "sample_id": request.sample_id,
                 "test": _value(from_proto(request.test, messages_pb2.Test, Test)),
-                "screened_indication": request.screened_indication,
+                "clinical_indication": _value(
+                    from_proto(
+                        request.clinical_indication,
+                        messages_pb2.ClinicalIndication,
+                        ClinicalIndication,
+                    )
+                ),
                 "registered_sex": _value(
                     from_proto(
                         request.registered_sex,

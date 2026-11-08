@@ -27,7 +27,7 @@ from web.hospital.lab.models import Sample, TestRequest
                 "id",
                 "sample",
                 "test",
-                "screened_indication",
+                "clinical_indication",
                 "registered_sex",
                 "age",
                 "ordered_at",

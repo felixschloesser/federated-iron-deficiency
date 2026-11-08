@@ -69,7 +69,9 @@ def receive_lab_order(
         details=LabOrderDetails(
             sample_id=sample_id,
             test=test,
-            screened_indication=test.takes_indication(),
+            clinical_indication=ClinicalIndication.SUSPECTED_ANAEMIA
+            if test.takes_indication()
+            else None,
             registered_sex=sex,
             age=age,
             ordered_at=now,

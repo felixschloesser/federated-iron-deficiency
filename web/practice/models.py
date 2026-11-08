@@ -96,20 +96,9 @@ class Patient(models.Model):
         return f"{self.nhanes_number}-{self.samples.count() + 1}"
 
     @transaction.atomic
-    def collect_sample(
-        self, *, now: datetime, laboratory: Laboratory | None = None
-    ) -> "Sample":
+    def collect_sample(self, *, now: datetime, laboratory: Laboratory) -> "Sample":
         """Record blood collected from this patient, with their next sample ID,
         for the laboratory chosen for it; tests are ordered on it afterwards and follow it there."""
-        if laboratory is None and Laboratory.objects.exists():
-            raise ValidationError(
-                {
-                    "laboratory": ValidationError(
-                        "Choose the laboratory the sample goes to.",
-                        code="laboratory_required",
-                    )
-                }
-            )
         return Sample.objects.create(
             patient=self,
             sample_id=self.next_sample_id(),
@@ -127,14 +116,9 @@ class Sample(models.Model):
     )
     sample_id = models.CharField(max_length=20, unique=True)
     collected_at = models.DateTimeField()
-    # Where the sample went, so every test on it goes there too; absent
-    # only at a practice with no laboratory, as in development.
+    # Where the sample went, so every test on it goes there too.
     laboratory = models.ForeignKey(
-        Laboratory,
-        on_delete=models.PROTECT,
-        related_name="samples",
-        null=True,
-        blank=True,
+        Laboratory, on_delete=models.PROTECT, related_name="samples"
     )
 
     def __str__(self) -> str:
@@ -296,15 +280,6 @@ class Order(models.Model):
         """Its lab report, once fetched; None before."""
         report: LabReport | None = getattr(self, "lab_report", None)
         return report
-
-    @property
-    def screened_indication(self) -> bool:
-        """All the lab order says of the indication: whether it is a
-        screened one. Which indication it is stays at the practice."""
-        return (
-            self.indication is not None
-            and ClinicalIndication(self.indication).is_screened()
-        )
 
 
 @dataclass(frozen=True)
