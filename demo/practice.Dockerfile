@@ -15,7 +15,6 @@ COPY --chown=app pyproject.toml uv.lock /app/
 RUN --mount=type=cache,target=/tmp/.cache/uv,uid=1000,gid=1000 uv sync --locked --only-group web
 COPY --chown=app manage.py /app/
 COPY --chown=app ml/__init__.py ml/cohort.py /app/ml/
-COPY --chown=app buf/ /app/buf/
 COPY --chown=app web/__init__.py /app/web/
 COPY --chown=app web/shared/ /app/web/shared/
 COPY --chown=app web/practice/ /app/web/practice/

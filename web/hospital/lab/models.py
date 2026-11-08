@@ -20,6 +20,7 @@ from web.hospital.deployment.models import (
     Deployment,
     NoUsableModel,
 )
+from web.shared.parsing import parsed
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
@@ -136,15 +137,16 @@ class Sample(models.Model):
 
 @dataclass(frozen=True)
 class LabOrderDetails:
-    """What a lab order (DF23) says: no patient name, no values (features/hospital/lab.feature)."""
+    """What a lab order (DF23) says, as it arrived: no patient name, no values
+    (features/hospital/lab.feature). Only receive's models make it a test request."""
 
     sample_id: str
-    test: Test
+    test: str | None
     # Absent for ferritin, which takes none.
-    clinical_indication: ClinicalIndication | None
-    registered_sex: RegisteredSex
-    age: int
-    ordered_at: datetime
+    clinical_indication: str | None
+    registered_sex: str | None
+    age: int | None
+    ordered_at: datetime | None
 
 
 class StoredSample(TypedDict):
@@ -190,19 +192,26 @@ class TestRequestManager(models.Manager["TestRequest"]):
     @transaction.atomic
     def receive(self, *, practice: Practice, details: LabOrderDetails) -> TestRequest:
         """Receive a lab order (DF23) from `practice` as a test request, once,
-        however often it arrives."""
+        however often it arrives. Raises ValidationError, by part, for each part
+        the sample's and the test request's fields refuse (parsing.py)."""
+        values = parsed(
+            (Sample, {"sample_id": details.sample_id}),
+            (
+                TestRequest,
+                {
+                    "test": details.test,
+                    "clinical_indication": details.clinical_indication,
+                    "registered_sex": details.registered_sex,
+                    "age": details.age,
+                    "ordered_at": details.ordered_at,
+                },
+            ),
+        )
         sample, _ = Sample.objects.get_or_create(
-            practice=practice, sample_id=details.sample_id
+            practice=practice, sample_id=values.pop("sample_id")
         )
         test_request, _ = self.get_or_create(
-            sample=sample,
-            test=details.test,
-            defaults={
-                "clinical_indication": details.clinical_indication,
-                "registered_sex": details.registered_sex,
-                "age": details.age,
-                "ordered_at": details.ordered_at,
-            },
+            sample=sample, test=values.pop("test"), defaults=values
         )
         return test_request
 

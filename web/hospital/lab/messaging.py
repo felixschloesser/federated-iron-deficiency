@@ -1,7 +1,7 @@
 """The hospital's messaging endpoint: gRPC, plaintext in the demo (web/shared/messaging/messages.proto)."""
 
 import grpc
-import protovalidate
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from google.protobuf.empty_pb2 import Empty
 
@@ -27,14 +27,9 @@ def practice_of(context: grpc.ServicerContext) -> Practice:
     return practice
 
 
-def lab_order_details(
-    request: messages_pb2.LabOrder,
-) -> LabOrderDetails | list[protovalidate.Violation]:
-    """What a lab order says, or the contract's rules it breaks (messages.proto):
-    the reasons the laboratory rejects it with."""
-    violations = protovalidate.collect_violations(request)
-    if violations:
-        return violations
+def lab_order_details(request: messages_pb2.LabOrder) -> LabOrderDetails:
+    """What a lab order says, part by part; a part left out is None, for the
+    models to refuse (TestRequest.objects.receive)."""
     return LabOrderDetails(
         sample_id=request.sample_id,
         test=from_proto(request.test, messages_pb2.Test, Test),
@@ -42,14 +37,14 @@ def lab_order_details(
             request.clinical_indication,
             messages_pb2.ClinicalIndication,
             ClinicalIndication,
-        )
-        if request.clinical_indication
-        else None,
+        ),
         registered_sex=from_proto(
             request.registered_sex, messages_pb2.RegisteredSex, RegisteredSex
         ),
-        age=request.age,
-        ordered_at=moment(request.ordered_at),
+        age=request.age if request.HasField("age") else None,
+        ordered_at=moment(request.ordered_at)
+        if request.HasField("ordered_at")
+        else None,
     )
 
 
@@ -62,10 +57,12 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
         self, request: messages_pb2.LabOrder, context: grpc.ServicerContext
     ) -> Empty:
         practice = practice_of(context)
-        details = lab_order_details(request)
-        if isinstance(details, list):
-            context.abort_with_status(rejected(details))
-        TestRequest.objects.receive(practice=practice, details=details)
+        try:
+            TestRequest.objects.receive(
+                practice=practice, details=lab_order_details(request)
+            )
+        except ValidationError as error:
+            context.abort_with_status(rejected(error))
         return Empty()
 
     @with_database

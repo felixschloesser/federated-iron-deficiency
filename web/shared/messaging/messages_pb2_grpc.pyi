@@ -9,11 +9,11 @@ names its party by its name's slug in each call's metadata
 (web/shared/messaging/identity.py), where mutual TLS would take it from the
 client's certificate; the demo leaves that out.
 
-Every message is complete or refused (tests/shared/test_messages.py): each part
-is required (protovalidate, buf/validate/validate.proto), and every receiver
-validates what it receives before reading it. Presence is implicit, so a zero
-is not sent and "required" refuses it; a part whose zero is a value (age 0)
-has explicit presence instead. Lists may be empty.
+Every message is complete or refused: each part is required, and every
+receiver parses what it receives into its own models, which refuse one that
+left a part out. Presence is implicit, so a zero is not sent and reads as
+missing; a part whose zero is a value (age 0) has explicit presence instead.
+Lists may be empty.
 """
 
 from collections import abc as _abc

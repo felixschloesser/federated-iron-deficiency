@@ -10,7 +10,6 @@ from datetime import datetime
 
 import grpc
 import pandas as pd
-import protovalidate
 import torch
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -49,9 +48,9 @@ class OfferedScreeningModel:
 def offered_screening_model(
     message: messages_pb2.ScreeningModel,
 ) -> OfferedScreeningModel | None:
-    """The screening model a message holds; None if it breaks the contract or its
+    """The screening model a message holds; None if it leaves a part out or its
     weights are unreadable or do not fit the network."""
-    if protovalidate.collect_violations(message):
+    if not message.run_id or not message.HasField("federated_auroc"):
         return None
     state_dict = weights_from_bytes(message.weights)
     if state_dict is None:

@@ -339,7 +339,8 @@ class LabReport(models.Model):
     order = models.OneToOneField(
         Order, on_delete=models.PROTECT, related_name="lab_report"
     )
-    results = models.JSONField()
+    # Empty when NHANES lacks the values.
+    results = models.JSONField(blank=True)
     ferritin_suggested = models.BooleanField(default=False)
     released_at = models.DateTimeField()
     fetched_at = models.DateTimeField()
