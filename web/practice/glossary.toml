@@ -12,6 +12,10 @@ source = "Project decision (\"primary lab\"); stands for the report's single lab
 meaning = "A person the general practitioner orders a test for; known by name only at the practice"
 source = "Report, Use case"
 
+["patient number"]
+meaning = "The practice's lasting number for a patient, which starts each of their sample IDs; the demo seeds it with the NHANES participant's number, so the analyser stand-in knows whose blood a sample holds"
+source = "WHO LQMS 17-2, p. 198: a patient's unique identifier \"may be assigned to the patient on a more permanent basis\"; p. 204: data retrieved \"by laboratory or patient number\""
+
 ["order"]
 meaning = "The practice's word: what the general practitioner places, with its clinical indication. Each party speaks its own language: the practice orders, the wire carries a lab order, the laboratory works on a test request"
 source = "WHO glossary *path of workflow*, \"physician's order\" (p. 228)"

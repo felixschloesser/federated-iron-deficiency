@@ -41,7 +41,7 @@ def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
     rows = nhanes_rows().set_index("sample_id")
     assert Patient.objects.count() == 3 * len(PEOPLE)
     for patient in Patient.objects.all():
-        row = rows.loc[int(patient.nhanes_number)]
+        row = rows.loc[int(patient.patient_number)]
         assert patient.registered_sex == str(row["sex"]).lower()
         assert patient.age == row["age"]
 

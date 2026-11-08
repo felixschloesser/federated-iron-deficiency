@@ -70,7 +70,7 @@ meaning = "The sex in the patient's record, which may differ from the person's; 
 source = "Report, Data table"
 
 ["sample ID"]
-meaning = "The number on a sample's label that links its lab order, results and lab report. In the demo the patient's NHANES number and the sample's number for that patient, e.g. 135318-2"
+meaning = "The number on a sample's label that links its lab order, results and lab report. The patient number and the sample's number for that patient, e.g. 135318-2"
 source = "Report, DF23 and Data table"
 
 ["sample"]

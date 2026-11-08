@@ -40,7 +40,7 @@ def make_patient(name: str, sex: "RegisteredSex", age: int) -> "Patient":
         name=name,
         registered_sex=sex,
         age=age,
-        nhanes_number=str(Patient.objects.count() + 1),
+        patient_number=str(Patient.objects.count() + 1),
     )
 
 
