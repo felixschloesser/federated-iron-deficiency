@@ -64,6 +64,16 @@ def problems(failing: set[str], before: set[str], changed: set[str]) -> list[str
     ]
 
 
+def test_modules(tree: Path) -> dict[str, str]:
+    """Each test module's text by its path: the app's under tests/, the process's
+    own under .claude/tests/."""
+    return {
+        path.relative_to(tree).as_posix(): path.read_text()
+        for folder in ("tests", ".claude/tests")
+        for path in (tree / folder).rglob("test_*.py")
+    }
+
+
 def git(*args: str) -> str:
     return subprocess.run(
         ["git", *args], check=True, capture_output=True, text=True
@@ -110,10 +120,7 @@ def check(commit: str) -> list[str]:
         output = pytest(
             tree, "-q", "--tb=no", "-rfE", "--continue-on-collection-errors"
         )
-        modules = {
-            path.relative_to(tree).as_posix(): path.read_text()
-            for path in (tree / "tests").rglob("test_*.py")
-        }
+        modules = test_modules(tree)
     return problems(failing_tests(output), before, changed_modules(touched, modules))
 
 
