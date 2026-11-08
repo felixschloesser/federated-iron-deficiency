@@ -27,8 +27,8 @@ not a process of the report's DFDs:
 | P2 Train locally | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
 | P3 Relay messages | `flower-superlink` |
 | P4 Average weights (FedAvg) | `flower-server-app` |
-| P5 Release final models | `startup-web`: its pages, where the data scientist releases, and a second server beside them, on the `final-models` network only the hospitals' web apps join |
-| P6 Validate and deploy model, P8 Receive lab orders, P9 Analyse samples, P10 Screen CBC, P12 Send lab reports | one container, `<hospital>-web`: one Django app, which screens a CBC as it records the analysis, and its messaging endpoint, each server on its own network |
+| P5 Release final models | `startup-web`, its pages, where the data scientist releases; and `startup-final-models`, the endpoint the hospitals fetch from, alone on the `final-models` network with the hospitals' web apps |
+| P6 Validate and deploy model, P8 Receive lab orders, P9 Analyse samples, P10 Screen CBC, P12 Send lab reports | two containers of one Django app, on one database: `<hospital>-web`, its pages, which screen a CBC as they record the analysis; and `<hospital>-messaging`, the lab-order endpoint, alone on the `messaging` network with the practices |
 | P7 Order tests, P11 Show lab reports | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
 | E1 Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models (DS4) and submits a training run; or `train`, run by hand |
 
@@ -42,10 +42,13 @@ id -u   # if this prints 1000, skip this step
 echo "DEMO_USER=$(id -u):$(id -g)" > .env
 ```
 
-nhanes-download, the one container that writes `.demo/`, writes it as this user,
-by default `1000:1000`, the first account on most Linux machines. On Linux a mounted folder keeps numeric user
-IDs, so without this your own account could not edit or delete `.demo/`. On a
-Mac, Docker maps IDs for you.
+nhanes-download, the one container that writes `.demo/`, runs as this user, by
+default `1000:1000`, the first account on most Linux machines. `.demo/huggingface/`
+and `.demo/nhanes/` come with the checkout, so they are yours; on Linux a mounted
+folder keeps numeric user IDs, so nhanes-download must run as you to write
+them. On a Mac, Docker maps IDs for you. If you delete `.demo/`, bring the two
+folders back with `git checkout .demo`, or compose makes them as root and
+nhanes-download cannot write them.
 
 ## 3. Start everything
 

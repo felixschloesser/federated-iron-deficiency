@@ -90,6 +90,11 @@ def compose(
     override.write_text(
         "services:\n  proxy:\n"
         f"    networks: !override [{APP_HOSPITAL}, {APP_PRACTICE}]\n"
+        # Compose makes the networks of whatever a service waits for, even
+        # under --no-deps: the proxy waits only for the two under test.
+        "    depends_on: !override\n"
+        f"      {APP_HOSPITAL}-web: {{condition: service_healthy}}\n"
+        f"      {APP_PRACTICE}-web: {{condition: service_healthy}}\n"
         + "".join(
             f'  {slug}-web:\n    environment: {{DEMO_PROVIDE: "0"}}\n'
             for slug in (HOSPITAL, SECOND_HOSPITAL)
@@ -233,9 +238,11 @@ def synthetic_cohort(hospital: str) -> str:
 @pytest.fixture(scope="session")
 def superlink(compose: Compose) -> None:
     """The startup's web app, which brings the SuperLink's folder and writes
-    flwr-home's connection (demo/party.py), then the SuperLink."""
+    flwr-home's connection (demo/party.py), its final-models endpoint, then the
+    SuperLink."""
     build(compose, "startup-web")
     up(compose, "startup-web")
+    up(compose, "startup-final-models")
     up(compose, "flower-superlink")
 
 
@@ -295,11 +302,12 @@ def wait_until_online(compose: Compose, nodes: int = 1) -> None:
 
 @pytest.fixture(scope="session")
 def hospital_app(compose: Compose) -> str:
-    """AZ Diest's web app running: its pages and its lab-order endpoint."""
+    """AZ Diest's web app running, and its lab-order endpoint beside it."""
     build(compose, "hospital-web")
     name = f"{APP_HOSPITAL}-web"
-    # It sets itself up as it starts; healthy once both its servers answer.
+    # It sets the hospital up as it starts; the endpoint waits until it has.
     up(compose, name)
+    up(compose, f"{APP_HOSPITAL}-messaging")
     return name
 
 

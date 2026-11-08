@@ -24,6 +24,7 @@ STARTUP_SERVICES = {
     "flower-server-app",
     "train",
     "startup-web",
+    "startup-final-models",
 }
 # Out-of-band setup (report, assumptions): nhanes-download, the one service
 # that reaches the internet, sees no party's folder.
@@ -154,7 +155,7 @@ def test_one_service_per_process_of_each_party() -> None:
     } | {
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
-        for role in ("flower-supernode", "flower-client-app", "web")
+        for role in ("flower-supernode", "flower-client-app", "web", "messaging")
     } | {f"{slug}-web" for slug in PRACTICE_SLUGS}
 
 
@@ -224,11 +225,7 @@ def test_the_proxy_reaches_every_web_app_and_nothing_else() -> None:
 
 
 def test_the_startups_web_app_reaches_the_superlink_and_the_proxy_never_does() -> None:
-    assert set(service("startup-web")["networks"]) == {
-        "startup",
-        "startup-web",
-        "final-models",
-    }
+    assert set(service("startup-web")["networks"]) == {"startup", "startup-web"}
     members = {
         name
         for name, spec in config()["services"].items()
@@ -249,12 +246,15 @@ def test_the_startups_web_app_reads_the_final_models_and_not_the_superlinks_stat
 
 @pytest.mark.parametrize("slug", ["startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS])
 def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
-    # Routing by the Host header: plain HTTP, the report's TLS left out.
+    # Routing by the Host header: plain HTTP, the report's TLS left out. One
+    # rule, <party>.localhost to <party>-web, so the proxy lists no party.
     conf = (ROOT / "demo" / "proxy.conf").read_text()
-    routes = dict(
-        re.findall(r"^\s*([a-z-]+\.localhost)\s+([a-z-]+:\d+);", conf, re.MULTILINE)
-    )
-    assert routes[f"{slug}.localhost"] == f"{slug}-web:8000"
+    (pattern,) = re.findall(r"server_name ~(\S+);", conf)
+    (upstream,) = re.findall(r"proxy_pass http://(\S+);", conf)
+    # nginx writes a named group (?<name>…), Python (?P<name>…).
+    found = re.fullmatch(pattern.replace("(?<", "(?P<"), f"{slug}.localhost")
+    assert found is not None, pattern
+    assert upstream.replace("$party", found["party"]) == f"{slug}-web:8000"
 
 
 def test_crossings_and_the_startup_are_internal_networks() -> None:
@@ -295,28 +295,27 @@ def test_one_messaging_network_holds_every_hospital_and_practice_only() -> None:
         for name, spec in config()["services"].items()
         if "messaging" in spec.get("networks", {})
     }
-    assert members == {f"{slug}-web" for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS}
+    assert members == {f"{slug}-messaging" for slug in HOSPITAL_SLUGS} | {
+        f"{slug}-web" for slug in PRACTICE_SLUGS
+    }
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_the_hospital_serves_its_pages_and_its_messaging_each_on_one_network_only(
+def test_the_hospital_serves_its_pages_and_its_messaging_from_containers_of_their_own(
     slug: str,
 ) -> None:
-    # One container, two servers: each listens on a name only one network
-    # knows, so its practice reaches port 8441 and never the pages on 8000.
-    spec = service(f"{slug}-web")
-    assert spec["networks"] == {
-        slug: {"aliases": [f"{slug}-pages"]},
-        "messaging": {"aliases": [f"{slug}-messaging"]},
-        # To fetch final models from the startup; it serves nothing there.
-        "final-models": {},
-    }
-    script = spec["command"][-1]
-    assert f"--bind={slug}-pages:8000" in script
-    assert f"serve_messages {slug}-messaging:8441" in script
-    # Either server stopping stops the container, which compose restarts.
-    assert "wait -n" in script
-    assert spec["restart"] == "unless-stopped"
+    # One container per server, each on one network: its practices reach the
+    # lab-order endpoint and never the pages.
+    web, messaging = service(f"{slug}-web"), service(f"{slug}-messaging")
+    # final-models: to fetch final models from the startup; it serves nothing there.
+    assert set(web["networks"]) == {slug, "final-models"}
+    assert set(messaging["networks"]) == {"messaging"}
+    assert "--bind=0.0.0.0:8000" in web["command"]
+    assert messaging["command"][-2:] == ["serve_messages", "0.0.0.0:8441"]
+    # Only the web app sets the party up (demo/party.py); the endpoint waits for it.
+    assert messaging["entrypoint"] == []
+    assert messaging["depends_on"][f"{slug}-web"]["condition"] == "service_healthy"
+    assert mounts(f"{slug}-messaging") == {"/data": (f"hospitals/{slug}", False)}
 
 
 def test_each_web_app_knows_its_name_and_primary_colour() -> None:
@@ -401,11 +400,11 @@ def test_every_service_runs_as_the_demo_user(demo_user: str | None, user: str) -
     }
     assert users == {"1000:1000"}
     download = services["nhanes-download"]
-    assert download["user"] == "root"
-    assert download["environment"]["DEMO_USER"] == user
-    script = download["entrypoint"][-2]
-    assert "chown" in script
-    assert "exec setpriv" in script
+    # .demo/'s folders are in the checkout, the cloner's: nothing hands them over.
+    assert download["user"] == user
+    assert download.get("entrypoint") is None
+    for folder in HOST_FOLDERS:
+        assert (ROOT / ".demo" / folder / ".gitkeep").is_file(), folder
 
 
 @pytest.mark.parametrize(
@@ -418,11 +417,39 @@ def test_what_others_wait_for_says_when_it_is_ready(name: str) -> None:
     assert service(name)["healthcheck"]["test"][0] == "CMD", name
 
 
+@pytest.mark.parametrize(
+    ("name", "port"),
+    [(f"{slug}-messaging", 8441) for slug in HOSPITAL_SLUGS]
+    + [("startup-final-models", 8442), ("flower-superlink", 9092)]
+    + [(f"{slug}-flower-supernode", 9094) for slug in HOSPITAL_SLUGS],
+)
+def test_a_server_without_pages_is_ready_when_its_port_answers(
+    name: str, port: int
+) -> None:
+    check = " ".join(service(name)["healthcheck"]["test"])
+    assert f"('localhost', {port})" in check, name
+
+
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_a_hospital_is_ready_when_both_its_servers_answer(slug: str) -> None:
-    check = " ".join(service(f"{slug}-web")["healthcheck"]["test"])
-    assert f"'http://{slug}-pages:8000/login/'" in check
-    assert f"('{slug}-messaging', 8441)" in check
+def test_the_clientapp_waits_for_its_supernode_to_answer(slug: str) -> None:
+    waits = service(f"{slug}-flower-client-app")["depends_on"]
+    assert waits[f"{slug}-flower-supernode"]["condition"] == "service_healthy"
+
+
+def test_the_proxy_waits_for_every_web_app_to_answer() -> None:
+    waits = service("proxy")["depends_on"]
+    assert waits == {
+        f"{slug}-web": waits[f"{slug}-web"]
+        for slug in ["startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS]
+    }
+    assert {wait["condition"] for wait in waits.values()} == {"service_healthy"}
+
+
+def test_every_long_running_service_restarts() -> None:
+    # A crash stays down only for the two that must exit.
+    for name, spec in config()["services"].items():
+        expected = None if name in {"nhanes-download", "train"} else "unless-stopped"
+        assert spec.get("restart") == expected, name
 
 
 @pytest.mark.parametrize(
@@ -534,7 +561,7 @@ def test_a_health_check_runs_often_only_while_its_service_starts() -> None:
         for name, spec in config()["services"].items()
         if "healthcheck" in spec
     }
-    assert len(checks) == 9
+    assert len(checks) == 9 + 4 + 3
     for name, check in checks.items():
         assert (check["start_interval"], check["interval"]) == ("2s", "5m0s"), name
 
@@ -549,23 +576,26 @@ def test_only_the_hospitals_web_apps_reach_the_startups_final_models_endpoint() 
         for name, spec in declared["services"].items()
         if "final-models" in spec.get("networks", {})
     }
-    assert members == {"startup-web"} | {f"{slug}-web" for slug in HOSPITAL_SLUGS}
+    assert members == {"startup-final-models"} | {
+        f"{slug}-web" for slug in HOSPITAL_SLUGS
+    }
     assert declared["networks"]["final-models"]["internal"] is True
 
 
-def test_the_startup_serves_its_pages_and_its_final_models_each_on_one_network_only() -> (
+def test_the_startup_serves_its_pages_and_its_final_models_from_containers_of_their_own() -> (
     None
 ):
-    # One container, two servers: the proxy reaches the pages, the hospitals'
-    # web apps only the final-models endpoint (features/startup/release.feature).
-    spec = service("startup-web")
-    assert spec["networks"]["startup-web"] == {"aliases": ["startup-pages"]}
-    assert spec["networks"]["final-models"] == {"aliases": ["startup-final-models"]}
-    script = spec["command"][-1]
-    assert "--bind=startup-pages:8000" in script
-    assert "serve_final_models startup-final-models:8442" in script
-    assert "wait -n" in script
-    assert spec["restart"] == "unless-stopped"
+    # The proxy reaches the pages, the hospitals' web apps only the
+    # final-models endpoint (features/startup/release.feature).
+    web, endpoint = service("startup-web"), service("startup-final-models")
+    assert set(endpoint["networks"]) == {"final-models"}
+    assert "--bind=0.0.0.0:8000" in web["command"]
+    assert endpoint["command"][-2:] == ["serve_final_models", "0.0.0.0:8442"]
+    assert endpoint["entrypoint"] == []
+    assert endpoint["depends_on"]["startup-web"]["condition"] == "service_healthy"
+    # Like the web app: the final models read-only, the SuperLink's state masked.
+    assert mounts("startup-final-models") == mounts("startup-web")
+    assert endpoint["tmpfs"] == web["tmpfs"]
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
