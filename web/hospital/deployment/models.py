@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import assert_never
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -20,12 +21,27 @@ from web.hospital.deployment.model_files import (
 )
 
 
-class NoUsableModel(models.TextChoices):
+class NotScreened(models.TextChoices):
+    """Why a CBC was not screened (features/hospital/screening.feature): the patient
+    is not eligible, never which fact excluded them, or there is no usable deployed
+    model, which lab staff act on."""
+
+    NOT_ELIGIBLE = "not_eligible", "Not eligible"
     NO_DEPLOYED_MODEL = "no_deployed_model", "No screening model is deployed"
     DEPLOYED_MODEL_CHANGED = (
         "deployed_model_changed",
         "The deployed model changed on disk since it was deployed",
     )
+
+    def is_model_problem(self) -> bool:
+        """Whether the hospital's model, not the patient, kept the CBC unscreened."""
+        match self:
+            case NotScreened.NOT_ELIGIBLE:
+                return False
+            case NotScreened.NO_DEPLOYED_MODEL | NotScreened.DEPLOYED_MODEL_CHANGED:
+                return True
+            case _:
+                assert_never(self)
 
 
 class ScreeningModel(models.Model):
@@ -101,7 +117,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         )
         return self.create(screening_model=screening_model, deployed_at=now)
 
-    def screener(self, directory: Path | None) -> Screener | NoUsableModel:
+    def screener(self, directory: Path | None) -> Screener | NotScreened:
         """The deployed model ready to screen, or why there is none."""
         latest = (
             self.select_related("screening_model")
@@ -109,7 +125,7 @@ class DeploymentManager(models.Manager["Deployment"]):
             .first()
         )
         if latest is None:
-            return NoUsableModel.NO_DEPLOYED_MODEL
+            return NotScreened.NO_DEPLOYED_MODEL
         screening_model = latest.screening_model
         path = (
             None
@@ -119,7 +135,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         data = path.read_bytes() if path is not None and path.is_file() else None
         file = None if data is None else screening_model_file(data)
         if data is None or file is None or sha256(data) != screening_model.sha256:
-            return NoUsableModel.DEPLOYED_MODEL_CHANGED
+            return NotScreened.DEPLOYED_MODEL_CHANGED
         return Screener(screening_model, file)
 
 
