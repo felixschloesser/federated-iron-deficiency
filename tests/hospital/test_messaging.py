@@ -23,7 +23,7 @@ from web.hospital.lab.models import (
 )
 from web.shared.messaging import messages_pb2, messages_pb2_grpc
 from web.shared.messaging.convert import timestamp
-from web.shared.vocabulary import RegisteredSex
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 30, 10, 0, tzinfo=UTC)
@@ -46,11 +46,11 @@ DE_CEDER = (("party", "de-ceder"),)
 
 
 def lab_order(**fields: Any) -> messages_pb2.LabOrder:
-    """A lab order for a CBC, screened; `fields` override."""
+    """A lab order for a CBC, for suspected anaemia; `fields` override."""
     values: dict[str, Any] = {
         "sample_id": "1-1",
         "test": messages_pb2.TEST_CBC,
-        "screened_indication": True,
+        "clinical_indication": messages_pb2.CLINICAL_INDICATION_SUSPECTED_ANAEMIA,
         "registered_sex": messages_pb2.REGISTERED_SEX_FEMALE,
         "age": 32,
         "ordered_at": timestamp(NOW),
@@ -90,9 +90,9 @@ def test_a_lab_order_is_recorded_as_sent(
     endpoint.SendLabOrder(lab_order(), timeout=10, metadata=DE_CEDER)
     test_request = TestRequest.objects.select_related("sample__practice").get()
     assert test_request.sample.sample_id == "1-1"
-    assert (test_request.test, test_request.screened_indication) == (
+    assert (test_request.test, test_request.clinical_indication) == (
         OrderedTest.CBC,
-        True,
+        ClinicalIndication.SUSPECTED_ANAEMIA,
     )
     assert (test_request.registered_sex, test_request.age) == (RegisteredSex.FEMALE, 32)
     assert test_request.ordered_at == NOW
@@ -177,7 +177,7 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
         details=LabOrderDetails(
             sample_id="1-1",
             test=OrderedTest.CBC,
-            screened_indication=True,
+            clinical_indication=ClinicalIndication.SUSPECTED_ANAEMIA,
             registered_sex=RegisteredSex.FEMALE,
             age=32,
             ordered_at=NOW,

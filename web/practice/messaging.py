@@ -15,7 +15,7 @@ from web.shared.messaging import messages_pb2, messages_pb2_grpc
 from web.shared.messaging.convert import from_proto, moment, timestamp, to_proto
 from web.shared.messaging.identity import calling_as
 from web.shared.messaging.rejection import reason_for_rejection
-from web.shared.vocabulary import RegisteredSex, Test
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 TIMEOUT_SECONDS = 10
 # Sending from an order's own request: the general practitioner is waiting.
@@ -32,20 +32,18 @@ def open_laboratory(
         yield messages_pb2_grpc.LaboratoryStub(channel)
 
 
-def send_lab_order(order: Order, laboratory: Laboratory) -> None:
-    """Send an order's lab order (DF23): no name, no values (tests/practice/test_messaging.py)."""
-    with open_laboratory(laboratory) as endpoint:
-        _send(endpoint, order, timeout=TIMEOUT_SECONDS)
-
-
 def _send(
     endpoint: messages_pb2_grpc.LaboratoryStub, order: Order, *, timeout: float
 ) -> None:
+    """Send an order's lab order (DF23): no name, no values."""
+    indication = (
+        None if order.indication is None else ClinicalIndication(order.indication)
+    )
     endpoint.SendLabOrder(
         messages_pb2.LabOrder(
             sample_id=order.sample.sample_id,
             test=to_proto(Test(order.test), messages_pb2.Test),
-            screened_indication=order.screened_indication,
+            clinical_indication=to_proto(indication, messages_pb2.ClinicalIndication),
             registered_sex=to_proto(
                 RegisteredSex(order.registered_sex), messages_pb2.RegisteredSex
             ),

@@ -55,7 +55,7 @@ class Test(models.TextChoices):
 
 class ClinicalIndication(models.TextChoices):
     """Why a general practitioner orders a CBC, in the guidelines' words
-    (glossary.toml)."""
+    (glossary.toml); which of them the hospital screens is the hospital's rule."""
 
     SUSPECTED_ANAEMIA = "suspected_anaemia", "Suspected anaemia"
     SUSPECTED_IBS = "suspected_ibs", "Suspected irritable bowel syndrome"
@@ -63,30 +63,6 @@ class ClinicalIndication(models.TextChoices):
     START_OF_PREGNANCY = "start_of_pregnancy", "Start of pregnancy"
     CKD_FOLLOW_UP = "ckd_follow_up", "Chronic kidney disease follow-up"
     OTHER = "other", "Other"
-
-    def is_screened(self) -> bool:
-        """Whether a CBC for this indication is screened: the guidelines order
-        a CBC without ferritin first, so a suggestion can add something."""
-        match self:
-            case (
-                ClinicalIndication.SUSPECTED_ANAEMIA
-                | ClinicalIndication.SUSPECTED_IBS
-                | ClinicalIndication.UNEXPLAINED_FATIGUE
-            ):
-                return True
-            case (
-                ClinicalIndication.START_OF_PREGNANCY
-                | ClinicalIndication.CKD_FOLLOW_UP
-                | ClinicalIndication.OTHER
-            ):
-                return False
-            case _:
-                assert_never(self)
-
-    @classmethod
-    def screened(cls) -> list["ClinicalIndication"]:
-        """Every indication whose CBC is screened."""
-        return [indication for indication in cls if indication.is_screened()]
 
 
 @dataclass(frozen=True)

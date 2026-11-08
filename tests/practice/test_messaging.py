@@ -26,6 +26,7 @@ from web.practice import messaging
 from web.practice.models import Laboratory, LabReport, Order, Patient
 from web.shared.accounts.models import User
 from web.shared.messaging import messages_pb2
+from web.shared.messaging.convert import to_proto
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
 
@@ -71,7 +72,9 @@ def test_a_placed_order_reaches_the_hospital_as_its_lab_order(
     (sent,) = fake_laboratory.laboratory.lab_orders
     assert sent.sample_id == placed.sample.sample_id
     assert sent.test == messages_pb2.TEST_CBC
-    assert sent.screened_indication is True
+    assert (
+        sent.clinical_indication == messages_pb2.CLINICAL_INDICATION_UNEXPLAINED_FATIGUE
+    )
     assert sent.registered_sex == messages_pb2.REGISTERED_SEX_FEMALE
     assert sent.age == 32
     assert sent.ordered_at.ToDatetime(tzinfo=UTC) == NOW
@@ -208,14 +211,16 @@ def test_a_practice_without_a_name_sends_nothing(
 
 
 @pytest.mark.parametrize("indication", list(ClinicalIndication))
-def test_the_lab_order_says_only_whether_the_indication_is_screened(
+def test_the_lab_order_names_the_indication_for_the_hospital_to_decide(
     practice: Laboratory, fake_laboratory: Running, indication: ClinicalIndication
 ) -> None:
-    """Of the indication the laboratory learns one yes or no, the one the
-    practice decides (features/hospital/screening.feature)."""
+    """The laboratory, not the practice, decides whether an indication is
+    screened (features/hospital/screening.feature): the lab order names it."""
     send_cbc(practice, indication)
     (sent,) = fake_laboratory.laboratory.lab_orders
-    assert sent.screened_indication is indication.is_screened()
+    assert sent.clinical_indication == to_proto(
+        indication, messages_pb2.ClinicalIndication
+    )
 
 
 def released_ferritin(

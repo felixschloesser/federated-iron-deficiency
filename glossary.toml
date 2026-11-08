@@ -43,11 +43,11 @@ meaning = "The laboratory refuses a lab order whose information is insufficient,
 source = "WHO LQMS 5-4, p. 66, Rejection of samples: \"insufficient patient information\"; \"Record the reason for rejection\"; \"promptly inform the authorized person\"; \"request another sample\""
 
 ["order"]
-meaning = "The practice's word: what the general practitioner places, with its clinical indication, which never leaves the practice. Each party speaks its own language: the practice orders, the wire carries a lab order, the laboratory works on a test request"
+meaning = "The practice's word: what the general practitioner places, with its clinical indication. Each party speaks its own language: the practice orders, the wire carries a lab order, the laboratory works on a test request"
 source = "WHO glossary *path of workflow*, \"physician's order\" (p. 228)"
 
 ["lab order"]
-meaning = "What travels from the practice to the hospital (the proto's LabOrder): only whether the indication is screened, never which; send_lab_order makes one of an order"
+meaning = "What travels from the practice to the hospital (the proto's LabOrder): the sample ID, test, clinical indication, registered sex and age; no name, no values"
 source = "Report, DF23 \"lab order\""
 
 ["test request"]
@@ -63,7 +63,7 @@ meaning = "The routine blood test the hospital screens: 13 values such as haemog
 source = "Report, Use case"
 
 ["clinical indication"]
-meaning = "Why the general practitioner orders a CBC, one of the six below in the guidelines' words; it decides whether the CBC is screened, and never leaves the practice"
+meaning = "Why the general practitioner orders a CBC, one of the six below in the guidelines' words; the lab order names it, and the hospital decides from it whether the CBC is screened"
 source = "Report, Data table"
 
 ["suspected anaemia"]
@@ -91,7 +91,7 @@ meaning = "Not screened: any reason not listed above"
 source = "Project decision: the guidelines are organised by indication and name no catch-all"
 
 ["screened indication"]
-meaning = "All the lab order says of the clinical indication: whether it is one the screening covers (features/hospital/screening.feature), never which"
+meaning = "A clinical indication the hospital screens a CBC for: its rule, decided at the hospital from the lab order's indication (features/hospital/screening.feature)"
 source = "Report, Data table: \"the three screened indications\""
 
 ["not eligible"]

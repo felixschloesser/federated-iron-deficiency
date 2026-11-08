@@ -297,15 +297,6 @@ class Order(models.Model):
         report: LabReport | None = getattr(self, "lab_report", None)
         return report
 
-    @property
-    def screened_indication(self) -> bool:
-        """All the lab order says of the indication: whether it is a
-        screened one. Which indication it is stays at the practice."""
-        return (
-            self.indication is not None
-            and ClinicalIndication(self.indication).is_screened()
-        )
-
 
 @dataclass(frozen=True)
 class ResultValue:
