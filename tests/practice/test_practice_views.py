@@ -12,6 +12,7 @@ from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
 
 from tests.practice.conftest import (
+    a_laboratory,
     make_general_practitioner,
     make_patient,
     suggest_ferritin_on,
@@ -23,6 +24,13 @@ from web.shared.vocabulary import RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def practice_name(settings: Settings) -> None:
+    """Every sample goes to a laboratory, so placing an order sends its lab order;
+    the test laboratory answers nothing."""
+    settings.PRACTICE_NAME = "De Ceder"
 
 
 @pytest.fixture
@@ -51,6 +59,7 @@ def collect_url(patient: Patient) -> str:
 def order_url(client: Client, patient: Patient, test: OrderedTest) -> str:
     """Collect a sample from the patient; the order page for a test on it. For
     ferritin, the sample first gets a CBC lab report suggesting it (features/practice/ordering.feature)."""
+    a_laboratory()
     client.post(collect_url(patient))
     if test == OrderedTest.FERRITIN:
         suggest_ferritin(patient)
@@ -127,6 +136,7 @@ def test_patient_page_says_sex_and_age_under_the_name(
 def test_collecting_a_sample_sends_nothing_and_offers_its_tests(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
+    a_laboratory()
     response = logged_in(client, general_practitioner).post(collect_url(patient))
     sample = patient.samples.get()
     # Straight to the routine first test on the new sample.
@@ -252,6 +262,7 @@ def test_patient_page_queries_do_not_grow_with_suggestions(
 def test_unknown_test_is_not_found(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
+    a_laboratory()
     logged_in(client, general_practitioner).post(collect_url(patient))
     sample = patient.samples.get()
     url = patient_url(patient) + f"samples/{sample.pk}/orders/vitamin-d/"
@@ -603,8 +614,6 @@ def test_an_order_says_whether_its_lab_order_is_sent(
     response = client.get(patient_url(patient))
     assertContains(response, "<mark>Awaiting lab report</mark>")
     assertNotContains(response, "not sent yet")
-    # No laboratory to ask, so no hint to check for reports.
-    assertNotContains(response, "Check for reports on Orders")
 
 
 def test_with_several_laboratories_collecting_starts_with_the_choice(

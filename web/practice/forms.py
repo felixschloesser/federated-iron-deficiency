@@ -40,6 +40,16 @@ class CollectSampleForm(NamedLabels, forms.Form):
     """Which laboratory the sample goes to (features/practice/ordering.feature); left out by a practice with one,
     whose single Collect sample button posts no choice."""
 
+    def clean_laboratory(self) -> Laboratory:
+        laboratory: Laboratory | None = self.cleaned_data.get("laboratory")
+        if laboratory is None and Laboratory.objects.count() == 1:
+            laboratory = Laboratory.objects.get()
+        if laboratory is None:
+            raise forms.ValidationError(
+                "Choose the laboratory the sample goes to.", code="laboratory_required"
+            )
+        return laboratory
+
     laboratory = forms.ModelChoiceField(
         label="Laboratory",
         queryset=Laboratory.objects.order_by("name"),

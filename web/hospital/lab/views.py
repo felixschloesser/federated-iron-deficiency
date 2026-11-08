@@ -9,7 +9,8 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
-from web.hospital.lab.models import NotScreened, TestRequest
+from web.hospital.deployment.models import NotScreened
+from web.hospital.lab.models import TestRequest
 from web.shared.accounts.mixins import RoleRequiredMixin
 from web.shared.accounts.roles import Role
 
@@ -56,7 +57,7 @@ class RunAnalyserView(LaboratoryStaffRequiredMixin, View):
             if reason is not None and NotScreened(reason).is_model_problem():
                 messages.warning(
                     request,
-                    f"{released} without screening: {NotScreened(reason).label}."
+                    f"{released} without screening. {NotScreened(reason).label}."
                     " Tell the laboratory director.",
                 )
             else:

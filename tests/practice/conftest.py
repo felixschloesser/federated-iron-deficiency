@@ -18,7 +18,7 @@ from web.shared.messaging import messages_pb2_grpc
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from web.practice.models import Order, Patient, Sample
+    from web.practice.models import Laboratory, Order, Patient, Sample
     from web.shared.accounts.models import User
     from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
@@ -93,6 +93,18 @@ def suggest_ferritin_on(sample: "Sample", now: "datetime") -> None:
     )
 
 
+def a_laboratory() -> "Laboratory":
+    """The practice's first laboratory; one that answers nothing if it works with none yet."""
+    from web.practice.models import Laboratory
+
+    laboratory = Laboratory.objects.order_by("pk").first()
+    if laboratory is None:
+        laboratory = Laboratory.objects.create(
+            name="Test Laboratory", address="127.0.0.1:1"
+        )
+    return laboratory
+
+
 def collect_and_order(
     *,
     patient: "Patient",
@@ -101,11 +113,7 @@ def collect_and_order(
     now: "datetime",
 ) -> "Order":
     """Collect a sample from the patient and order one test on it."""
-    from web.practice.models import Laboratory
-
-    # The practice's first laboratory, if it works with any (features/practice/ordering.feature).
-    laboratory = Laboratory.objects.order_by("pk").first()
-    sample = patient.collect_sample(laboratory=laboratory, now=now)
+    sample = patient.collect_sample(laboratory=a_laboratory(), now=now)
     if test.on_suspicion():
         suggest_ferritin_on(sample, now)
     return sample.place_order(

@@ -127,7 +127,7 @@ def test_a_cbc_not_screened_for_a_model_problem_warns(
     assertContains(
         response,
         f"Sample {test_request.sample.sample_id}: CBC analysed, lab report released"
-        " without screening: no screening model deployed. Tell the laboratory"
+        " without screening. No screening model is deployed. Tell the laboratory"
         " director.",
     )
 

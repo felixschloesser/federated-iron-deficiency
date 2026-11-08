@@ -22,10 +22,9 @@ from tests.conftest import World
 from tests.hospital.conftest import make_practice
 from web.hospital.analyser.models import Participant
 from web.hospital.deployment.model_files import sha256
-from web.hospital.deployment.models import Deployment, NoUsableModel
+from web.hospital.deployment.models import Deployment
 from web.hospital.lab.models import (
     LabOrderDetails,
-    NotScreened,
     Sample,
     ScreeningResult,
     TestRequest,
@@ -259,19 +258,18 @@ def released(world: World, suggested: str) -> None:
     assert test_request.ferritin_suggested is (suggested == "with")
 
 
-@pytest.mark.parametrize("reason", NoUsableModel)
-def test_every_reason_without_a_usable_model_is_a_not_screened_reason(
-    reason: NoUsableModel,
-) -> None:
-    assert NotScreened.because(reason).is_model_problem()
+@pytest.mark.parametrize(
+    "reason", ["not_eligible", "no_deployed_model", "deployed_model_changed"]
+)
+def test_every_reason_but_not_eligible_is_a_model_problem(reason: str) -> None:
+    from web.hospital.deployment.models import NotScreened
 
-
-@pytest.mark.parametrize("reason", NotScreened)
-def test_only_a_reason_without_a_usable_model_is_a_model_problem(
-    reason: NotScreened,
-) -> None:
-    is_because = any(NotScreened.because(each) is reason for each in NoUsableModel)
-    assert reason.is_model_problem() is is_because
+    assert {choice.value for choice in NotScreened} == {
+        "not_eligible",
+        "no_deployed_model",
+        "deployed_model_changed",
+    }
+    assert NotScreened(reason).is_model_problem() is (reason != "not_eligible")
 
 
 @pytest.mark.parametrize(
