@@ -1,14 +1,14 @@
-# nhanes-download: the one container that reaches the internet. It writes the
-# public NHANES extracts each party seeds from (demo/nhanes.py). Only the
-# `nhanes` dependency group and the modules that choose the extracts, so a
-# change anywhere else never rebuilds it.
+# Downloads the public NHANES data and writes one extract per party, which
+# each party's web app then loads (demo/nhanes.py). The only container with
+# internet access. It holds just the `nhanes` dependency group and the few
+# modules it needs, so changes elsewhere never rebuild it.
 FROM python:3.13-slim
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/
 RUN useradd --create-home app && install -d -o app /app /opt/venv
 WORKDIR /app
 USER app
-# HOME: compose runs the image as the demo user (DEMO_USER), who may have no home here.
-# Bytecode compiled once here, not by every new container.
+# HOME=/tmp: compose runs this image as DEMO_USER, who has no home folder here.
+# UV_COMPILE_BYTECODE: compile .pyc files now, so containers start faster.
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv PATH=/opt/venv/bin:$PATH HOME=/tmp \
     UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY --chown=app pyproject.toml uv.lock /app/

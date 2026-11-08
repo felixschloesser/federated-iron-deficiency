@@ -13,16 +13,15 @@ from flwr.app import (
     RecordDict,
 )
 from flwr.clientapp import ClientApp
-from flwr_datasets import FederatedDataset
 
 from ml import training, validation
-from ml.dataset import load_federated_dataset
+from ml.dataset import cohorts
 from ml.final_model import Net
 from ml.training_cohort import read_training_cohort
 
 app = ClientApp()
 
-fds: FederatedDataset | None = None  # Cache across calls in a simulation
+simulated: list[pd.DataFrame] | None = None  # Cache across calls in a simulation
 # Where a run's state notes the training cohort it reads.
 TRAINING_COHORT = "training-cohort"
 
@@ -41,12 +40,11 @@ def load_cohort(context: Context) -> pd.DataFrame:
         context.state[TRAINING_COHORT] = ConfigRecord({"sha256": digest})
         return rows
 
-    # Simulation Runtime: download and partition the cohort on the fly
-    global fds
-    if fds is None:
-        fds = load_federated_dataset()
-    partition_id = int(context.node_config["partition-id"])
-    return fds.load_partition(partition_id).to_pandas()
+    # Simulation Runtime: download and split the cohort by cycle on the fly
+    global simulated
+    if simulated is None:
+        simulated = cohorts()
+    return simulated[int(context.node_config["partition-id"])]
 
 
 def config_float(msg: Message, key: str) -> float:

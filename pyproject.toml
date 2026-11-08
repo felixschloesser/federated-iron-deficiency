@@ -10,9 +10,12 @@ license = {file = "LICENSE"}
 requires-python = ">=3.13"
 dependencies = [
     "flwr>=1.40.0",  # fab-include, checked with 1.40
-    "flwr-datasets>=0.6.1",
+    # Downloads the pinned NHANES file (ml/dataset.py).
+    "huggingface-hub",
     "numpy>=2.0.0",
     "pandas>=2.2.0",
+    # The training cohort on disk, and the pinned NHANES file: Parquet.
+    "pyarrow",
     "ray==2.55.1; sys_platform != \"win32\"",  # simulation runtime skips flwr[simulation] extras
     "scikit-learn>=1.5.0",
     "torch==2.10.0",

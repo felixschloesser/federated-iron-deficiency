@@ -4,14 +4,16 @@ it (features/hospital/training_cohort.feature).
 
 A folder holds at most one training cohort, in a folder named after its
 SHA-256; none once withdrawn. Flower is not imported here, so the hospital's
-web app can write what the ClientApp reads; Hugging Face's datasets only when
-one is written or read, so Django boots without it (tests/demo/test_images.py)."""
+web app can write what the ClientApp reads: one Parquet file, through pandas."""
 
 import hashlib
 import shutil
 from pathlib import Path
 
 import pandas as pd
+
+# The one file in a training cohort's folder.
+COHORT_FILE = "cohort.parquet"
 
 
 class TrainingCohortUnavailable(RuntimeError):
@@ -38,13 +40,12 @@ def write_training_cohort(rows: pd.DataFrame, directory: Path) -> str:
     """Make `rows` the training cohort in `directory`, in place of any other,
     and return its SHA-256. Written beside, then renamed: a reader never sees
     half a cohort."""
-    from datasets import Dataset
-
     digest = sha256(rows)
     directory.mkdir(parents=True, exist_ok=True)
     staging = directory / f".{digest}"
     shutil.rmtree(staging, ignore_errors=True)
-    Dataset.from_pandas(rows, preserve_index=False).save_to_disk(str(staging))
+    staging.mkdir()
+    rows.to_parquet(staging / COHORT_FILE, index=False)
     staging.rename(directory / digest)
     remove_training_cohort(directory, keep=digest)
     return digest
@@ -74,7 +75,5 @@ def read_training_cohort(
             "The training cohort changed during this run: the laboratory director"
             " provided another."
         )
-    from datasets import load_from_disk
-
     (training_cohort,) = found
-    return training_cohort.name, load_from_disk(str(training_cohort)).to_pandas()
+    return training_cohort.name, pd.read_parquet(training_cohort / COHORT_FILE)
