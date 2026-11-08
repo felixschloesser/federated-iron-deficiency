@@ -1,6 +1,8 @@
 """Views of the general practitioner side: status, redirects, form error codes,
 query counts."""
 
+import re
+
 import pytest
 from django.http import HttpResponseServerError
 from django.template.loader import render_to_string
@@ -119,8 +121,12 @@ def test_patient_page_offers_collecting_a_sample(
     client: Client, general_practitioner: User, patient: Patient
 ) -> None:
     response = logged_in(client, general_practitioner).get(patient_url(patient))
+    check = reverse(
+        "practice:patient_check_for_reports", kwargs={"patient": patient.pk}
+    )
     assert response.context["post_actions"] == [
-        {"url": collect_url(patient), "label": "Collect sample"}
+        {"url": collect_url(patient), "label": "Collect sample"},
+        {"url": check, "label": "Check for reports"},
     ]
     assert response.context["actions"] == []
 
@@ -344,9 +350,8 @@ def test_orders_queries(
         client.post(order_url(client, each, OrderedTest.FERRITIN))
     # Each ferritin comes with the CBC whose lab report suggested it.
     assert Order.objects.count() == 6
-    # Session, user with general practitioner, orders with their patients, whether
-    # there is a laboratory to check for reports.
-    with django_assert_num_queries(4):
+    # Session, user with general practitioner, orders with their patients.
+    with django_assert_num_queries(3):
         assert client.get(reverse("practice:orders")).status_code == 200
 
 
@@ -719,3 +724,19 @@ def test_a_patients_page_marks_patients_current(client: Client) -> None:
         f'<a href="{reverse("practice:patients")}" aria-current="page">Patients</a>',
         html=True,
     )
+
+
+@pytest.mark.parametrize("laboratories", [0, 2])
+def test_the_error_summary_links_to_the_laboratory_choice_on_the_page(
+    client: Client, general_practitioner: User, patient: Patient, laboratories: int
+) -> None:
+    """The summary's link lands on the choice: its first button, or the empty
+    group of a practice not yet set up."""
+    from web.practice.models import Laboratory
+
+    for number in range(laboratories):
+        Laboratory.objects.create(name=f"Lab {number}", address="127.0.0.1:1")
+    response = logged_in(client, general_practitioner).post(collect_url(patient))
+    page = response.content.decode()
+    (target,) = re.findall(r'<li><a href="#([^"]+)">Laboratory:', page)
+    assert f'id="{target}"' in page
