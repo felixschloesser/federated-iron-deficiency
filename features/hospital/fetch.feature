@@ -34,6 +34,17 @@ Feature: A hospital fetches final models when its laboratory director asks
     When the laboratory director fetches new final models
     Then the hospital holds only "11.pt"
 
+  Scenario Outline: A final model missing any part is not stored
+    Given the startup released final model "12" without its <part>
+    When the laboratory director fetches new final models
+    Then the hospital holds only "11.pt"
+
+    Examples:
+      | part            |
+      | run_id          |
+      | weights         |
+      | federated_auroc |
+
   Scenario: A startup that cannot be reached
     Given the startup cannot be reached
     When the laboratory director fetches new final models

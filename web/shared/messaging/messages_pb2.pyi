@@ -8,6 +8,12 @@ asks, the practice or the hospital. No message says who sent it: the client
 names its party by its name's slug in each call's metadata
 (web/shared/messaging/identity.py), where mutual TLS would take it from the
 client's certificate; the demo leaves that out.
+
+Every message is complete or refused (tests/shared/test_messages.py): each part
+is required (protovalidate, buf/validate/validate.proto), and every receiver
+validates what it receives before reading it. Presence is implicit, so a zero
+is not sent and "required" refuses it; a part whose zero is a value (age 0)
+has explicit presence instead. Lists may be empty.
 """
 
 from collections import abc as _abc
@@ -39,7 +45,8 @@ class _TestEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_Test.ValueType],
 
 class Test(_Test, metaclass=_TestEnumTypeWrapper):
     """The choices of web.shared.vocabulary, one value per member, named after it with the
-    enum's prefix (Test.CBC is TEST_CBC); 0 is none (proto3 default).
+    enum's prefix (Test.CBC is TEST_CBC); 0 is none, never sent. Each enum part
+    takes only the values its enum names.
     """
 
 TEST_UNSPECIFIED: Test.ValueType  # 0
@@ -94,7 +101,7 @@ class LabOrder(_message.Message):
     """DF23. No patient name, no blood values (tests/quality/privacy/test_messages.py): the
     tube's values are measured at the hospital. The clinical indication is one of
     the choices, from which the laboratory decides whether to screen
-    (features/hospital/screening.feature). The hospital's form still checks every field.
+    (features/hospital/screening.feature).
     """
 
     DESCRIPTOR: _descriptor.Descriptor
@@ -108,10 +115,11 @@ class LabOrder(_message.Message):
     sample_id: _builtins.str
     test: Global___Test.ValueType
     clinical_indication: Global___ClinicalIndication.ValueType
-    """absent for ferritin; absent is never screened"""
+    """The one part a message may leave out: ferritin takes none, and a CBC
+    without one is not screened.
+    """
     registered_sex: Global___RegisteredSex.ValueType
     age: _builtins.int
-    """absent is no age, never age 0: refused"""
     @_builtins.property
     def ordered_at(self) -> _timestamp_pb2.Timestamp: ...
     def __init__(
@@ -122,15 +130,13 @@ class LabOrder(_message.Message):
         clinical_indication: Global___ClinicalIndication.ValueType = ...,
         registered_sex: Global___RegisteredSex.ValueType = ...,
         age: _builtins.int | None = ...,
-        ordered_at: _timestamp_pb2.Timestamp | None = ...,
+        ordered_at: _timestamp_pb2.Timestamp = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["_age", b"_age", "age", b"age", "ordered_at", b"ordered_at"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["age", b"age", "ordered_at", b"ordered_at"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["_age", b"_age", "age", b"age", "clinical_indication", b"clinical_indication", "ordered_at", b"ordered_at", "registered_sex", b"registered_sex", "sample_id", b"sample_id", "test", b"test"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["age", b"age", "clinical_indication", b"clinical_indication", "ordered_at", b"ordered_at", "registered_sex", b"registered_sex", "sample_id", b"sample_id", "test", b"test"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType__age: _TypeAlias = _typing.Literal["age"]  # noqa: Y015
-    _WhichOneofArgType__age: _TypeAlias = _typing.Literal["_age", b"_age"]  # noqa: Y015
-    def WhichOneof(self, oneof_group: _WhichOneofArgType__age) -> _WhichOneofReturnType__age | None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
 
 Global___LabOrder: _TypeAlias = LabOrder  # noqa: Y015
 
@@ -172,9 +178,10 @@ class LabReport(_message.Message):
     sample_id: _builtins.str
     test: Global___Test.ValueType
     ferritin_suggested: _builtins.bool
-    """false when absent: never a false suggestion"""
     @_builtins.property
-    def results(self) -> _containers.ScalarMap[_builtins.str, _builtins.float]: ...
+    def results(self) -> _containers.ScalarMap[_builtins.str, _builtins.float]:
+        """empty when NHANES lacks the value"""
+
     @_builtins.property
     def released_at(self) -> _timestamp_pb2.Timestamp: ...
     def __init__(
@@ -183,11 +190,11 @@ class LabReport(_message.Message):
         report_id: _builtins.int = ...,
         sample_id: _builtins.str = ...,
         test: Global___Test.ValueType = ...,
-        results: _abc.Mapping[_builtins.str, _builtins.float] | None = ...,
-        released_at: _timestamp_pb2.Timestamp | None = ...,
-        ferritin_suggested: _builtins.bool = ...,
+        results: _abc.Mapping[_builtins.str, _builtins.float] = ...,
+        released_at: _timestamp_pb2.Timestamp = ...,
+        ferritin_suggested: _builtins.bool | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["released_at", b"released_at"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["ferritin_suggested", b"ferritin_suggested", "released_at", b"released_at"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
     _ClearFieldArgType: _TypeAlias = _typing.Literal["ferritin_suggested", b"ferritin_suggested", "released_at", b"released_at", "report_id", b"report_id", "results", b"results", "sample_id", b"sample_id", "test", b"test"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
@@ -205,7 +212,7 @@ class LabReports(_message.Message):
     def __init__(
         self,
         *,
-        reports: _abc.Iterable[Global___LabReport] | None = ...,
+        reports: _abc.Iterable[Global___LabReport] = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
@@ -225,7 +232,7 @@ class Acknowledgement(_message.Message):
     def __init__(
         self,
         *,
-        report_ids: _abc.Iterable[_builtins.int] | None = ...,
+        report_ids: _abc.Iterable[_builtins.int] = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
@@ -255,9 +262,9 @@ class FinalModel(_message.Message):
         *,
         run_id: _builtins.int = ...,
         weights: _builtins.bytes = ...,
-        federated_auroc: _builtins.float = ...,
+        federated_auroc: _builtins.float | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["federated_auroc", b"federated_auroc"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
     _ClearFieldArgType: _TypeAlias = _typing.Literal["federated_auroc", b"federated_auroc", "run_id", b"run_id", "weights", b"weights"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
@@ -275,7 +282,7 @@ class NewFinalModels(_message.Message):
     def __init__(
         self,
         *,
-        final_models: _abc.Iterable[Global___FinalModel] | None = ...,
+        final_models: _abc.Iterable[Global___FinalModel] = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
@@ -299,7 +306,7 @@ class NewFinalModelsRequest(_message.Message):
     def __init__(
         self,
         *,
-        held_run_ids: _abc.Iterable[_builtins.int] | None = ...,
+        held_run_ids: _abc.Iterable[_builtins.int] = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...

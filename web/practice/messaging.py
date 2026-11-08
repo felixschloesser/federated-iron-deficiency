@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import grpc
+import protovalidate
 from django.conf import settings
 from google.protobuf.empty_pb2 import Empty
 
@@ -115,10 +116,11 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
         reports = endpoint.FetchNewLabReports(
             Empty(), timeout=TIMEOUT_SECONDS, metadata=metadata
         ).reports
+        received = [received_lab_report(report) for report in reports]
         stored = [
             report.report_id
-            for report in reports
-            if _store(report, laboratory, now=now)
+            for report in received
+            if report is not None and _store(report, laboratory, now=now)
         ]
         if stored:
             endpoint.AcknowledgeLabReports(
@@ -129,32 +131,53 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
     return len(stored)
 
 
-def _store(
-    report: messages_pb2.LabReport, laboratory: Laboratory, *, now: datetime
-) -> bool:
+@dataclass(frozen=True)
+class ReceivedLabReport:
+    """A lab report as the hospital sent it, every part present (DF25)."""
+
+    report_id: int
+    sample_id: str
+    test: Test
+    results: dict[str, float]
+    released_at: datetime
+    ferritin_suggested: bool
+
+
+def received_lab_report(report: messages_pb2.LabReport) -> ReceivedLabReport | None:
+    """The lab report a message holds; None if it breaks the contract, so the
+    practice never fills a part the hospital left out."""
+    if protovalidate.collect_violations(report):
+        return None
+    return ReceivedLabReport(
+        report_id=report.report_id,
+        sample_id=report.sample_id,
+        test=from_proto(report.test, messages_pb2.Test, Test),
+        results=dict(report.results),
+        released_at=moment(report.released_at),
+        ferritin_suggested=report.ferritin_suggested,
+    )
+
+
+def _store(report: ReceivedLabReport, laboratory: Laboratory, *, now: datetime) -> bool:
     """Store a lab report of one of this app's orders on a sample that went to this
     laboratory; False if it matches none.
 
-    The hospital is another party: a report that cannot be stored stays
-    unacknowledged instead of holding back the others, and a laboratory reports
-    only on the samples it was sent."""
-    test = from_proto(report.test, messages_pb2.Test, Test)
-    if test is None or not report.HasField("released_at"):
-        return False
-    released_at = moment(report.released_at)
+    The hospital is another party: a report that cannot be stored, or is
+    incomplete, stays unacknowledged instead of holding back the others, and a
+    laboratory reports only on the samples it was sent."""
     order = Order.objects.filter(
         sample__sample_id=report.sample_id,
         sample__laboratory=laboratory,
-        test=test,
+        test=report.test,
     ).first()
     if order is None:
         return False
     LabReport.objects.get_or_create(
         order=order,
         defaults={
-            "results": dict(report.results),
+            "results": report.results,
             "ferritin_suggested": report.ferritin_suggested,
-            "released_at": released_at,
+            "released_at": report.released_at,
             "fetched_at": now,
         },
     )
