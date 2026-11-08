@@ -110,7 +110,7 @@ def stop_run(run_id: int) -> None:
 
 
 class RunStatus(models.TextChoices):
-    """Where a training run is, in Flower's words (`flwr ls`; glossary.toml)."""
+    """Where a training run is, in Flower's words (`flwr ls`; web/startup/glossary.toml)."""
 
     PENDING = "pending", "Pending"
     STARTING = "starting", "Starting"

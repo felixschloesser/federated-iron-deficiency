@@ -225,7 +225,7 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
 @pytest.mark.django_db
 def test_add_practice_adds_it_once_by_its_name() -> None:
     """The hospital registers each practice it works with by its name, which
-    never changes (glossary.toml); its slug follows from the name."""
+    never changes (web/shared/glossary.toml); its slug follows from the name."""
     call_command("add_practice", "Huisartsenpraktijk De Ceder")
     call_command("add_practice", "Huisartsenpraktijk De Ceder")
     practice = Practice.objects.get()

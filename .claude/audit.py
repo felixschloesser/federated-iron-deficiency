@@ -434,6 +434,22 @@ def glossary_entries(root: Path) -> list[str]:
     return findings
 
 
+# "glossary.toml" with no folder before it: web/<party>/ or web/shared/.
+UNPLACED_GLOSSARY = re.compile(r"(?<![a-z]/)glossary\.toml")
+
+
+def glossary_citations(root: Path) -> list[str]:
+    """Code that cites a glossary names which: each party has its own
+    (web/<party>/glossary.toml), the shared words are in web/shared/."""
+    return [
+        f"{rel}:{number}: cites glossary.toml without its folder"
+        for pattern in ("*.py", "*.html")
+        for rel, number, line in lines(root, pattern)
+        if rel.startswith(("web/", "tests/", "demo/", "ml/"))
+        and UNPLACED_GLOSSARY.search(line)
+    ]
+
+
 FEATURE_FILE = re.compile(r"features/[a-z_/]+\.feature")
 
 
@@ -491,6 +507,7 @@ CHECKS: dict[str, Callable[[Path], list[str]]] = {
         listed_members,
         get_mutation,
         glossary_entries,
+        glossary_citations,
         feature_citations,
         training_imports,
         party_imports,

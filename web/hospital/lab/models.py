@@ -1,4 +1,4 @@
-"""The hospital's samples and the practices it works with (terms: glossary.toml)."""
+"""The hospital's samples and the practices it works with (terms: web/hospital/glossary.toml, web/shared/glossary.toml)."""
 
 from __future__ import annotations
 
@@ -90,7 +90,7 @@ class PracticeManager(models.Manager["Practice"]):
 
 
 class Practice(models.Model):
-    """A practice the hospital works with, by its name (glossary.toml), which
+    """A practice the hospital works with, by its name (web/shared/glossary.toml), which
     never changes; its app calls as the name's slug."""
 
     name = models.CharField(max_length=100, unique=True)
