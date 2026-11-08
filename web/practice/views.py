@@ -171,17 +171,9 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSample
         return {**super().get_context_data(**kwargs), "patient": self.patient}
 
     def form_valid(self, form: CollectSampleForm) -> HttpResponse:
-        laboratory = form.cleaned_data["laboratory"]
-        if laboratory is None and Laboratory.objects.count() == 1:
-            laboratory = Laboratory.objects.get()
-        try:
-            sample = self.patient.collect_sample(
-                laboratory=laboratory, now=timezone.now()
-            )
-        except ValidationError as error:
-            for field, errors in error.error_dict.items():
-                form.add_error(field if field in form.fields else None, errors)
-            return self.form_invalid(form)
+        sample = self.patient.collect_sample(
+            laboratory=form.cleaned_data["laboratory"], now=timezone.now()
+        )
         messages.success(self.request, f"Sample {sample.sample_id} collected.")
         # Straight to the routine first test; any other is ordered from the sample.
         return redirect(
@@ -257,26 +249,23 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
             f" {placed.sample.sample_id}.",
         )
         laboratory = self.sample.laboratory
-        if laboratory is not None:
-            try:
-                messaging.send_pending_lab_orders(
-                    laboratory,
-                    now=timezone.now(),
-                    timeout=messaging.IN_REQUEST_TIMEOUT_SECONDS,
-                )
-            except grpc.RpcError as error:
-                messages.warning(
-                    self.request,
-                    f"{laboratory} could not be reached, so the lab order is not"
-                    " sent yet."
-                    if messaging.unreachable(error)
-                    else f"{laboratory} refused the lab order. Tell the administrator.",
-                )
-            placed.refresh_from_db(fields=["reason_for_rejection"])
-            if placed.reason_for_rejection is not None:
-                messages.error(
-                    self.request,
-                    f"{laboratory} rejected the lab order:"
-                    f" {placed.reason_for_rejection}",
-                )
+        try:
+            messaging.send_pending_lab_orders(
+                laboratory,
+                now=timezone.now(),
+                timeout=messaging.IN_REQUEST_TIMEOUT_SECONDS,
+            )
+        except grpc.RpcError as error:
+            messages.warning(
+                self.request,
+                f"{laboratory} could not be reached, so the lab order is not sent yet."
+                if messaging.unreachable(error)
+                else f"{laboratory} refused the lab order. Tell the administrator.",
+            )
+        placed.refresh_from_db(fields=["reason_for_rejection"])
+        if placed.reason_for_rejection is not None:
+            messages.error(
+                self.request,
+                f"{laboratory} rejected the lab order: {placed.reason_for_rejection}",
+            )
         return super().form_valid(form)

@@ -9,7 +9,8 @@ from django.db import IntegrityError, transaction
 from pytest_bdd import given, parsers, scenario, scenarios, then, when
 
 from tests.conftest import World
-from web.practice.models import Order
+from tests.practice.conftest import a_laboratory
+from web.practice.models import Order, Sample
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
 
@@ -58,12 +59,9 @@ def indication_named(text: str) -> ClinicalIndication:
 @given(parsers.parse('"{general_practitioner}" collected a sample from "{patient}"'))
 @when(parsers.parse('"{general_practitioner}" collects a sample from "{patient}"'))
 def collect(world: World, general_practitioner: str, patient: str) -> None:
-    try:
-        world["sample"] = world["patients"][patient].collect_sample(
-            now=NOW,
-        )
-    except ValidationError as error:
-        world["error"] = error
+    world["sample"] = world["patients"][patient].collect_sample(
+        laboratory=a_laboratory(), now=NOW
+    )
 
 
 @when(
@@ -313,9 +311,16 @@ def both_primary(world: World) -> None:
         world["integrity_error"] = True
 
 
-@then(parsers.parse('the collection is refused with code "{code}" on field "{field}"'))
-def collection_refused(world: World, code: str, field: str) -> None:
-    assert [error.code for error in world["error"].error_dict[field]] == [code]
+@when("a sample without a laboratory is written straight to the database")
+def sample_without_laboratory(world: World) -> None:
+    record = world["patients"]["Test Patient 1"]
+    try:
+        with transaction.atomic():
+            Sample.objects.create(
+                patient=record, sample_id=record.next_sample_id(), collected_at=NOW
+            )
+    except IntegrityError as error:
+        world["integrity_error"] = error
 
 
 @when(parsers.parse('the laboratory rejects its lab order because "{reason}"'))
