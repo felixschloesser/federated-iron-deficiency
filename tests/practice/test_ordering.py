@@ -245,7 +245,7 @@ def numbered_sample(
     sample = world["sample"] if what == "sample" else world["order"].sample
     record = world["patients"][patient]
     assert sample.patient == record
-    assert sample.sample_id == f"{record.nhanes_number}-{number}"
+    assert sample.sample_id == f"{record.patient_number}-{number}"
     if now:
         assert sample.collected_at == NOW
 

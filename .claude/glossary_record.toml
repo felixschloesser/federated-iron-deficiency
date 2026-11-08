@@ -23,6 +23,10 @@ rejected = ["nhanes (the demo data's origin, not what the app is)", "instrument 
 ["patient"]
 rejected = ["participant (NHANES word; data origin only)"]
 
+["patient number"]
+decided = "2026-11-08"
+rejected = ["nhanes number (the demo data's origin; the code's word until 2026-11-08)", "SEQN (NHANES's word)", "hospital number (the hospital's, not the practice's)", "patient identifier (WHO's general word)"]
+
 ["practice"]
 rejected = ["client (WHO 13-2; the code's word until 2026-11-03)", "sender", "requester"]
 

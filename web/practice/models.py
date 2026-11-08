@@ -82,9 +82,10 @@ class Patient(models.Model):
     name = models.CharField(max_length=100)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
-    # Demo only: the NHANES participant this patient is, which each of their
-    # sample IDs starts with so the analyser stand-in can measure it.
-    nhanes_number = models.CharField(max_length=20, unique=True)
+    # The practice's lasting number for the patient, which starts each of their
+    # sample IDs. The demo seeds it with the NHANES participant's number, so the
+    # analyser stand-in knows whose blood a sample holds.
+    patient_number = models.CharField(max_length=20, unique=True)
 
     objects = PatientQuerySet.as_manager()
 
@@ -93,7 +94,7 @@ class Patient(models.Model):
 
     def next_sample_id(self) -> str:
         """The sample ID for this patient's next sample: 135318-1, 135318-2, …"""
-        return f"{self.nhanes_number}-{self.samples.count() + 1}"
+        return f"{self.patient_number}-{self.samples.count() + 1}"
 
     @transaction.atomic
     def collect_sample(self, *, now: datetime, laboratory: Laboratory) -> "Sample":
