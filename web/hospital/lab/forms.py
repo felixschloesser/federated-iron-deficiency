@@ -1,6 +1,6 @@
 from django import forms
 
-from web.shared.vocabulary import RegisteredSex, Test
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
 class LabOrderForm(forms.Form):
@@ -8,8 +8,13 @@ class LabOrderForm(forms.Form):
 
     sample_id = forms.CharField(max_length=20)
     test = forms.TypedChoiceField(choices=Test.choices, coerce=Test)
-    # Not required: a lab order without it is not for a screened indication.
-    screened_indication = forms.BooleanField(required=False)
+    # Not required: ferritin takes none, and a CBC without one is not screened.
+    clinical_indication = forms.TypedChoiceField(
+        choices=ClinicalIndication.choices,
+        coerce=ClinicalIndication,
+        required=False,
+        empty_value=None,
+    )
     registered_sex = forms.TypedChoiceField(
         choices=RegisteredSex.choices, coerce=RegisteredSex
     )

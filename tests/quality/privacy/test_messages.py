@@ -5,29 +5,27 @@ tier: a privacy property the contract decides is tested on the contract."""
 import pytest
 
 
-def test_a_lab_order_says_whether_its_indication_is_screened_and_nothing_more() -> None:
-    """The laboratory needs the indication only to decide whether to screen (features/hospital/screening.feature): one yes or no, never which indication, pregnancy included."""
+def test_a_lab_order_names_its_indication_only_as_one_of_the_choices() -> None:
+    """The laboratory decides from the clinical indication whether to screen (features/hospital/screening.feature): it learns which of the six choices, pregnancy included, never free text."""
     from google.protobuf.descriptor import FieldDescriptor
 
     from web.shared.messaging import messages_pb2
 
-    fields = messages_pb2.LabOrder.DESCRIPTOR.fields_by_name
-    assert fields["screened_indication"].type == FieldDescriptor.TYPE_BOOL
-    assert "indication" not in fields
-    assert not hasattr(messages_pb2, "ClinicalIndication")
+    field = messages_pb2.LabOrder.DESCRIPTOR.fields_by_name["clinical_indication"]
+    assert field.type == FieldDescriptor.TYPE_ENUM
+    assert field.enum_type is messages_pb2.ClinicalIndication.DESCRIPTOR
 
 
 @pytest.mark.parametrize(
     ("message", "fields"),
     [
-        # No patient name, no blood values, no clinical indication, no general
-        # practitioner: the call's metadata says which practice ordered.
+        # No patient name, no blood values, no general practitioner: the call's metadata says which practice ordered.
         (
             "LabOrder",
             {
                 "sample_id",
                 "test",
-                "screened_indication",
+                "clinical_indication",
                 "registered_sex",
                 "age",
                 "ordered_at",
