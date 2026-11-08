@@ -1,6 +1,8 @@
 """Checks for .claude/red_first.py: which tests a Red: commit makes fail, and
 whether only new ones do."""
 
+from pathlib import Path
+
 import red_first
 
 PYTEST_RUN = """\
@@ -83,3 +85,14 @@ def test_a_module_that_existed_before_is_not_new() -> None:
 
 def test_no_failing_test_is_reported() -> None:
     assert red_first.problems(set(), set(), set()) == ["no test fails"]
+
+
+def test_the_process_tests_are_test_modules_too(tmp_path: Path) -> None:
+    """A Red: commit may change the audit's own tests, in .claude/tests/."""
+    for name in ("tests/hospital/test_lab.py", ".claude/tests/test_audit.py"):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text(f"# {name}\n")
+    assert red_first.test_modules(tmp_path) == {
+        "tests/hospital/test_lab.py": "# tests/hospital/test_lab.py\n",
+        ".claude/tests/test_audit.py": "# .claude/tests/test_audit.py\n",
+    }

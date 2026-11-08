@@ -26,7 +26,7 @@ import pandas as pd
 import pytest
 import torch
 
-from ml.dataset import CYCLES, load_federated_dataset
+from ml.dataset import cohorts as cycle_cohorts
 from ml.final_model import Net
 from ml.training import dataset_size, train
 from ml.validation import evaluate, load_data
@@ -88,10 +88,7 @@ def alone(cohort: pd.DataFrame, seed: int) -> Net:
 
 
 def test_no_hospital_loses_by_federating_and_the_smallest_gains() -> None:
-    fds = load_federated_dataset()
-    cohorts = [
-        fds.load_partition(partition).to_pandas() for partition in range(len(CYCLES))
-    ]
+    cohorts = cycle_cohorts()
     tests = [load_data(cohort).test for cohort in cohorts]
     gains = [0.0] * len(cohorts)
     for seed in SEEDS:

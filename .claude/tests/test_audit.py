@@ -172,17 +172,33 @@ def test_helpers_are_not_views(tmp_path: Path) -> None:
 
 
 def test_glossary_term_without_meaning_or_source(tmp_path: Path) -> None:
-    glossary = (
+    practice = (
         '[order]\nmeaning = "What the GP asks for"\nsource = "Report, DF1"\n'
         '[read]\nmeaning = "x"\nsource = "unsourced"\n'
-        '[seen]\nmeaning = "no source at all"\n'
-        '[kept]\nsource = "Report, DF2"\n'
     )
-    root = tree(tmp_path, {"glossary.toml": glossary})
+    shared = '[seen]\nmeaning = "no source at all"\n[kept]\nsource = "Report, DF2"\n'
+    root = tree(
+        tmp_path,
+        {
+            "web/practice/settings.py": "",
+            "web/practice/glossary.toml": practice,
+            "web/shared/glossary.toml": shared,
+        },
+    )
     assert audit.run(root)["glossary_entries"] == [
-        "glossary.toml: term 'read' has no source",
-        "glossary.toml: term 'seen' has no source",
-        "glossary.toml: term 'kept' has no meaning",
+        "web/practice/glossary.toml: term 'read' has no source",
+        "web/shared/glossary.toml: term 'seen' has no source",
+        "web/shared/glossary.toml: term 'kept' has no meaning",
+    ]
+
+
+def test_a_glossary_belongs_to_a_party_or_is_the_shared_one(tmp_path: Path) -> None:
+    """Each party speaks its own language: its glossary sits in its folder, the
+    words the parties share in web/shared/."""
+    entry = '[sample]\nmeaning = "m"\nsource = "s"\n'
+    root = tree(tmp_path, {"web/lab/glossary.toml": entry})
+    assert audit.run(root)["glossary_entries"] == [
+        "web/lab/glossary.toml: neither a party's glossary nor the shared one"
     ]
 
 
@@ -190,10 +206,11 @@ def test_glossary_record_names_only_glossary_terms(tmp_path: Path) -> None:
     glossary = '[order]\nmeaning = "What the GP asks for"\nsource = "Report, DF1"\n'
     record = '[order]\nrejected = ["request"]\n[gone]\nrejected = []\n'
     root = tree(
-        tmp_path, {"glossary.toml": glossary, ".claude/glossary_record.toml": record}
+        tmp_path,
+        {"web/shared/glossary.toml": glossary, ".claude/glossary_record.toml": record},
     )
     assert audit.run(root)["glossary_entries"] == [
-        ".claude/glossary_record.toml: term 'gone' is not in glossary.toml"
+        ".claude/glossary_record.toml: term 'gone' is in no glossary"
     ]
 
 

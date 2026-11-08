@@ -1,7 +1,7 @@
-# What glossary.toml's words replaced, and when the team decided a word: the
+# What the glossaries' words (web/*/glossary.toml) replaced, and when the team decided a word: the
 # process's record, kept out of readers' way. The report was drafted with AI
 # help, so a word that reads badly to lab staff is replaced and the report's
-# word moves to its rejected list. A term here is a term in glossary.toml.
+# word moves to its rejected list. A term here is a term in one of them.
 
 ["general practitioner"]
 decided = "2026-11-03"
@@ -22,6 +22,10 @@ rejected = ["nhanes (the demo data's origin, not what the app is)", "instrument 
 
 ["patient"]
 rejected = ["participant (NHANES word; data origin only)"]
+
+["patient number"]
+decided = "2026-11-08"
+rejected = ["nhanes number (the demo data's origin; the code's word until 2026-11-08)", "SEQN (NHANES's word)", "hospital number (the hospital's, not the practice's)", "patient identifier (WHO's general word)"]
 
 ["practice"]
 rejected = ["client (WHO 13-2; the code's word until 2026-11-03)", "sender", "requester"]

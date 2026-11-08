@@ -1,17 +1,10 @@
 """NHANES cohort construction from the merged NHANES dataset on Hugging Face."""
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from ml.cohort import CBC_VARS, FEATURES, eligible, iron_deficient
-
-# The simulation's libraries, imported where it loads its data: the demo's
-# extracts need only pandas (demo/nhanes-download.Dockerfile).
-if TYPE_CHECKING:
-    import datasets
-    from flwr_datasets import FederatedDataset
 
 # NHANES merged into one row per participant and cycle, pinned to a fixed revision.
 HF_DATASET = "gracemyu/nhanes-merged"
@@ -82,11 +75,9 @@ def hospital_share(participants: pd.DataFrame, cycle: str) -> pd.DataFrame:
     )
 
 
-def build_cohort(dataset_dict: "datasets.DatasetDict") -> "datasets.DatasetDict":
-    """Reduce the merged NHANES table to the cohort of each cycle."""
-    import datasets
-
-    merged = _renamed(dataset_dict["train"].to_pandas())
+def build_cohort(merged: pd.DataFrame) -> pd.DataFrame:
+    """Reduce the merged NHANES table, in NHANES's names, to the cohort of each
+    cycle, in SEQN order."""
     cohort = pd.concat(
         [
             hospital_share(
@@ -99,36 +90,29 @@ def build_cohort(dataset_dict: "datasets.DatasetDict") -> "datasets.DatasetDict"
         iron_deficient=iron_deficient(cohort["LBXFER"], cohort["CRP"]).astype(int)
     )
     columns = FEATURES + ["iron_deficient", "cycle"]
-    return datasets.DatasetDict(
-        {"train": datasets.Dataset.from_pandas(cohort[columns], preserve_index=False)}
-    )
+    return cohort[columns].reset_index(drop=True)
 
 
-def load_federated_dataset() -> "FederatedDataset":
-    """Return the cohort partitioned by cycle; partition IDs follow `CYCLES` order."""
-    from flwr_datasets import FederatedDataset
-    from flwr_datasets.partitioner import NaturalIdPartitioner
-
-    return FederatedDataset(
-        dataset=HF_DATASET,
-        revision=HF_REVISION,
-        data_files=HF_DATA_FILE,
-        columns=list(HF_COLUMNS),
-        preprocessor=build_cohort,
-        partitioners={"train": NaturalIdPartitioner(partition_by="cycle")},
-        shuffle=False,  # Keep SEQN order so splits are reproducible
-    )
-
-
-def _load_cycle(year: int) -> pd.DataFrame:
-    """Return every participant of the cycle starting in `year`, from the pinned
-    file (cached by huggingface_hub, so read from the network once)."""
+def _merged() -> pd.DataFrame:
+    """Every participant of every cycle, in NHANES's names, from the pinned file
+    (cached by huggingface_hub, so read from the network once)."""
     from huggingface_hub import hf_hub_download
 
     path = hf_hub_download(
         HF_DATASET, HF_DATA_FILE, repo_type="dataset", revision=HF_REVISION
     )
-    merged = _renamed(pd.read_parquet(path, columns=list(HF_COLUMNS)))
+    return _renamed(pd.read_parquet(path, columns=list(HF_COLUMNS)))
+
+
+def cohorts() -> list[pd.DataFrame]:
+    """Each cycle's cohort, in `CYCLES` order: the simulation's partition IDs."""
+    cohort = build_cohort(_merged())
+    return [cohort[cohort["cycle"] == cycle].reset_index(drop=True) for cycle in CYCLES]
+
+
+def _load_cycle(year: int) -> pd.DataFrame:
+    """Every participant of the cycle starting in `year`."""
+    merged = _merged()
     return merged[merged["YEAR"] == year]
 
 
@@ -182,8 +166,6 @@ def new_cycle_ferritin_and_crp() -> pd.DataFrame:
 if __name__ == "__main__":
     import argparse
 
-    from flwr_datasets.partitioner import NaturalIdPartitioner
-
     from ml.training_cohort import write_training_cohort
 
     parser = argparse.ArgumentParser(
@@ -193,13 +175,6 @@ if __name__ == "__main__":
     parser.add_argument("--out-dir", type=Path, default=Path("demo_data"))
     args = parser.parse_args()
 
-    fds = load_federated_dataset()
-    partitioner = fds.partitioners["train"]
-    if not isinstance(partitioner, NaturalIdPartitioner):
-        raise TypeError("The cohort must be partitioned by cycle")
-    for partition_id in range(len(CYCLES)):
-        rows = fds.load_partition(partition_id).to_pandas()
-        # Known only once a partition is loaded.
-        cycle = partitioner.partition_id_to_natural_id[partition_id]
+    for partition_id, (cycle, rows) in enumerate(zip(CYCLES, cohorts(), strict=True)):
         write_training_cohort(rows[FEATURES + ["iron_deficient"]], args.out_dir / cycle)
         print(f"Saved partition {partition_id} ({cycle}) to {args.out_dir / cycle}")

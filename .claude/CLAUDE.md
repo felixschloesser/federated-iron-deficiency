@@ -33,10 +33,17 @@ uv run --frozen python .claude/audit.py
 - `.claude/audit.py` fails on any finding.
 - Under machine load, rerun a timed-out test once and report it.
 
+## Core and supporting code
+
+Rigour goes where the assessment is decided.
+
+- **Core**: what crosses a party boundary (the messages in `web/shared/messaging/`, each party's messaging module, what a lab order, lab report or final model carries), who logs in where, screening (`web/hospital/lab/`, `web/hospital/deployment/`), the training cohort (`web/hospital/cohort/`) and `ml/`. All the rules below apply: scenarios, glossary words, a guard with its own code for each condition, constraints.
+- **Supporting**: everything else, such as the ordering and index pages, the training run list, seeding and `demo/`. Plain Django: view tests (status, redirect, error codes) are enough, and a scenario only where another party or the report relies on the behaviour. Red first, the gates and the design rules still apply.
+
 ## Vocabulary first
 
 - Before any scenario that introduces or renames a domain concept: a term table (term | source | why chosen | rejected terms). A term without a source stops the draft; report it.
-- Glossary entries (`glossary.toml`, one table per term with `meaning` and `source`, for readers) change in the same commit as the code; the words a term replaced and the date the team decided it go in `.claude/glossary_record.toml` (`rejected`, `decided`). The audit fails on a term without a meaning or source, and on a record term not in the glossary. Model, form, template and copy use the glossary's words; the domain experts' words win over developer words.
+- Glossary entries (each party's in `web/<party>/glossary.toml`, the words more than one party uses in `web/shared/glossary.toml`; one table per term with `meaning` and `source`, for readers) change in the same commit as the code; the words a term replaced and the date the team decided it go in `.claude/glossary_record.toml` (`rejected`, `decided`). The audit fails on a glossary outside a party's folder or `web/shared/`, on a term without a meaning or source, and on a record term in no glossary. Model, form, template and copy use the glossary's words; the domain experts' words win over developer words.
 
 ## Red first
 
@@ -52,10 +59,10 @@ uv run --frozen python .claude/audit.py
 - **Domain logic lives on the models.** Behaviour of one row is a model method; operations on a table and named queries are methods of the model's custom QuerySet or Manager; a rule the database can hold is a constraint with `violation_error_code`. Code that is not ORM (model files, messaging) lives in a module named after what it does. Views stay thin: parse the form, call one model or manager method, redirect or re-render.
 - **Writes are atomic.** A model or manager method that writes is decorated `@transaction.atomic`; the audit treats a call to one as a write.
 - **Inject the clock.** Methods that record a time take `now` as an argument; only entry points (views, management commands, gRPC handlers) call `timezone.now()`.
-- **One error per failing condition.** Each guard raises its own `ValidationError` with its own `code`, attached to its field (`add_error(field, …)`); non-field errors only for cross-field conditions.
+- **One error per failing condition.** Each condition a user or another party can cause gets a guard that raises its own `ValidationError` with its own `code`, attached to its field (`add_error(field, …)`); non-field errors only for cross-field conditions. A condition no form or message can produce is held by a database constraint alone, without its own code or scenario.
 - **No capability without a path to it.** Every writing model or manager method is reachable from a view; every view from the URLconf and a link or form on a page.
 - **POST-redirect-GET.** Every mutation is a POST that redirects on success. GET never mutates.
-- Code rules: no bare `assert` outside tests; no `except Exception` without re-raise; no single-letter names; functions ≤100 lines, ≤5 parameters.
+- Code rules: no bare `assert` outside tests; no `except Exception` without re-raise; no single-letter names.
 - Outside `tests/`, a module or class docstring may name its feature file, once; functions, methods and comments do not (the audit checks).
 
 ## Templates
@@ -70,7 +77,7 @@ uv run --frozen python .claude/audit.py
 
 - The requirements are the scenarios: `features/<party>/` for each party's behaviour (bound in `tests/<party>/`, which imports no other party's code; the audit checks), `features/` for what crosses parties, each scenario ending in a true-or-false response measure. Folders say what a test checks, markers how it runs: `tests/e2e/` holds the flows through the running demo (the folder marks them `containers`), `tests/quality/security/` the security quality attributes at whatever tier each needs, marked `containers` where it needs Docker; a test that starts a process of its own is marked `subprocess`, so the quick loop `pytest -m "not containers and not subprocess"` leaves it out (a `-m` replaces the default one). A docstring states the reason and may name the feature file.
 - Quality tests are plain pytest, no Gherkin: `tests/quality/security/` and `tests/quality/privacy/`. Each test's docstring names the quality attribute or threat it covers and states its pass/fail measure in one sentence. The gates apply to them as to any code.
-- Domain behaviour: scenarios (pytest-bdd) against model and manager methods, not views.
+- Core domain behaviour: scenarios (pytest-bdd) against model and manager methods, not views.
 - Views: Django test client, asserting status, redirect target, form error codes and `assertNumQueries` on index pages. No whole-page HTML snapshots, no sweeps rendering every page.
 - One migration per slice, committed with the slice.
 

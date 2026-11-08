@@ -1,0 +1,29 @@
+# The practice's words (sources: web/shared/glossary.toml's header).
+
+["general practitioner"]
+meaning = "The doctor at a practice who orders tests for patients and reads their lab reports. A practice, and so its app, has exactly one"
+source = "Report, Stakeholders table (\"GP\", spelled out); one per practice: project decision"
+
+["primary laboratory"]
+meaning = "The laboratory a practice sends its samples to unless the general practitioner picks another, preselected at *Collect sample*; in the demo the paired hospital's, so lab orders follow the hospitals' sizes"
+source = "Project decision (\"primary lab\"); stands for the report's single laboratory, \"Federated version\": the practice \"sends its hospital's laboratory lab orders\""
+
+["patient"]
+meaning = "A person the general practitioner orders a test for; known by name only at the practice"
+source = "Report, Use case"
+
+["patient number"]
+meaning = "The practice's lasting number for a patient, which starts each of their sample IDs; the demo seeds it with the NHANES participant's number, so the analyser stand-in knows whose blood a sample holds"
+source = "WHO LQMS 17-2, p. 198: a patient's unique identifier \"may be assigned to the patient on a more permanent basis\"; p. 204: data retrieved \"by laboratory or patient number\""
+
+["order"]
+meaning = "The practice's word: what the general practitioner places, with its clinical indication. Each party speaks its own language: the practice orders, the wire carries a lab order, the laboratory works on a test request"
+source = "WHO glossary *path of workflow*, \"physician's order\" (p. 228)"
+
+["collected"]
+meaning = "When the general practitioner's practice takes the blood; recorded on the sample"
+source = "WHO LQMS 5-3, p. 64: \"the health care provider may collect a sample in a clinic setting\"; 5-4, p. 66, register field \"date and time of collection\""
+
+["comment"]
+meaning = "The text beside a suggestion on the lab report, the only comment there is: \"Ferritin suggested by the hospital's screening of this CBC. Likely iron deficiency; not a diagnosis.\""
+source = "Report, Use case; WHO report contents \"applicable comments\" (p. 193)"

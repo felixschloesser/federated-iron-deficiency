@@ -23,6 +23,22 @@ def test_no_gpu_libraries_are_locked_for_any_platform() -> None:
     assert gpu == set()
 
 
+def locked(sync: list[str]) -> set[str]:
+    """The packages `uv sync` with these arguments installs, by name."""
+    export = subprocess.run(
+        ["uv", "export", *sync, "--no-hashes", "--no-header", "--no-annotate"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    return {
+        re.split(r"[=<>;\s]", line, maxsplit=1)[0].lower()
+        for line in export.splitlines()
+        if line and not line.startswith(("#", " ", "-"))
+    }
+
+
 def test_the_practice_image_installs_only_the_web_apps_dependencies() -> None:
     """A practice screens nothing: its image has no PyTorch, Flower or W&B."""
     dockerfile = (ROOT / "demo" / "practice.Dockerfile").read_text()
@@ -31,20 +47,28 @@ def test_the_practice_image_installs_only_the_web_apps_dependencies() -> None:
         for line in dockerfile.splitlines()
         if "uv sync" in line
     ]
-    export = subprocess.run(
-        ["uv", "export", *sync, "--no-hashes", "--no-header", "--no-annotate"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    names = {
-        re.split(r"[=<>;\s]", line, maxsplit=1)[0].lower()
-        for line in export.splitlines()
-        if line and not line.startswith(("#", " ", "-"))
-    }
+    names = locked(sync)
     assert names.isdisjoint({"torch", "flwr", "wandb", "datasets"}), names
     assert {"django", "grpcio", "protobuf", "gunicorn", "whitenoise"} <= names
+
+
+@pytest.mark.parametrize("party", ["hospital", "startup"])
+def test_the_training_images_install_no_plotting_or_dataset_framework(
+    party: str,
+) -> None:
+    """The training package reads its cohort with pandas: an image brings no
+    plotting library and no dataset framework it never calls."""
+    dockerfile = (ROOT / "demo" / f"{party}.Dockerfile").read_text()
+    sync = next(
+        line.split("uv sync", 1)[1].split()
+        for line in dockerfile.splitlines()
+        if "uv sync" in line
+    )
+    names = locked(sync)
+    assert {"torch", "flwr", "pandas", "pyarrow"} <= names
+    assert names.isdisjoint({"matplotlib", "seaborn", "datasets", "flwr-datasets"}), (
+        names
+    )
 
 
 @pytest.mark.parametrize("party", ["hospital", "practice", "startup"])

@@ -85,7 +85,7 @@ def seed_practice(rows: Rows) -> list[str]:
         seqn = int(row["sample_id"])
         sex = RegisteredSex.of_nhanes(str(row["sex"]))
         Patient.objects.get_or_create(
-            nhanes_number=str(seqn),
+            patient_number=str(seqn),
             defaults={
                 "name": patient_name(seqn, sex),
                 "registered_sex": sex,
