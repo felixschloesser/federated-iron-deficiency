@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWLIST = Path(".claude") / "audit_allowlist.toml"
-GLOSSARY = Path("glossary.toml")
+GLOSSARY = "glossary.toml"
 # Rejected words and decision dates: the process's record, out of readers' way.
 GLOSSARY_RECORD = Path(".claude/glossary_record.toml")
 # Generated folders: collected static files (the demo's .demo/ is hidden).
@@ -406,23 +406,28 @@ def party_settings(root: Path) -> list[str]:
 
 
 def glossary_entries(root: Path) -> list[str]:
-    """Every term in glossary.toml has a source and a meaning; the process's
-    record of rejected words names only glossary terms."""
-    path = root / GLOSSARY
-    if not path.exists():
-        return []
-    entries = tomllib.loads(path.read_text())
+    """Each party's words are in its folder's glossary.toml, the words they share
+    in web/shared/glossary.toml, and nowhere else; every term has a source and a
+    meaning; the process's record of rejected words names only glossary terms."""
+    known = {*parties(root), SHARED}
     findings = []
-    for term, entry in entries.items():
-        source = str(entry.get("source", "")).strip()
-        if source in ("", "—", "-") or "unsourced" in source.lower():
-            findings.append(f"{GLOSSARY.as_posix()}: term '{term}' has no source")
-        elif not str(entry.get("meaning", "")).strip():
-            findings.append(f"{GLOSSARY.as_posix()}: term '{term}' has no meaning")
+    entries: dict[str, dict[str, object]] = {}
+    for path in sorted((root / WEB).glob(f"*/{GLOSSARY}")):
+        rel = path.relative_to(root).as_posix()
+        if path.parent.name not in known:
+            findings.append(f"{rel}: neither a party's glossary nor the shared one")
+            continue
+        for term, entry in tomllib.loads(path.read_text()).items():
+            entries[term] = entry
+            source = str(entry.get("source", "")).strip()
+            if source in ("", "—", "-") or "unsourced" in source.lower():
+                findings.append(f"{rel}: term '{term}' has no source")
+            elif not str(entry.get("meaning", "")).strip():
+                findings.append(f"{rel}: term '{term}' has no meaning")
     record = root / GLOSSARY_RECORD
     if record.exists():
         findings += [
-            f"{GLOSSARY_RECORD.as_posix()}: term '{term}' is not in {GLOSSARY.as_posix()}"
+            f"{GLOSSARY_RECORD.as_posix()}: term '{term}' is in no glossary"
             for term in tomllib.loads(record.read_text())
             if term not in entries
         ]

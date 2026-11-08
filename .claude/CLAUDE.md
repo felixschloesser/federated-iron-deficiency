@@ -36,7 +36,7 @@ uv run --frozen python .claude/audit.py
 ## Vocabulary first
 
 - Before any scenario that introduces or renames a domain concept: a term table (term | source | why chosen | rejected terms). A term without a source stops the draft; report it.
-- Glossary entries (`glossary.toml`, one table per term with `meaning` and `source`, for readers) change in the same commit as the code; the words a term replaced and the date the team decided it go in `.claude/glossary_record.toml` (`rejected`, `decided`). The audit fails on a term without a meaning or source, and on a record term not in the glossary. Model, form, template and copy use the glossary's words; the domain experts' words win over developer words.
+- Glossary entries (each party's in `web/<party>/glossary.toml`, the words more than one party uses in `web/shared/glossary.toml`; one table per term with `meaning` and `source`, for readers) change in the same commit as the code; the words a term replaced and the date the team decided it go in `.claude/glossary_record.toml` (`rejected`, `decided`). The audit fails on a glossary outside a party's folder or `web/shared/`, on a term without a meaning or source, and on a record term in no glossary. Model, form, template and copy use the glossary's words; the domain experts' words win over developer words.
 
 ## Red first
 

@@ -1,7 +1,7 @@
-# What glossary.toml's words replaced, and when the team decided a word: the
+# What the glossaries' words (web/*/glossary.toml) replaced, and when the team decided a word: the
 # process's record, kept out of readers' way. The report was drafted with AI
 # help, so a word that reads badly to lab staff is replaced and the report's
-# word moves to its rejected list. A term here is a term in glossary.toml.
+# word moves to its rejected list. A term here is a term in one of them.
 
 ["general practitioner"]
 decided = "2026-11-03"
