@@ -15,7 +15,7 @@ from tests.conftest import World
 from tests.hospital.conftest import make_practice, make_tube, receive_lab_order
 from web.hospital.analyser.models import FERRITIN, Participant
 from web.hospital.lab.models import NotScreened, Sample, ScreeningResult, TestRequest
-from web.shared.vocabulary import RegisteredSex
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
 
 NOW = datetime(2026, 10, 29, 10, 0, tzinfo=UTC)
@@ -191,8 +191,8 @@ def ferritin_not_available(world: World) -> None:
 
 
 @then(
-    "the lab's samples hold sample ID, registered sex, age, test, whether the"
-    " indication is screened and results, and no general practitioner"
+    "the lab's samples hold sample ID, registered sex, age, test, clinical"
+    " indication and results, and no general practitioner"
 )
 def lab_rows_hold(world: World) -> None:
     (test_request,) = TestRequest.objects.to_analyse()
@@ -202,8 +202,7 @@ def lab_rows_hold(world: World) -> None:
     assert not {"general_practitioner", "name", "patient"} & fields
     assert test_request.get_registered_sex_display() == "Female"
     assert test_request.get_test_display() == "CBC"
-    # Ordered for a screened indication, which is all the lab learns of it.
-    assert test_request.screened_indication is True
+    assert test_request.clinical_indication == ClinicalIndication.SUSPECTED_ANAEMIA
 
 
 @then("the lab's records relate to nothing outside the hospital")

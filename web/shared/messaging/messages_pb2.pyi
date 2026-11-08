@@ -47,6 +47,31 @@ TEST_CBC: Test.ValueType  # 1
 TEST_FERRITIN: Test.ValueType  # 2
 Global___Test: _TypeAlias = Test  # noqa: Y015
 
+class _ClinicalIndication:
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    V: _TypeAlias = ValueType  # noqa: Y015
+
+class _ClinicalIndicationEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_ClinicalIndication.ValueType], _builtins.type):
+    DESCRIPTOR: _descriptor.EnumDescriptor
+    CLINICAL_INDICATION_UNSPECIFIED: _ClinicalIndication.ValueType  # 0
+    CLINICAL_INDICATION_SUSPECTED_ANAEMIA: _ClinicalIndication.ValueType  # 1
+    CLINICAL_INDICATION_SUSPECTED_IBS: _ClinicalIndication.ValueType  # 2
+    CLINICAL_INDICATION_UNEXPLAINED_FATIGUE: _ClinicalIndication.ValueType  # 3
+    CLINICAL_INDICATION_START_OF_PREGNANCY: _ClinicalIndication.ValueType  # 4
+    CLINICAL_INDICATION_CKD_FOLLOW_UP: _ClinicalIndication.ValueType  # 5
+    CLINICAL_INDICATION_OTHER: _ClinicalIndication.ValueType  # 6
+
+class ClinicalIndication(_ClinicalIndication, metaclass=_ClinicalIndicationEnumTypeWrapper): ...
+
+CLINICAL_INDICATION_UNSPECIFIED: ClinicalIndication.ValueType  # 0
+CLINICAL_INDICATION_SUSPECTED_ANAEMIA: ClinicalIndication.ValueType  # 1
+CLINICAL_INDICATION_SUSPECTED_IBS: ClinicalIndication.ValueType  # 2
+CLINICAL_INDICATION_UNEXPLAINED_FATIGUE: ClinicalIndication.ValueType  # 3
+CLINICAL_INDICATION_START_OF_PREGNANCY: ClinicalIndication.ValueType  # 4
+CLINICAL_INDICATION_CKD_FOLLOW_UP: ClinicalIndication.ValueType  # 5
+CLINICAL_INDICATION_OTHER: ClinicalIndication.ValueType  # 6
+Global___ClinicalIndication: _TypeAlias = ClinicalIndication  # noqa: Y015
+
 class _RegisteredSex:
     ValueType = _typing.NewType("ValueType", _builtins.int)
     V: _TypeAlias = ValueType  # noqa: Y015
@@ -66,24 +91,24 @@ Global___RegisteredSex: _TypeAlias = RegisteredSex  # noqa: Y015
 
 @_typing.final
 class LabOrder(_message.Message):
-    """DF23. No patient name, no blood values, no clinical indication (tests/quality/privacy/test_messages.py): the
-    tube's values are measured at the hospital, and of the indication the
-    laboratory needs only whether it is screened (features/hospital/screening.feature). The hospital's form still
-    checks every field.
+    """DF23. No patient name, no blood values (tests/quality/privacy/test_messages.py): the
+    tube's values are measured at the hospital. The clinical indication is one of
+    the choices, from which the laboratory decides whether to screen
+    (features/hospital/screening.feature). The hospital's form still checks every field.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
 
     SAMPLE_ID_FIELD_NUMBER: _builtins.int
     TEST_FIELD_NUMBER: _builtins.int
-    SCREENED_INDICATION_FIELD_NUMBER: _builtins.int
+    CLINICAL_INDICATION_FIELD_NUMBER: _builtins.int
     REGISTERED_SEX_FIELD_NUMBER: _builtins.int
     AGE_FIELD_NUMBER: _builtins.int
     ORDERED_AT_FIELD_NUMBER: _builtins.int
     sample_id: _builtins.str
     test: Global___Test.ValueType
-    screened_indication: _builtins.bool
-    """false when absent: never screened by mistake"""
+    clinical_indication: Global___ClinicalIndication.ValueType
+    """absent for ferritin; absent is never screened"""
     registered_sex: Global___RegisteredSex.ValueType
     age: _builtins.int
     """absent is no age, never age 0: refused"""
@@ -94,14 +119,14 @@ class LabOrder(_message.Message):
         *,
         sample_id: _builtins.str = ...,
         test: Global___Test.ValueType = ...,
-        screened_indication: _builtins.bool = ...,
+        clinical_indication: Global___ClinicalIndication.ValueType = ...,
         registered_sex: Global___RegisteredSex.ValueType = ...,
         age: _builtins.int | None = ...,
         ordered_at: _timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["_age", b"_age", "age", b"age", "ordered_at", b"ordered_at"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["_age", b"_age", "age", b"age", "ordered_at", b"ordered_at", "registered_sex", b"registered_sex", "sample_id", b"sample_id", "screened_indication", b"screened_indication", "test", b"test"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_age", b"_age", "age", b"age", "clinical_indication", b"clinical_indication", "ordered_at", b"ordered_at", "registered_sex", b"registered_sex", "sample_id", b"sample_id", "test", b"test"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     _WhichOneofReturnType__age: _TypeAlias = _typing.Literal["age"]  # noqa: Y015
     _WhichOneofArgType__age: _TypeAlias = _typing.Literal["_age", b"_age"]  # noqa: Y015
