@@ -7,7 +7,7 @@ party's apps. Code under web/
 imports from the training package only ml.cohort and ml.dataset; the
 hospital's also ml.final_model, ml.inference, ml.training_cohort, to write
 the training cohort its laboratory director provides, and ml.validation, to
-validate the final models it fetches, the startup's also
+validate the screening models it fetches, the startup's also
 ml.final_model, to read its final models, never to screen (the audit checks
 that). Each test's docstring states its pass/fail measure."""
 

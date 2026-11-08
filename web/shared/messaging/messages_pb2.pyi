@@ -243,10 +243,10 @@ class Acknowledgement(_message.Message):
 Global___Acknowledgement: _TypeAlias = Acknowledgement  # noqa: Y015
 
 @_typing.final
-class FinalModel(_message.Message):
-    """A released final model as a recipient hospital fetches it (DF37): its weights
-    (a saved state dict), the AUROC across hospitals, and its training run's ID;
-    never its run configuration.
+class ScreeningModel(_message.Message):
+    """A released final model as it reaches a recipient hospital, a screening model
+    (DF37): its weights (a saved state dict), the AUROC across hospitals, and its
+    training run's ID; never its run configuration.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
@@ -270,32 +270,32 @@ class FinalModel(_message.Message):
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-Global___FinalModel: _TypeAlias = FinalModel  # noqa: Y015
+Global___ScreeningModel: _TypeAlias = ScreeningModel  # noqa: Y015
 
 @_typing.final
-class NewFinalModels(_message.Message):
+class NewScreeningModels(_message.Message):
     DESCRIPTOR: _descriptor.Descriptor
 
-    FINAL_MODELS_FIELD_NUMBER: _builtins.int
+    SCREENING_MODELS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def final_models(self) -> _containers.RepeatedCompositeFieldContainer[Global___FinalModel]: ...
+    def screening_models(self) -> _containers.RepeatedCompositeFieldContainer[Global___ScreeningModel]: ...
     def __init__(
         self,
         *,
-        final_models: _abc.Iterable[Global___FinalModel] = ...,
+        screening_models: _abc.Iterable[Global___ScreeningModel] = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["final_models", b"final_models"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["screening_models", b"screening_models"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-Global___NewFinalModels: _TypeAlias = NewFinalModels  # noqa: Y015
+Global___NewScreeningModels: _TypeAlias = NewScreeningModels  # noqa: Y015
 
 @_typing.final
-class NewFinalModelsRequest(_message.Message):
-    """What the hospital holds, so the startup sends only the rest: a final model
-    it failed to store is sent again, one it holds other weights for is not.
+class NewScreeningModelsRequest(_message.Message):
+    """What the hospital holds, so the startup sends only the rest: a screening
+    model it failed to store is sent again, one it holds other weights for is not.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
@@ -314,4 +314,4 @@ class NewFinalModelsRequest(_message.Message):
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-Global___NewFinalModelsRequest: _TypeAlias = NewFinalModelsRequest  # noqa: Y015
+Global___NewScreeningModelsRequest: _TypeAlias = NewScreeningModelsRequest  # noqa: Y015

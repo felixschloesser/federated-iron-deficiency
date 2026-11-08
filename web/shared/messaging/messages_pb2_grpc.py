@@ -184,7 +184,7 @@ class Laboratory:
             _registered_method=True)
 
 
-class FinalModelsStub:
+class ScreeningModelsStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -193,43 +193,43 @@ class FinalModelsStub:
         Args:
             channel: A grpc.Channel.
         """
-        self.FetchNewFinalModels = channel.unary_unary(
-                '/messaging.v1.FinalModels/FetchNewFinalModels',
-                request_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModelsRequest.SerializeToString,
-                response_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModels.FromString,
+        self.FetchNewScreeningModels = channel.unary_unary(
+                '/messaging.v1.ScreeningModels/FetchNewScreeningModels',
+                request_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewScreeningModelsRequest.SerializeToString,
+                response_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewScreeningModels.FromString,
                 _registered_method=True)
 
 
-class FinalModelsServicer:
+class ScreeningModelsServicer:
     """Missing associated documentation comment in .proto file."""
 
-    def FetchNewFinalModels(self, request, context):
+    def FetchNewScreeningModels(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
 
-def add_FinalModelsServicer_to_server(servicer, server):
+def add_ScreeningModelsServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'FetchNewFinalModels': grpc.unary_unary_rpc_method_handler(
-                    servicer.FetchNewFinalModels,
-                    request_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModelsRequest.FromString,
-                    response_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModels.SerializeToString,
+            'FetchNewScreeningModels': grpc.unary_unary_rpc_method_handler(
+                    servicer.FetchNewScreeningModels,
+                    request_deserializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewScreeningModelsRequest.FromString,
+                    response_serializer=web_dot_shared_dot_messaging_dot_messages__pb2.NewScreeningModels.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'messaging.v1.FinalModels', rpc_method_handlers)
+            'messaging.v1.ScreeningModels', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('messaging.v1.FinalModels', rpc_method_handlers)
+    server.add_registered_method_handlers('messaging.v1.ScreeningModels', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
-class FinalModels:
+class ScreeningModels:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def FetchNewFinalModels(request,
+    def FetchNewScreeningModels(request,
             target,
             options=(),
             channel_credentials=None,
@@ -242,9 +242,9 @@ class FinalModels:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/messaging.v1.FinalModels/FetchNewFinalModels',
-            web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModelsRequest.SerializeToString,
-            web_dot_shared_dot_messaging_dot_messages__pb2.NewFinalModels.FromString,
+            '/messaging.v1.ScreeningModels/FetchNewScreeningModels',
+            web_dot_shared_dot_messaging_dot_messages__pb2.NewScreeningModelsRequest.SerializeToString,
+            web_dot_shared_dot_messaging_dot_messages__pb2.NewScreeningModels.FromString,
             options,
             channel_credentials,
             insecure,

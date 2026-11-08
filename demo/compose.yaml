@@ -13,8 +13,9 @@
 # and the proxy), <hospital> (TB1), <hospital>-flower-client-app (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
 # messaging crosses TB3-TB1 (DF23, DF25): every practice reaches every
-# hospital's lab-order endpoint, <hospital>-messaging, there; final-models
-# joins the hospitals' web apps and the startup's final-models endpoint.
+# hospital's lab-order endpoint, <hospital>-messaging, there;
+# screening-models joins the hospitals' web apps and the startup's messaging
+# endpoint.
 #
 # The parties: three hospitals, each with the general practitioner's practice
 # whose primary laboratory it is (the practices are fictional). The anchors
@@ -65,9 +66,9 @@ x-endpoint: &endpoint
   entrypoint: []
 
 # A hospital's web app. The laboratory director provides the training cohort
-# and fetches final models here, so it writes the cohort folder and
+# and fetches screening models here, so it writes the cohort folder and
 # screening-models, through the hospital's whole volume; it holds no SuperNode
-# key. On final-models to fetch from the startup; it serves nothing there.
+# key. On screening-models to fetch from the startup; it serves nothing there.
 x-hospital-web: &hospital-web
   <<: *web
   image: ${COMPOSE_PROJECT_NAME}-hospital-web
@@ -84,8 +85,8 @@ x-hospital-web-environment: &hospital-web-environment
     add_practice 'Huisartsenpraktijk De Akker'
     add_practice 'Huisartsenpraktijk De Berk'
     add_practice 'Huisartsenpraktijk De Ceder'
-  # The startup's final-models endpoint.
-  STARTUP_ADDRESS: startup-final-models:8442
+  # The startup's messaging endpoint.
+  STARTUP_ADDRESS: startup-messaging:8442
 
 # A hospital's lab-order endpoint, the only thing its practices reach
 # (tests/quality/security/test_running_containers.py).
@@ -103,7 +104,7 @@ x-startup-environment: &startup-environment
   DJANGO_SETTINGS_MODULE: web.startup.settings
   DATA_DIR: /data
 
-# The startup's volume as its web app and its final-models endpoint see it:
+# The startup's volume as its web app and its messaging endpoint see it:
 # the final models read-only, the SuperLink's state masked, as it is the
 # SuperLink's alone.
 x-startup-volumes: &startup-volumes
@@ -240,19 +241,19 @@ services:
         add_hospital 'AZ Diest'
     networks: [startup, startup-web]
 
-  # The startup's final-models endpoint (P5), the only thing the hospitals'
+  # The startup's messaging endpoint (P5), the only thing the hospitals'
   # web apps reach at the startup.
-  startup-final-models:
+  startup-messaging:
     <<: [*endpoint, *startup-volumes]
     image: ${COMPOSE_PROJECT_NAME}-startup-web
-    command: [python, manage.py, serve_final_models, 0.0.0.0:8442]
+    command: [python, manage.py, serve_messages, 0.0.0.0:8442]
     environment: *startup-environment
     depends_on:
       startup-web: {condition: service_healthy}
     healthcheck:
       <<: *health
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8442)).close()"]
-    networks: [final-models]
+    networks: [screening-models]
 
   # TB1 and TB4, UZ Leuven.
   uz-leuven-flower-supernode:
@@ -290,7 +291,7 @@ services:
     volumes:
       - {type: volume, source: uz-leuven, target: /data}
       - ../.demo/nhanes/uz-leuven:/nhanes:ro
-    networks: [uz-leuven, final-models]
+    networks: [uz-leuven, screening-models]
 
   uz-leuven-messaging:
     <<: *hospital-messaging
@@ -334,7 +335,7 @@ services:
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /data}
       - ../.demo/nhanes/heilig-hart-leuven:/nhanes:ro
-    networks: [heilig-hart-leuven, final-models]
+    networks: [heilig-hart-leuven, screening-models]
 
   heilig-hart-leuven-messaging:
     <<: *hospital-messaging
@@ -376,7 +377,7 @@ services:
     volumes:
       - {type: volume, source: az-diest, target: /data}
       - ../.demo/nhanes/az-diest:/nhanes:ro
-    networks: [az-diest, final-models]
+    networks: [az-diest, screening-models]
 
   az-diest-messaging:
     <<: *hospital-messaging
@@ -471,7 +472,7 @@ networks:
   setup: {}
   startup: {internal: true}
   startup-web: {}
-  final-models: {internal: true}
+  screening-models: {internal: true}
   model-updates: {internal: true}
   messaging: {internal: true}
   uz-leuven: {}

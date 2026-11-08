@@ -77,12 +77,12 @@ source = "Report, DF23 and Data table"
 meaning = "Blood collected from one patient at one time; each order is on one sample, and one sample may carry a CBC and a later ferritin"
 source = "WHO LQMS ch. 5, *Sample management* (the handbook's word throughout)"
 
-["final model"]
-meaning = "The model one training run ends with, kept at the startup with its run ID; hospitals fetch it once the data scientist releases it, and validate it on their own test split. Its file holds every part (weights, run ID, when it was stored, AUROC across hospitals, run configuration) or is unreadable"
-source = "Report, DS4 \"Startup's final models\", DS5 \"Final models\""
+["screening model"]
+meaning = "A released final model as it leaves federated learning: what the startup hands a recipient hospital (the ScreeningModel message) and what the hospital holds in its `screening-models/` folder: what the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. Its file holds every part (weights, this hospital's standardization, run ID, when it was stored, AUROC across hospitals, local validation) or is unreadable, and an unreadable one is not listed"
+source = "Built from the report's words: P10 *Screen CBC* and \"the model\" (Use case)"
 
 ["messaging"]
-meaning = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (web/shared/messaging/, serve_messages)"
+meaning = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it; the startup's endpoint for screening models, and the hospital's side of it (web/shared/messaging/, serve_messages)"
 source = "Report, P8 \"Receive lab orders\" and P12 \"Send lab reports\", the messages between practice and hospital (DF23, DF25)"
 
 ["lab report"]

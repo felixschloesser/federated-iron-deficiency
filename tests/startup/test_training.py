@@ -71,9 +71,9 @@ NOT_WHOLE: dict[str, tuple[str | None, int]] = {
 def not_whole(world: World, run_id: str, problem: str) -> None:
     import torch
 
-    from ml.final_model import Net, final_model_path
+    from ml.final_model import Net, model_file_path
 
-    path = final_model_path(world["final_models_dir"], run_id)
+    path = model_file_path(world["final_models_dir"], run_id)
     if problem == "is not a readable model file":
         path.write_bytes(b"not a model")
         return
@@ -318,9 +318,9 @@ def shows_configuration(world: World, run_id: str, shown: str) -> None:
     )
 )
 def holds_no_secret(world: World, run_id: str) -> None:
-    from ml.final_model import final_model_path, read_final_model
+    from ml.final_model import model_file_path, read_final_model
 
-    kept = read_final_model(final_model_path(world["final_models_dir"], run_id))
+    kept = read_final_model(model_file_path(world["final_models_dir"], run_id))
     assert kept is not None
     assert "wandb-api-key" not in kept.run_configuration
     assert "demo-dir" not in kept.run_configuration

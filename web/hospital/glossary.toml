@@ -44,17 +44,13 @@ source = "Report, DF31 \"screening result\", P10"
 meaning = "The three screening results: the model suggests ferritin, it does not, or the CBC was not screened (not eligible, or no usable deployed model)"
 source = "Report, Use case \"a comment to the lab report suggesting ferritin\"; \"not screened\" from Federated version"
 
-["screening model"]
-meaning = "A final model as the hospital holds it, in its `screening-models/` folder: what the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. Its file holds every part (weights, this hospital's standardization, run ID, when it was stored, AUROC across hospitals, local validation) or is unreadable, and an unreadable one is not listed"
-source = "Built from the report's words: P10 *Screen CBC* and \"the model\" (Use case)"
-
 ["deploy"]
 meaning = "The laboratory director's decision that a screening model screens this hospital's patients, at the threshold they choose"
 source = "Report, Use case: the model \"is then deployed to every hospital\""
 
 ["deployed model"]
 meaning = "The screening model this hospital deployed last; the only one that screens"
-source = "Report, DF30 \"Deployed final model\""
+source = "Report, DF30 \"Deployed screening model\""
 
 ["laboratory director"]
 meaning = "The person who decides which screening model screens a hospital's patients, and who provides its training cohort; one per hospital"
@@ -105,11 +101,11 @@ meaning = "Women without a suggestion who were not iron deficient: what a silent
 source = "WHO LQMS 3-3, p. 40: test methods are \"evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)\""
 
 ["threshold"]
-meaning = "The score above which the deployed model suggests ferritin; the laboratory director chooses it when deploying, from local validation. A final model carries none"
+meaning = "The score above which the deployed model suggests ferritin; the laboratory director chooses it when deploying, from local validation. A screening model fetched carries none"
 source = "Report, Design choices"
 
 ["fetch"]
-meaning = "The hospital's explicit request: a final model enters a hospital only when its laboratory director fetches new final models, through the hospital's own web app"
+meaning = "The hospital's explicit request: a screening model enters a hospital only when its laboratory director fetches new screening models, through the hospital's own web app"
 source = "Report, P5, DF33: \"a recipient hospital's laboratory director fetches it\"; as a practice fetches new lab reports (FetchNewLabReports)"
 
 ["inflammation"]

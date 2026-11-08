@@ -1,4 +1,4 @@
-"""Inference: a final model's probability for one CBC (ml/inference.py)."""
+"""Inference: a screening model's probability for one CBC (ml/inference.py)."""
 
 import pandas as pd
 import pytest

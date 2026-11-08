@@ -108,10 +108,11 @@ rejected = ["flag", "outcome", "classification"]
 rejected = ["flagged / not flagged (an earlier report draft; in a lab a *flag* marks an out-of-range value)", "possible iron deficiency (names a diagnosis)"]
 
 ["final model"]
+decided = "2026-11-08"
 rejected = ["release", "model version"]
 
 ["screening model"]
-rejected = ["model (too generic; Django's `Model`)", "final model (kept for training code and the report's DFD)", "release", "model version"]
+rejected = ["model (too generic; Django's `Model`)", "final model (only inside federated learning; decided 2026-11-08)", "release", "model version"]
 
 ["deploy"]
 rejected = ["activate", "release", "roll out", "deployment for a party's running copy (that is a party's web app)"]

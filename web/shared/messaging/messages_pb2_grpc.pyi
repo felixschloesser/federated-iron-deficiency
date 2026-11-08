@@ -80,24 +80,24 @@ class LaboratoryServicer(metaclass=_abc_1.ABCMeta):
 
 def add_LaboratoryServicer_to_server(servicer: LaboratoryServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
 
-class FinalModelsStub:
+class ScreeningModelsStub:
     @_typing.overload
     def __new__(cls, channel: _grpc.Channel) -> _Self: ...
     @_typing.overload
-    def __new__(cls, channel: _aio.Channel) -> FinalModelsAsyncStub: ...
-    FetchNewFinalModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.NewFinalModelsRequest, _messages_pb2.NewFinalModels]
+    def __new__(cls, channel: _aio.Channel) -> ScreeningModelsAsyncStub: ...
+    FetchNewScreeningModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.NewScreeningModelsRequest, _messages_pb2.NewScreeningModels]
 
 @_typing.type_check_only
-class FinalModelsAsyncStub(FinalModelsStub):
+class ScreeningModelsAsyncStub(ScreeningModelsStub):
     def __init__(self, channel: _aio.Channel) -> None: ...
-    FetchNewFinalModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.NewFinalModelsRequest, _messages_pb2.NewFinalModels]  # type: ignore[assignment]
+    FetchNewScreeningModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.NewScreeningModelsRequest, _messages_pb2.NewScreeningModels]  # type: ignore[assignment]
 
-class FinalModelsServicer(metaclass=_abc_1.ABCMeta):
+class ScreeningModelsServicer(metaclass=_abc_1.ABCMeta):
     @_abc_1.abstractmethod
-    def FetchNewFinalModels(
+    def FetchNewScreeningModels(
         self,
-        request: _messages_pb2.NewFinalModelsRequest,
+        request: _messages_pb2.NewScreeningModelsRequest,
         context: _ServicerContext,
-    ) -> _typing.Union[_messages_pb2.NewFinalModels, _abc.Awaitable[_messages_pb2.NewFinalModels]]: ...
+    ) -> _typing.Union[_messages_pb2.NewScreeningModels, _abc.Awaitable[_messages_pb2.NewScreeningModels]]: ...
 
-def add_FinalModelsServicer_to_server(servicer: FinalModelsServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
+def add_ScreeningModelsServicer_to_server(servicer: ScreeningModelsServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...

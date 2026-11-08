@@ -1,5 +1,5 @@
 """Scenarios: the startup releases final models and recipient hospitals fetch
-them from its final-models endpoint, over gRPC, driven as a hospital's web app
+them as screening models from its messaging endpoint, over gRPC, driven as a hospital's web app
 would drive it (features/startup/release.feature)."""
 
 from collections.abc import Iterator
@@ -29,7 +29,7 @@ scenarios("startup/release.feature")
 
 @pytest.fixture
 def startup(settings: Settings, tmp_path: Path) -> Iterator[str]:
-    """The startup's final-models endpoint, running, over its final models; its
+    """The startup's messaging endpoint, running, over its final models; its
     address."""
     from web.startup.training.messaging import serve
 
@@ -115,7 +115,7 @@ def call(world: World, method: str, request: Any, hospital: str | None) -> Any:
     name's slug in the call's metadata; a refusal is kept."""
     metadata = () if hospital is None else (("party", slugify(hospital)),)
     with grpc.insecure_channel(world["startup"]) as channel:
-        endpoint = messages_pb2_grpc.FinalModelsStub(channel)
+        endpoint = messages_pb2_grpc.ScreeningModelsStub(channel)
         try:
             return getattr(endpoint, method)(request, timeout=10, metadata=metadata)
         except grpc.RpcError as error:
@@ -123,46 +123,49 @@ def call(world: World, method: str, request: Any, hospital: str | None) -> Any:
             return None
 
 
-@given(parsers.parse('"{hospital}" fetched new final models'))
-@when(parsers.parse('"{hospital}" fetches new final models'))
+@given(parsers.parse('"{hospital}" fetched new screening models'))
+@when(parsers.parse('"{hospital}" fetches new screening models'))
 def fetches(world: World, hospital: str) -> None:
     world["fetched"] = call(
-        world, "FetchNewFinalModels", messages_pb2.NewFinalModelsRequest(), hospital
+        world,
+        "FetchNewScreeningModels",
+        messages_pb2.NewScreeningModelsRequest(),
+        hospital,
     )
 
 
 @when(
     parsers.parse(
-        '"{hospital}" fetches new final models, holding final model "{run_id}"'
+        '"{hospital}" fetches new screening models, holding screening model "{run_id}"'
     )
 )
 def fetches_holding(world: World, hospital: str, run_id: str) -> None:
-    held = messages_pb2.NewFinalModelsRequest(held_run_ids=[int(run_id)])
-    world["fetched"] = call(world, "FetchNewFinalModels", held, hospital)
+    held = messages_pb2.NewScreeningModelsRequest(held_run_ids=[int(run_id)])
+    world["fetched"] = call(world, "FetchNewScreeningModels", held, hospital)
 
 
-@when("a hospital fetches new final models without naming itself")
+@when("a hospital fetches new screening models without naming itself")
 def fetches_unnamed(world: World) -> None:
     world["fetched"] = call(
-        world, "FetchNewFinalModels", messages_pb2.NewFinalModelsRequest(), None
+        world, "FetchNewScreeningModels", messages_pb2.NewScreeningModelsRequest(), None
     )
 
 
-@then("it receives no final model")
+@then("it receives no screening model")
 def receives_none(world: World) -> None:
-    assert list(world["fetched"].final_models) == []
+    assert list(world["fetched"].screening_models) == []
 
 
 @then(
     parsers.parse(
-        'it receives final model "{run_id}" with its weights and AUROC across'
+        'it receives screening model "{run_id}" with its weights and AUROC across'
         " hospitals {auroc:f}"
     )
 )
 def receives(world: World, run_id: str, auroc: float) -> None:
     from ml.final_model import Net, weights_from_bytes
 
-    (model,) = world["fetched"].final_models
+    (model,) = world["fetched"].screening_models
     assert model.run_id == int(run_id)
     state_dict = weights_from_bytes(model.weights)
     assert state_dict is not None
@@ -178,11 +181,11 @@ def no_run_configuration(world: World) -> None:
 
     from ml.final_model import Net
 
-    (model,) = world["fetched"].final_models
+    (model,) = world["fetched"].screening_models
     # The weights are a plain state dict: nothing but the network's parameters.
     weights = torch.load(io.BytesIO(model.weights), weights_only=True)
     assert weights.keys() == Net().state_dict().keys()
-    fields = {field.name for field in messages_pb2.FinalModel.DESCRIPTOR.fields}
+    fields = {field.name for field in messages_pb2.ScreeningModel.DESCRIPTOR.fields}
     assert fields == {"run_id", "weights", "federated_auroc"}
 
 

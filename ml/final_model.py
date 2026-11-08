@@ -76,14 +76,14 @@ def standardization_tensor(values: pd.Series) -> torch.Tensor:
     return torch.tensor(values[FEATURES].values, dtype=torch.float32)
 
 
-def final_model_path(directory: Path, run_id: int | str) -> Path:
+def model_file_path(directory: Path, run_id: int | str) -> Path:
     """One file per training run, named after it."""
     return directory / f"{run_id}.pt"
 
 
-def final_model_paths(directory: Path) -> list[Path]:
+def model_file_paths(directory: Path) -> list[Path]:
     """The final models in a folder: only files named after a run, as
-    final_model_path names them; any other file there is not one."""
+    model_file_path names them; any other file there is not one."""
     return [path for path in directory.glob("*.pt") if path.stem.isdigit()]
 
 

@@ -96,8 +96,8 @@ def test_none_is_unspecified_and_never_sent(vocabulary: str) -> None:
     [
         ("LabReport", "report_id"),
         ("Acknowledgement", "report_ids"),
-        ("FinalModel", "run_id"),
-        ("NewFinalModelsRequest", "held_run_ids"),
+        ("ScreeningModel", "run_id"),
+        ("NewScreeningModelsRequest", "held_run_ids"),
     ],
 )
 def test_ids_are_unsigned_integers(message: str, field: str) -> None:
@@ -149,7 +149,7 @@ def test_every_part_of_every_message_is_required(message: str) -> None:
     [
         ("LabOrder", "age"),
         ("LabReport", "ferritin_suggested"),
-        ("FinalModel", "federated_auroc"),
+        ("ScreeningModel", "federated_auroc"),
     ],
 )
 def test_a_part_whose_zero_is_a_value_is_sent_when_zero(
