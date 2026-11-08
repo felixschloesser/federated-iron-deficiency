@@ -1,4 +1,4 @@
-"""General practitioners, their patients, and orders (terms: glossary.toml)."""
+"""General practitioners, their patients, and orders (terms: web/practice/glossary.toml, web/shared/glossary.toml)."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -253,7 +253,7 @@ class Order(models.Model):
     # Absent until the hospital confirmed the lab order (DF23); then never sent again.
     sent_at = models.DateTimeField(null=True, blank=True)
     # Absent unless the laboratory rejected the lab order, with its reason for
-    # rejection (glossary.toml, rejection); then never sent again either.
+    # rejection (web/shared/glossary.toml, rejection); then never sent again either.
     rejected_at = models.DateTimeField(null=True, blank=True)
     reason_for_rejection = models.TextField(null=True, blank=True)
 

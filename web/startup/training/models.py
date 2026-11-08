@@ -27,7 +27,7 @@ class RecipientManager(models.Manager["Recipient"]):
 
 
 class Recipient(models.Model):
-    """A hospital the startup registered by its name (glossary.toml), which never
+    """A hospital the startup registered by its name (web/shared/glossary.toml), which never
     changes; it calls as the name's slug, and may fetch every released final
     model, whether or not it trained."""
 

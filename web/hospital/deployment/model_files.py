@@ -33,7 +33,7 @@ CELLS = ("true_positives", "false_negatives", "false_positives", "true_negatives
 
 
 def model_name(stored_at: datetime) -> str:
-    """How the laboratory director knows a model: when it arrived (glossary.toml, screening model)."""
+    """How the laboratory director knows a model: when it arrived (web/hospital/glossary.toml, screening model)."""
     return f"Screening model of {formats.date_format(timezone.localtime(stored_at), 'j M Y, H:i')}"
 
 
@@ -131,7 +131,7 @@ def auroc_interval(area: float, counts: LocalValidationAt) -> str:
 
 @dataclass(frozen=True)
 class ScreeningModel:
-    """A screening model as its file holds it (glossary.toml): every part, or no
+    """A screening model as its file holds it (web/hospital/glossary.toml): every part, or no
     screening model."""
 
     state_dict: dict[str, torch.Tensor]

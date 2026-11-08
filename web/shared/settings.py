@@ -33,7 +33,7 @@ FINAL_MODELS_DIR: Path | None = None
 # The training cohort the laboratory director provides, which the startup's
 # code at the hospital reads.
 TRAINING_COHORT_DIR: Path | None = None
-# Each party's name (glossary.toml, name), set by its own settings alone: shown
+# Each party's name (web/shared/glossary.toml, name), set by its own settings alone: shown
 # in its title bar and header, and, for a practice or a hospital, what it calls
 # another party as; None, it shows none and cannot call. Never the screening's
 # name.
