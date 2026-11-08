@@ -65,13 +65,12 @@ service Laboratory {
 }
 
 // A released final model as a recipient hospital fetches it (DF37): its weights
-// (a final model file holding only them), the AUROC across hospitals and the
-// other averaged validation metrics, and its training run's ID; never its run
-// configuration.
+// (a saved state dict), the AUROC across hospitals, and its training run's ID;
+// never its run configuration.
 message FinalModel {
   uint64 run_id = 1;
   bytes weights = 2;
-  map<string, double> federated = 3;
+  double federated_auroc = 3;
 }
 
 message NewFinalModels {

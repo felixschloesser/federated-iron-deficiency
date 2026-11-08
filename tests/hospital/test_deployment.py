@@ -10,7 +10,7 @@ from django.urls import reverse
 from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_django.fixtures import Settings
 
-from ml.final_model import Problem
+from ml.cohort import FEATURES
 from tests.conftest import World
 from tests.hospital.conftest import make_laboratory_staff_member, write_final_model
 
@@ -173,27 +173,30 @@ def deploys(world: World, run_id: str, threshold: float) -> None:
     deploy(world, run_id, threshold)
 
 
-PROBLEMS = {
-    "is not a readable model file": None,
-    "was trained on other features": {"n_features": 5},
-    "has no local validation": {"leave_out": ("confusion_matrices",)},
-    "has no standardization": {"leave_out": ("mean", "std")},
+# A file that is not whole, as each scenario row names it: the parts it leaves
+# out, and the features its weights were trained on.
+NOT_WHOLE: dict[str, tuple[tuple[str, ...], int]] = {
+    "was trained on other features": ((), 5),
+    "lacks its weights": (("state_dict",), len(FEATURES)),
 }
 
 
 @given(parsers.parse('screening model "{run_id}" that {problem}'))
 def broken_final_model(world: World, run_id: str, problem: str) -> None:
     path = world["screening_models_dir"] / f"{run_id}.pt"
-    variant = PROBLEMS[problem]
-    if variant is None:
+    if problem == "has no file":
+        return
+    if problem == "is not a readable model file":
         path.write_bytes(b"not a model")
         return
+    leave_out, n_features = NOT_WHOLE[problem]
     write_final_model(
         path.parent,
         run_id,
         world["validation"]["1"],
         NOW + timedelta(hours=1),
-        **variant,
+        leave_out=leave_out,
+        n_features=n_features,
     )
 
 
@@ -266,8 +269,7 @@ def can_be_deployed(world: World, first: str, second: str) -> None:
     listed = {
         model.run_id: model for model in screening_models(world["screening_models_dir"])
     }
-    assert listed[first].problem is None
-    assert listed[second].problem is None
+    assert {first, second} <= listed.keys()
 
 
 @then(parsers.parse('"{run_id}" is the deployed model, at threshold {threshold:g}'))
@@ -344,18 +346,12 @@ def shows_validation(
     assert (deployed_run(world) == run_id) == bool(is_deployed)
 
 
-@then(
-    parsers.parse(
-        'screening model "{run_id}" cannot be deployed, with reason code "{code}"'
-    )
-)
-def cannot_be_deployed(world: World, run_id: str, code: str) -> None:
+@then(parsers.parse('screening model "{run_id}" is not listed'))
+def not_listed(world: World, run_id: str) -> None:
     from web.hospital.deployment.model_files import screening_models
 
-    (model,) = [
-        m for m in screening_models(world["screening_models_dir"]) if m.run_id == run_id
-    ]
-    assert getattr(model.problem, "value", None) == code
+    listed = [model.run_id for model in screening_models(world["screening_models_dir"])]
+    assert listed == ["2", "1"]
 
 
 @then(
@@ -378,16 +374,6 @@ def no_usable(world: World, code: str) -> None:
 @then("the Models page says the deployed model changed on disk")
 def page_says_changed(world: World) -> None:
     assert "changed on disk" in str(getattr(no_usable_model(world), "label", ""))
-
-
-@pytest.mark.parametrize("problem", Problem)
-def test_every_problem_of_a_file_is_a_reason_it_cannot_be_deployed(
-    problem: Problem,
-) -> None:
-    from web.hospital.deployment.model_files import CannotDeploy
-
-    # The reason code is what the scenarios and the refusal's error code name.
-    assert CannotDeploy.because(problem).value == problem.value
 
 
 @pytest.mark.parametrize("threshold", [0.0, 1.0])
@@ -429,13 +415,10 @@ def reads_with_interval(measure: object, percent: str, interval: str) -> None:
         "a local validation with AUROC {auroc:f} on {deficient:d} iron-deficient and"
         " {other:d} other past patients"
     ),
-    target_fixture="screening_model_file",
+    target_fixture="auroc_interval",
 )
-def local_validation_counts(auroc: float, deficient: int, other: int) -> object:
-    from web.hospital.deployment.model_files import (
-        LocalValidationAt,
-        ScreeningModelFile,
-    )
+def local_validation_counts(auroc: float, deficient: int, other: int) -> str:
+    from web.hospital.deployment.model_files import LocalValidationAt, auroc_interval
 
     # Any threshold's counts hold every past patient of the validation.
     counts = {
@@ -444,18 +427,9 @@ def local_validation_counts(auroc: float, deficient: int, other: int) -> object:
         "false_positives": other,
         "true_negatives": 0,
     }
-    return ScreeningModelFile(
-        run_id="1",
-        problem=None,
-        local_auroc=auroc,
-        local_validation=[LocalValidationAt(0.05, counts)],
-    )
+    return auroc_interval(auroc, LocalValidationAt(0.05, counts))
 
 
 @then(parsers.parse("its AUROC has a 95% confidence interval of {interval}"))
-def auroc_interval(screening_model_file: object, interval: str) -> None:
-    from web.hospital.deployment.model_files import ScreeningModelFile
-
-    assert isinstance(screening_model_file, ScreeningModelFile)
-    expected = None if interval == "none" else interval
-    assert screening_model_file.local_auroc_interval == expected
+def has_auroc_interval(auroc_interval: str, interval: str) -> None:
+    assert auroc_interval == interval

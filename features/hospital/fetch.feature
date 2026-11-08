@@ -29,6 +29,11 @@ Feature: A hospital fetches final models when its laboratory director asks
     When the laboratory director fetches new final models
     Then "11.pt" is unchanged
 
+  Scenario: Weights that do not fit the network are not stored
+    Given the startup released final model "12" with weights that do not fit the network
+    When the laboratory director fetches new final models
+    Then the hospital holds only "11.pt"
+
   Scenario: A startup that cannot be reached
     Given the startup cannot be reached
     When the laboratory director fetches new final models

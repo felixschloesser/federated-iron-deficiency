@@ -213,50 +213,28 @@ Global___Acknowledgement: _TypeAlias = Acknowledgement  # noqa: Y015
 @_typing.final
 class FinalModel(_message.Message):
     """A released final model as a recipient hospital fetches it (DF37): its weights
-    (a final model file holding only them), the AUROC across hospitals and the
-    other averaged validation metrics, and its training run's ID; never its run
-    configuration.
+    (a saved state dict), the AUROC across hospitals, and its training run's ID;
+    never its run configuration.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
 
-    @_typing.final
-    class FederatedEntry(_message.Message):
-        DESCRIPTOR: _descriptor.Descriptor
-
-        KEY_FIELD_NUMBER: _builtins.int
-        VALUE_FIELD_NUMBER: _builtins.int
-        key: _builtins.str
-        value: _builtins.float
-        def __init__(
-            self,
-            *,
-            key: _builtins.str = ...,
-            value: _builtins.float = ...,
-        ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
-
     RUN_ID_FIELD_NUMBER: _builtins.int
     WEIGHTS_FIELD_NUMBER: _builtins.int
-    FEDERATED_FIELD_NUMBER: _builtins.int
+    FEDERATED_AUROC_FIELD_NUMBER: _builtins.int
     run_id: _builtins.int
     weights: _builtins.bytes
-    @_builtins.property
-    def federated(self) -> _containers.ScalarMap[_builtins.str, _builtins.float]: ...
+    federated_auroc: _builtins.float
     def __init__(
         self,
         *,
         run_id: _builtins.int = ...,
         weights: _builtins.bytes = ...,
-        federated: _abc.Mapping[_builtins.str, _builtins.float] | None = ...,
+        federated_auroc: _builtins.float = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["federated", b"federated", "run_id", b"run_id", "weights", b"weights"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["federated_auroc", b"federated_auroc", "run_id", b"run_id", "weights", b"weights"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 

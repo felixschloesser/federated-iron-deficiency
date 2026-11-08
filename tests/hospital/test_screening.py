@@ -12,11 +12,10 @@ from pytest_bdd import given, parsers, scenarios, then, when
 
 from ml.cohort import CBC_VARS, FEATURES, eligible
 from ml.final_model import (
-    FinalModel,
     Net,
     final_model_path,
     standardization_tensor,
-    write,
+    write_contents,
 )
 from tests.conftest import World
 from tests.hospital.conftest import make_practice
@@ -73,15 +72,18 @@ def write_model(directory: Path, run_id: str, local_auroc: float) -> None:
     zeros = pd.Series(0.0, index=FEATURES)
     path = final_model_path(directory, run_id)
     path.unlink(missing_ok=True)  # "changed on disk" replaces the deployed file
-    write(
+    write_contents(
         path,
-        FinalModel(
-            state_dict=deciding_model(),
-            mean=standardization_tensor(zeros),
-            std=standardization_tensor(zeros + 1),
-            confusion_matrices=CONFUSION_MATRICES,
-            local_auroc=local_auroc,
-        ),
+        {
+            "state_dict": deciding_model(),
+            "mean": standardization_tensor(zeros),
+            "std": standardization_tensor(zeros + 1),
+            "run_id": int(run_id),
+            "stored_at": NOW.isoformat(),
+            "federated_auroc": 0.87,
+            "confusion_matrices": CONFUSION_MATRICES,
+            "local_auroc": local_auroc,
+        },
     )
 
 

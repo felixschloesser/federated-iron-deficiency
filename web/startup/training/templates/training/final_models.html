@@ -7,12 +7,12 @@
 {% for model, release in final_models %}
 <article>
   <header class="card-header">
-    <h2>{% if model.stored_at %}Final model of <span class="no-wrap">{{ model.stored_at|date:"j M Y, H:i" }}</span>{% else %}Final model of run {{ model.run_id }}{% endif %}</h2>
+    <h2>Final model of <span class="no-wrap">{{ model.stored_at|date:"j M Y, H:i" }}</span></h2>
     <p>{% if release %}{% with fetched=release.fetched_by %}{% if fetched %}Fetched by {{ fetched|join:", " }}{% else %}Released, not fetched yet{% endif %}{% endwith %}{% else %}Not released{% endif %}</p>
   </header>
   <dl>
     <dt>Run</dt><dd>{{ model.run_id }}</dd>
-    {% if model.federated_auroc is not None %}<dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>{% endif %}
+    <dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>
     {% for label, value in model.run_configuration_items %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
   </dl>
   {% if not release %}<div class="action-row">{% url "training:release" model.run_id as release_url %}{% include "includes/action_button.html" with url=release_url label="Release" accessible_label="Release final model of run "|add:model.run_id %}</div>{% endif %}

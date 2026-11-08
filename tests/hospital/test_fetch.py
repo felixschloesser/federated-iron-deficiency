@@ -16,13 +16,13 @@ from pytest_django.asserts import assertContains
 from pytest_django.fixtures import Settings
 
 from ml.cohort import FEATURES
-from ml.final_model import FinalModel, Net, read, to_bytes
+from ml.final_model import Net, weights_to_bytes
 from tests.conftest import World
 from tests.hospital.conftest import make_laboratory_director
 from tests.hospital.fake_startup import FakeStartup, running
 from web.shared.messaging import messages_pb2
 
-FEDERATED = {"eval_auroc": 0.85}
+FEDERATED_AUROC = 0.85
 # The stand-in serves from its own threads.
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -34,8 +34,8 @@ def offered(run_id: str, seed: int) -> messages_pb2.FinalModel:
     torch.manual_seed(seed)
     return messages_pb2.FinalModel(
         run_id=int(run_id),
-        weights=to_bytes(FinalModel(state_dict=Net().state_dict())),
-        federated=FEDERATED,
+        weights=weights_to_bytes(Net().state_dict()),
+        federated_auroc=FEDERATED_AUROC,
     )
 
 
@@ -70,6 +70,27 @@ def training_cohort(
 @given(parsers.parse('the startup released final model "{run_id}"'))
 def released(world: World, run_id: str) -> None:
     world["startup"].offered.append(offered(run_id, seed=1))
+
+
+@given(
+    parsers.parse(
+        'the startup released final model "{run_id}" with weights that do not fit'
+        " the network"
+    )
+)
+def released_misfit(world: World, run_id: str) -> None:
+    world["startup"].offered.append(
+        messages_pb2.FinalModel(
+            run_id=int(run_id),
+            weights=weights_to_bytes(Net(n_features=5).state_dict()),
+            federated_auroc=FEDERATED_AUROC,
+        )
+    )
+
+
+@then(parsers.parse('the hospital holds only "{name}"'))
+def holds_only(world: World, name: str) -> None:
+    assert [path.name for path in world["folder"].iterdir()] == [name]
 
 
 @given(
@@ -108,11 +129,12 @@ def holds_none(world: World) -> None:
     )
 )
 def holds_validated(world: World, name: str) -> None:
-    model = read(world["folder"] / name)
-    assert model.problem() is None
-    assert model.confusion_matrices
-    assert model.local_auroc is not None
-    assert model.federated == FEDERATED
+    from web.hospital.deployment.model_files import screening_model_file
+
+    model = screening_model_file((world["folder"] / name).read_bytes())
+    assert model is not None
+    assert model.local_validation
+    assert model.federated_auroc == FEDERATED_AUROC
 
 
 @then(parsers.parse('the startup is told the hospital holds final model "{run_id}"'))

@@ -79,19 +79,18 @@ Feature: Deploying a screening model
       | 0.86  | 10        | 42    | 0.71–1.00 |
       | 0.84  | 84        | 170   | 0.78–0.90 |
       | 0.50  | 10        | 42    | 0.30–0.70 |
-      | 0.70  | 0         | 42    | none      |
 
-  Scenario Outline: A screening model that cannot be deployed says why
+  Scenario Outline: A screening model file that is not whole is not listed and cannot be deployed
     Given screening model "3" that <problem>
-    Then screening model "3" cannot be deployed, with reason code "<code>"
-    And deploying screening model "3" at threshold 0.5 is refused with code "<code>"
+    Then screening model "3" is not listed
+    And deploying screening model "3" at threshold 0.5 is refused with code "not_found"
 
     Examples:
-      | problem                              | code                     |
-      | is not a readable model file         | unreadable               |
-      | was trained on other features        | features_differ          |
-      | has no local validation              | local_validation_missing |
-      | has no standardization               | standardization_missing  |
+      | problem                                          |
+      | has no file                                      |
+      | is not a readable model file                     |
+      | was trained on other features                    |
+      | lacks its weights                                |
 
   Scenario: A deployed model whose file changed on disk stops screening
     Given the file of the deployed "1" has changed on disk
