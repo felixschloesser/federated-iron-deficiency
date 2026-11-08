@@ -240,7 +240,10 @@ def deployed(world: World) -> tuple[str, float] | None:
     screener = Deployment.objects.screener(world["screening_models_dir"])
     if not isinstance(screener, Screener):
         return None
-    return screener.screening_model.run_id, screener.screening_model.threshold
+    return (
+        screener.deployed_screening_model.run_id,
+        screener.deployed_screening_model.threshold,
+    )
 
 
 def deployed_run(world: World) -> str | None:
@@ -255,7 +258,7 @@ def no_usable_model(world: World) -> object:
     return None if isinstance(deployed, Screener) else deployed
 
 
-@then("there is no deployed model")
+@then("there is no deployed screening model")
 def no_deployed_model(world: World) -> None:
     from web.hospital.deployment.models import NotScreened
 
@@ -272,7 +275,11 @@ def can_be_deployed(world: World, first: str, second: str) -> None:
     assert {first, second} <= listed.keys()
 
 
-@then(parsers.parse('"{run_id}" is the deployed model, at threshold {threshold:g}'))
+@then(
+    parsers.parse(
+        '"{run_id}" is the deployed screening model, at threshold {threshold:g}'
+    )
+)
 def is_deployed(world: World, run_id: str, threshold: float) -> None:
     assert deployed(world) == (run_id, threshold)
 
@@ -287,7 +294,7 @@ def records_validation(world: World, sensitivity: str, specificity: str) -> None
     from web.hospital.deployment.models import Deployment
 
     latest = Deployment.objects.latest("deployed_at", "pk")
-    counts = latest.screening_model.local_validation
+    counts = latest.deployed_screening_model.local_validation
     found, missed = counts["true_positives"], counts["false_negatives"]
     cleared, alarmed = counts["true_negatives"], counts["false_positives"]
     assert f"{found} of {found + missed}" == sensitivity
@@ -299,7 +306,7 @@ def history(world: World, entries: str) -> None:
     from web.hospital.deployment.models import Deployment
 
     listed = [
-        f'"{deployment.screening_model.run_id}" at {deployment.screening_model.threshold:g}'
+        f'"{deployment.deployed_screening_model.run_id}" at {deployment.deployed_screening_model.threshold:g}'
         for deployment in Deployment.objects.order_by("deployed_at", "pk")
     ]
     assert ", ".join(listed) == entries
@@ -366,12 +373,16 @@ def deploying_refused(world: World, run_id: str, threshold: float, code: str) ->
     assert world["error"].code == code
 
 
-@then(parsers.parse('there is no usable deployed model, with reason code "{code}"'))
+@then(
+    parsers.parse(
+        'there is no usable deployed screening model, with reason code "{code}"'
+    )
+)
 def no_usable(world: World, code: str) -> None:
     assert getattr(no_usable_model(world), "value", None) == code
 
 
-@then("the Models page says the deployed model changed on disk")
+@then("the Models page says the deployed screening model changed on disk")
 def page_says_changed(world: World) -> None:
     assert "changed on disk" in str(getattr(no_usable_model(world), "label", ""))
 
@@ -382,9 +393,11 @@ def test_the_database_refuses_a_threshold_outside_zero_and_one(
 ) -> None:
     from django.db import IntegrityError, transaction
 
-    from web.hospital.deployment.models import ScreeningModel
+    from web.hospital.deployment.models import DeployedScreeningModel
 
-    screening_model = ScreeningModel(run_id="1", sha256="0" * 64, threshold=threshold)
+    screening_model = DeployedScreeningModel(
+        run_id="1", sha256="0" * 64, threshold=threshold
+    )
     with pytest.raises(ValidationError) as refused:
         screening_model.full_clean()
     assert [error.code for error in refused.value.error_dict["__all__"]] == [

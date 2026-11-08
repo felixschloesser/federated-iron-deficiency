@@ -307,8 +307,8 @@ def stored(compose: Compose, journey: dict[str, Any]) -> None:
     path = f"/data/screening-models/{journey['training']}.pt"
     script = (
         "from pathlib import Path;"
-        " from web.hospital.deployment.model_files import screening_model_file;"
-        f" model = screening_model_file(Path({path!r}).read_bytes());"
+        " from web.hospital.deployment.model_files import read_screening_model;"
+        f" model = read_screening_model(Path({path!r}).read_bytes());"
         " print(model is not None)"
     )
     assert in_party(compose, f"{APP_HOSPITAL}-web", script) == "True"

@@ -23,5 +23,5 @@ class Command(BaseCommand):
         elif isinstance(deployed, NotScreened):
             line = f"{deployed.label} ({count} in all)"
         else:
-            line = f"{deployed.screening_model.name} deployed ({count} in all)"
+            line = f"{deployed.deployed_screening_model.name} deployed ({count} in all)"
         self.stdout.write(line)

@@ -53,7 +53,7 @@
   <thead><tr><th scope="col">Deployed</th><th scope="col">Model</th><th scope="col">Threshold</th></tr></thead>
   <tbody>
     {% for deployment in history %}
-    <tr><td>{{ deployment.deployed_at|date:"j M Y, H:i" }}</td><td>{{ deployment.screening_model.name }}</td><td>{{ deployment.screening_model.threshold|floatformat:2 }}</td></tr>
+    <tr><td>{{ deployment.deployed_at|date:"j M Y, H:i" }}</td><td>{{ deployment.deployed_screening_model.name }}</td><td>{{ deployment.deployed_screening_model.threshold|floatformat:2 }}</td></tr>
     {% endfor %}
   </tbody>
 </table></div>

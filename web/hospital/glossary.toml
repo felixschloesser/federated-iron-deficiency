@@ -41,7 +41,7 @@ meaning = "What screening records per CBC: one of the three below, with the reas
 source = "Report, DF31 \"screening result\", P10"
 
 ["ferritin suggested / ferritin not suggested / not screened"]
-meaning = "The three screening results: the model suggests ferritin, it does not, or the CBC was not screened (not eligible, or no usable deployed model)"
+meaning = "The three screening results: the model suggests ferritin, it does not, or the CBC was not screened (not eligible, or no usable deployed screening model)"
 source = "Report, Use case \"a comment to the lab report suggesting ferritin\"; \"not screened\" from Federated version"
 
 ["screening model"]
@@ -52,9 +52,9 @@ source = "Built from the report's words: P10 *Screen CBC* and \"the model\" (Use
 meaning = "The laboratory director's decision that a screening model screens this hospital's patients, at the threshold they choose"
 source = "Report, Use case: the model \"is then deployed to every hospital\""
 
-["deployed model"]
-meaning = "The screening model this hospital deployed last; the only one that screens"
-source = "Report, DF30 \"Deployed final model\""
+["deployed screening model"]
+meaning = "A screening model as the laboratory director deployed it, at a threshold, with its file's hash; the latest one is the deployed screening model, the only one that screens"
+source = "Report, DF30 \"Deployed final model\"; at the hospital a final model is a screening model"
 
 ["laboratory director"]
 meaning = "The person who decides which screening model screens a hospital's patients, and who provides its training cohort; one per hospital"
@@ -105,7 +105,7 @@ meaning = "Women without a suggestion who were not iron deficient: what a silent
 source = "WHO LQMS 3-3, p. 40: test methods are \"evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)\""
 
 ["threshold"]
-meaning = "The score above which the deployed model suggests ferritin; the laboratory director chooses it when deploying, from local validation. A final model carries none"
+meaning = "The score above which the deployed screening model suggests ferritin; the laboratory director chooses it when deploying, from local validation. A final model carries none"
 source = "Report, Design choices"
 
 ["fetch"]

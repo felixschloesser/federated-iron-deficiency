@@ -15,7 +15,11 @@ from django_stubs_ext import WithAnnotations
 
 from ml.cohort import ELIGIBLE_AGES, ELIGIBLE_SEX
 from web.hospital.analyser import port as analyser
-from web.hospital.deployment.models import Deployment, NotScreened, ScreeningModel
+from web.hospital.deployment.models import (
+    DeployedScreeningModel,
+    Deployment,
+    NotScreened,
+)
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
@@ -224,7 +228,7 @@ class TestRequest(models.Model):
     )
     # The screening model that screened this CBC; absent when not screened.
     screened_by = models.ForeignKey(
-        ScreeningModel,
+        DeployedScreeningModel,
         on_delete=models.PROTECT,
         related_name="screening_results",
         null=True,
@@ -264,7 +268,7 @@ class TestRequest(models.Model):
 
     @transaction.atomic
     def run_analyser(self, *, directory: Path | None, now: datetime) -> TestRequest:
-        """Record what the analyser measures on the stored sample for the test, screen a CBC with the deployed model in `directory`, and so release its
+        """Record what the analyser measures on the stored sample for the test, screen a CBC with the deployed screening model in `directory`, and so release its
         lab report at once: the report goes out with the analysis, never before."""
         # Read again under the write lock: this copy may predate another analysis.
         self.refresh_from_db(fields=["analysed_at"])
@@ -307,7 +311,7 @@ class TestRequest(models.Model):
                     if suggested
                     else ScreeningResult.FERRITIN_NOT_SUGGESTED
                 )
-                self.screened_by = deployed.screening_model
+                self.screened_by = deployed.deployed_screening_model
                 return
         self.screening_result = ScreeningResult.NOT_SCREENED
         self.not_screened_reason = reason
