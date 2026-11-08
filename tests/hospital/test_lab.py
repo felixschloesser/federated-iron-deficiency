@@ -14,7 +14,7 @@ from ml.cohort import CBC_VARS
 from tests.conftest import World
 from tests.hospital.conftest import make_practice, make_tube, receive_lab_order
 from web.hospital.analyser.models import FERRITIN, Participant
-from web.hospital.lab.models import NotScreened, Sample, ScreeningResult, TestRequest
+from web.hospital.lab.models import Sample, ScreeningResult, TestRequest
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
 
@@ -245,14 +245,16 @@ def told_to_tell_director(world: World) -> None:
     sample_id = world["test_request"].sample.sample_id
     messages = [str(message) for message in world["response"].context["messages"]]
     expected = (
-        f"Sample {sample_id}: CBC analysed, lab report released without screening:"
-        " no screening model deployed. Tell the laboratory director."
+        f"Sample {sample_id}: CBC analysed, lab report released without screening."
+        " No screening model is deployed. Tell the laboratory director."
     )
     assert messages == [expected]
 
 
 @then("the Analysed page shows the CBC and no screening result")
 def analysed_shows_no_screening(world: World) -> None:
+    from web.hospital.deployment.models import NotScreened
+
     response = world["client"].get(reverse("lab:analysed"))
     page = response.content.decode()
     assert world["test_request"].sample.sample_id in page

@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from web.hospital.deployment.model_files import screening_models
-from web.hospital.deployment.models import Deployment, NoUsableModel
+from web.hospital.deployment.models import Deployment, NotScreened
 
 
 class Command(BaseCommand):
@@ -18,9 +18,9 @@ class Command(BaseCommand):
         deployed = Deployment.objects.screener(directory)
         if count == 0:
             line = "no screening model yet"
-        elif deployed is NoUsableModel.NO_DEPLOYED_MODEL:
+        elif deployed is NotScreened.NO_DEPLOYED_MODEL:
             line = f"{count} screening model{'s' if count > 1 else ''}, none deployed"
-        elif isinstance(deployed, NoUsableModel):
+        elif isinstance(deployed, NotScreened):
             line = f"{deployed.label} ({count} in all)"
         else:
             line = f"{deployed.screening_model.name} deployed ({count} in all)"

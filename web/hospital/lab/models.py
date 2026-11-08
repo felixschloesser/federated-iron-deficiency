@@ -15,7 +15,7 @@ from django_stubs_ext import WithAnnotations
 
 from ml.cohort import ELIGIBLE_AGES, ELIGIBLE_SEX
 from web.hospital.analyser import port as analyser
-from web.hospital.deployment.models import Deployment, NoUsableModel, ScreeningModel
+from web.hospital.deployment.models import Deployment, NotScreened, ScreeningModel
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
@@ -52,39 +52,6 @@ class ScreeningResult(models.TextChoices):
     FERRITIN_SUGGESTED = "ferritin_suggested", "Ferritin suggested"
     FERRITIN_NOT_SUGGESTED = "ferritin_not_suggested", "Ferritin not suggested"
     NOT_SCREENED = "not_screened", "Not screened"
-
-
-class NotScreened(models.TextChoices):
-    """Why a CBC was not screened (features/hospital/screening.feature): the patient is not eligible, never which
-    fact excluded them, or there is no usable deployed model
-    (web.hospital.deployment.models.NoUsableModel), which lab staff act on."""
-
-    NOT_ELIGIBLE = "not_eligible", "not eligible"
-    NO_DEPLOYED_MODEL = "no_deployed_model", "no screening model deployed"
-    DEPLOYED_MODEL_CHANGED = (
-        "deployed_model_changed",
-        "deployed model file changed",
-    )
-
-    @classmethod
-    def because(cls, no_usable_model: NoUsableModel) -> NotScreened:
-        match no_usable_model:
-            case NoUsableModel.NO_DEPLOYED_MODEL:
-                return cls.NO_DEPLOYED_MODEL
-            case NoUsableModel.DEPLOYED_MODEL_CHANGED:
-                return cls.DEPLOYED_MODEL_CHANGED
-            case _:
-                assert_never(no_usable_model)
-
-    def is_model_problem(self) -> bool:
-        """Whether the hospital's model, not the patient, kept the CBC unscreened."""
-        match self:
-            case NotScreened.NOT_ELIGIBLE:
-                return False
-            case NotScreened.NO_DEPLOYED_MODEL | NotScreened.DEPLOYED_MODEL_CHANGED:
-                return True
-            case _:
-                assert_never(self)
 
 
 class PracticeManager(models.Manager["Practice"]):
@@ -331,8 +298,8 @@ class TestRequest(models.Model):
         reason = self.not_eligible()
         if reason is None:
             deployed = Deployment.objects.screener(directory)
-            if isinstance(deployed, NoUsableModel):
-                reason = NotScreened.because(deployed)
+            if isinstance(deployed, NotScreened):
+                reason = deployed
             else:
                 suggested = deployed.suggests_ferritin(self.results or {}, self.age)
                 self.screening_result = (
