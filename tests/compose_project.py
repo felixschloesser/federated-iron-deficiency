@@ -14,6 +14,7 @@ import tempfile
 import time
 import uuid
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -58,17 +59,54 @@ def engine_running() -> bool:
     )
 
 
+def holder() -> str:
+    """Who holds the engine: this checkout, its branch, this process, since when."""
+    branch = subprocess.run(
+        ["git", "-C", str(ROOT), "branch", "--show-current"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
+    since = time.strftime("%Y-%m-%d %H:%M:%S")
+    return f"{ROOT} ({branch or 'detached'}), pid {os.getpid()}, since {since}"
+
+
+@contextmanager
+def engine_lock(
+    path: Path, say: Callable[[str], object], *, wait: bool = True
+) -> Iterator[None]:
+    """Hold the engine, waiting for any other container run first; the lock file
+    names its holder, so a run that waits says for whom and for how long."""
+    # Opened without truncating: the holder's name stays readable while it holds.
+    with path.open("a+") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            lock.seek(0)
+            other = lock.read().strip() or "a run that names no holder"
+            say(f"Waiting for another container run: {other} ({path})")
+            if not wait:
+                raise
+            started = time.monotonic()
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            say(f"Waited {round(time.monotonic() - started)} s for the engine")
+        lock.seek(0)
+        lock.truncate()
+        lock.write(holder())
+        lock.flush()
+        yield
+
+
 @pytest.fixture(scope="session")
 def engine_to_itself() -> Iterator[None]:
     """Wait until no other worktree's container run uses the engine: parallel
     builds and cohorts slow every one of them past its timeouts."""
-    with LOCK.open("w") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            # Past pytest's capture, so a wait never looks like a hang.
-            print(f"Waiting for another container run ({LOCK})", file=sys.__stderr__)
-            fcntl.flock(lock, fcntl.LOCK_EX)
+
+    def say(message: str) -> None:
+        # Past pytest's capture, so a wait never looks like a hang.
+        print(message, file=sys.__stderr__)
+
+    with engine_lock(LOCK, say):
         yield
 
 
