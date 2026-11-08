@@ -17,4 +17,4 @@ RUN --mount=from=ghcr.io/astral-sh/uv:0.13.6,source=/uv,target=/usr/local/bin/uv
     && rm /tmp/requirements.txt
 USER app
 # The ClientApp installs each run's FAB here; the image's /app is not writable.
-ENV FLWR_HOME=/tmp/flwr MPLCONFIGDIR=/tmp/matplotlib
+ENV FLWR_HOME=/tmp/flwr

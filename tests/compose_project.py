@@ -227,11 +227,12 @@ def synthetic_cohort(hospital: str) -> str:
     return (
         "; hospital = Path('/data');"
         " (hospital / 'screening-models').mkdir(exist_ok=True);"
-        " import numpy as np, pandas as pd; from datasets import Dataset;"
+        " import numpy as np, pandas as pd;"
         " from ml.cohort import FEATURES; rng = np.random.default_rng(0);"
         " frame = pd.DataFrame(rng.normal(size=(300, len(FEATURES))), columns=FEATURES);"
         " frame['iron_deficient'] = rng.integers(0, 2, size=300);"
-        " Dataset.from_pandas(frame).save_to_disk(hospital / 'cohort' / 'synthetic')"
+        " (hospital / 'cohort' / 'synthetic').mkdir(parents=True);"
+        " frame.to_parquet(hospital / 'cohort' / 'synthetic' / 'cohort.parquet', index=False)"
     )
 
 
