@@ -5,7 +5,7 @@ import grpc
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import F, Prefetch, QuerySet
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.defaultfilters import capfirst, pluralize
 from django.urls import reverse
@@ -91,9 +91,7 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             "subtitle": f"{patient.get_registered_sex_display()}, aged {patient.age}",
             "actions": [collect_action] if laboratories > 1 else [],
             "post_actions": ([] if laboratories > 1 else [collect_action])
-            + ([check_action] if laboratories > 0 else []),
-            # Only an app with a laboratory to ask fetches lab reports (tests/practice/test_messaging.py).
-            "fetches_reports": laboratories > 0,
+            + [check_action],
             "samples": samples,
         }
 
@@ -109,17 +107,9 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
         return orders.order_by("-ordered_at", "-pk")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        # Only an app with a laboratory to ask can check for reports (tests/practice/test_messaging.py).
-        post_actions = (
-            [
-                {
-                    "url": reverse("practice:check_for_reports"),
-                    "label": "Check for reports",
-                }
-            ]
-            if Laboratory.objects.exists()
-            else []
-        )
+        post_actions = [
+            {"url": reverse("practice:check_for_reports"), "label": "Check for reports"}
+        ]
         return {**super().get_context_data(**kwargs), "post_actions": post_actions}
 
 
@@ -133,8 +123,6 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
         if patient is not None:
             record = get_object_or_404(Patient, pk=patient)
             back = reverse("practice:patient", kwargs={"pk": record.pk})
-        if not Laboratory.objects.exists():
-            raise Http404
         check = messaging.check_every_laboratory(now=timezone.now())
         for laboratory, error in check.failures:
             messages.error(
