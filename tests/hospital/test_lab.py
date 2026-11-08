@@ -246,18 +246,16 @@ def told_to_tell_director(world: World) -> None:
     messages = [str(message) for message in world["response"].context["messages"]]
     expected = (
         f"Sample {sample_id}: CBC analysed, lab report released without screening."
-        " No screening model is deployed. Tell the laboratory director."
+        " Tell the laboratory director."
     )
     assert messages == [expected]
 
 
 @then("the Analysed page shows the CBC and no screening result")
 def analysed_shows_no_screening(world: World) -> None:
-    from web.hospital.deployment.models import NotScreened
-
     response = world["client"].get(reverse("lab:analysed"))
     page = response.content.decode()
     assert world["test_request"].sample.sample_id in page
     assert "Screening result" not in page
-    for label in (*ScreeningResult.labels, *NotScreened.labels):
+    for label in ScreeningResult.labels:
         assert label not in page, label

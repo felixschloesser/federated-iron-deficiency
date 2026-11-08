@@ -17,7 +17,7 @@ meaning = "A clinical indication the hospital screens a CBC for: its rule, decid
 source = "Report, Data table: \"the three screened indications\""
 
 ["not eligible"]
-meaning = "The not-screened reason when the screening excludes a CBC (an indication not screened, not female, or not aged 18–49), never which condition (features/hospital/screening.feature)"
+meaning = "A CBC the screening does not cover (an indication not screened, not female, or not aged 18–49); its result is not screened, never saying which condition (features/hospital/screening.feature)"
 source = "Built from the report's Use case: the screening applies to one group, women aged 18–49 with a screened indication (features/hospital/screening.feature)"
 
 ["stored sample"]
@@ -37,19 +37,19 @@ meaning = "The training package's word for running the trained model on new bloo
 source = "PyTorch documentation, *Saving and Loading Models*: call model.eval() \"before running inference\""
 
 ["screening result"]
-meaning = "What screening records per CBC: one of the three below, with the reason when not screened (features/hospital/screening.feature) and the screening model when screened (features/hospital/screening.feature)"
+meaning = "What screening records per CBC: one of the four below, and the deployed screening model when the model decided (features/hospital/screening.feature)"
 source = "Report, DF31 \"screening result\", P10"
 
-["ferritin suggested / ferritin not suggested / not screened"]
-meaning = "The three screening results: the model suggests ferritin, it does not, or the CBC was not screened (not eligible, or no usable deployed model)"
-source = "Report, Use case \"a comment to the lab report suggesting ferritin\"; \"not screened\" from Federated version"
+["ferritin suggested / ferritin not suggested / not screened / screening failed"]
+meaning = "The four screening results: the model suggests ferritin, it does not, the CBC was not screened (not eligible), or screening failed (no usable deployed screening model; the Models page says which fault). The lab report says only whether ferritin is suggested"
+source = "Report, Use case \"a comment to the lab report suggesting ferritin\"; \"not screened\" from Federated version; \"screening failed\": project decision 2026-11-08, after the report's security solution that a replaced model file \"screens no one\""
 
 ["deploy"]
 meaning = "The laboratory director's decision that a screening model screens this hospital's patients, at the threshold they choose"
 source = "Report, Use case: the model \"is then deployed to every hospital\""
 
-["deployed model"]
-meaning = "The screening model this hospital deployed last; the only one that screens"
+["deployed screening model"]
+meaning = "A screening model as the laboratory director deployed it, at a threshold, with its file's hash; the latest one is the deployed screening model, the only one that screens"
 source = "Report, DF30 \"Deployed screening model\""
 
 ["laboratory director"]
@@ -101,7 +101,7 @@ meaning = "Women without a suggestion who were not iron deficient: what a silent
 source = "WHO LQMS 3-3, p. 40: test methods are \"evaluated for the ability to detect disease (sensitivity, specificity, positive and negative predictive value)\""
 
 ["threshold"]
-meaning = "The score above which the deployed model suggests ferritin; the laboratory director chooses it when deploying, from local validation. A screening model fetched carries none"
+meaning = "The score above which the deployed screening model suggests ferritin; the laboratory director chooses it when deploying, from local validation. A final model carries none"
 source = "Report, Design choices"
 
 ["fetch"]

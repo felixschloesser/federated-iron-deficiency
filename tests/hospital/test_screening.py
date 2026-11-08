@@ -1,4 +1,4 @@
-"""Scenarios: screening a CBC in the lab app with a deployed model
+"""Scenarios: screening a CBC in the lab app with a deployed screening model
 (features/hospital/screening.feature)."""
 
 from datetime import UTC, datetime
@@ -174,7 +174,9 @@ def ferritin_sample(world: World, age: int) -> None:
     lab_sample(world, OrderedTest.FERRITIN, None, RegisteredSex.FEMALE, age)
 
 
-@given(parsers.parse("the deployed model scores the sample {side} the threshold"))
+@given(
+    parsers.parse("the deployed screening model scores the sample {side} the threshold")
+)
 def scores(world: World, side: str) -> None:
     Participant.objects.filter(seqn=int(world["test_request"].sample.sample_id)).update(
         cbc={var: SIDES[side] if var == DECIDING else 0.0 for var in CBC_VARS}
@@ -198,21 +200,17 @@ def result_label(test_request: TestRequest) -> str:
 
 @then(parsers.re(r'the screening result is "(?P<result>[^"]+)"$'))
 def screening_result(world: World, result: str) -> None:
-    assert result_label(world["test_request"]) == result
-
-
-@then(parsers.parse('the screening result is "not screened" with reason "{reason}"'))
-def not_screened(world: World, reason: str) -> None:
     test_request = world["test_request"]
-    assert result_label(test_request) == "not screened"
-    assert test_request.not_screened_reason == reason
-    assert test_request.screened_by is None
+    assert result_label(test_request) == result
+    # Only a CBC the model screened names the model.
+    screened = result in ("ferritin suggested", "ferritin not suggested")
+    assert (test_request.screened_by is not None) is screened
 
 
 @then("the sample is screened by the model")
 def screened(world: World) -> None:
     test_request = world["test_request"]
-    assert result_label(test_request) != "not screened"
+    assert ScreeningResult(test_request.screening_result).is_screened()
     assert test_request.screened_by is not None
 
 
@@ -245,7 +243,6 @@ def no_score(world: World) -> None:
 def no_screening_result(world: World) -> None:
     test_request = world["test_request"]
     assert test_request.screening_result is None
-    assert test_request.not_screened_reason is None
     assert test_request.screened_by is None
 
 
@@ -261,17 +258,22 @@ def released(world: World, suggested: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "reason", ["not_eligible", "no_deployed_model", "deployed_model_changed"]
+    "result",
+    [
+        "ferritin_suggested",
+        "ferritin_not_suggested",
+        "not_screened",
+        "screening_failed",
+    ],
 )
-def test_every_reason_but_not_eligible_is_a_model_problem(reason: str) -> None:
-    from web.hospital.deployment.models import NotScreened
-
-    assert {choice.value for choice in NotScreened} == {
-        "not_eligible",
-        "no_deployed_model",
-        "deployed_model_changed",
+def test_only_the_models_two_decisions_are_screened(result: str) -> None:
+    assert {choice.value for choice in ScreeningResult} == {
+        "ferritin_suggested",
+        "ferritin_not_suggested",
+        "not_screened",
+        "screening_failed",
     }
-    assert NotScreened(reason).is_model_problem() is (reason != "not_eligible")
+    assert ScreeningResult(result).is_screened() is result.startswith("ferritin")
 
 
 @pytest.mark.parametrize(
@@ -313,4 +315,4 @@ def test_the_lab_screens_exactly_whom_the_model_was_trained_on(
         age=age,
     )
     trained_on = eligible(pd.Series([sex.label]), pd.Series([age])).iloc[0]
-    assert (test_request.not_eligible() is None) == trained_on
+    assert test_request.is_eligible() is bool(trained_on)

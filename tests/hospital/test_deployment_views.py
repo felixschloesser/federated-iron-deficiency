@@ -59,7 +59,7 @@ def test_models_page(
     screening_models_dir: Path,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    # Session, user with role, deployed model, deployment history.
+    # Session, user with role, deployed screening model, deployment history.
     with django_assert_num_queries(4):
         response = client.get(reverse("deployment:screening_models"))
     assertContains(
@@ -128,7 +128,7 @@ def test_deploying_redirects_with_a_message(
     assertContains(
         response, "Screening model of 30 Oct 2026, 10:00 deployed at threshold 0.40."
     )
-    screening_model = Deployment.objects.get().screening_model
+    screening_model = Deployment.objects.get().deployed_screening_model
     assert (screening_model.run_id, screening_model.threshold) == ("1", 0.4)
     # The deployed threshold is the one chosen when the page shows again.
     assertContains(response, "Deployed at threshold 0.40")

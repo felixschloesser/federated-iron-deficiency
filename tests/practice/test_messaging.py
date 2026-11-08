@@ -394,20 +394,25 @@ def test_check_for_reports_on_a_patients_page_returns_to_it(
     assert client.post(other).status_code == 404
 
 
-def test_check_for_reports_is_offered_only_with_a_laboratory_to_ask(
-    client: Client, practice: Laboratory, owner: User
+def test_without_a_laboratory_check_for_reports_asks_no_one(
+    client: Client, owner: User
 ) -> None:
+    """A practice with no laboratory has not been set up: its pages are the same,
+    and checking asks no one and says nothing (add_laboratory sets it up)."""
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     page = reverse("practice:patient", kwargs={"pk": record.pk})
     check = reverse("practice:patient_check_for_reports", kwargs={"patient": record.pk})
     client.force_login(owner)
     assertContains(client.get(reverse("practice:orders")), "Check for reports")
     assertContains(client.get(page), "Check for reports")
-    Laboratory.objects.all().delete()
-    assertNotContains(client.get(reverse("practice:orders")), "Check for reports")
-    assertNotContains(client.get(page), "Check for reports")
-    assert client.post(reverse("practice:check_for_reports")).status_code == 404
-    assert client.post(check).status_code == 404
+    for url, back in (
+        (reverse("practice:check_for_reports"), reverse("practice:orders")),
+        (check, page),
+    ):
+        response = client.post(url)
+        assert response.status_code == 302
+        assert response["Location"] == back
+        assert not list(client.get(back).context["messages"])
 
 
 def test_an_awaited_lab_report_says_how_to_fetch_it(

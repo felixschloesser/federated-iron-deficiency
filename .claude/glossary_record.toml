@@ -104,7 +104,7 @@ rejected = ["screening (in ml/: the hospital's word)", "prediction"]
 ["screening result"]
 rejected = ["flag", "outcome", "classification"]
 
-["ferritin suggested / ferritin not suggested / not screened"]
+["ferritin suggested / ferritin not suggested / not screened / screening failed"]
 rejected = ["flagged / not flagged (an earlier report draft; in a lab a *flag* marks an out-of-range value)", "possible iron deficiency (names a diagnosis)"]
 
 ["final model"]
@@ -117,8 +117,9 @@ rejected = ["model (too generic; Django's `Model`)", "final model (only inside f
 ["deploy"]
 rejected = ["activate", "release", "roll out", "deployment for a party's running copy (that is a party's web app)"]
 
-["deployed model"]
-rejected = ["active release", "fingerprint"]
+["deployed screening model"]
+decided = "2026-11-08"
+rejected = ["active release", "fingerprint", "deployed model (drops whose model it is; the word until 2026-11-08)", "deployed final model (final model only inside federated learning; decided 2026-11-08)", "ScreeningModel (the code's name for the row until 2026-11-08)"]
 
 ["laboratory director"]
 rejected = ["clinical biologist (not in either source)", "quality manager (WHO: runs the quality system, does not decide)", "laboratory manager"]

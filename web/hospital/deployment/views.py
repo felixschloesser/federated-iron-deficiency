@@ -15,7 +15,7 @@ from ml.training_cohort import TrainingCohortUnavailable
 from web.hospital.deployment.fetching import fetch_screening_models, unreachable
 from web.hospital.deployment.forms import DeployForm
 from web.hospital.deployment.model_files import screening_models
-from web.hospital.deployment.models import Deployment, NotScreened
+from web.hospital.deployment.models import Deployment, NoUsableModel
 from web.shared.accounts.mixins import RoleRequiredMixin
 from web.shared.accounts.roles import Role
 
@@ -29,16 +29,18 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         deployed = Deployment.objects.screener(settings.SCREENING_MODELS_DIR)
-        history = Deployment.objects.select_related("screening_model").order_by(
-            "-deployed_at", "-pk"
-        )
+        history = Deployment.objects.select_related(
+            "deployed_screening_model"
+        ).order_by("-deployed_at", "-pk")
         return {
             **super().get_context_data(**kwargs),
             "screening_models": screening_models(settings.SCREENING_MODELS_DIR),
             "deployed": None
-            if isinstance(deployed, NotScreened)
-            else deployed.screening_model,
-            "no_usable_model": deployed if isinstance(deployed, NotScreened) else None,
+            if isinstance(deployed, NoUsableModel)
+            else deployed.deployed_screening_model,
+            "no_usable_model": deployed
+            if isinstance(deployed, NoUsableModel)
+            else None,
             "history": history,
             # Only a hospital that knows the startup's endpoint can fetch.
             "post_actions": [
@@ -100,7 +102,7 @@ class DeployView(LaboratoryDirectorRequiredMixin, View):
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            deployed = deployment.screening_model
+            deployed = deployment.deployed_screening_model
             messages.success(
                 request,
                 f"{deployed.name} deployed at threshold {deployed.threshold:.2f}.",

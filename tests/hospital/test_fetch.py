@@ -148,9 +148,9 @@ def holds_none(world: World) -> None:
     )
 )
 def holds_validated(world: World, name: str) -> None:
-    from web.hospital.deployment.model_files import screening_model_file
+    from web.hospital.deployment.model_files import read_screening_model
 
-    model = screening_model_file((world["folder"] / name).read_bytes())
+    model = read_screening_model((world["folder"] / name).read_bytes())
     assert model is not None
     assert model.local_validation
     assert model.federated_auroc == FEDERATED_AUROC

@@ -130,7 +130,7 @@ def auroc_interval(area: float, counts: LocalValidationAt) -> str:
 
 
 @dataclass(frozen=True)
-class ScreeningModelFile:
+class ScreeningModel:
     """A screening model as its file holds it (glossary.toml): every part, or no
     screening model."""
 
@@ -163,7 +163,7 @@ class ScreeningModelFile:
         return auroc_interval(self.local_auroc, self.local_validation[0])
 
 
-def screening_model_file(data: bytes) -> ScreeningModelFile | None:
+def read_screening_model(data: bytes) -> ScreeningModel | None:
     """A screening model from its file's bytes; None if the file is unreadable,
     lacks a part, or its weights do not fit the network."""
     contents = load_contents(data)
@@ -176,7 +176,7 @@ def screening_model_file(data: bytes) -> ScreeningModelFile | None:
             )
             for threshold, counts in sorted(contents["confusion_matrices"].items())
         ]
-        return ScreeningModelFile(
+        return ScreeningModel(
             state_dict=fitting_weights(contents["state_dict"]),
             mean=contents["mean"],
             std=contents["std"],
@@ -190,14 +190,14 @@ def screening_model_file(data: bytes) -> ScreeningModelFile | None:
         return None
 
 
-def screening_models(directory: Path | None) -> list[ScreeningModelFile]:
+def screening_models(directory: Path | None) -> list[ScreeningModel]:
     """Every readable screening model in the hospital's folder, newest first."""
     if directory is None or not directory.is_dir():
         return []
     files = [
         file
         for path in model_file_paths(directory)
-        if (file := screening_model_file(path.read_bytes())) is not None
+        if (file := read_screening_model(path.read_bytes())) is not None
     ]
     return sorted(files, key=lambda file: file.stored_at, reverse=True)
 
@@ -252,7 +252,7 @@ def store_fetched(
     weights under a stored run's ID are refused."""
     path = model_file_path(directory, run_id)
     if path.exists():
-        stored = screening_model_file(path.read_bytes())
+        stored = read_screening_model(path.read_bytes())
         same = (
             stored is not None
             and stored.state_dict.keys() == state_dict.keys()
