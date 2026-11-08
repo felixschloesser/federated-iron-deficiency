@@ -140,7 +140,7 @@ def compose(
             for slug in (HOSPITAL, SECOND_HOSPITAL)
         )
         + f"  {APP_PRACTICE}-web:\n    environment:\n"
-        f"      DEMO_REGISTER: add_laboratory 'AZ Diest' {APP_HOSPITAL}-messaging:8441 --primary\n"
+        f"      DEMO_REGISTER: add_laboratory 'AZ Diest' {APP_HOSPITAL}-grpc:8441 --primary\n"
     )
     write_nhanes_extracts(folder / ".demo" / "nhanes")
     name = f"test-{uuid.uuid4().hex[:8]}"
@@ -286,7 +286,7 @@ def superlink(compose: Compose) -> None:
     SuperLink."""
     build(compose, "startup-web")
     up(compose, "startup-web")
-    up(compose, "startup-final-models")
+    up(compose, "startup-grpc")
     up(compose, "flower-superlink")
 
 
@@ -351,7 +351,7 @@ def hospital_app(compose: Compose) -> str:
     name = f"{APP_HOSPITAL}-web"
     # It sets the hospital up as it starts; the endpoint waits until it has.
     up(compose, name)
-    up(compose, f"{APP_HOSPITAL}-messaging")
+    up(compose, f"{APP_HOSPITAL}-grpc")
     return name
 
 
