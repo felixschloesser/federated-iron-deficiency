@@ -8,6 +8,7 @@ import pytest
 
 import ml.dataset
 from demo import nhanes
+from demo.seeding.participants import SAMPLE_IDS_PER_PATIENT
 from ml.cohort import CBC_VARS
 
 PEOPLE = [
@@ -31,7 +32,7 @@ def participants_2021_2023() -> pd.DataFrame:
                 "CRP": None if ferritin is None else 1.0,
             }
             for group, (sex, age, ferritin) in enumerate(PEOPLE)
-            for copy in range(20)
+            for copy in range(30)
         ]
     )
 
@@ -60,12 +61,16 @@ def test_each_party_gets_only_its_own_extracts() -> None:
             "participants.csv",
         }
         assert {path.name for path in files if path.parent.name == practice} == {
-            "patients.csv"
+            "sample-ids.csv"
         }
         assert files[Path(hospital, "lab-records.csv")]["cycle"].tolist() == [cycle]
-        patients[practice] = files[Path(practice, "patients.csv")]
-        assert len(patients[practice]) == pair.patients
-    # Each hospital's analyser holds a tube for every practice's patients.
+        stock = files[Path(practice, "sample-ids.csv")]
+        # Only what the stock says: no blood values reach the practice.
+        assert list(stock.columns) == ["sample_id", "sex", "age", "patient"]
+        assert len(stock) == SAMPLE_IDS_PER_PATIENT * pair.patients
+        assert stock["patient"].sum() == pair.patients
+        patients[practice] = stock
+    # Each hospital's analyser holds a tube for every practice's sample IDs.
     every = set().union(*(set(rows["sample_id"]) for rows in patients.values()))
     for pair in PAIRS:
         held = files[Path(pair.hospital, "participants.csv")]

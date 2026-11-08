@@ -9,13 +9,11 @@ from web.shared.vocabulary import Test
 
 def measure(sample_id: str, test: Test) -> dict[str, float] | None:
     """The analyser's values for `test` on the sample `sample_id` (DF36); None when
-    it has no tube for that sample. In the demo, every sample of one patient
-    holds the blood of the NHANES participant whose number starts its sample
-    ID."""
-    number = sample_id.split("-")[0]
+    it has no tube for that sample. In the demo, a sample holds the blood of the
+    NHANES participant whose number is its sample ID."""
     participant = (
-        Participant.objects.filter(seqn=int(number)).first()
-        if number.isdigit()
+        Participant.objects.filter(seqn=int(sample_id)).first()
+        if sample_id.isdigit()
         else None
     )
     return None if participant is None else participant.measure(test)

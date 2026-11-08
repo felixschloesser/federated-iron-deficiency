@@ -386,3 +386,17 @@ def test_the_hospital_reaches_the_analyser_only_through_its_port(
             " use web.hospital.analyser.port"
         )
     ]
+
+
+def test_a_glossary_citation_names_its_file(tmp_path: Path) -> None:
+    """Each party has its own glossary: a citation that names no folder is
+    ambiguous."""
+    code = (
+        '"""Orders (terms: web/practice/glossary.toml)."""\n'
+        "# rejection (web/shared/glossary.toml, rejection)\n"
+        "# a name (glossary.toml, name)\n"
+    )
+    root = tree(tmp_path, {"web/practice/models.py": code})
+    assert audit.run(root)["glossary_citations"] == [
+        "web/practice/models.py:3: cites glossary.toml without its folder"
+    ]

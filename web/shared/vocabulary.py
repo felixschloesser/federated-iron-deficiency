@@ -1,5 +1,5 @@
 """Terms every party's web app uses: the general practitioner's app and the
-hospital (terms: glossary.toml). No models, so either may import it."""
+hospital (terms: web/shared/glossary.toml). No models, so either may import it."""
 
 from dataclasses import dataclass
 from typing import assert_never
@@ -55,7 +55,7 @@ class Test(models.TextChoices):
 
 class ClinicalIndication(models.TextChoices):
     """Why a general practitioner orders a CBC, in the guidelines' words
-    (glossary.toml); which of them the hospital screens is the hospital's rule."""
+    (web/shared/glossary.toml); which of them the hospital screens is the hospital's rule."""
 
     SUSPECTED_ANAEMIA = "suspected_anaemia", "Suspected anaemia"
     SUSPECTED_IBS = "suspected_ibs", "Suspected irritable bowel syndrome"

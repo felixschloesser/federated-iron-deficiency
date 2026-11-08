@@ -32,7 +32,7 @@ def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
         TestRequest.objects.receive(
             practice=practice,
             details=LabOrderDetails(
-                sample_id="135318-1",
+                sample_id="135318",
                 test=Test.CBC,
                 clinical_indication=ClinicalIndication.SUSPECTED_ANAEMIA,
                 registered_sex=RegisteredSex.FEMALE,

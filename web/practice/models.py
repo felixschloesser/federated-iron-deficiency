@@ -1,10 +1,11 @@
-"""General practitioners, their patients, and orders (terms: glossary.toml)."""
+"""General practitioners, their patients, and orders (terms: web/practice/glossary.toml, web/shared/glossary.toml)."""
 
 from dataclasses import dataclass
 from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.db.models.functions import Abs
 
 from web.shared.vocabulary import RESULT_NAMES, ClinicalIndication, RegisteredSex, Test
 
@@ -82,30 +83,63 @@ class Patient(models.Model):
     name = models.CharField(max_length=100)
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
-    # The practice's lasting number for the patient, which starts each of their
-    # sample IDs. The demo seeds it with the NHANES participant's number, so the
-    # analyser stand-in knows whose blood a sample holds.
-    patient_number = models.CharField(max_length=20, unique=True)
 
     objects = PatientQuerySet.as_manager()
 
     def __str__(self) -> str:
         return self.name
 
-    def next_sample_id(self) -> str:
-        """The sample ID for this patient's next sample: 135318-1, 135318-2, …"""
-        return f"{self.patient_number}-{self.samples.count() + 1}"
-
     @transaction.atomic
     def collect_sample(self, *, now: datetime, laboratory: Laboratory) -> "Sample":
-        """Record blood collected from this patient, with their next sample ID,
-        for the laboratory chosen for it; tests are ordered on it afterwards and follow it there."""
+        """Record blood collected from this patient, under an unused sample ID from
+        the practice's stock, for the laboratory chosen for it; tests are ordered on
+        it afterwards and follow it there."""
+        sample_id = SampleId.objects.unused().nearest(self).first()
+        if sample_id is None:
+            raise ValidationError(
+                {
+                    "sample_id": ValidationError(
+                        "The practice has no sample ID left for this patient.",
+                        code="no_sample_id",
+                    )
+                }
+            )
         return Sample.objects.create(
             patient=self,
-            sample_id=self.next_sample_id(),
+            sample_id=sample_id,
             collected_at=now,
             laboratory=laboratory,
         )
+
+
+class SampleIdQuerySet(models.QuerySet["SampleId"]):
+    def unused(self) -> "SampleIdQuerySet":
+        """The sample IDs no sample has taken yet."""
+        return self.filter(sample__isnull=True)
+
+    def nearest(self, patient: Patient) -> "SampleIdQuerySet":
+        """Those of the patient's registered sex, nearest the patient's age first."""
+        return (
+            self.filter(registered_sex=patient.registered_sex)
+            .annotate(age_difference=Abs(models.F("age") - patient.age))
+            .order_by("age_difference", "value")
+        )
+
+
+class SampleId(models.Model):
+    """A sample ID from the practice's stock, each taken by one sample
+    (features/practice/ordering.feature). The demo seeds the stock with NHANES
+    participants' numbers, registered sex and age, so the analyser stand-in
+    measures the blood of the participant whose number a sample carries."""
+
+    value = models.CharField(max_length=20, unique=True)
+    registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
+    age = models.PositiveSmallIntegerField()
+
+    objects = SampleIdQuerySet.as_manager()
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class Sample(models.Model):
@@ -115,7 +149,9 @@ class Sample(models.Model):
     patient = models.ForeignKey(
         Patient, on_delete=models.PROTECT, related_name="samples"
     )
-    sample_id = models.CharField(max_length=20, unique=True)
+    sample_id = models.OneToOneField(
+        SampleId, on_delete=models.PROTECT, related_name="sample"
+    )
     collected_at = models.DateTimeField()
     # Where the sample went, so every test on it goes there too.
     laboratory = models.ForeignKey(
@@ -123,7 +159,7 @@ class Sample(models.Model):
     )
 
     def __str__(self) -> str:
-        return self.sample_id
+        return self.sample_id.value
 
     # .all(), not .filter(), below: they use the orders when the page prefetched them.
     def tests_to_order(self) -> list[Test]:
@@ -217,7 +253,7 @@ class Order(models.Model):
     # Absent until the hospital confirmed the lab order (DF23); then never sent again.
     sent_at = models.DateTimeField(null=True, blank=True)
     # Absent unless the laboratory rejected the lab order, with its reason for
-    # rejection (glossary.toml, rejection); then never sent again either.
+    # rejection (web/shared/glossary.toml, rejection); then never sent again either.
     rejected_at = models.DateTimeField(null=True, blank=True)
     reason_for_rejection = models.TextField(null=True, blank=True)
 
