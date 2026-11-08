@@ -17,7 +17,7 @@ meaning = "A clinical indication the hospital screens a CBC for: its rule, decid
 source = "Report, Data table: \"the three screened indications\""
 
 ["not eligible"]
-meaning = "The not-screened reason when the screening excludes a CBC (an indication not screened, not female, or not aged 18–49), never which condition (features/hospital/screening.feature)"
+meaning = "A CBC the screening does not cover (an indication not screened, not female, or not aged 18–49); its result is not screened, never saying which condition (features/hospital/screening.feature)"
 source = "Built from the report's Use case: the screening applies to one group, women aged 18–49 with a screened indication (features/hospital/screening.feature)"
 
 ["stored sample"]
@@ -37,12 +37,12 @@ meaning = "The training package's word for running the trained model on new bloo
 source = "PyTorch documentation, *Saving and Loading Models*: call model.eval() \"before running inference\""
 
 ["screening result"]
-meaning = "What screening records per CBC: one of the three below, with the reason when not screened (features/hospital/screening.feature) and the screening model when screened (features/hospital/screening.feature)"
+meaning = "What screening records per CBC: one of the four below, and the deployed screening model when the model decided (features/hospital/screening.feature)"
 source = "Report, DF31 \"screening result\", P10"
 
-["ferritin suggested / ferritin not suggested / not screened"]
-meaning = "The three screening results: the model suggests ferritin, it does not, or the CBC was not screened (not eligible, or no usable deployed screening model)"
-source = "Report, Use case \"a comment to the lab report suggesting ferritin\"; \"not screened\" from Federated version"
+["ferritin suggested / ferritin not suggested / not screened / screening failed"]
+meaning = "The four screening results: the model suggests ferritin, it does not, the CBC was not screened (not eligible), or screening failed (no usable deployed screening model; the Models page says which fault). The lab report says only whether ferritin is suggested"
+source = "Report, Use case \"a comment to the lab report suggesting ferritin\"; \"not screened\" from Federated version; \"screening failed\": project decision 2026-11-08, after the report's security solution that a replaced model file \"screens no one\""
 
 ["screening model"]
 meaning = "A final model as the hospital holds it, in its `screening-models/` folder: what the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. Its file holds every part (weights, this hospital's standardization, run ID, when it was stored, AUROC across hospitals, local validation) or is unreadable, and an unreadable one is not listed"

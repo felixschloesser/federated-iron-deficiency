@@ -18,7 +18,7 @@ from web.hospital.analyser import port as analyser
 from web.hospital.deployment.models import (
     DeployedScreeningModel,
     Deployment,
-    NotScreened,
+    NoUsableModel,
 )
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
@@ -53,9 +53,27 @@ def screened_indications() -> list[ClinicalIndication]:
 
 
 class ScreeningResult(models.TextChoices):
+    """What screening records of a CBC (features/hospital/screening.feature): the
+    model's decision; not screened, for a CBC outside the screening, never why; or
+    screening failed, when no deployed screening model was usable."""
+
     FERRITIN_SUGGESTED = "ferritin_suggested", "Ferritin suggested"
     FERRITIN_NOT_SUGGESTED = "ferritin_not_suggested", "Ferritin not suggested"
     NOT_SCREENED = "not_screened", "Not screened"
+    SCREENING_FAILED = "screening_failed", "Screening failed"
+
+    def is_screened(self) -> bool:
+        """Whether the model decided this result."""
+        match self:
+            case (
+                ScreeningResult.FERRITIN_SUGGESTED
+                | ScreeningResult.FERRITIN_NOT_SUGGESTED
+            ):
+                return True
+            case ScreeningResult.NOT_SCREENED | ScreeningResult.SCREENING_FAILED:
+                return False
+            case _:
+                assert_never(self)
 
 
 class PracticeManager(models.Manager["Practice"]):
@@ -222,10 +240,6 @@ class TestRequest(models.Model):
     screening_result = models.CharField(
         max_length=22, choices=ScreeningResult.choices, null=True, blank=True
     )
-    # Present only when not screened; no score is ever stored.
-    not_screened_reason = models.CharField(
-        max_length=22, choices=NotScreened.choices, null=True, blank=True
-    )
     # The screening model that screened this CBC; absent when not screened.
     screened_by = models.ForeignKey(
         DeployedScreeningModel,
@@ -249,17 +263,16 @@ class TestRequest(models.Model):
     def __str__(self) -> str:
         return f"{self.sample.sample_id} {self.test}"
 
-    def not_eligible(self) -> NotScreened | None:
-        """NOT_ELIGIBLE if the screening excludes the CBC: an indication not screened, a
-        registered sex other than female, or an age outside the trained range.
-        Which of them is never recorded: nobody acts on it."""
-        eligible = (
+    def is_eligible(self) -> bool:
+        """Whether the screening covers the CBC: a screened indication, registered
+        sex female, an age in the trained range. Which of them excluded a CBC is
+        never recorded: nobody acts on it."""
+        return (
             self.clinical_indication is not None
             and is_screened_indication(ClinicalIndication(self.clinical_indication))
             and self.registered_sex == RegisteredSex.of_nhanes(ELIGIBLE_SEX)
             and ELIGIBLE_AGES[0] <= self.age <= ELIGIBLE_AGES[1]
         )
-        return None if eligible else NotScreened.NOT_ELIGIBLE
 
     @property
     def ferritin_suggested(self) -> bool:
@@ -290,28 +303,26 @@ class TestRequest(models.Model):
                 "results",
                 "analysed_at",
                 "screening_result",
-                "not_screened_reason",
                 "screened_by",
             ]
         )
         return self
 
     def _screen(self, directory: Path | None) -> None:
-        """Set an analysed CBC's screening result: the model's decision, or not
-        screened with the first reason. Nothing else of it is kept."""
-        reason = self.not_eligible()
-        if reason is None:
-            deployed = Deployment.objects.screener(directory)
-            if isinstance(deployed, NotScreened):
-                reason = deployed
-            else:
-                suggested = deployed.suggests_ferritin(self.results or {}, self.age)
-                self.screening_result = (
-                    ScreeningResult.FERRITIN_SUGGESTED
-                    if suggested
-                    else ScreeningResult.FERRITIN_NOT_SUGGESTED
-                )
-                self.screened_by = deployed.deployed_screening_model
-                return
-        self.screening_result = ScreeningResult.NOT_SCREENED
-        self.not_screened_reason = reason
+        """Set an analysed CBC's screening result: not screened outside the
+        screening, screening failed without a usable deployed screening model, else
+        the model's decision. Nothing else of it is kept."""
+        if not self.is_eligible():
+            self.screening_result = ScreeningResult.NOT_SCREENED
+            return
+        deployed = Deployment.objects.screener(directory)
+        if isinstance(deployed, NoUsableModel):
+            self.screening_result = ScreeningResult.SCREENING_FAILED
+            return
+        suggested = deployed.suggests_ferritin(self.results or {}, self.age)
+        self.screening_result = (
+            ScreeningResult.FERRITIN_SUGGESTED
+            if suggested
+            else ScreeningResult.FERRITIN_NOT_SUGGESTED
+        )
+        self.screened_by = deployed.deployed_screening_model

@@ -104,7 +104,7 @@ rejected = ["screening (in ml/: the hospital's word)", "prediction"]
 ["screening result"]
 rejected = ["flag", "outcome", "classification"]
 
-["ferritin suggested / ferritin not suggested / not screened"]
+["ferritin suggested / ferritin not suggested / not screened / screening failed"]
 rejected = ["flagged / not flagged (an earlier report draft; in a lab a *flag* marks an out-of-range value)", "possible iron deficiency (names a diagnosis)"]
 
 ["final model"]

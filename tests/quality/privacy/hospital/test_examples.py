@@ -34,7 +34,6 @@ from web.hospital.lab.models import Sample, TestRequest
                 "analysed_at",
                 "results",
                 "screening_result",
-                "not_screened_reason",
                 "screened_by",
                 "report_acknowledged_at",
             },

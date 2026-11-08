@@ -2,9 +2,10 @@ Feature: Screening a CBC
   The deployed screening model screens a CBC only for a screened indication (suspected
   anaemia, suspected irritable bowel syndrome or unexplained fatigue; the lab
   order names the clinical indication and the hospital decides) in a woman
-  aged 18–49. Only the result, the
-  not-screened reason and the screening model that produced it are stored,
-  never a score; a CBC outside the screening is not eligible, never why.
+  aged 18–49. Only the result and the screening model that produced it are
+  stored, never a score: ferritin suggested, ferritin not suggested, not
+  screened (outside the screening, never why) or screening failed (no usable
+  deployed screening model; which fault, the Models page says).
 
   Every analysed CBC gets a result and its lab report at once.
 
@@ -38,7 +39,7 @@ Feature: Screening a CBC
   Scenario Outline: A CBC outside the screening is not eligible, never why
     Given a CBC sample <indication>, registered sex <sex>, aged <age>
     When laboratory staff run the analyser
-    Then the screening result is "not screened" with reason "not_eligible"
+    Then the screening result is "not screened"
     And the lab report is released without ferritin suggested
 
     Examples:
@@ -72,17 +73,17 @@ Feature: Screening a CBC
     When laboratory staff run the analyser
     Then no stored field of the sample or its screening result holds a score
 
-  Scenario Outline: Without a usable deployed screening model the CBC is released not screened
+  Scenario Outline: Without a usable deployed screening model screening fails
     Given <state>
     And a CBC sample of a woman aged 30 for a screened indication
     When laboratory staff run the analyser
-    Then the screening result is "not screened" with reason "<reason>"
+    Then the screening result is "screening failed"
     And the lab report is released without ferritin suggested
 
     Examples:
-      | state                                                | reason                  |
-      | no screening model has been deployed                 | no_deployed_model       |
-      | the file of the deployed "1" has changed on disk | deployed_model_changed  |
+      | state                                            |
+      | no screening model has been deployed             |
+      | the file of the deployed "1" has changed on disk |
 
   Scenario: A ferritin sample is never screened
     Given a ferritin sample of a woman aged 30
