@@ -1,7 +1,9 @@
 """The ServerApp: runs federated training with the hospitals and keeps the final
 model at the startup."""
 
+import os
 from datetime import UTC, datetime
+from logging import INFO
 from pathlib import Path
 
 import torch
@@ -10,12 +12,12 @@ from flwr.app import (
     ConfigRecord,
     Context,
 )
+from flwr.common.logger import log
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, Result
 
 from ml.final_model import Net
 from ml.training import (
-    DEFAULT_DEMO_DIR,
     keep_final_model,
     startup_final_models,
     training_parameters,
@@ -58,13 +60,13 @@ def _log_result_to_wandb(result: Result, api_key: str) -> None:
 @app.main()
 def main(grid: Grid, context: Context) -> None:
     """Run one training run and keep its final model in the startup's folder."""
-    demo_dir = Path(str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR)
-    training_run(grid, context, startup_final_models(demo_dir))
+    training_run(grid, context, startup_final_models(os.environ))
 
 
-def training_run(grid: Grid, context: Context, directory: Path) -> None:
-    """Train with FedAvg and keep the final model at the startup. No hospital
-    stores it until the data scientist releases it and the hospital fetches it."""
+def training_run(grid: Grid, context: Context, directory: Path | None) -> None:
+    """Train with FedAvg and keep the final model in `directory` at the startup,
+    or nowhere if None. No hospital stores it until the data scientist releases
+    it and the hospital fetches it."""
     fraction_evaluate = float(context.run_config["fraction-evaluate"])
     num_rounds = int(context.run_config["num-server-rounds"])
     lr = float(context.run_config["learning-rate"])
@@ -87,14 +89,17 @@ def training_run(grid: Grid, context: Context, directory: Path) -> None:
     if not isinstance(federated_auroc, (int, float)):
         raise TypeError(f"The AUROC across hospitals is no number: {federated_auroc}")
     # No threshold: each hospital's laboratory director chooses one.
-    keep_final_model(
-        directory,
-        run_id=context.run_id,
-        state_dict=result.arrays.to_torch_state_dict(),
-        federated_auroc=float(federated_auroc),
-        run_configuration=training_parameters(context.run_config),
-        stored_at=datetime.now(UTC),
-    )
+    if directory is None:
+        log(INFO, "FINAL_MODELS_DIR is not set: no final model kept.")
+    else:
+        keep_final_model(
+            directory,
+            run_id=context.run_id,
+            state_dict=result.arrays.to_torch_state_dict(),
+            federated_auroc=float(federated_auroc),
+            run_configuration=training_parameters(context.run_config),
+            stored_at=datetime.now(UTC),
+        )
 
     # Log the strategy metrics only when a W&B API key has been configured.
     wandb_api_key = str(context.run_config.get("wandb-api-key", "")).strip()

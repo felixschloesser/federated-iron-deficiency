@@ -85,8 +85,12 @@ services:
     command:
       - --runtime-api-address=flower-superlink:9092
       - --insecure
+    # Where the ServerApp keeps final models: the startup's folder, at the path
+    # its web app reads it.
+    environment:
+      FINAL_MODELS_DIR: /data/final-models
     volumes:
-      - {type: volume, source: startup, target: /demo/startup/final-models, volume: {subpath: final-models}}
+      - {type: volume, source: startup, target: /data/final-models, volume: {subpath: final-models}}
     networks: [internet]
 
   # The data scientist submits a training run from inside the startup:
@@ -97,7 +101,7 @@ services:
     profiles: [train]
     depends_on:
       flower-superlink: {condition: service_healthy}
-    command: [flwr, run, /app, demo, --run-config, "demo-dir='/demo'", --stream]
+    command: [flwr, run, /app, demo, --stream]
     # Its SuperLink connection, flwr-home/config.toml, comes with the startup's image.
     environment:
       FLWR_HOME: /demo/startup/flwr-home

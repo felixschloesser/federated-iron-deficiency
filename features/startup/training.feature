@@ -31,6 +31,24 @@ Feature: The startup's training runs
       | holds weights that do not fit the network |
       | lacks its weights                         |
 
+  Scenario: The ServerApp keeps final models in the folder its deployment names
+    Given the ServerApp's final-models folder is a folder it can write to
+    Then the ServerApp keeps the run's final model in that folder
+
+  Scenario: A ServerApp whose deployment names no folder keeps no final model
+    Given the ServerApp's final-models folder is not named
+    Then the ServerApp keeps no final model
+
+  Scenario Outline: The ServerApp starts no run whose final model it could not keep
+    Given the ServerApp's final-models folder <problem>
+    Then the ServerApp refuses to start the run
+
+    Examples:
+      | problem            |
+      | is a relative path |
+      | does not exist     |
+      | is read-only       |
+
   Scenario: Submitting a training run
     When the data scientist submits a training run
     Then the SuperLink receives a run without a screening threshold
@@ -48,7 +66,7 @@ Feature: The startup's training runs
       | weight-decay      | 0.0   |
       | batch-size        | 128   |
       | model-seed        | 7     |
-    And the run configuration sets no fraction of hospitals evaluating and no W&B key
+    And the run configuration sets no fraction of hospitals evaluating, no W&B key and no folder
 
   Scenario Outline: A run configuration out of bounds is refused
     When the data scientist submits a training run with <parameter> <value>
@@ -74,10 +92,9 @@ Feature: The startup's training runs
       | batch-size        | 128                |
       | model-seed        | 7                  |
       | fraction-evaluate | 1.0                |
-      | demo-dir          | /srv/demo          |
       | wandb-api-key     | secret             |
     Then final model "7" shows run configuration "Rounds 5, Local epochs 2, Learning rate 0.05, Weight decay 0.0, Batch size 128, Seed 7"
-    And the startup's copy of final model "7" holds no W&B key and no folder
+    And the startup's copy of final model "7" holds no W&B key
 
   Scenario: A SuperLink that refuses the run
     Given the SuperLink refuses runs

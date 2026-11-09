@@ -271,6 +271,20 @@ def test_only_the_proxy_is_published_and_only_on_localhost(
     assert ports == {("proxy", "127.0.0.1", published)}
 
 
+def test_the_server_app_writes_final_models_where_the_startups_web_app_reads_them() -> (
+    None
+):
+    """A ServerApp writing to a folder that is not the startup's volume loses
+    each final model. Pass: the folder FINAL_MODELS_DIR names is the startup's
+    final models, writable, at the path the web app and the screening-models
+    endpoint read them read-only."""
+    folder = service("flower-server-app")["environment"]["FINAL_MODELS_DIR"]
+    assert folder == "/data/final-models"
+    assert mounts("flower-server-app")[folder] == ("startup/final-models", False)
+    for reader in ("startup-web", "startup-grpc"):
+        assert mounts(reader)[folder] == ("startup/final-models", True), reader
+
+
 def test_the_startups_web_app_reads_the_final_models_and_not_the_superlinks_state() -> (
     None
 ):
