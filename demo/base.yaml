@@ -1,6 +1,6 @@
-# How each kind of service in compose.yaml runs. Its services extend these
-# (`extends: {file: kinds.yaml, service: …}`), which merges them key by key:
-# a service adds its own environment, volumes and networks to its kind's.
+# What compose.yaml's services share. Each extends one of these bases
+# (`extends: {file: base.yaml, service: …}`), which merges them key by key:
+# a service adds its own environment, volumes and networks to its base's.
 # Nothing here starts on its own: compose.yaml names every service that runs.
 
 services:
@@ -10,7 +10,7 @@ services:
   # needs root to hand a volume over. The health check runs every 2 s while the
   # container starts, so `up --wait` returns quickly, and every 5 minutes once
   # it is healthy, because each check starts a process in the container. Each
-  # kind or service sets its own check command.
+  # base or service sets its own check command.
   server:
     user: "1000:1000"
     restart: unless-stopped
