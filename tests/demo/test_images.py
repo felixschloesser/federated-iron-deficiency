@@ -117,8 +117,12 @@ def test_each_image_brings_only_its_partys_dfd_stores(party: str) -> None:
     """Docker copies the folders a party's image makes under /data into its fresh
     volume: only the party's own stores."""
     dockerfile = (ROOT / "demo" / f"{party}.Dockerfile").read_text()
-    made = " ".join(re.findall(r"^RUN mkdir -p (.+)$", dockerfile, re.MULTILINE))
-    folders = {path.removeprefix("/data/") for path in made.split()}
+    (made,) = re.findall(r"install -d -o app (.+)$", dockerfile, re.MULTILINE)
+    folders = {
+        path.removeprefix("/data/")
+        for path in made.split()
+        if path.startswith("/data/")
+    }
     assert folders <= PARTY_FOLDERS[party]
 
 
@@ -143,3 +147,36 @@ def test_the_startup_image_brings_its_command_lines_superlink() -> None:
         "COPY --chown=app demo/flwr-home/config.toml /data/flwr-home/config.toml"
         in dockerfile
     )
+
+
+OUR_IMAGES = ["hospital", "practice", "startup", "nhanes-download"]
+
+
+@pytest.mark.parametrize("image", OUR_IMAGES)
+def test_each_image_makes_the_user_compose_runs_as(image: str) -> None:
+    """compose.yaml runs every container as 1000:1000, who must own the folders
+    each image brings: the image names that UID instead of trusting useradd's
+    first free one."""
+    dockerfile = (ROOT / "demo" / f"{image}.Dockerfile").read_text()
+    assert "useradd --uid 1000 --create-home app" in dockerfile
+
+
+@pytest.mark.parametrize("image", ["hospital", "practice", "startup"])
+def test_each_party_image_installs_its_dependencies_once_and_not_the_project(
+    image: str,
+) -> None:
+    """The code runs from /app as it is copied; installing the project too would
+    need a second sync and the README and licence in the image."""
+    dockerfile = (ROOT / "demo" / f"{image}.Dockerfile").read_text()
+    syncs = [line for line in dockerfile.splitlines() if "uv sync" in line]
+    assert len(syncs) == 1, syncs
+    assert "README.md" not in dockerfile
+    assert "LICENSE" not in dockerfile
+
+
+def test_the_superexec_image_installs_only_the_locked_files() -> None:
+    """Threat: a changed package on an index reaching the image that runs the
+    startup's code at every hospital. Pass: pip installs with uv.lock's hashes."""
+    dockerfile = (ROOT / "demo" / "superexec.Dockerfile").read_text()
+    assert "--no-hashes" not in dockerfile
+    assert "--require-hashes" in dockerfile
