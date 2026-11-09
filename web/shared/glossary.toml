@@ -86,7 +86,7 @@ meaning = "What the hospital returns to the practice for one test: the results a
 source = "Report, DF25"
 
 ["CBC value names and units, e.g. *Hemoglobin*, g/dL"]
-meaning = "How the app names and measures each CBC value: NHANES's own names, in its units, with no conversion"
+meaning = "How the app names and measures each CBC value: NHANES's own names, in its units, with no conversion. On the wire each result is a result name (the ResultName enum) and its value; the name fixes the unit"
 source = "NHANES 2021–2023 CBC_L codebook, SAS labels (https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2021/DataFiles/CBC_L.htm)"
 
 ["Ferritin, ng/mL"]

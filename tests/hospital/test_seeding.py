@@ -14,7 +14,7 @@ from tests.conftest import PEOPLE, nhanes_rows
 from web.hospital.analyser.models import MADE_UP_FERRITIN, Participant
 from web.shared.accounts.models import User
 from web.shared.accounts.roles import Role, role_of
-from web.shared.vocabulary import RESULT_NAMES
+from web.shared.vocabulary import ResultName
 from web.shared.vocabulary import Test as OrderedTest
 
 pytestmark = pytest.mark.django_db
@@ -90,8 +90,8 @@ def test_the_number_of_participants_is_a_parameter(development: None) -> None:
 def test_a_made_up_ferritin_is_reported_under_its_own_name() -> None:
     participant = Participant(seqn=1, cbc={}, ferritin=None, made_up_ferritin=60.0)
     assert participant.measure(OrderedTest.FERRITIN) == {MADE_UP_FERRITIN: 60.0}
-    assert RESULT_NAMES[MADE_UP_FERRITIN].name == "Ferritin (made up for the demo)"
-    assert RESULT_NAMES[MADE_UP_FERRITIN].unit == "ng/mL"
+    name = ResultName(MADE_UP_FERRITIN)
+    assert (name.label, name.unit()) == ("Ferritin (made up for the demo)", "ng/mL")
 
 
 def lab_records_file(tmp_path: Path, deficient: int, sound: int) -> Path:

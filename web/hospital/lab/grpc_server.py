@@ -10,7 +10,7 @@ from web.shared.grpc.convert import from_proto, moment, timestamp, to_proto
 from web.shared.grpc.endpoint import start, with_database
 from web.shared.grpc.identity import caller
 from web.shared.grpc.rejection import rejected
-from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex, ResultName, Test
 
 
 def practice_of(context: grpc.ServicerContext) -> Practice:
@@ -77,7 +77,13 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
                     report_id=test_request.pk,
                     sample_id=test_request.sample.sample_id,
                     test=to_proto(Test(test_request.test), messages_pb2.Test),
-                    results=test_request.results or {},
+                    results=[
+                        messages_pb2.Result(
+                            name=to_proto(ResultName(name), messages_pb2.ResultName),
+                            value=value,
+                        )
+                        for name, value in (test_request.results or {}).items()
+                    ],
                     ferritin_suggested=test_request.ferritin_suggested,
                     released_at=timestamp(test_request.analysed_at),
                 )

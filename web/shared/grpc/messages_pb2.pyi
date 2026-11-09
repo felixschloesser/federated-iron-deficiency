@@ -95,6 +95,49 @@ REGISTERED_SEX_FEMALE: RegisteredSex.ValueType  # 1
 REGISTERED_SEX_MALE: RegisteredSex.ValueType  # 2
 Global___RegisteredSex: _TypeAlias = RegisteredSex  # noqa: Y015
 
+class _ResultName:
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    V: _TypeAlias = ValueType  # noqa: Y015
+
+class _ResultNameEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_ResultName.ValueType], _builtins.type):
+    DESCRIPTOR: _descriptor.EnumDescriptor
+    RESULT_NAME_UNSPECIFIED: _ResultName.ValueType  # 0
+    RESULT_NAME_WHITE_BLOOD_CELL_COUNT: _ResultName.ValueType  # 1
+    RESULT_NAME_RED_BLOOD_CELL_COUNT: _ResultName.ValueType  # 2
+    RESULT_NAME_HEMOGLOBIN: _ResultName.ValueType  # 3
+    RESULT_NAME_HEMATOCRIT: _ResultName.ValueType  # 4
+    RESULT_NAME_MEAN_CELL_VOLUME: _ResultName.ValueType  # 5
+    RESULT_NAME_MEAN_CELL_HEMOGLOBIN_CONCENTRATION: _ResultName.ValueType  # 6
+    RESULT_NAME_MEAN_CELL_HEMOGLOBIN: _ResultName.ValueType  # 7
+    RESULT_NAME_RED_CELL_DISTRIBUTION_WIDTH: _ResultName.ValueType  # 8
+    RESULT_NAME_PLATELET_COUNT: _ResultName.ValueType  # 9
+    RESULT_NAME_MEAN_PLATELET_VOLUME: _ResultName.ValueType  # 10
+    RESULT_NAME_LYMPHOCYTE_NUMBER: _ResultName.ValueType  # 11
+    RESULT_NAME_SEGMENTED_NEUTROPHILS_NUMBER: _ResultName.ValueType  # 12
+    RESULT_NAME_MONOCYTE_NUMBER: _ResultName.ValueType  # 13
+    RESULT_NAME_FERRITIN: _ResultName.ValueType  # 14
+    RESULT_NAME_MADE_UP_FERRITIN: _ResultName.ValueType  # 15
+
+class ResultName(_ResultName, metaclass=_ResultNameEnumTypeWrapper): ...
+
+RESULT_NAME_UNSPECIFIED: ResultName.ValueType  # 0
+RESULT_NAME_WHITE_BLOOD_CELL_COUNT: ResultName.ValueType  # 1
+RESULT_NAME_RED_BLOOD_CELL_COUNT: ResultName.ValueType  # 2
+RESULT_NAME_HEMOGLOBIN: ResultName.ValueType  # 3
+RESULT_NAME_HEMATOCRIT: ResultName.ValueType  # 4
+RESULT_NAME_MEAN_CELL_VOLUME: ResultName.ValueType  # 5
+RESULT_NAME_MEAN_CELL_HEMOGLOBIN_CONCENTRATION: ResultName.ValueType  # 6
+RESULT_NAME_MEAN_CELL_HEMOGLOBIN: ResultName.ValueType  # 7
+RESULT_NAME_RED_CELL_DISTRIBUTION_WIDTH: ResultName.ValueType  # 8
+RESULT_NAME_PLATELET_COUNT: ResultName.ValueType  # 9
+RESULT_NAME_MEAN_PLATELET_VOLUME: ResultName.ValueType  # 10
+RESULT_NAME_LYMPHOCYTE_NUMBER: ResultName.ValueType  # 11
+RESULT_NAME_SEGMENTED_NEUTROPHILS_NUMBER: ResultName.ValueType  # 12
+RESULT_NAME_MONOCYTE_NUMBER: ResultName.ValueType  # 13
+RESULT_NAME_FERRITIN: ResultName.ValueType  # 14
+RESULT_NAME_MADE_UP_FERRITIN: ResultName.ValueType  # 15
+Global___ResultName: _TypeAlias = ResultName  # noqa: Y015
+
 @_typing.final
 class LabOrder(_message.Message):
     """DF23. No patient name, no blood values (tests/quality/privacy/test_messages.py): the
@@ -140,32 +183,38 @@ class LabOrder(_message.Message):
 Global___LabOrder: _TypeAlias = LabOrder  # noqa: Y015
 
 @_typing.final
+class Result(_message.Message):
+    """One measured value, under its name, in the unit the name fixes
+    (web.shared.vocabulary.ResultName.unit). A value of 0 is a value.
+    """
+
+    DESCRIPTOR: _descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: _builtins.int
+    VALUE_FIELD_NUMBER: _builtins.int
+    name: Global___ResultName.ValueType
+    value: _builtins.float
+    def __init__(
+        self,
+        *,
+        name: Global___ResultName.ValueType = ...,
+        value: _builtins.float | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["value", b"value"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["name", b"name", "value", b"value"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___Result: _TypeAlias = Result  # noqa: Y015
+
+@_typing.final
 class LabReport(_message.Message):
     """DF25. Results and one bit of screening (features/practice/reports.feature, tests/quality/privacy/test_messages.py): no score, and nothing that
     tells ferritin not suggested from not screened.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
-
-    @_typing.final
-    class ResultsEntry(_message.Message):
-        DESCRIPTOR: _descriptor.Descriptor
-
-        KEY_FIELD_NUMBER: _builtins.int
-        VALUE_FIELD_NUMBER: _builtins.int
-        key: _builtins.str
-        value: _builtins.float
-        def __init__(
-            self,
-            *,
-            key: _builtins.str = ...,
-            value: _builtins.float = ...,
-        ) -> None: ...
-        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
-        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-        def WhichOneof(self, oneof_group: _Never) -> None: ...
 
     REPORT_ID_FIELD_NUMBER: _builtins.int
     SAMPLE_ID_FIELD_NUMBER: _builtins.int
@@ -178,8 +227,8 @@ class LabReport(_message.Message):
     test: Global___Test.ValueType
     ferritin_suggested: _builtins.bool
     @_builtins.property
-    def results(self) -> _containers.ScalarMap[_builtins.str, _builtins.float]:
-        """empty when NHANES lacks the value"""
+    def results(self) -> _containers.RepeatedCompositeFieldContainer[Global___Result]:
+        """empty when NHANES lacks the values"""
 
     @_builtins.property
     def released_at(self) -> _timestamp_pb2.Timestamp: ...
@@ -189,7 +238,7 @@ class LabReport(_message.Message):
         report_id: _builtins.int = ...,
         sample_id: _builtins.str = ...,
         test: Global___Test.ValueType = ...,
-        results: _abc.Mapping[_builtins.str, _builtins.float] = ...,
+        results: _abc.Iterable[Global___Result] = ...,
         released_at: _timestamp_pb2.Timestamp = ...,
         ferritin_suggested: _builtins.bool | None = ...,
     ) -> None: ...
