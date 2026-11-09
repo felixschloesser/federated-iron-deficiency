@@ -54,7 +54,7 @@ def _send(
                     RegisteredSex(order.registered_sex), messages_pb2.RegisteredSex
                 ),
                 age=order.age,
-                ordered_at=timestamp(order.ordered_at),
+                collected_at=timestamp(order.sample.collected_at),
             )
         ),
         timeout=timeout,

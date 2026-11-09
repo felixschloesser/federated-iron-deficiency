@@ -6,7 +6,7 @@
 {% if test_requests %}
 <div class="overflow-auto"><table class="stack-narrow">
   <thead>
-    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col"><span class="visually-hidden">Action</span></th><th scope="col">Ordered</th></tr>
+    <tr><th scope="col">Sample ID</th><th scope="col">Test</th><th scope="col"><span class="visually-hidden">Action</span></th><th scope="col">Collected</th></tr>
   </thead>
   <tbody>
     {% for test_request in test_requests %}
@@ -14,7 +14,7 @@
       <td data-label="Sample ID"><span class="sample-id">{{ test_request.sample.sample_id }}</span>{% if test_request.stored_sample %} · stored sample{% endif %}</td>
       <td data-label="Test">{{ test_request.get_test_display }}</td>
       <td data-label="">{% url "lab:analyse" test_request.pk as analyse_url %}{% include "includes/action_button.html" with url=analyse_url label="Run analyser" accessible_label="Run analyser for sample "|add:test_request.sample.sample_id %}</td>
-      <td data-label="Ordered">{{ test_request.ordered_at|date:"j M Y, H:i" }}</td>
+      <td data-label="Collected">{{ test_request.collected_at|date:"j M Y, H:i" }}</td>
     </tr>
     {% endfor %}
   </tbody>

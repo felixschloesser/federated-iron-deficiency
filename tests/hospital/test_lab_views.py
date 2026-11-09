@@ -159,7 +159,7 @@ def test_to_analyse_shows_only_what_running_the_analyser_needs(
     client: Client, staff_member: User, test_request: TestRequest
 ) -> None:
     response = logged_in(client, staff_member).get(reverse("lab:test_requests"))
-    for heading in ("Sample ID", "Test", "Ordered"):
+    for heading in ("Sample ID", "Test", "Collected"):
         assertContains(response, f'<th scope="col">{heading}</th>')
     for heading in (
         "General practitioner",
@@ -186,7 +186,7 @@ def test_to_analyse_marks_a_stored_sample(
 def test_analysed_names_no_general_practitioner(
     client: Client, staff_member: User, test_request: TestRequest, tmp_path: Path
 ) -> None:
-    test_request.run_analyser(directory=tmp_path, now=test_request.ordered_at)
+    test_request.run_analyser(directory=tmp_path, now=test_request.collected_at)
     response = logged_in(client, staff_member).get(reverse("lab:analysed"))
     assertNotContains(response, '<th scope="col">General practitioner</th>')
 

@@ -47,8 +47,8 @@ enum RegisteredSex {
 // blood values: the sample's values are measured at the hospital. From the
 // clinical indication, the laboratory decides whether to screen a CBC.
 // TODO(issue B, DD6 and DD2): carry a yes/no `screened` in place of the
-// clinical indication, and in place of the order time how old the sample is,
-// which the laboratory needs to judge its values;
+// clinical indication, and in place of the collection time how old the sample
+// is, which the laboratory needs to judge its values;
 // tests/quality/privacy/test_messages.py.
 message LabOrder {
   string sample_id = 1;
@@ -58,7 +58,8 @@ message LabOrder {
   ClinicalIndication clinical_indication = 3;
   RegisteredSex registered_sex = 4;
   uint32 age = 5 [features.field_presence = EXPLICIT];
-  google.protobuf.Timestamp ordered_at = 6;
+  // When the practice collected the sample, which tells the laboratory its age.
+  google.protobuf.Timestamp collected_at = 6;
 }
 
 enum ResultName {

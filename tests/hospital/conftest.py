@@ -76,7 +76,7 @@ def receive_lab_order(
             else None,
             registered_sex=sex,
             age=age,
-            ordered_at=now,
+            collected_at=now,
         ),
     )
 

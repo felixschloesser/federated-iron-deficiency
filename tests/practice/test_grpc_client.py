@@ -77,7 +77,7 @@ def test_a_placed_order_reaches_the_hospital_as_its_lab_order(
     )
     assert sent.registered_sex == messages_pb2.REGISTERED_SEX_FEMALE
     assert sent.age == 32
-    assert sent.ordered_at.ToDatetime(tzinfo=UTC) == NOW
+    assert sent.collected_at.ToDatetime(tzinfo=UTC) == placed.sample.collected_at
     # The practice by its name's slug, in the call's metadata; no general
     # practitioner.
     assert fake_laboratory.laboratory.callers == ["de-ceder"]

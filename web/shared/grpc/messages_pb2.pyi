@@ -142,8 +142,8 @@ class LabOrder(_message.Message):
     blood values: the sample's values are measured at the hospital. From the
     clinical indication, the laboratory decides whether to screen a CBC.
     TODO(issue B, DD6 and DD2): carry a yes/no `screened` in place of the
-    clinical indication, and in place of the order time how old the sample is,
-    which the laboratory needs to judge its values;
+    clinical indication, and in place of the collection time how old the sample
+    is, which the laboratory needs to judge its values;
     tests/quality/privacy/test_messages.py.
     """
 
@@ -154,7 +154,7 @@ class LabOrder(_message.Message):
     CLINICAL_INDICATION_FIELD_NUMBER: _builtins.int
     REGISTERED_SEX_FIELD_NUMBER: _builtins.int
     AGE_FIELD_NUMBER: _builtins.int
-    ORDERED_AT_FIELD_NUMBER: _builtins.int
+    COLLECTED_AT_FIELD_NUMBER: _builtins.int
     sample_id: _builtins.str
     test: Global___Test.ValueType
     clinical_indication: Global___ClinicalIndication.ValueType
@@ -164,7 +164,9 @@ class LabOrder(_message.Message):
     registered_sex: Global___RegisteredSex.ValueType
     age: _builtins.int
     @_builtins.property
-    def ordered_at(self) -> _timestamp_pb2.Timestamp: ...
+    def collected_at(self) -> _timestamp_pb2.Timestamp:
+        """When the practice collected the sample, which tells the laboratory its age."""
+
     def __init__(
         self,
         *,
@@ -173,11 +175,11 @@ class LabOrder(_message.Message):
         clinical_indication: Global___ClinicalIndication.ValueType = ...,
         registered_sex: Global___RegisteredSex.ValueType = ...,
         age: _builtins.int | None = ...,
-        ordered_at: _timestamp_pb2.Timestamp = ...,
+        collected_at: _timestamp_pb2.Timestamp = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["age", b"age", "ordered_at", b"ordered_at"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["age", b"age", "collected_at", b"collected_at"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["age", b"age", "clinical_indication", b"clinical_indication", "ordered_at", b"ordered_at", "registered_sex", b"registered_sex", "sample_id", b"sample_id", "test", b"test"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["age", b"age", "clinical_indication", b"clinical_indication", "collected_at", b"collected_at", "registered_sex", b"registered_sex", "sample_id", b"sample_id", "test", b"test"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 

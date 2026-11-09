@@ -50,7 +50,7 @@ def test_a_lab_order_names_its_indication_only_as_one_of_the_choices() -> None:
                 "clinical_indication",
                 "registered_sex",
                 "age",
-                "ordered_at",
+                "collected_at",
             },
         ),
         # Of screening, only whether ferritin is suggested: no score, no reason.
