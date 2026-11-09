@@ -108,12 +108,14 @@ bdd_features_base_dir = "features/"
 empty_parameter_set_mark = "fail_at_collect"
 # Container-backed and NHANES-backed tests run only as merge gates:
 # pytest -m containers, pytest -m nhanes
-addopts = "-m 'not containers and not nhanes'"
+addopts = "-m 'not containers and not nhanes and not privacy_issue'"
 markers = [
     "containers: needs a running Docker engine (every test in tests/e2e/, and those marked elsewhere)",
-    # The quick loop leaves these out: pytest -m "not containers and not subprocess"
+    # The quick loop leaves these out: pytest -m "not containers and not subprocess and not privacy_issue"
     "subprocess: starts a process of its own (manage.py, uv, flwr), a second or more each",
     "nhanes: trains on the pinned NHANES revision (downloads it once, about a minute)",
+    # Red until the report's issue is fixed; then the mark comes off: pytest -m privacy_issue
+    "privacy_issue: an open privacy issue of the report, failing until it is fixed",
 ]
 
 [tool.ruff]

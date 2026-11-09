@@ -14,10 +14,9 @@ The rules:
      network reaches what, what a mount allows. Mark it
      `@pytest.mark.containers`; tests/quality/security/test_running_containers.py
      shows the fixtures.
-- A test that finds a real leak lands marked
-  `@pytest.mark.xfail(strict=True, reason="<threat>: open, <what leaks>")`: the
-  run stays green, the finding stays visible, and the test fails the day the
-  leak is fixed, so the mark comes off.
+- A test for an open issue lands marked `@pytest.mark.privacy_issue`: the
+  default run leaves it out, `uv run pytest -m privacy_issue` shows it red
+  until the issue is fixed, and once it passes the mark comes off.
 - `uv run pytest` runs every test, each party's under its settings; ruff and
   mypy --strict check tests as they check the code.
 """

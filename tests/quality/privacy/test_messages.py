@@ -5,10 +5,7 @@ tier: a privacy property the contract decides is tested on the contract."""
 import pytest
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="DD6, DD2: open, a lab order names the clinical indication and the time of day",
-)
+@pytest.mark.privacy_issue
 def test_a_lab_order_says_only_whether_its_cbc_is_screened_and_on_which_day() -> None:
     """Threats DD6 and DD2 (issue B). Pass: a lab order carries a yes/no
     `screened` in place of the clinical indication, and no timestamp: the day it

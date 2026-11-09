@@ -24,10 +24,7 @@ def names_in(module: str) -> set[str]:
     return used | imported
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="DD5: open, the startup receives each hospital's update in plaintext",
-)
+@pytest.mark.privacy_issue
 def test_the_startup_receives_no_hospital_update_in_plaintext() -> None:
     """Threat DD5 (issue A). Pass: the ClientApp masks its update with Flower's
     SecAgg+ mod and the ServerApp aggregates through SecAgg+, so the SuperLink

@@ -12,10 +12,7 @@ OPTED_OUT = "opted_out"
 
 
 @pytest.mark.django_db
-@pytest.mark.xfail(
-    strict=True,
-    reason="U3: open, no patient can keep her record out of the training cohort",
-)
+@pytest.mark.privacy_issue
 def test_an_opted_out_lab_record_never_reaches_the_training_cohort() -> None:
     """Threat U3 (issue C). Pass: a lab record marked OPTED_OUT is left out of
     the training cohort, and every other eligible record is in it."""
