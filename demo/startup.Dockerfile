@@ -18,7 +18,9 @@ COPY --chown=app pyproject.toml uv.lock /app/
 # Install dependencies before copying code: editing code then reuses this
 # layer. torch is the CPU-only build (pyproject.toml pins PyTorch's CPU index).
 RUN --mount=type=cache,target=/tmp/.cache/uv,uid=1000,gid=1000 uv sync --locked --no-dev --group web --no-install-package ray --no-install-project
-COPY --chown=app manage.py /app/
+# The FAB the data scientist's flwr builds from /app includes these two
+# (pyproject.toml's fab-include).
+COPY --chown=app README.md LICENSE manage.py /app/
 COPY --chown=app ml/ /app/ml/
 COPY --chown=app web/__init__.py /app/web/
 COPY --chown=app web/shared/ /app/web/shared/

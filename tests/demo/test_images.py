@@ -165,13 +165,23 @@ def test_each_image_makes_the_user_compose_runs_as(image: str) -> None:
 def test_each_party_image_installs_its_dependencies_once_and_not_the_project(
     image: str,
 ) -> None:
-    """The code runs from /app as it is copied; installing the project too would
-    need a second sync and the README and licence in the image."""
+    """The code runs from /app as it is copied: one sync, without the project."""
     dockerfile = (ROOT / "demo" / f"{image}.Dockerfile").read_text()
     syncs = [line for line in dockerfile.splitlines() if "uv sync" in line]
     assert len(syncs) == 1, syncs
-    assert "README.md" not in dockerfile
-    assert "LICENSE" not in dockerfile
+    assert "--no-install-project" in syncs[0] or "--only-group" in syncs[0]
+
+
+@pytest.mark.parametrize("image", ["hospital", "practice", "startup"])
+def test_only_the_startup_image_brings_what_its_fab_includes(image: str) -> None:
+    """The data scientist's flwr builds the FAB from the startup's /app, and the
+    FAB includes pyproject.toml's fab-include; no other party builds one."""
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    included = pyproject["tool"]["flwr"]["app"]["fab-include"]
+    files = [pattern.removeprefix("/") for pattern in included if "*" not in pattern]
+    dockerfile = (ROOT / "demo" / f"{image}.Dockerfile").read_text()
+    for name in files:
+        assert (name in dockerfile) is (image == "startup"), name
 
 
 def test_the_superexec_image_installs_only_the_locked_files() -> None:

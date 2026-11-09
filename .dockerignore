@@ -2,6 +2,9 @@
 *
 !pyproject.toml
 !uv.lock
+# The startup's FAB includes them (pyproject.toml's fab-include).
+!README.md
+!LICENSE
 !manage.py
 !ml/
 !web/
