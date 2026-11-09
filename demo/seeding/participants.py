@@ -10,9 +10,9 @@ from typing import assert_never
 import pandas as pd
 
 from ml.cohort import ELIGIBLE_SEX, eligible, iron_deficient
-from ml.dataset import new_cycle_ferritin_and_crp, new_cycle_participants
 
-# Patients per practice unless --patients says otherwise; the groups share them.
+# Patients per practice unless nhanes-download's --pair says otherwise; the
+# groups share them.
 PATIENTS = 12
 # Sample IDs in a practice's stock for each of its patients.
 SAMPLE_IDS_PER_PATIENT = 3
@@ -43,14 +43,6 @@ class Group(enum.Enum):
                 return women & ~screened
             case _:
                 assert_never(self)
-
-
-def load_nhanes() -> pd.DataFrame:
-    """The 2021–2023 participants: sample ID, sex, age, 13 CBC values, ferritin
-    and CRP."""
-    return new_cycle_participants().merge(
-        new_cycle_ferritin_and_crp(), on="sample_id", how="left"
-    )
 
 
 def choose(rows: pd.DataFrame, seed: int, patients: int = PATIENTS) -> pd.DataFrame:

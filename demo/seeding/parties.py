@@ -149,7 +149,7 @@ def seed_lab_records(csv_path: Path, provide: bool) -> str:
     director = User.objects.filter(role=Role.LABORATORY_DIRECTOR).first()
     if director is None or settings.TRAINING_COHORT_DIR is None:
         raise SystemExit(
-            "Providing needs the laboratory director (python -m demo.seed hospital)"
+            "Providing needs the laboratory director (seeded first)"
             " and TRAINING_COHORT_DIR."
         )
     try:

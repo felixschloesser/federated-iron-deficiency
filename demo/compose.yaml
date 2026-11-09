@@ -195,7 +195,7 @@ services:
       - >-
         python manage.py migrate -v0
         && python -m demo.seed hospital --rows /nhanes/participants.csv
-        && python -m demo.seed lab-records --csv /nhanes/lab-records.csv --provide
+        --lab-records /nhanes/lab-records.csv --provide
         && python manage.py add_practice 'Huisartsenpraktijk De Akker'
         && python manage.py add_practice 'Huisartsenpraktijk De Berk'
         && python manage.py add_practice 'Huisartsenpraktijk De Ceder'
@@ -255,7 +255,7 @@ services:
       - >-
         python manage.py migrate -v0
         && python -m demo.seed hospital --rows /nhanes/participants.csv
-        && python -m demo.seed lab-records --csv /nhanes/lab-records.csv --provide
+        --lab-records /nhanes/lab-records.csv --provide
         && python manage.py add_practice 'Huisartsenpraktijk De Akker'
         && python manage.py add_practice 'Huisartsenpraktijk De Berk'
         && python manage.py add_practice 'Huisartsenpraktijk De Ceder'
@@ -314,7 +314,7 @@ services:
       - >-
         python manage.py migrate -v0
         && python -m demo.seed hospital --rows /nhanes/participants.csv
-        && python -m demo.seed lab-records --csv /nhanes/lab-records.csv
+        --lab-records /nhanes/lab-records.csv
         && python manage.py add_practice 'Huisartsenpraktijk De Akker'
         && python manage.py add_practice 'Huisartsenpraktijk De Berk'
         && python manage.py add_practice 'Huisartsenpraktijk De Ceder'

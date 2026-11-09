@@ -181,12 +181,15 @@ names and insist on HTTPS: clear it for those sites.
 Each party installs only its own apps: a hospital's database has no table
 for patients, a practice's none for test requests, analyser values or final
 models. Without Docker, run each party as its own web app, each on a port of its
-own; its data goes to `.data/<party>/` in the checkout:
+own; its data goes to `.data/<party>/` in the checkout. Each seeds from its
+own NHANES extract, as in Docker (beside them in `.data/`, not the demo's
+`.demo/`); write a hospital's and its practice's once:
 
+    uv run python -m demo.nhanes --out-dir .data/nhanes --pair 2017-2018 az-diest huisartsenpraktijk-de-ceder 12
     export DJANGO_DEBUG=1
     DJANGO_SETTINGS_MODULE=web.hospital.settings uv run python manage.py migrate
-    DJANGO_SETTINGS_MODULE=web.hospital.settings uv run python -m demo.seed hospital
+    DJANGO_SETTINGS_MODULE=web.hospital.settings uv run python -m demo.seed hospital --rows .data/nhanes/az-diest/participants.csv --lab-records .data/nhanes/az-diest/lab-records.csv
     DJANGO_SETTINGS_MODULE=web.hospital.settings uv run python manage.py runserver 8001
     DJANGO_SETTINGS_MODULE=web.practice.settings uv run python manage.py migrate
-    DJANGO_SETTINGS_MODULE=web.practice.settings uv run python -m demo.seed practice
+    DJANGO_SETTINGS_MODULE=web.practice.settings uv run python -m demo.seed practice --rows .data/nhanes/huisartsenpraktijk-de-ceder/sample-ids.csv
     DJANGO_SETTINGS_MODULE=web.practice.settings uv run python manage.py runserver 8002
