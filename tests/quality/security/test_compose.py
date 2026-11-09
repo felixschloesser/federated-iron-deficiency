@@ -1,5 +1,5 @@
 """The demo as compose.yaml declares it (demo/README.md): each party's services
-see only their own party's folder and reach only their crossings.
+see only their own party's folder; the parties share one network.
 
 Read through `docker compose config`, which also validates the file.
 """
@@ -271,24 +271,6 @@ def test_only_the_proxy_is_published_and_only_on_localhost(
     assert ports == {("proxy", "127.0.0.1", published)}
 
 
-def test_the_proxy_reaches_every_web_app_and_nothing_else() -> None:
-    assert set(service("proxy")["networks"]) == {
-        "startup-web",
-        *HOSPITAL_SLUGS,
-        *PRACTICE_SLUGS,
-    }
-
-
-def test_the_startups_web_app_reaches_the_superlink_and_the_proxy_never_does() -> None:
-    assert set(service("startup-web")["networks"]) == {"startup", "startup-web"}
-    members = {
-        name
-        for name, spec in config()["services"].items()
-        if "startup-web" in spec.get("networks", {})
-    }
-    assert members == {"startup-web", "proxy"}
-
-
 def test_the_startups_web_app_reads_the_final_models_and_not_the_superlinks_state() -> (
     None
 ):
@@ -312,63 +294,55 @@ def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
     assert upstream.replace("$party", found["party"]) == f"{slug}-web:8000"
 
 
-def test_crossings_and_the_startup_are_internal_networks() -> None:
-    networks = config()["networks"]
-    internal = {name for name, spec in networks.items() if spec.get("internal")}
-    assert internal == {
-        "startup",
-        "model-updates",
-        "lab-orders",
-        "screening-models",
-    } | {f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS}
-
-
-def test_model_updates_connect_only_the_superlink_and_the_supernodes() -> None:
-    members = {
+def test_the_parties_share_one_network_that_reaches_nothing_outside() -> None:
+    """Zero trust: reaching a party's server grants nothing, as every call says
+    whom it is from (the report's mutual TLS; in the demo, the caller's slug),
+    so no boundary between parties rests on a network. Pass: every party's
+    servers and the proxy share internet, an internal network; the proxy
+    alone is on browser, for its published port; nhanes-download alone on
+    setup; and the startup's code at each hospital on a network of its own."""
+    declared = config()
+    clientapps = {f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS}
+    assert set(declared["networks"]) == {"setup", "internet", "browser", *clientapps}
+    internal = {
+        name for name, spec in declared["networks"].items() if spec.get("internal")
+    }
+    assert internal == {"internet", *clientapps}
+    on = {
+        network: {
+            name
+            for name, spec in declared["services"].items()
+            if network in spec.get("networks", {})
+        }
+        for network in ("setup", "internet", "browser")
+    }
+    assert on["setup"] == {"nhanes-download"}
+    assert on["browser"] == {"proxy"}
+    servers = {
         name
-        for name, spec in config()["services"].items()
-        if "model-updates" in spec.get("networks", {})
+        for name, spec in declared["services"].items()
+        if "network_mode" not in spec
+        and name != "nhanes-download"
+        and not name.endswith("-flower-client-app")
     }
-    assert members == {"flower-superlink"} | {
-        f"{slug}-flower-supernode" for slug in HOSPITAL_SLUGS
-    }
+    assert on["internet"] == servers
 
 
 @pytest.mark.parametrize("practice", PRACTICE_SLUGS)
-def test_each_practice_reaches_every_hospitals_lab_order_endpoint_and_nothing_else(
+def test_each_practice_knows_its_laboratories_from_rows_not_settings(
     practice: str,
 ) -> None:
     """A practice chooses the laboratory per sample (features/practice/ordering.feature); its laboratories are
     rows add_laboratory made, not environment variables."""
     spec = service(f"{practice}-web")
-    assert set(spec["networks"]) == {practice, "lab-orders"}
     assert "MESSAGING_ADDRESS" not in spec["environment"]
-
-
-def test_one_lab_orders_network_holds_every_hospital_and_practice_only() -> None:
-    """Every practice may send to every hospital (features/practice/ordering.feature): one crossing, TB3-TB1,
-    like the internet between them; separate networks would isolate nothing."""
-    members = {
-        name
-        for name, spec in config()["services"].items()
-        if "lab-orders" in spec.get("networks", {})
-    }
-    assert members == {f"{slug}-grpc" for slug in HOSPITAL_SLUGS} | {
-        f"{slug}-web" for slug in PRACTICE_SLUGS
-    }
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
 def test_the_hospital_serves_its_pages_and_its_grpc_from_containers_of_their_own(
     slug: str,
 ) -> None:
-    # One container per server, each on one network: its practices reach the
-    # lab-order endpoint and never the pages.
     web, grpc = service(f"{slug}-web"), service(f"{slug}-grpc")
-    # screening-models: to fetch screening models from the startup; it serves
-    # nothing there.
-    assert set(web["networks"]) == {slug, "screening-models"}
-    assert set(grpc["networks"]) == {"lab-orders"}
     assert "--bind=0.0.0.0:8000" in web["command"]
     assert grpc["command"][-2:] == ["grpcrunserver", "0.0.0.0:8441"]
     assert mounts(f"{slug}-grpc") == {"/data": (f"hospitals/{slug}", False)}
@@ -425,22 +399,22 @@ def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
     assert service("nhanes-download")["environment"]["HF_HOME"] == "/demo/huggingface"
 
 
-def test_only_nhanes_download_reaches_the_internet() -> None:
+def test_only_containers_without_a_partys_folder_reach_the_internet() -> None:
     """Threat: a party's data leaving through a container that reaches the
-    internet. Pass: nhanes-download, which sees no party's folder, is the only
-    service on the one network that is not internal."""
-    networks = config()["networks"]
-    outside = {name for name, spec in networks.items() if not spec.get("internal")}
-    on_outside = {
+    internet. Pass: the services on a network that is not internal are
+    nhanes-download and the proxy, and neither mounts a party's volume."""
+    declared = config()
+    outside = {
+        name for name, spec in declared["networks"].items() if not spec.get("internal")
+    }
+    reaching = {
         name
-        for name, spec in config()["services"].items()
+        for name, spec in declared["services"].items()
         if outside & set(spec.get("networks") or {})
     }
-    assert "setup" in outside
-    reaching = {
-        name for name in on_outside if "setup" in config()["services"][name]["networks"]
-    }
-    assert reaching == {"nhanes-download"}
+    assert reaching == {"nhanes-download", "proxy"}
+    for name in reaching:
+        assert all(source.startswith("bind:") for source, _ in mounts(name).values())
 
 
 @pytest.mark.parametrize(
@@ -628,29 +602,10 @@ def test_a_health_check_runs_often_only_while_its_service_starts() -> None:
         assert (check["start_interval"], check["interval"]) == ("2s", "5m0s"), name
 
 
-def test_only_the_hospitals_web_apps_reach_the_startups_screening_models_endpoint() -> (
-    None
-):
-    """The startup's screening-models endpoint (P5) serves recipient hospitals only
-    (features/startup/release.feature). Pass: the screening-models network joins the
-    startup's web app and every hospital's web app, nothing else, and is internal."""
-    declared = config()
-    members = {
-        name
-        for name, spec in declared["services"].items()
-        if "screening-models" in spec.get("networks", {})
-    }
-    assert members == {"startup-grpc"} | {f"{slug}-web" for slug in HOSPITAL_SLUGS}
-    assert declared["networks"]["screening-models"]["internal"] is True
-
-
 def test_the_startup_serves_its_pages_and_its_screening_models_from_containers_of_their_own() -> (
     None
 ):
-    # The proxy reaches the pages, the hospitals' web apps only the
-    # screening-models endpoint (features/startup/release.feature).
     web, endpoint = service("startup-web"), service("startup-grpc")
-    assert set(endpoint["networks"]) == {"screening-models"}
     assert "--bind=0.0.0.0:8000" in web["command"]
     assert endpoint["command"][-2:] == ["grpcrunserver", "0.0.0.0:8442"]
     # Like the web app: the final models read-only, the SuperLink's state masked.

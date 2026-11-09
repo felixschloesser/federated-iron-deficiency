@@ -1,12 +1,11 @@
 """The running containers keep the trust boundaries, as Docker runs compose.yaml:
-the startup's code at a hospital, the networks between the parties, and the
-web apps with DEBUG off. Every test here needs a Docker engine and starts only
-the services it asks for (tests/compose_project.py). Each test's docstring
+the startup's code at a hospital, the proxy, and the web apps with DEBUG
+off. Every test here needs a Docker engine and starts only the services it
+asks for (tests/compose_project.py). Each test's docstring
 states its pass/fail measure."""
 
 import json
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +15,6 @@ from tests.compose_project import (
     APP_HOSPITAL,
     APP_PRACTICE,
     HOSPITAL,
-    PROJECT,
     ROOT,
     Compose,
     build,
@@ -101,41 +99,7 @@ def test_a_hospitals_web_app_serves_its_pages_and_stylesheets(
     assert fetched["css"][1].startswith("text/css"), fetched
 
 
-# Which of a server's ports answer, from wherever the probe runs.
-PORTS = """
-import json, socket, sys
-host = sys.argv[1]
-answers = {}
-for port in map(int, sys.argv[2:]):
-    try:
-        socket.create_connection((host, port), timeout=5).close()
-        answers[port] = "open"
-    except OSError as error:
-        answers[port] = type(error).__name__
-print(json.dumps(answers))
-"""
-
-
-def test_a_practice_reaches_the_hospitals_lab_order_endpoint_and_not_its_pages(
-    compose: Compose, hospital_app: str
-) -> None:
-    """AZ Diest's pages (8000) and its lab-order endpoint (8441, DF23, DF25) run
-    in containers of their own, each on one network. Pass: from practice De
-    Ceder's web app, on the lab-orders network, the endpoint answers on 8441
-    and nothing else, and the pages' container is not even a name there."""
-    build(compose, "practice-web")
-
-    def answers(host: str) -> Any:
-        return probe(compose, f"{APP_PRACTICE}-web", PORTS, host, "8441", "8000")
-
-    assert answers(f"{APP_HOSPITAL}-grpc") == {
-        "8441": "open",
-        "8000": "ConnectionRefusedError",
-    }
-    assert answers(f"{APP_HOSPITAL}-web") == {"8441": "gaierror", "8000": "gaierror"}
-
-
-# Runs on a hospital's network: asks the proxy for a name by Host header and
+# Runs beside a hospital's web app: asks the proxy for a name by Host header and
 # reads the response's status.
 THROUGH_PROXY = """
 import http.client, json, sys
@@ -199,31 +163,6 @@ def test_the_startups_web_app_reaches_the_superlink_and_not_its_state(
         + compose("logs", "--tail", "40", "flower-superlink").stdout
     )
     assert sight == expected, evidence
-
-
-# The parties whose web apps no test here starts: their own networks must not exist.
-# The hospitals that train start their web apps too: each ClientApp's cohort
-# folder is its hospital's, which the hospital's web app brings.
-NOT_UNDER_TEST = {"huisartsenpraktijk-de-akker", "huisartsenpraktijk-de-berk"}
-
-
-def test_the_project_creates_no_network_of_a_party_not_under_test(
-    compose: Compose, proxy: None
-) -> None:
-    """The project holds only the networks of what runs, so it shares Docker's
-    address pool with a running demo. Pass: the networks of AZ Diest and De
-    Ceder exist, and none of a party whose web app no test starts."""
-    project = PROJECT[compose]
-    listing = subprocess.run(
-        ["docker", "network", "ls", "--format", "{{.Name}}", "--filter"]
-        + [f"label=com.docker.compose.project={project}"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    networks = {name.removeprefix(f"{project}_") for name in listing.stdout.split()}
-    assert {APP_HOSPITAL, APP_PRACTICE} <= networks, networks
-    assert networks.isdisjoint(NOT_UNDER_TEST), networks
 
 
 # Which party's Django apps an image holds, from inside one of its containers.

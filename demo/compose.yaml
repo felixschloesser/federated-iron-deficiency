@@ -1,6 +1,5 @@
-# The demo (demo/README.md): one container per server, one network per
-# trust boundary of the report's DFDs, and one per crossing, and one volume
-# per party: every container mounts only its own party's parts of it. Each
+# The demo (demo/README.md): one container per server, one volume per
+# party: every container mounts only its own party's parts of it. Each
 # party's setup job, <party>-setup, sets the party up before its servers start,
 # from its own NHANES extract, which nhanes-download writes to .demo/ on the host.
 #
@@ -9,14 +8,10 @@
 #   docker compose down -v          # start over; .demo/ on the host stays
 #
 # Browsers reach http://<party>.localhost through the proxy, the only
-# published port. Networks: startup (TB2), startup-web (the startup's web app
-# and the proxy), <hospital> (TB1), <hospital>-flower-client-app (TB4,
-# internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
-# lab-orders crosses TB3-TB1 (DF23, DF25): every practice reaches every
-# hospital's lab-order endpoint, <hospital>-grpc, there; screening-models
-# joins the hospitals' web apps and the startup's screening-models endpoint,
-# startup-grpc. A party's web app and its gRPC endpoint are two containers of
-# one image: <party>-web and <party>-grpc.
+# published port. Every party's servers share one network, internet, as they
+# would share the internet: reaching a server grants nothing, so no boundary
+# rests on a network (networks: below). A party's web app and its gRPC
+# endpoint are two containers of one image: <party>-web and <party>-grpc.
 #
 # The parties: three hospitals, each with the general practitioner's practice
 # whose primary laboratory it is (the practices are fictional). Each kind of
@@ -76,7 +71,7 @@ services:
       - --insecure
     volumes:
       - {type: volume, source: startup, target: /demo/startup/superlink, volume: {subpath: superlink}}
-    networks: [startup, model-updates]
+    networks: [internet]
     healthcheck:
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 9092)).close()"]
 
@@ -90,7 +85,7 @@ services:
       - --insecure
     volumes:
       - {type: volume, source: startup, target: /demo/startup/final-models, volume: {subpath: final-models}}
-    networks: [startup]
+    networks: [internet]
 
   # E1, the data scientist, submits from inside TB2: `docker compose run --rm train`.
   train:
@@ -105,7 +100,7 @@ services:
       FLWR_HOME: /demo/startup/flwr-home
     volumes:
       - {type: volume, source: startup, target: /demo/startup/flwr-home, volume: {subpath: flwr-home}}
-    networks: [startup]
+    networks: [internet]
 
   # Its data scientist, and every hospital as a recipient of released final models.
   startup-setup:
@@ -123,8 +118,7 @@ services:
       - {type: volume, source: startup, target: /data}
 
   # The startup's web app: its data scientist sees the final models, submits
-  # training runs and releases final models. On the startup network to reach
-  # the SuperLink, which neither the proxy nor a hospital reaches.
+  # training runs and releases final models.
   startup-web:
     extends: {file: kinds.yaml, service: web}
     image: ${COMPOSE_PROJECT_NAME}-startup-web
@@ -142,10 +136,10 @@ services:
       - {type: volume, source: startup, target: /data}
       - {type: volume, source: startup, target: /data/final-models, read_only: true, volume: {subpath: final-models}}
     tmpfs: [/data/superlink]
-    networks: [startup, startup-web]
+    networks: [internet]
 
-  # The startup's screening-models endpoint (P5), the only thing the hospitals'
-  # web apps reach at the startup.
+  # The startup's screening-models endpoint (P5), where the hospitals' web apps
+  # fetch screening models.
   startup-grpc:
     extends: {file: kinds.yaml, service: server}
     image: ${COMPOSE_PROJECT_NAME}-startup-web
@@ -161,7 +155,7 @@ services:
       startup-setup: {condition: service_completed_successfully}
     healthcheck:
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8442)).close()"]
-    networks: [screening-models]
+    networks: [internet]
 
   # TB1 and TB4, UZ Leuven.
   uz-leuven-flower-supernode:
@@ -173,7 +167,7 @@ services:
       - --host=0.0.0.0
       - --port=9094
       - --node-config=data-path='/demo/hospitals/uz-leuven/cohort'
-    networks: [model-updates, uz-leuven-flower-client-app]
+    networks: [internet, uz-leuven-flower-client-app]
 
   uz-leuven-flower-client-app:
     extends: {file: kinds.yaml, service: superexec}
@@ -214,7 +208,7 @@ services:
       PRIMARY_COLOUR: jade
     volumes:
       - {type: volume, source: uz-leuven, target: /data}
-    networks: [uz-leuven, screening-models]
+    networks: [internet]
 
   uz-leuven-grpc:
     extends: {file: kinds.yaml, service: hospital-grpc}
@@ -233,7 +227,7 @@ services:
       - --host=0.0.0.0
       - --port=9094
       - --node-config=data-path='/demo/hospitals/heilig-hart-leuven/cohort'
-    networks: [model-updates, heilig-hart-leuven-flower-client-app]
+    networks: [internet, heilig-hart-leuven-flower-client-app]
 
   heilig-hart-leuven-flower-client-app:
     extends: {file: kinds.yaml, service: superexec}
@@ -273,7 +267,7 @@ services:
       PRIMARY_COLOUR: pumpkin
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /data}
-    networks: [heilig-hart-leuven, screening-models]
+    networks: [internet]
 
   heilig-hart-leuven-grpc:
     extends: {file: kinds.yaml, service: hospital-grpc}
@@ -292,7 +286,7 @@ services:
       - --host=0.0.0.0
       - --port=9094
       - --node-config=data-path='/demo/hospitals/az-diest/cohort'
-    networks: [model-updates, az-diest-flower-client-app]
+    networks: [internet, az-diest-flower-client-app]
 
   az-diest-flower-client-app:
     extends: {file: kinds.yaml, service: superexec}
@@ -332,7 +326,7 @@ services:
       PRIMARY_COLOUR: violet
     volumes:
       - {type: volume, source: az-diest, target: /data}
-    networks: [az-diest, screening-models]
+    networks: [internet]
 
   az-diest-grpc:
     extends: {file: kinds.yaml, service: hospital-grpc}
@@ -341,9 +335,9 @@ services:
     volumes:
       - {type: volume, source: az-diest, target: /data}
 
-  # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory: on the lab-orders network. Each knows every hospital's
-  # laboratory; its paired hospital's is the primary one.
+  # TB3, each general practitioner's practice, sending samples to every
+  # hospital's laboratory. Each knows every hospital's laboratory; its paired
+  # hospital's is the primary one.
   huisartsenpraktijk-de-akker-setup:
     extends: {file: kinds.yaml, service: practice-setup}
     command:
@@ -370,7 +364,7 @@ services:
       PRIMARY_COLOUR: green
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-akker, target: /data}
-    networks: [huisartsenpraktijk-de-akker, lab-orders]
+    networks: [internet]
 
   huisartsenpraktijk-de-berk-setup:
     extends: {file: kinds.yaml, service: practice-setup}
@@ -397,7 +391,7 @@ services:
       PRIMARY_COLOUR: amber
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-berk, target: /data}
-    networks: [huisartsenpraktijk-de-berk, lab-orders]
+    networks: [internet]
 
   huisartsenpraktijk-de-ceder-setup:
     extends: {file: kinds.yaml, service: practice-setup}
@@ -424,7 +418,7 @@ services:
       PRIMARY_COLOUR: purple
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-ceder, target: /data}
-    networks: [huisartsenpraktijk-de-ceder, lab-orders]
+    networks: [internet]
 
   # Between the browser and the parties, like the internet: routes each
   # <party>.localhost to <party>-web by its Host header (proxy.conf). The only
@@ -445,26 +439,21 @@ services:
     volumes: ["./proxy.conf:/etc/nginx/nginx.conf:ro"]
     healthcheck:
       test: [CMD, nc, -z, 127.0.0.1, "8080"]
-    networks:
-      [startup-web, uz-leuven, heilig-hart-leuven, az-diest,
-       huisartsenpraktijk-de-akker, huisartsenpraktijk-de-berk, huisartsenpraktijk-de-ceder]
+    networks: [internet, browser]
 
 networks:
+  # nhanes-download's way out to the real internet.
   setup: {}
-  startup: {internal: true}
-  startup-web: {}
-  screening-models: {internal: true}
-  model-updates: {internal: true}
-  lab-orders: {internal: true}
-  uz-leuven: {}
+  # Every party's servers, like the internet between them: reaching a server
+  # grants nothing, as each call must say who it is from (the report's mutual
+  # TLS; the demo's caller slug). Internal: no way out to the real internet.
+  internet: {internal: true}
+  # The proxy's published port; an internal network can publish none.
+  browser: {}
+  # The startup's code at each hospital reaches only its SuperNode (TB4).
   uz-leuven-flower-client-app: {internal: true}
-  heilig-hart-leuven: {}
   heilig-hart-leuven-flower-client-app: {internal: true}
-  az-diest: {}
   az-diest-flower-client-app: {internal: true}
-  huisartsenpraktijk-de-akker: {}
-  huisartsenpraktijk-de-berk: {}
-  huisartsenpraktijk-de-ceder: {}
 
 # One per party: `docker compose down -v` deletes them all.
 volumes:
