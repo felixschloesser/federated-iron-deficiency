@@ -25,7 +25,7 @@ releases it, each hospital fetches it and screens new blood counts with it.
   - `web/startup/`: training runs and the final models the data scientist
     releases;
   - `web/shared/`: what all three use: accounts, the gRPC messages between them
-    (`web/shared/messaging/messages.proto`), the page templates and stylesheet.
+    (`web/shared/grpc/messages.proto`), the page templates and stylesheet.
 - `ml/`: the Flower app: the ServerApp at the startup, the ClientApp at each
   hospital, and the model.
 - `demo/`: the whole scenario in containers (`demo/README.md`).

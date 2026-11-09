@@ -60,12 +60,12 @@ def databases(folder: Path) -> dict[str, Any]:
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": folder / "web.sqlite3",
-            # Two processes write this file (the web app, and messaging): take the
+            # Two processes write this file (the web app, and its gRPC endpoint): take the
             # write lock at BEGIN, so the second waits instead of failing on its
             # first write.
             "OPTIONS": {"transaction_mode": "IMMEDIATE"},
             # A file, not memory: Django never closes an in-memory database, so
-            # the messaging endpoint's threads would leave their connections open
+            # the gRPC endpoint's threads would leave their connections open
             # in tests.
             "TEST": {"NAME": folder / "test-web.sqlite3"},
         }

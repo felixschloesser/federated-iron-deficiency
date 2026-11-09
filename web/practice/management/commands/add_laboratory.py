@@ -16,7 +16,7 @@ class Command(BaseCommand):
             "name", help='as the general practitioner reads it: "UZ Leuven"'
         )
         parser.add_argument(
-            "address", help="its hospital's messaging endpoint, host:port"
+            "address", help="its hospital's lab-order endpoint, host:port"
         )
         parser.add_argument(
             "--primary",

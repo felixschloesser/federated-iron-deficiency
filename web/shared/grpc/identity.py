@@ -1,5 +1,5 @@
 """Who is calling: the client calls as its name's slug, in each call's metadata,
-and the server believes it (web/shared/messaging/messages.proto). The slug follows
+and the server believes it (web/shared/grpc/messages.proto). The slug follows
 from the name, so it is ASCII whatever the name: what metadata allows, and what a
 certificate would carry. With the report's mutual TLS the server would read it
 from the client's certificate, context.auth_context(), and only `caller` would

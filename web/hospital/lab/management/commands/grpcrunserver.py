@@ -1,10 +1,10 @@
-"""Run the hospital's lab-order endpoint (web/shared/messaging/messages.proto) until stopped."""
+"""Run the hospital's lab-order endpoint (web/shared/grpc/messages.proto) until stopped."""
 
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandParser
 
-from web.hospital.lab.messaging import serve
+from web.hospital.lab.grpc_server import serve
 
 
 class Command(BaseCommand):
@@ -15,7 +15,7 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         server, _ = serve(options["address"])
-        self.stdout.write(f"Messaging endpoint on {options['address']}")
+        self.stdout.write(f"Lab-order endpoint on {options['address']}")
         # The demo sends stdout to a file, which would hold the line until exit.
         self.stdout.flush()
         server.wait_for_termination()

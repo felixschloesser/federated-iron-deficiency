@@ -328,7 +328,7 @@ def test_each_web_app_knows_its_name_and_primary_colour() -> None:
 
 
 def test_no_practice_service_runs_on_a_timer() -> None:
-    # Lab reports come only on Check for reports (tests/practice/test_messaging.py).
+    # Lab reports come only on Check for reports (tests/practice/test_grpc_client.py).
     for name, spec in config()["services"].items():
         assert "REPORT_CHECK_SECONDS" not in (spec.get("environment") or {}), name
 

@@ -1,4 +1,4 @@
-"""The gRPC contract (web/shared/messaging/messages.proto): the committed
+"""The gRPC contract (web/shared/grpc/messages.proto): the committed
 generated code matches it, and its choices and times are typed."""
 
 import subprocess
@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from web.shared.messaging import GENERATE
+from web.shared.grpc import GENERATE
 
 ROOT = Path(__file__).resolve().parents[2]
-MESSAGING = Path("web", "shared", "messaging")
+GRPC = Path("web", "shared", "grpc")
 VALIDATE = Path("buf", "validate")
 
 
@@ -20,7 +20,7 @@ def test_the_committed_generated_code_matches_the_proto(tmp_path: Path) -> None:
     committed one."""
     command = [arg.replace("=.", f"={tmp_path}") for arg in GENERATE]
     subprocess.run([sys.executable, "-m", *command], cwd=ROOT, check=True)
-    for folder in (MESSAGING, VALIDATE):
+    for folder in (GRPC, VALIDATE):
         for generated in sorted((ROOT / folder).glob("*_pb2*")):
             regenerated = tmp_path / folder / generated.name
             assert regenerated.read_text() == generated.read_text(), generated.name
@@ -40,8 +40,8 @@ def test_the_contract_types_choices_and_times(
     message: str, field: str, kind: str
 ) -> None:
     """Choices are proto enums and times Timestamps, so the contract itself says
-    what a field may hold (web/shared/messaging/messages.proto)."""
-    from web.shared.messaging import messages_pb2
+    what a field may hold (web/shared/grpc/messages.proto)."""
+    from web.shared.grpc import messages_pb2
 
     descriptor = getattr(messages_pb2, message).DESCRIPTOR.fields_by_name[field]
     typed = descriptor.enum_type or descriptor.message_type
@@ -66,8 +66,8 @@ def _members() -> list[tuple[str, str]]:
 @pytest.mark.parametrize(("vocabulary", "member"), _members())
 def test_every_choice_crosses_the_wire_and_back(vocabulary: str, member: str) -> None:
     from web.shared import vocabulary as words
-    from web.shared.messaging import messages_pb2
-    from web.shared.messaging.convert import from_proto, to_proto
+    from web.shared.grpc import messages_pb2
+    from web.shared.grpc.convert import from_proto, to_proto
 
     choices = getattr(words, vocabulary)
     enum = getattr(messages_pb2, vocabulary)
@@ -79,10 +79,10 @@ def test_every_choice_crosses_the_wire_and_back(vocabulary: str, member: str) ->
 @pytest.mark.parametrize("vocabulary", VOCABULARIES)
 def test_none_is_unspecified_and_never_sent(vocabulary: str) -> None:
     """None is 0, which implicit presence never sends; a number the enum does not
-    name is refused by the contract (tests/hospital/test_messaging.py)."""
+    name is refused by the contract (tests/hospital/test_grpc_server.py)."""
     from web.shared import vocabulary as words
-    from web.shared.messaging import messages_pb2
-    from web.shared.messaging.convert import to_proto
+    from web.shared.grpc import messages_pb2
+    from web.shared.grpc.convert import to_proto
 
     choices = getattr(words, vocabulary)
     enum = getattr(messages_pb2, vocabulary)
@@ -104,7 +104,7 @@ def test_ids_are_unsigned_integers(message: str, field: str) -> None:
     """An ID is a number on the wire, so a malformed one cannot be sent at all."""
     from google.protobuf.descriptor import FieldDescriptor
 
-    from web.shared.messaging import messages_pb2
+    from web.shared.grpc import messages_pb2
 
     descriptor = getattr(messages_pb2, message).DESCRIPTOR.fields_by_name[field]
     assert descriptor.type == FieldDescriptor.TYPE_UINT64
@@ -116,7 +116,7 @@ OPTIONAL = {"LabOrder.clinical_indication"}
 
 
 def _messages() -> list[str]:
-    from web.shared.messaging import messages_pb2
+    from web.shared.grpc import messages_pb2
 
     return list(messages_pb2.DESCRIPTOR.message_types_by_name)
 
@@ -128,7 +128,7 @@ def test_every_part_of_every_message_is_required(message: str) -> None:
     Lists (repeated and map fields) may be empty."""
     import protovalidate
 
-    from web.shared.messaging import messages_pb2
+    from web.shared.grpc import messages_pb2
 
     kind = getattr(messages_pb2, message)
     missing = {
@@ -157,6 +157,6 @@ def test_a_part_whose_zero_is_a_value_is_sent_when_zero(
 ) -> None:
     """Age 0, no ferritin suggestion and an AUROC of 0 are values: sent, they
     are present, and only a part left out is missing."""
-    from web.shared.messaging import messages_pb2
+    from web.shared.grpc import messages_pb2
 
     assert getattr(messages_pb2, message).DESCRIPTOR.fields_by_name[field].has_presence

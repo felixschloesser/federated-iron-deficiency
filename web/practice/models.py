@@ -38,7 +38,7 @@ class Laboratory(models.Model):
     """A hospital's laboratory the practice sends samples to (features/practice/ordering.feature)."""
 
     name = models.CharField(max_length=100, unique=True)
-    # host:port of the hospital's messaging endpoint.
+    # host:port of the hospital's lab-order endpoint.
     address = models.CharField(max_length=200)
     primary = models.BooleanField(default=False)
 

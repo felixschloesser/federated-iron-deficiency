@@ -12,8 +12,8 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from ml.training_cohort import TrainingCohortUnavailable
-from web.hospital.deployment.fetching import fetch_final_models, unreachable
 from web.hospital.deployment.forms import DeployForm
+from web.hospital.deployment.grpc_client import fetch_final_models, unreachable
 from web.hospital.deployment.model_files import screening_models
 from web.hospital.deployment.models import Deployment, NoUsableModel
 from web.shared.accounts.mixins import RoleRequiredMixin

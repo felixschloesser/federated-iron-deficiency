@@ -250,7 +250,7 @@ Release.objects.release(
 FETCH_FINAL_MODELS = """
 import json
 from django.utils import timezone
-from web.hospital.deployment.fetching import fetch_final_models
+from web.hospital.deployment.grpc_client import fetch_final_models
 print(json.dumps(fetch_final_models(now=timezone.now())))
 """
 

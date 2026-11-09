@@ -81,10 +81,6 @@ source = "WHO LQMS ch. 5, *Sample management* (the handbook's word throughout)"
 meaning = "The model one training run ends with, kept at the startup with its run ID; hospitals fetch it once the data scientist releases it, and validate it on their own test split. Its file holds every part (weights, run ID, when it was stored, AUROC across hospitals, run configuration) or is unreadable"
 source = "Report, DS4 \"Startup's final models\", DS5 \"Final models\""
 
-["messaging"]
-meaning = "The hospital's endpoint for lab orders and lab reports, and the practice's side of it (web/shared/messaging/, grpcrunserver)"
-source = "Report, P8 \"Receive lab orders\" and P12 \"Send lab reports\", the messages between practice and hospital (DF23, DF25)"
-
 ["lab report"]
 meaning = "What the hospital returns to the practice for one test: the results and whether ferritin is suggested"
 source = "Report, DF25"

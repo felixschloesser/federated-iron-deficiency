@@ -267,7 +267,7 @@ def test_each_party_imports_only_its_own_apps(tmp_path: Path) -> None:
             "from web.hospital.lab.models import TestRequest\n",
             "web/hospital/lab/models.py": "import web.practice.models\n",
             "web/shared/accounts/backends.py": "from web.hospital.deployment import models\n",
-            "web/shared/messaging/messages_pb2.py": "import grpc\n",
+            "web/shared/grpc/messages_pb2.py": "import grpc\n",
             "demo/demo.py": "from web.hospital.lab.models import TestRequest\n",
         },
     )

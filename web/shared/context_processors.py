@@ -2,7 +2,7 @@ from django.conf import settings
 from django.http import HttpRequest
 
 # Shown when the party's settings name none; never what it calls as, which only
-# its settings say (web/shared/messaging/identity.py).
+# its settings say (web/shared/grpc/identity.py).
 DEFAULT_NAME = "Demo"
 
 

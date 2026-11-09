@@ -3,7 +3,7 @@ reason for rejection", "promptly inform the authorized person"): the laboratory
 answers INVALID_ARGUMENT with a google.rpc.BadRequest detail, one field
 violation per rule of the contract the lab order breaks (protovalidate), and the
 practice reads them back as its reason for rejection
-(web/shared/messaging/messages.proto)."""
+(web/shared/grpc/messages.proto)."""
 
 import google.rpc.code_pb2 as rpc_code
 import google.rpc.error_details_pb2 as rpc_details

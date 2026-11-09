@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import DetailView, FormView, ListView, View
 
-from web.practice import messaging
+from web.practice import grpc_client
 from web.practice.forms import CollectSampleForm, OrderForm
 from web.practice.models import (
     Laboratory,
@@ -115,7 +115,7 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
 
 class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
     """Sends pending lab orders and fetches new lab reports from every laboratory
-    now (tests/practice/test_messaging.py)."""
+    now (tests/practice/test_grpc_client.py)."""
 
     def post(self, request: HttpRequest, patient: int | None = None) -> HttpResponse:
         # From a patient's page, back to it; from Orders, back there.
@@ -123,12 +123,12 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
         if patient is not None:
             record = get_object_or_404(Patient, pk=patient)
             back = reverse("practice:patient", kwargs={"pk": record.pk})
-        check = messaging.check_every_laboratory(now=timezone.now())
+        check = grpc_client.check_every_laboratory(now=timezone.now())
         for laboratory, error in check.failures:
             messages.error(
                 request,
                 f"{laboratory} could not be reached. Try again later."
-                if messaging.unreachable(error)
+                if grpc_client.unreachable(error)
                 else f"{laboratory} refused a message. Tell the administrator.",
             )
         if len(check.failures) < check.asked:
@@ -246,16 +246,16 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
         )
         laboratory = self.sample.laboratory
         try:
-            messaging.send_pending_lab_orders(
+            grpc_client.send_pending_lab_orders(
                 laboratory,
                 now=timezone.now(),
-                timeout=messaging.IN_REQUEST_TIMEOUT_SECONDS,
+                timeout=grpc_client.IN_REQUEST_TIMEOUT_SECONDS,
             )
         except grpc.RpcError as error:
             messages.warning(
                 self.request,
                 f"{laboratory} could not be reached, so the lab order is not sent yet."
-                if messaging.unreachable(error)
+                if grpc_client.unreachable(error)
                 else f"{laboratory} refused the lab order. Tell the administrator.",
             )
         placed.refresh_from_db(fields=["reason_for_rejection"])

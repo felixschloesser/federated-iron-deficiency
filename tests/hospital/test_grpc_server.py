@@ -1,5 +1,5 @@
 """The hospital's lab-order endpoint over gRPC, called as a practice's app calls
-it: the proto's messages in, status codes out (web/shared/messaging/messages.proto).
+it: the proto's messages in, status codes out (web/shared/grpc/messages.proto).
 Like a view test: what it records and refuses, not the rules behind it, which
 are features/hospital/lab_orders.feature. No general practitioner's code."""
 
@@ -14,15 +14,15 @@ from google.protobuf.empty_pb2 import Empty
 from google.protobuf.message_factory import GetMessageClass
 
 from web.hospital.analyser.models import Participant
-from web.hospital.lab.messaging import serve
+from web.hospital.lab.grpc_server import serve
 from web.hospital.lab.models import (
     LabOrderDetails,
     Practice,
     ScreeningResult,
     TestRequest,
 )
-from web.shared.messaging import messages_pb2, messages_pb2_grpc
-from web.shared.messaging.convert import timestamp
+from web.shared.grpc import messages_pb2, messages_pb2_grpc
+from web.shared.grpc.convert import timestamp
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
 

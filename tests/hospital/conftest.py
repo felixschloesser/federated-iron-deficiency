@@ -60,7 +60,7 @@ def receive_lab_order(
     sex: "RegisteredSex" = RegisteredSex.FEMALE,
     age: int = 32,
 ) -> "TestRequest":
-    """A lab order (DF23) as the hospital's messaging endpoint records it, from the
+    """A lab order (DF23) as the hospital's lab-order endpoint records it, from the
     practice make_practice() adds; a CBC for a screened indication."""
     from web.hospital.lab.models import LabOrderDetails, TestRequest
 

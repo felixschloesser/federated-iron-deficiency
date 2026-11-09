@@ -1,5 +1,5 @@
 """A hospital's lab-order endpoint for the general practitioner's tests, kept
-to the messages tests/hospital/test_messaging.py holds the real one to: it
+to the messages tests/hospital/test_grpc_server.py holds the real one to: it
 records each lab order it is sent, and hands out the lab reports it was given
 until they are acknowledged. No hospital code, no hospital database."""
 
@@ -14,8 +14,8 @@ from google.protobuf import any_pb2
 from google.protobuf.empty_pb2 import Empty
 from grpc_status import rpc_status
 
-from web.shared.messaging import messages_pb2, messages_pb2_grpc
-from web.shared.messaging.convert import timestamp
+from web.shared.grpc import messages_pb2, messages_pb2_grpc
+from web.shared.grpc.convert import timestamp
 
 
 def named(context: grpc.ServicerContext) -> str | None:

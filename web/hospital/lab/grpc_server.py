@@ -1,4 +1,4 @@
-"""The hospital's messaging endpoint: gRPC, plaintext in the demo (web/shared/messaging/messages.proto)."""
+"""The hospital's lab-order endpoint: gRPC, plaintext in the demo (web/shared/grpc/messages.proto)."""
 
 import grpc
 import protovalidate
@@ -6,11 +6,11 @@ from django.utils import timezone
 from google.protobuf.empty_pb2 import Empty
 
 from web.hospital.lab.models import LabOrderDetails, Practice, TestRequest
-from web.shared.messaging import messages_pb2, messages_pb2_grpc
-from web.shared.messaging.convert import from_proto, moment, timestamp, to_proto
-from web.shared.messaging.endpoint import start, with_database
-from web.shared.messaging.identity import caller
-from web.shared.messaging.rejection import rejected
+from web.shared.grpc import messages_pb2, messages_pb2_grpc
+from web.shared.grpc.convert import from_proto, moment, timestamp, to_proto
+from web.shared.grpc.endpoint import start, with_database
+from web.shared.grpc.identity import caller
+from web.shared.grpc.rejection import rejected
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 

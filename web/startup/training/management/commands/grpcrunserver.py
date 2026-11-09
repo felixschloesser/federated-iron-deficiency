@@ -4,7 +4,7 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandParser
 
-from web.startup.training.messaging import serve
+from web.startup.training.grpc_server import serve
 
 
 class Command(BaseCommand):
