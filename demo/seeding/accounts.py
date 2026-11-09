@@ -1,5 +1,6 @@
-"""The demo's seeded accounts: demo/seeding/parties.py creates them, demo/seed.py
-names them. No Django imports, so the launcher may import this outside any party."""
+"""The usernames and password of the demo's seeded accounts. demo/seeding/parties.py
+creates them and demo/seed.py prints them. It imports no Django, so the launcher
+can import it outside any party's Django project."""
 
 PASSWORD = "demo-pass-2026"
 LABORATORY_STAFF = "staff"

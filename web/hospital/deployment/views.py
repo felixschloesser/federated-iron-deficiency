@@ -55,8 +55,8 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
 
 
 class FetchScreeningModelsView(LaboratoryDirectorRequiredMixin, View):
-    """Fetches the startup's new screening models, validated on this hospital's own
-    past patients, then back (features/hospital/fetch.feature)."""
+    """Fetch the startup's new screening models, validate them on this hospital's
+    own past patients, and go back to the Screening models page."""
 
     def post(self, request: HttpRequest) -> HttpResponse:
         if not settings.STARTUP_ADDRESS:
@@ -87,7 +87,8 @@ class DeployView(LaboratoryDirectorRequiredMixin, View):
     def post(self, request: HttpRequest, run_id: str) -> HttpResponse:
         form = DeployForm(request.POST)
         if not form.is_valid():
-            # The page shows every model, so its errors go in a message.
+            # The page lists every model, so the error goes in a message rather
+            # than beside one model's form.
             messages.error(
                 request, " ".join(str(error) for error in form.errors["threshold"])
             )

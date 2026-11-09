@@ -1,7 +1,8 @@
-"""The contract's enums and times, to and from web.shared.vocabulary and datetimes (web/shared/grpc/messages.proto).
+"""Convert the proto's enums and timestamps to and from web.shared.vocabulary
+choices and datetimes.
 
-A proto enum value is named after its vocabulary member with the enum's prefix, as
-the proto style guide asks: Test.CBC is TEST_CBC. Value 0, UNSPECIFIED, is none.
+A proto enum value is its vocabulary member's name with the enum's prefix, as the
+protobuf style guide asks: Test.CBC is TEST_CBC. Value 0 (UNSPECIFIED) means none.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from django.db import models
 from google.protobuf.timestamp_pb2 import Timestamp
 
 if TYPE_CHECKING:
-    # Only in types-protobuf: the generic base of each generated enum.
+    # Exists only in types-protobuf: the generic base class of every generated enum.
     from google.protobuf.internal.enum_type_wrapper import _EnumTypeWrapper
 
 
@@ -26,7 +27,7 @@ def _prefix[Value: int](enum: _EnumTypeWrapper[Value]) -> str:
 def to_proto[Value: int](
     choice: models.TextChoices | None, enum: _EnumTypeWrapper[Value]
 ) -> Value:
-    """The proto enum value of a vocabulary member; UNSPECIFIED for none."""
+    """Return the proto enum value for a vocabulary member, or UNSPECIFIED for None."""
     name = "UNSPECIFIED" if choice is None else choice.name
     return enum.Value(f"{_prefix(enum)}_{name}")
 
@@ -34,9 +35,9 @@ def to_proto[Value: int](
 def from_proto[Value: int](
     value: Value, enum: _EnumTypeWrapper[Value], choices: type[models.TextChoices]
 ) -> str | None:
-    """The vocabulary value a proto enum value names, for the receiver's model to
-    parse; None for UNSPECIFIED, which is none. A number the enum does not name
-    stays that number, which is no choice, so the model refuses it."""
+    """Return the vocabulary value a proto enum value names, for the receiver's
+    model to parse, or None for UNSPECIFIED. A number the enum does not know is
+    returned as that number, which matches no choice, so the model refuses it."""
     if value == 0:
         return None
     try:

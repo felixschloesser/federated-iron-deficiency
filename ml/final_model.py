@@ -1,6 +1,9 @@
-"""The final model: its network, and its files: the startup's copy, the weights
-on the wire, and how the hospital's screening model file is written and read.
-A file is read whole or not at all."""
+"""The model's network, and the files and bytes a final model is stored in.
+
+Covers the startup's copy of a final model, the weights sent from the startup to
+a hospital, and the helpers the hospital uses to write and read its screening
+model files. A file is either read completely or rejected; a partly valid file
+is never used."""
 
 import io
 import os
@@ -45,7 +48,8 @@ class Net(nn.Module):
         return logits.squeeze(-1)
 
 
-# What torch.load raises on a file that is no model file, or none it loads safely.
+# The errors torch.load raises when a file is not a model file, or holds objects
+# it refuses to load with weights_only=True.
 UNREADABLE_ERRORS = (
     pickle.UnpicklingError,
     RuntimeError,
@@ -54,41 +58,44 @@ UNREADABLE_ERRORS = (
     zipfile.BadZipFile,
 )
 
-# What reading a part raises when a file lacks it or holds something else there.
+# The errors reading a field raises when the file lacks it or it holds the wrong
+# type.
 MISSING_PART_ERRORS = (KeyError, TypeError, ValueError, AttributeError)
 
 
 @dataclass(frozen=True)
 class FinalModel:
-    """A final model as the startup keeps it: every part, or no final model."""
+    """A final model as the startup keeps it. Every field is required: a file
+    missing one is not a final model."""
 
     state_dict: dict[str, torch.Tensor]
     run_id: int
     stored_at: datetime
-    # Only what the ServerApp aggregated; no hospital's own metrics.
+    # The AUROC the ServerApp aggregated across hospitals, never one hospital's.
     federated_auroc: float
     # The training parameters the run was configured with.
     run_configuration: dict[str, int | float]
 
 
 def standardization_tensor(values: pd.Series) -> torch.Tensor:
-    """A standardization's mean or std as the file holds it, in FEATURES order."""
+    """A standardization's mean or std as a tensor in FEATURES order, as the
+    screening model file stores it."""
     return torch.tensor(values[FEATURES].values, dtype=torch.float32)
 
 
 def model_file_path(directory: Path, run_id: int | str) -> Path:
-    """One file per training run, named after it."""
+    """The path of a training run's final model file, named after its run ID."""
     return directory / f"{run_id}.pt"
 
 
 def model_file_paths(directory: Path) -> list[Path]:
-    """The final models in a folder: only files named after a run, as
-    model_file_path names them; any other file there is not one."""
+    """The final model files in `directory`: only files named the way
+    model_file_path names them; any other file is ignored."""
     return [path for path in directory.glob("*.pt") if path.stem.isdigit()]
 
 
 def fitting_weights(state_dict: object) -> dict[str, torch.Tensor]:
-    """The weights, if they fit Net(); TypeError if they do not."""
+    """Return the weights if they fit Net(); raise TypeError otherwise."""
     if not isinstance(state_dict, dict):
         raise TypeError("No weights.")
     try:
@@ -99,9 +106,11 @@ def fitting_weights(state_dict: object) -> dict[str, torch.Tensor]:
 
 
 def load_contents(data: bytes) -> dict[str, Any] | None:
-    """What a file's bytes hold; None if they hold no dict torch loads safely."""
+    """The dict a file's bytes hold, or None if they hold no dict torch can load
+    safely."""
     try:
-        # Never unpickle objects: the file crosses a trust boundary.
+        # weights_only=True: never unpickle arbitrary objects, because the bytes
+        # come from another party.
         contents = torch.load(io.BytesIO(data), weights_only=True)
     except UNREADABLE_ERRORS:
         return None
@@ -109,13 +118,14 @@ def load_contents(data: bytes) -> dict[str, Any] | None:
 
 
 def write_contents(path: Path, contents: dict[str, Any]) -> None:
-    """Store a file's contents; one is never overwritten."""
+    """Write `contents` to `path`; fail if a file already exists there."""
     if path.exists():
         raise FileExistsError(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    # Written beside it under a name of its own, then linked: a reader of the
-    # folder never sees half a file, "*.pt" never matches the partial one, and of
-    # two writers at once the second fails, as link never replaces a file.
+    # Write to a temporary file in the same folder, then hard-link it to its
+    # final name. A reader never sees half a file, the "*.pt" glob never matches
+    # the temporary one, and if two writers race, the second fails because a
+    # link never replaces an existing file.
     descriptor, name = tempfile.mkstemp(
         dir=path.parent, prefix=f".{path.name}.", suffix=".partial"
     )
@@ -129,7 +139,8 @@ def write_contents(path: Path, contents: dict[str, Any]) -> None:
 
 
 def write_final_model(path: Path, model: FinalModel) -> None:
-    """Store the startup's copy of a final model; one is never overwritten."""
+    """Store the startup's copy of a final model; an existing file is never
+    overwritten."""
     write_contents(
         path,
         {
@@ -143,8 +154,8 @@ def write_final_model(path: Path, model: FinalModel) -> None:
 
 
 def read_final_model(path: Path) -> FinalModel | None:
-    """The startup's copy of a final model; None if the file is unreadable, lacks
-    a part, or its weights do not fit the network."""
+    """Read the startup's copy of a final model. None if the file is unreadable,
+    lacks a field, or its weights do not fit the network."""
     contents = load_contents(path.read_bytes())
     if contents is None:
         return None
@@ -161,14 +172,15 @@ def read_final_model(path: Path) -> FinalModel | None:
 
 
 def weights_to_bytes(state_dict: dict[str, torch.Tensor]) -> bytes:
-    """A final model's weights as they cross the wire."""
+    """Serialize a final model's weights to send to a hospital."""
     buffer = io.BytesIO()
     torch.save(state_dict, buffer)
     return buffer.getvalue()
 
 
 def weights_from_bytes(data: bytes) -> dict[str, torch.Tensor] | None:
-    """Weights from the wire; None if unreadable or they do not fit the network."""
+    """Deserialize weights received from the startup; None if they are unreadable
+    or do not fit the network."""
     contents = load_contents(data)
     try:
         return None if contents is None else fitting_weights(contents)

@@ -9,10 +9,12 @@ from web.shared.vocabulary import ClinicalIndication, Test
 
 
 class OrderForm(NamedLabels, forms.Form):
-    """An order for one test; asks the indication only for a test that takes one."""
+    """An order for one test. It asks for a clinical indication only when the test
+    takes one."""
 
-    # Required only for a test that takes one; checked in clean_indication, so the
-    # error has the order's own code and sits beside the field.
+    # Not required here: clean_indication requires it instead, so the error has
+    # the order's own code and appears beside the field. __init__ removes the
+    # field for a test that takes no indication.
     indication = forms.TypedChoiceField(
         label="Clinical indication",
         choices=ClinicalIndication.choices,
@@ -28,8 +30,8 @@ class OrderForm(NamedLabels, forms.Form):
             del self.fields["indication"]
 
     def clean_indication(self) -> ClinicalIndication:
-        """Only on a form that asks for an indication (a CBC's): it needs one. The
-        database holds the rule too (Order's constraints)."""
+        """Require an indication. This runs only when the form shows the field
+        (for a CBC); Order's constraints enforce the same rule in the database."""
         indication: ClinicalIndication | None = self.cleaned_data.get("indication")
         if indication is None:
             raise ValidationError(INDICATION_REQUIRED, code="indication_required")
@@ -37,8 +39,9 @@ class OrderForm(NamedLabels, forms.Form):
 
 
 class CollectSampleForm(NamedLabels, forms.Form):
-    """Which laboratory the sample goes to (features/practice/ordering.feature); left out by a practice with one,
-    whose single Collect sample button posts no choice."""
+    """The laboratory the sample goes to. A practice with one laboratory shows no
+    choice: its single Collect sample button posts none, and that laboratory is
+    used."""
 
     def clean_laboratory(self) -> Laboratory:
         laboratory: Laboratory | None = self.cleaned_data.get("laboratory")

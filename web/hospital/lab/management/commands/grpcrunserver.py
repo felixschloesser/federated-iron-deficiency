@@ -16,6 +16,6 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         server, _ = serve(options["address"])
         self.stdout.write(f"Lab-order endpoint on {options['address']}")
-        # The demo sends stdout to a file, which would hold the line until exit.
+        # The demo sends stdout to a file, which would buffer the line until exit.
         self.stdout.flush()
         server.wait_for_termination()

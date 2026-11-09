@@ -1,5 +1,6 @@
-"""Training at each hospital, and the final model as the startup keeps it: one
-file per training run, which recipient hospitals fetch once it is released."""
+"""Local training at each hospital, and storing the final model at the startup:
+one file per training run, which recipient hospitals can fetch once it is
+released."""
 
 from collections.abc import Mapping, Sized
 from datetime import datetime
@@ -44,8 +45,8 @@ def dataset_size(loader: Loader) -> int:
     return len(loader.dataset)
 
 
-# The run configuration that says how a model was trained; never the folder it
-# was kept in nor the W&B key, which the run configuration also carries.
+# The run configuration keys that say how a model was trained. The run
+# configuration also carries the demo folder and the W&B key, which are left out.
 TRAINING_PARAMETERS = (
     "num-server-rounds",
     "fraction-evaluate",
@@ -61,12 +62,12 @@ DEFAULT_DEMO_DIR = Path.home() / ".cache" / "iron-deficiency"
 
 
 def startup_final_models(demo_dir: Path) -> Path:
-    """The startup's own copy of every final model (report DS4)."""
+    """The startup's folder of final models under `demo_dir`."""
     return demo_dir / "startup" / "final-models"
 
 
 def training_parameters(run_config: Mapping[str, object]) -> dict[str, int | float]:
-    """The training parameters of a run configuration, and nothing else of it."""
+    """Only the training parameters of a run configuration."""
     return {
         key: value
         for key, value in run_config.items()
@@ -83,8 +84,9 @@ def keep_final_model(
     stored_at: datetime,
     run_configuration: dict[str, int | float],
 ) -> Path:
-    """Keep the startup's copy of a training run's final model (DS4): what every
-    hospital was sent, without any hospital's standardization or validation."""
+    """Store the startup's copy of a training run's final model: the weights
+    every hospital was sent, without any hospital's standardization or local
+    validation."""
     path = model_file_path(directory, run_id)
     write_final_model(
         path,

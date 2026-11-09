@@ -3,7 +3,7 @@ from django.http import HttpRequest
 
 
 def party(request: HttpRequest) -> dict[str, str]:
-    """The party this web app belongs to: its name and its primary colour's theme."""
+    """Give every page the party's name and the stylesheet in its primary colour."""
     theme = f"pico.{settings.PRIMARY_COLOUR}" if settings.PRIMARY_COLOUR else "pico"
     return {
         "party_name": settings.PARTY_NAME,

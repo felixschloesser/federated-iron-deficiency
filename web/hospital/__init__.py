@@ -1,1 +1,1 @@
-"""The hospital's apps: only a hospital's web app installs them."""
+"""The hospital's apps, installed only by the hospital's web app."""

@@ -1,17 +1,17 @@
 {% comment %}Form layout with an error summary linking to each failing field.
 Include with: form, submit_label.{% endcomment %}
 {% if form.errors and form.errors|length == 1 and form.non_field_errors %}
-{# Only form-wide errors, such as a wrong password: the error alert says them. #}
-{# Focus moves to it on load, so a keyboard user starts from what to fix (no script: autofocus on a focusable element). #}
+{# Only form-wide errors, such as a wrong password: show them in the alert, without a heading or list. #}
+{# The alert takes focus on load, so a keyboard user starts at what to fix; autofocus on a focusable element does this without a script. #}
 <article role="alert" data-level="error" tabindex="-1" autofocus>{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</article>
 {% elif form.errors %}
-{# The shared error alert (includes/alert.html), with a heading and a list. #}
+{# Otherwise an error summary in the shared alert style (includes/alert.html), with a heading and a link to each failing field. #}
 <article role="alert" data-level="error" aria-labelledby="error-summary-title" tabindex="-1" autofocus>
   <h2 id="error-summary-title">There is a problem</h2>
   <ul>
     {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
     {% for field in form %}{% for error in field.errors %}
-    {# A radio group's label has no id: link its first button, or the group itself when it has none. #}
+    {# A radio group's label has no id, so link to its first button, or to the group itself if it has no buttons. #}
     <li><a href="#{% if field.id_for_label %}{{ field.id_for_label }}{% else %}{% with first=field.subwidgets|first %}{% if first %}{{ first.id_for_label }}{% else %}{{ field.auto_id }}{% endif %}{% endwith %}{% endif %}">{{ field.label }}: {{ error }}</a></li>
     {% endfor %}{% endfor %}
   </ul>
@@ -20,7 +20,7 @@ Include with: form, submit_label.{% endcomment %}
 <form method="post" novalidate>
   {% csrf_token %}
   {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
-  {# Fields one by one: form-wide errors appear only in the summary above. #}
+  {# Render the fields one by one, so form-wide errors appear only in the summary above. #}
   {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
   <button type="submit">{{ submit_label }}</button>
 </form>

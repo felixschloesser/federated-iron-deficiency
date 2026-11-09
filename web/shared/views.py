@@ -8,8 +8,8 @@ from web.shared.context_processors import party
 
 
 class ServerErrorView(View):
-    """500.html with the party's name and colour; reads settings only, never the
-    database."""
+    """Render 500.html with the party's name and colour. It reads only settings,
+    never the database, so it still works when the database is what failed."""
 
     def dispatch(
         self, request: HttpRequest, *args: Any, **kwargs: Any

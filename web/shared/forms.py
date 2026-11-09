@@ -1,10 +1,10 @@
-"""What every form rendered by the shared form include (web/shared/templates/includes/form.html) shares."""
+"""Mixins for the forms that the shared include includes/form.html renders."""
 
 from typing import Any
 
 
 class NamedLabels:
-    """Labels name their field, "Username", not Django's prompt "Username:"."""
+    """Render labels without Django's trailing colon: "Username", not "Username:"."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         kwargs.setdefault("label_suffix", "")

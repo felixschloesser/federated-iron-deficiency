@@ -1,9 +1,11 @@
-"""A screening model enters the hospital only when its laboratory director
-fetches new screening models: the hospital's own code asks the startup's
-screening-models endpoint, saying which screening models it holds, and stores each with its local
-validation (model_files.py) (web/shared/grpc/messages.proto,
-features/hospital/fetch.feature). The startup's code at the hospital writes
-nothing here."""
+"""Fetching new screening models from the startup (web/shared/grpc/messages.proto,
+features/hospital/fetch.feature).
+
+A screening model enters the hospital only when its laboratory director fetches
+new screening models. The hospital's own code then calls the startup's
+screening-models endpoint, says which screening models it already holds, and
+stores each new one with its local validation (model_files.py). The startup's
+code running at the hospital writes nothing here."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -37,8 +39,8 @@ def unreachable(error: grpc.RpcError) -> bool:
 
 @dataclass(frozen=True)
 class OfferedScreeningModel:
-    """A screening model as the startup sends it (DF37), every part present and its
-    weights read."""
+    """A screening model as the startup sends it, with every part present and its
+    weights already read."""
 
     run_id: int
     state_dict: dict[str, torch.Tensor]
@@ -48,7 +50,7 @@ class OfferedScreeningModel:
 def offered_screening_model(
     message: messages_pb2.ScreeningModel,
 ) -> OfferedScreeningModel | None:
-    """The screening model a message holds; None if it leaves a part out or its
+    """The screening model in a message, or None if a part is missing or its
     weights are unreadable or do not fit the network."""
     if not message.run_id or not message.HasField("federated_auroc"):
         return None
@@ -63,12 +65,15 @@ def offered_screening_model(
 
 
 def fetch_screening_models(*, now: datetime) -> list[int]:
-    """Fetch the screening models this hospital does not hold, telling the
-    startup which it holds, validate each complete one on the training cohort its laboratory
-    director provided and store it; the run IDs stored. One the hospital holds
-    other weights for is never overwritten. Raises TrainingCohortUnavailable,
-    before asking the startup, when no training cohort was provided, and
-    grpc.RpcError when the startup cannot be reached or refuses."""
+    """Fetch the screening models this hospital does not hold yet, validate each
+    complete one on the provided training cohort, store it, and return the run
+    IDs stored.
+
+    The request tells the startup which screening models the hospital holds. A
+    stored model is never overwritten with other weights. Raises
+    TrainingCohortUnavailable, before calling the startup, when no training
+    cohort is provided, and grpc.RpcError when the startup cannot be reached or
+    refuses."""
     address, directory = settings.STARTUP_ADDRESS, settings.SCREENING_MODELS_DIR
     cohort_dir = settings.TRAINING_COHORT_DIR
     if address is None:

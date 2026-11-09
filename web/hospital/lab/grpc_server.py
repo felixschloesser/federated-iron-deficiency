@@ -1,4 +1,5 @@
-"""The hospital's lab-order endpoint: gRPC, plaintext in the demo (web/shared/grpc/messages.proto)."""
+"""The hospital's lab-order endpoint over gRPC, plaintext in the demo
+(web/shared/grpc/messages.proto)."""
 
 import grpc
 from django.core.exceptions import ValidationError
@@ -14,8 +15,8 @@ from web.shared.vocabulary import ClinicalIndication, RegisteredSex, ResultName,
 
 
 def practice_of(context: grpc.ServicerContext) -> Practice:
-    """The calling practice, by the slug the call names it by; a call that names
-    none, or a practice the hospital does not know, is refused before anything is
+    """The calling practice, found by the slug the call names. A call that names
+    no practice, or one the hospital does not know, is refused before anything is
     read or recorded."""
     slug = caller(context)
     if slug is None:
@@ -27,8 +28,8 @@ def practice_of(context: grpc.ServicerContext) -> Practice:
 
 
 def lab_order_details(request: messages_pb2.LabOrder) -> LabOrderDetails:
-    """What a lab order says, part by part; a part left out is None, for the
-    models to refuse (TestRequest.objects.receive)."""
+    """Read a lab order part by part. A part left out becomes None, which
+    TestRequest.objects.receive then refuses."""
     return LabOrderDetails(
         sample_id=request.sample_id,
         test=from_proto(request.test, messages_pb2.Test, Test),
@@ -48,8 +49,8 @@ def lab_order_details(request: messages_pb2.LabOrder) -> LabOrderDetails:
 
 
 class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
-    """Receives lab orders and hands out lab reports, like a view: parse, then the
-    service."""
+    """Receives lab orders and hands out lab reports. Like a view, each method
+    parses the message and then calls one model method."""
 
     @with_database
     def SendLabOrder(
@@ -116,7 +117,7 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
 
 
 def serve(address: str) -> tuple[grpc.Server, int]:
-    """Start the endpoint, plaintext: the demo leaves out the report's mutual TLS."""
+    """Start the endpoint over plaintext; the demo leaves out mutual TLS."""
     return start(
         address,
         lambda server: messages_pb2_grpc.add_LaboratoryServicer_to_server(

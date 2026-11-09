@@ -48,8 +48,6 @@ class PatientIndexView(GeneralPractitionerRequiredMixin, ListView[Patient]):
 
 
 class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
-    """One of the practice's patients."""
-
     template_name = "practice/patient.html"
     context_object_name = "patient"
 
@@ -70,22 +68,24 @@ class PatientDetailView(GeneralPractitionerRequiredMixin, DetailView[Patient]):
             )
             .order_by("-collected_at", "-pk")
         )
-        # Blood is collected first; tests are ordered on a sample afterwards.
+        # Blood is collected first; tests are then ordered on the sample.
         collect = reverse("practice:collect_sample", kwargs={"patient": patient.pk})
         laboratories = Laboratory.objects.count()
-        # Several laboratories: the choice comes first, on its own page.
+        # With several laboratories, Collect sample links to a page to choose one;
+        # with one, it posts straight away.
         collect_action = {"url": collect, "label": "Collect sample"}
-        # Where a doctor waits for a lab report, so they need not go to Orders.
+        # Also offered here, so a doctor waiting for a lab report need not go to
+        # Orders.
         check_action = {
             "url": reverse(
                 "practice:patient_check_for_reports", kwargs={"patient": patient.pk}
             ),
             "label": "Check for reports",
         }
-        # Each sample with the tests on it, in the order they were placed, so a
-        # ferritin ordered beside a suggestion shows right under it.
-        # Only the newest opens; the others summarise their tests and whether a
-        # lab report in them suggests ferritin.
+        # Samples come newest first, each with its tests in the order placed, so
+        # a ferritin ordered beside a suggestion shows right below it. The page
+        # opens only the newest sample; the others show a summary of their tests
+        # and whether a lab report suggests ferritin.
         return {
             **super().get_context_data(**kwargs),
             "subtitle": f"{patient.get_registered_sex_display()}, aged {patient.age}",
@@ -114,11 +114,11 @@ class OrderIndexView(GeneralPractitionerRequiredMixin, ListView[Order]):
 
 
 class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
-    """Sends pending lab orders and fetches new lab reports from every laboratory
-    now (tests/practice/test_grpc_client.py)."""
+    """Send pending lab orders to every laboratory and fetch new lab reports now."""
 
     def post(self, request: HttpRequest, patient: int | None = None) -> HttpResponse:
-        # From a patient's page, back to it; from Orders, back there.
+        # Redirect back to where the request came from: the patient's page or
+        # Orders.
         back = reverse("practice:orders")
         if patient is not None:
             record = get_object_or_404(Patient, pk=patient)
@@ -141,8 +141,8 @@ class CheckForReportsView(GeneralPractitionerRequiredMixin, View):
 
 
 class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSampleForm]):
-    """Records a sample collected from one of the practice's patients, for the
-    laboratory chosen; a practice with one laboratory skips the choice (features/practice/ordering.feature)."""
+    """Record a sample collected from a patient for the chosen laboratory, then
+    go to ordering its CBC. A practice with one laboratory skips the choice."""
 
     template_name = "practice/collect_sample.html"
     form_class = CollectSampleForm
@@ -152,7 +152,7 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSample
         return get_object_or_404(Patient, pk=self.kwargs["patient"])
 
     def get_initial(self) -> dict[str, Any]:
-        # The primary laboratory preselected; the general practitioner may pick another.
+        # Preselect the primary laboratory; the general practitioner may pick another.
         return {"laboratory": Laboratory.objects.primary()}
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
@@ -165,11 +165,13 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSample
             )
         except ValidationError as error:
             for field, errors in error.error_dict.items():
-                # The stock of sample IDs is no field of the form: the summary says it.
+                # Running out of sample IDs is not about a form field, so it goes
+                # to the error summary.
                 form.add_error(field if field in form.fields else None, errors)
             return self.form_invalid(form)
         messages.success(self.request, f"Sample {sample.sample_id} collected.")
-        # Straight to the routine first test; any other is ordered from the sample.
+        # Go straight to ordering the routine CBC; other tests are ordered from
+        # the sample later.
         return redirect(
             "practice:order",
             patient=self.patient.pk,
@@ -179,7 +181,7 @@ class CollectSampleView(GeneralPractitionerRequiredMixin, FormView[CollectSample
 
 
 class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
-    """Orders one test on one of a patient's samples: both chosen before the form."""
+    """Order one test on one of a patient's samples; the URL names both."""
 
     template_name = "practice/new_order.html"
     form_class = OrderForm
@@ -213,8 +215,9 @@ class NewOrderView(GeneralPractitionerRequiredMixin, FormView[OrderForm]):
         return self.refused() or super().post(request, *args, **kwargs)
 
     def refused(self) -> HttpResponse | None:
-        """An order refused whatever its indication (a typed or stale URL): back to
-        the patient, with why. place_order checks again, for two tabs at once."""
+        """If this test cannot be ordered on this sample at all (say, from a typed
+        or stale URL), redirect back to the patient with the reason. place_order
+        checks again, in case two tabs order at once."""
         refusal = self.sample.order_refusal(
             test=self.kwargs["test"], now=timezone.now()
         )

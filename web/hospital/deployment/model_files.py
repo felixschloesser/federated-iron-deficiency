@@ -1,7 +1,7 @@
 """Screening models as files in the hospital's folder: storing a fetched final
 model with this hospital's standardization and local validation, and what the
-laboratory director sees of each. A file is read whole or not at all
-(features/hospital/deployment.feature)."""
+laboratory director sees of each. A file missing any part is treated as
+unreadable (features/hospital/deployment.feature)."""
 
 import hashlib
 import math
@@ -24,22 +24,22 @@ from ml.final_model import (
 )
 from ml.validation import auroc, confusion_matrices, standardization
 
-# The thresholds a laboratory director chooses from: local validation counts
-# at every one.
+# The thresholds a laboratory director can choose from; local validation
+# counts at each one.
 THRESHOLDS = tuple(step / 20 for step in range(1, 20))
 
-# The four cells of a confusion matrix, as the file names them.
+# The four cells of a confusion matrix, under the names the file uses.
 CELLS = ("true_positives", "false_negatives", "false_positives", "true_negatives")
 
 
 def model_name(stored_at: datetime) -> str:
-    """How the laboratory director knows a model: when it arrived."""
+    """The name the laboratory director knows a model by: when it arrived."""
     return f"Screening model of {formats.date_format(timezone.localtime(stored_at), 'j M Y, H:i')}"
 
 
 @dataclass(frozen=True)
 class Ratio:
-    """Part of a whole, shown with both counts: 7 of 10."""
+    """A part of a whole, shown with both counts, as in "7 of 10"."""
 
     part: int
     whole: int
@@ -54,12 +54,13 @@ class Ratio:
 
     @property
     def interval(self) -> str | None:
-        """The share's 95% confidence interval in whole percentages, 40–89%;
-        None when there is no whole."""
+        """The share's 95% confidence interval in whole percentages, such as
+        "40–89%"; None when there is no whole."""
         if not self.whole:
             return None
-        # Wilson's score interval: unlike share ± 1.96 standard errors, it stays
-        # within 0–100% and does not shrink to nothing at 0 of 10 or 10 of 10.
+        # Wilson's score interval: unlike the share ± 1.96 standard errors, it
+        # stays within 0–100% and does not collapse to a point at 0 of 10 or
+        # 10 of 10.
         z_squared = 1.96**2
         share = self.part / self.whole
         centre = (share + z_squared / (2 * self.whole)) / (1 + z_squared / self.whole)
@@ -82,11 +83,10 @@ class LocalValidationAt:
     counts: dict[str, int]
 
     def count(self, cell: str) -> int:
-        """One cell of the confusion matrix."""
         return self.counts[cell]
 
-    # The laboratory's measures of a method's ability to detect disease (WHO LQMS
-    # 3-3, p. 40), each as the counts it comes from.
+    # The laboratory's measures of how well a method detects disease (WHO LQMS
+    # 3-3, p. 40), each kept as the counts it comes from.
     @property
     def sensitivity(self) -> "Ratio":
         found = self.count("true_positives")
@@ -109,13 +109,13 @@ class LocalValidationAt:
 
 
 def auroc_interval(area: float, counts: LocalValidationAt) -> str:
-    """An AUROC's 95% confidence interval, 0.68–1.00, from the past patients
-    whose counts it was measured on. Neither group is ever empty: a training
-    cohort holds at least 10 of each class, and the test split is stratified."""
+    """An AUROC's 95% confidence interval, such as "0.68–1.00", from the sizes of
+    the two groups in `counts`. Neither group is ever empty: a training cohort
+    holds at least 10 of each class, and the test split is stratified."""
     deficient = counts.count("true_positives") + counts.count("false_negatives")
     other = counts.count("true_negatives") + counts.count("false_positives")
-    # Hanley and McNeil's standard error (Radiology 1982;143:29–36): from the
-    # AUROC and the two groups' sizes alone, which is all the file holds.
+    # Hanley and McNeil's standard error (Radiology 1982;143:29–36) needs only
+    # the AUROC and the two groups' sizes, which is all the file holds.
     q1, q2 = area / (2 - area), 2 * area**2 / (1 + area)
     error = math.sqrt(
         (
@@ -131,7 +131,7 @@ def auroc_interval(area: float, counts: LocalValidationAt) -> str:
 
 @dataclass(frozen=True)
 class ScreeningModel:
-    """A screening model as its file holds it: every part, or no
+    """A screening model as read from its file; a file missing any part gives no
     screening model."""
 
     state_dict: dict[str, torch.Tensor]
@@ -140,7 +140,7 @@ class ScreeningModel:
     std: torch.Tensor
     run_id: str
     stored_at: datetime
-    # Only what the ServerApp aggregated; no other hospital's metrics.
+    # The AUROC the ServerApp aggregated; no other hospital's own metrics.
     federated_auroc: float
     local_auroc: float
     # One row per threshold the laboratory director may deploy at, lowest first.
@@ -151,21 +151,22 @@ class ScreeningModel:
         return model_name(self.stored_at)
 
     def at(self, threshold: float) -> LocalValidationAt | None:
-        """The local validation at a threshold; None if the file holds none there."""
+        """The local validation at `threshold`, or None if the file holds none there."""
         return next(
             (row for row in self.local_validation if row.threshold == threshold), None
         )
 
     @property
     def local_auroc_interval(self) -> str:
-        """The AUROC here's 95% confidence interval."""
-        # Every threshold's counts hold the same past patients.
+        """The 95% confidence interval of the AUROC on this hospital's past patients."""
+        # Every threshold's counts cover the same past patients, so any row
+        # gives the group sizes.
         return auroc_interval(self.local_auroc, self.local_validation[0])
 
 
 def read_screening_model(data: bytes) -> ScreeningModel | None:
-    """A screening model from its file's bytes; None if the file is unreadable,
-    lacks a part, or its weights do not fit the network."""
+    """Read a screening model from its file's bytes; None if the file is
+    unreadable, lacks a part, or its weights do not fit the network."""
     contents = load_contents(data)
     if contents is None:
         return None
@@ -207,8 +208,10 @@ def sha256(data: bytes) -> str:
 
 
 def read_stored(directory: Path, run_id: str) -> tuple[ScreeningModel, str] | None:
-    """The screening model of a run in the folder, and the sha256 of the very
-    bytes it was read from; None if there is no readable one."""
+    """The screening model of run `run_id` in the folder, with the SHA-256 of the
+    bytes it was read from; None if there is no readable one. Hashing the bytes
+    already read, rather than the file again, keeps the hash true to the model
+    returned even if the file changes meanwhile."""
     path = model_file_path(directory, run_id)
     if not path.is_file():
         return None
@@ -227,9 +230,10 @@ def store_fetched(
     stored_at: datetime,
 ) -> Path:
     """Store a fetched screening model with this hospital's standardization and
-    its local validation on the training cohort; `federated_auroc` is what the
-    ServerApp aggregated, no other hospital's metrics. One fetched again is kept
-    as it was; other weights under a stored run's ID are refused."""
+    its local validation on the training cohort. `federated_auroc` is the value
+    the ServerApp aggregated; no other hospital's own metrics are stored. A model
+    fetched again keeps its stored file; other weights under a stored run ID
+    raise FileExistsError."""
     path = model_file_path(directory, run_id)
     if path.exists():
         stored = read_screening_model(path.read_bytes())

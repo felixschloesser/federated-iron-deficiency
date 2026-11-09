@@ -1,6 +1,6 @@
-# The hospital's web app. It contains the hospital's and the shared Django
-# apps, plus the training package (PyTorch) it uses to check and run
-# screening models. No other party's code
+# The hospital's web app: the hospital's and the shared Django apps, plus the
+# training package (PyTorch), which it uses to check and run screening models.
+# It holds no other party's code
 # (tests/quality/security/test_running_containers.py checks this).
 FROM python:3.13.18-slim
 # Empty folders for this party's data. compose mounts a new volume on /data,

@@ -1,32 +1,40 @@
-# The demo (demo/README.md): one container per server, one network per
-# trust boundary of the report's DFDs, and one per crossing, and one volume
-# per party: every container mounts only its own party's parts of it. Each
-# party's setup job, <party>-setup, sets the party up before its servers start,
-# from its own NHANES extract, which nhanes-download writes to .demo/ on the host.
+# The demo (demo/README.md): one container per server, one network inside each
+# party and one for each kind of traffic between parties, and one volume per
+# party, of which every container mounts only its own party's parts. Each
+# party's setup job, <party>-setup, sets the party up from its own NHANES
+# extract before the party's servers start; nhanes-download writes the extracts
+# to .demo/ on the host.
 #
 #   docker compose up --build --abort-on-container-failure
 #   docker compose run --rm train
 #   docker compose down -v          # start over; .demo/ on the host stays
 #
-# Browsers reach http://<party>.localhost through the proxy, the only
-# published port. Networks: startup (TB2), startup-web (the startup's web app
-# and the proxy), <hospital> (TB1), <hospital>-flower-client-app (TB4,
-# internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
-# lab-orders crosses TB3-TB1 (DF23, DF25): every practice reaches every
-# hospital's lab-order endpoint, <hospital>-grpc, there; screening-models
-# joins the hospitals' web apps and the startup's screening-models endpoint,
-# startup-grpc. A party's web app and its gRPC endpoint are two containers of
-# one image: <party>-web and <party>-grpc.
+# Browsers reach http://<party>.localhost through the proxy, which has the only
+# published port. The networks:
+#   startup                      inside the startup
+#   startup-web                  the startup's web app and the proxy
+#   <hospital>                   inside a hospital
+#   <hospital>-flower-client-app a hospital's ClientApp and its SuperNode only
+#   <practice>                   inside a practice
+#   model-updates                the hospitals' SuperNodes and the startup's
+#                                SuperLink, for training
+#   lab-orders                   every practice and every hospital's lab-order
+#                                endpoint, <hospital>-grpc: lab orders go one
+#                                way, lab reports the other
+#   screening-models             the hospitals' web apps and the startup's
+#                                screening-models endpoint, startup-grpc
+# A party's web app and its gRPC endpoint are two containers of one image:
+# <party>-web and <party>-grpc.
 #
-# The parties: three hospitals, each with the general practitioner's practice
-# whose primary laboratory it is (the practices are fictional). Each kind of
-# service runs as kinds.yaml says; each party's services say only its
-# facts: its name and colour (a Pico theme), its setup job's steps (whom it
-# knows, whether its laboratory director provided the training cohort), its
-# volume and its networks. nhanes-download's --pair arguments give each
-# hospital its NHANES cycle and its practice its number of patients. How a
-# hospital trains is the startup's choice, in its app; this file never reaches
-# the FAB.
+# The parties: three hospitals, each paired with the general practitioner's
+# practice whose primary laboratory it is (the practices are fictional).
+# kinds.yaml says how each kind of service runs; each party's services here give
+# only that party's facts: its name and colour (a Pico theme), its setup job's
+# steps (whom it knows, whether its laboratory director provided the training
+# cohort), its volume and its networks. nhanes-download's --pair arguments give
+# each hospital its NHANES cycle and each practice its number of patients. How a
+# hospital trains is the startup's choice, made in its Flower app; nothing in
+# this file reaches the FAB.
 
 name: iron-deficiency
 
@@ -57,7 +65,7 @@ services:
       - ../.demo/nhanes:/demo/nhanes
     networks: [setup]
 
-  # TB2, the startup.
+  # The startup.
   flower-superlink:
     extends: {file: kinds.yaml, service: server}
     image: flwr/superlink:1.40.0
@@ -71,8 +79,8 @@ services:
       - --port=9092
       - --database=/demo/startup/superlink/state.db
       - --isolation=process
-      # Plaintext, any node admitted: the report's TLS and SuperNode
-      # authentication are left out of the demo for simplicity.
+      # Plaintext, and any SuperNode may connect: the demo leaves out TLS and
+      # SuperNode authentication for simplicity.
       - --insecure
     volumes:
       - {type: volume, source: startup, target: /demo/startup/superlink, volume: {subpath: superlink}}
@@ -92,7 +100,8 @@ services:
       - {type: volume, source: startup, target: /demo/startup/final-models, volume: {subpath: final-models}}
     networks: [startup]
 
-  # E1, the data scientist, submits from inside TB2: `docker compose run --rm train`.
+  # The data scientist submits a training run from inside the startup:
+  # `docker compose run --rm train`.
   train:
     image: ${COMPOSE_PROJECT_NAME}-startup-web
     user: "1000:1000"
@@ -135,17 +144,17 @@ services:
       DJANGO_SETTINGS_MODULE: web.startup.settings
       DATA_DIR: /data
       FLWR_HOME: /data/flwr-home
-    # The startup's volume: the final models read-only, the SuperLink's state
-    # masked, as it is the SuperLink's alone. The screening-models endpoint sees it
-    # alike.
+    # The startup's volume, with the final models read-only and the SuperLink's
+    # state hidden under a tmpfs, because it belongs to the SuperLink alone. The
+    # screening-models endpoint mounts it the same way.
     volumes:
       - {type: volume, source: startup, target: /data}
       - {type: volume, source: startup, target: /data/final-models, read_only: true, volume: {subpath: final-models}}
     tmpfs: [/data/superlink]
     networks: [startup, startup-web]
 
-  # The startup's screening-models endpoint (P5), the only thing the hospitals'
-  # web apps reach at the startup.
+  # The startup's screening-models endpoint, from which hospitals fetch released
+  # final models; the only thing the hospitals' web apps reach at the startup.
   startup-grpc:
     extends: {file: kinds.yaml, service: server}
     image: ${COMPOSE_PROJECT_NAME}-startup-web
@@ -163,7 +172,7 @@ services:
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8442)).close()"]
     networks: [screening-models]
 
-  # TB1 and TB4, UZ Leuven.
+  # The hospital UZ Leuven, starting with its SuperNode and ClientApp.
   uz-leuven-flower-supernode:
     extends: {file: kinds.yaml, service: supernode}
     command:
@@ -223,7 +232,7 @@ services:
     volumes:
       - {type: volume, source: uz-leuven, target: /data}
 
-  # TB1 and TB4, Heilig Hart Leuven.
+  # The hospital Heilig Hart Leuven, starting with its SuperNode and ClientApp.
   heilig-hart-leuven-flower-supernode:
     extends: {file: kinds.yaml, service: supernode}
     command:
@@ -282,7 +291,7 @@ services:
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /data}
 
-  # TB1 and TB4, AZ Diest.
+  # The hospital AZ Diest, starting with its SuperNode and ClientApp.
   az-diest-flower-supernode:
     extends: {file: kinds.yaml, service: supernode}
     command:
@@ -341,9 +350,9 @@ services:
     volumes:
       - {type: volume, source: az-diest, target: /data}
 
-  # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory: on the lab-orders network. Each knows every hospital's
-  # laboratory; its paired hospital's is the primary one.
+  # The practices. Each general practitioner's practice can send samples to
+  # every hospital's laboratory over the lab-orders network; its paired
+  # hospital's laboratory is its primary laboratory.
   huisartsenpraktijk-de-akker-setup:
     extends: {file: kinds.yaml, service: practice-setup}
     command:

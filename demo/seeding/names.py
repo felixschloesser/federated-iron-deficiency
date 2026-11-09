@@ -1,14 +1,14 @@
-"""The demo patients' fictional names, seeded at the practice
+"""Fictional names for the demo patients the practice seeds
 (demo/seeding/parties.py)."""
 
 from typing import assert_never
 
 from web.shared.vocabulary import RegisteredSex
 
-# Fictional names that sound like Flanders: the ten most common family names of
-# the Flemish Region on 1 January 2026 (Statbel, "Family names"), and common
-# Flemish first names, led by Maria and Marc, the most common there (Statbel,
-# "Maria, Marie, Monique, Martine…", 2018). Any real person sharing one is chance.
+# Fictional names that sound Flemish: the ten most common family names in the
+# Flemish Region on 1 January 2026 (Statbel, "Family names"), and common Flemish
+# first names, led by Maria and Marc, the most common there (Statbel, "Maria,
+# Marie, Monique, Martine…", 2018). A real person with the same name is chance.
 SURNAMES = (
     "Peeters",
     "Janssens",
@@ -43,7 +43,7 @@ def first_names(sex: RegisteredSex) -> tuple[str, ...]:
 
 
 def patient_name(nhanes_number: int, sex: RegisteredSex) -> str:
-    """A fictional name for a demo patient, the same on every seed."""
+    """A fictional name for a demo patient, the same every time it is seeded."""
     first = first_names(sex)
     return (
         f"{first[nhanes_number % len(first)]}"

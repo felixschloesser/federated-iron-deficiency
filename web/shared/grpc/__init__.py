@@ -1,4 +1,4 @@
-"""The messages between the parties' web apps over gRPC
+"""The messages the parties' web apps send each other over gRPC
 (web/shared/grpc/messages.proto).
 
 messages_pb2*.py and .pyi are generated from the proto, never edited. After
@@ -8,7 +8,7 @@ changing the proto, regenerate them from the repository's root:
         --mypy_out=. --mypy_grpc_out=. web/shared/grpc/messages.proto
 """
 
-# The command above, for the test that checks the generated code is current.
+# The command above, used by the test that checks the generated code is current.
 GENERATE = (
     "grpc_tools.protoc",
     "-I.",

@@ -1,4 +1,6 @@
-"""Run the startup's screening-models endpoint (features/startup/release.feature) until stopped."""
+"""Run the startup's screening-models gRPC endpoint until stopped.
+
+See features/startup/release.feature."""
 
 from typing import Any
 
@@ -15,7 +17,8 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         server, _ = serve(options["address"])
-        self.stdout.write(f"Messaging endpoint on {options['address']}")
-        # The demo sends stdout to a file, which would hold the line until exit.
+        self.stdout.write(f"Screening-models endpoint on {options['address']}")
+        # The demo redirects stdout to a file, which would buffer this line until
+        # exit.
         self.stdout.flush()
         server.wait_for_termination()

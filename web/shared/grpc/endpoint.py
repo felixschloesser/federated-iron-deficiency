@@ -1,6 +1,6 @@
-"""What every gRPC endpoint of the demo shares: the database connection around
-each call, and starting the server, plaintext (the demo leaves out the report's
-mutual TLS)."""
+"""Helpers every gRPC endpoint shares: managing the database connection around
+each call, and starting the server. The server is plaintext: the demo leaves out
+mutual TLS."""
 
 import functools
 from collections.abc import Callable
@@ -11,7 +11,7 @@ from django.db import close_old_connections
 
 
 def with_database[**P, R](handler: Callable[P, R]) -> Callable[P, R]:
-    """Open and close the database connection around a call, as Django does per request."""
+    """Close stale database connections before and after a call, as Django does around each request."""
 
     @functools.wraps(handler)
     def handle(*args: P.args, **kwargs: P.kwargs) -> R:
@@ -27,7 +27,7 @@ def with_database[**P, R](handler: Callable[P, R]) -> Callable[P, R]:
 def start(
     address: str, register: Callable[[grpc.Server], None]
 ) -> tuple[grpc.Server, int]:
-    """Start an endpoint on `address` with the services `register` adds; the
+    """Start a server on `address` with the services `register` adds. Returns the
     server and the port it listens on."""
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
     register(server)

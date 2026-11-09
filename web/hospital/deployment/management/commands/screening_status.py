@@ -1,4 +1,4 @@
-"""Print one line on this hospital's screening models: how many, which is deployed."""
+"""Print one line about this hospital's screening models: how many, and which is deployed."""
 
 from typing import Any
 

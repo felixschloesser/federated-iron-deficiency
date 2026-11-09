@@ -1,4 +1,6 @@
-"""General practitioners, their patients, and orders."""
+"""The practice's patients, their samples, the tests ordered on them, and the
+lab reports that come back (features/practice/ordering.feature,
+features/practice/reports.feature)."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,20 +12,21 @@ from web.shared.vocabulary import ClinicalIndication, RegisteredSex, ResultName,
 
 INDICATION_REQUIRED = "A CBC needs a clinical indication."
 NOT_SUGGESTED = "Ferritin is ordered only beside a lab report suggesting it."
-# The tests an order states a clinical indication for (Test.takes_indication).
+# The tests whose order must state a clinical indication.
 TAKES_INDICATION = [test.value for test in Test if test.takes_indication()]
 
 
 class LaboratoryQuerySet(models.QuerySet["Laboratory"]):
     def primary(self) -> "Laboratory | None":
-        """The laboratory samples go to unless the general practitioner picks
-        another; None while the practice has named none."""
+        """The laboratory samples go to by default, or None if the practice has
+        not named one."""
         return self.filter(primary=True).first()
 
     @transaction.atomic
     def add(self, *, name: str, address: str, primary: bool) -> "Laboratory":
-        """Add a laboratory or change its address; `primary` makes it the primary
-        laboratory, in place of any other."""
+        """Add a laboratory, or change the address of an existing one. With
+        `primary`, it becomes the primary laboratory and any other stops being
+        one."""
         if primary:
             self.exclude(name=name).filter(primary=True).update(primary=False)
         defaults: dict[str, object] = {"address": address}
@@ -34,7 +37,7 @@ class LaboratoryQuerySet(models.QuerySet["Laboratory"]):
 
 
 class Laboratory(models.Model):
-    """A hospital's laboratory the practice sends samples to (features/practice/ordering.feature)."""
+    """A hospital's laboratory that the practice sends samples to."""
 
     name = models.CharField(max_length=100, unique=True)
     # host:port of the hospital's lab-order endpoint.
@@ -59,8 +62,8 @@ class Laboratory(models.Model):
 
 
 def _awaits_ferritin() -> models.Exists:
-    """Whether the outer patient has a lab report suggesting ferritin on a sample
-    with no ferritin order yet."""
+    """Subquery: whether the patient (OuterRef) has a lab report that suggests
+    ferritin on a sample with no ferritin order yet."""
     return models.Exists(
         LabReport.objects.filter(
             order__sample__patient=models.OuterRef("pk"), ferritin_suggested=True
@@ -70,11 +73,12 @@ def _awaits_ferritin() -> models.Exists:
 
 class PatientQuerySet(models.QuerySet["Patient"]):
     def awaiting_ferritin(self) -> "PatientQuerySet":
-        """The patients whose doctor has a ferritin suggestion to act on."""
+        """Patients with a ferritin suggestion the doctor has not acted on yet."""
         return self.filter(_awaits_ferritin())
 
     def with_ferritin_suggested(self) -> "PatientQuerySet":
-        """Each patient with `ferritin_suggested`, for the patient list's mark."""
+        """Annotate each patient with `ferritin_suggested`, which the patient list
+        marks."""
         return self.annotate(ferritin_suggested=_awaits_ferritin())
 
 
@@ -90,9 +94,9 @@ class Patient(models.Model):
 
     @transaction.atomic
     def collect_sample(self, *, now: datetime, laboratory: Laboratory) -> "Sample":
-        """Record blood collected from this patient, under the next unused sample
-        ID of the practice's stock, for the laboratory chosen for it; tests are
-        ordered on it afterwards and follow it there."""
+        """Record a blood sample collected from this patient for the chosen
+        laboratory, under the next unused sample ID. Tests are ordered on the
+        sample afterwards and go to the same laboratory."""
         sample_id = SampleId.objects.unused().order_by("pk").first()
         if sample_id is None:
             raise ValidationError(
@@ -118,10 +122,10 @@ class SampleIdQuerySet(models.QuerySet["SampleId"]):
 
 
 class SampleId(models.Model):
-    """A sample ID from the practice's stock of labels, each taken by one sample
-    (features/practice/ordering.feature). The demo's labels carry NHANES
-    participants' numbers, so the analyser stand-in measures the blood of the
-    participant whose number a sample carries."""
+    """A sample ID from the practice's stock of labels; each is used by at most
+    one sample. In the demo the labels carry NHANES participants' numbers, so
+    the analyser stand-in measures the blood of the participant whose number
+    the sample carries."""
 
     value = models.CharField(max_length=20, unique=True)
 
@@ -132,8 +136,8 @@ class SampleId(models.Model):
 
 
 class Sample(models.Model):
-    """Blood collected from a patient at the practice; its tests are ordered on
-    it, and its sample ID goes on the label (features/practice/ordering.feature)."""
+    """Blood collected from a patient at the practice. Tests are ordered on it,
+    and its sample ID goes on the label."""
 
     patient = models.ForeignKey(
         Patient, on_delete=models.PROTECT, related_name="samples"
@@ -142,7 +146,7 @@ class Sample(models.Model):
         SampleId, on_delete=models.PROTECT, related_name="sample"
     )
     collected_at = models.DateTimeField()
-    # Where the sample went, so every test on it goes there too.
+    # Where the sample was sent; every test on it goes to the same laboratory.
     laboratory = models.ForeignKey(
         Laboratory, on_delete=models.PROTECT, related_name="samples"
     )
@@ -150,10 +154,12 @@ class Sample(models.Model):
     def __str__(self) -> str:
         return self.sample_id.value
 
-    # .all(), not .filter(), below: they use the orders when the page prefetched them.
+    # The methods below loop over .all() instead of calling .filter(), so they
+    # reuse the orders the page prefetched instead of querying again.
     def tests_to_order(self) -> list[Test]:
-        """The tests this sample does not have yet, but not one ordered on
-        suspicion: that one is offered only beside the lab report suggesting it."""
+        """The tests not yet ordered on this sample. A test ordered on suspicion
+        (ferritin) is left out: it is offered only beside the lab report that
+        suggests it."""
         ordered = {order.test for order in self.orders.all()}
         return [
             test for test in Test if test not in ordered and not test.on_suspicion()
@@ -161,7 +167,7 @@ class Sample(models.Model):
 
     @property
     def tests_display(self) -> str:
-        """The tests ordered on it, in the order the queryset gives: "CBC, ferritin"."""
+        """The tests ordered on this sample, comma-separated: "CBC, ferritin"."""
         return ", ".join(order.get_test_display() for order in self.orders.all())
 
     @property
@@ -185,17 +191,19 @@ class Sample(models.Model):
         indication: ClinicalIndication | None,
         now: datetime,
     ) -> "Order":
-        """Order one test on this sample, copying the patient's registered
-        sex and age, also a later one such as ferritin beside a suggestion."""
+        """Order one test on this sample, copying the patient's registered sex
+        and age into the order. This also orders a later test, such as ferritin
+        beside a suggestion."""
         order = self._order(test=test, indication=indication, now=now)
         order.full_clean()
         order.save()
         return order
 
     def order_refusal(self, *, test: Test, now: datetime) -> ValidationError | None:
-        """What would refuse this test on this sample whatever its indication: a
-        test the sample has, ferritin without a suggestion. The order
-        page asks before showing its form; place_order checks it again."""
+        """Why this test cannot be ordered on this sample, whatever the
+        indication (the sample already has it, or ferritin without a
+        suggestion), or None if it can. The order page asks before showing its
+        form; place_order checks again."""
         order = self._order(test=test, indication=None, now=now)
         try:
             order.full_clean(exclude=["indication"])
@@ -210,7 +218,7 @@ class Sample(models.Model):
         indication: ClinicalIndication | None,
         now: datetime,
     ) -> "Order":
-        """The order as placed: the patient's registered sex and age copied."""
+        """Build an unsaved order with the patient's registered sex and age."""
         return Order(
             sample=self,
             test=test,
@@ -223,26 +231,28 @@ class Sample(models.Model):
 
 class OrderQuerySet(models.QuerySet["Order"]):
     def not_sent(self) -> "OrderQuerySet":
-        """The orders whose lab order still waits to be sent: neither confirmed by
-        the laboratory nor rejected by it."""
+        """Orders whose lab order has not been sent yet: the laboratory has
+        neither confirmed nor rejected it."""
         return self.filter(sent_at__isnull=True, rejected_at__isnull=True)
 
 
 class Order(models.Model):
     sample = models.ForeignKey(Sample, on_delete=models.PROTECT, related_name="orders")
     test = models.CharField(max_length=8, choices=Test.choices)
-    # Absent for a test that takes none (Test.takes_indication).
+    # None for a test that takes no clinical indication.
     indication = models.CharField(
         max_length=24, choices=ClinicalIndication.choices, null=True, blank=True
     )
-    # Copied at ordering: all the lab learns about the patient.
+    # Copied from the patient when ordering; this is all the laboratory learns
+    # about the patient.
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
     ordered_at = models.DateTimeField()
-    # Absent until the hospital confirmed the lab order (DF23); then never sent again.
+    # None until the hospital confirms it received the lab order; after that it
+    # is not sent again.
     sent_at = models.DateTimeField(null=True, blank=True)
-    # Absent unless the laboratory rejected the lab order, with its reason for
-    # rejection; then never sent again either.
+    # Set only if the laboratory rejected the lab order, together with its
+    # reason; a rejected lab order is not sent again either.
     rejected_at = models.DateTimeField(null=True, blank=True)
     reason_for_rejection = models.TextField(null=True, blank=True)
 
@@ -257,7 +267,7 @@ class Order(models.Model):
                 violation_error_code="already_ordered",
                 violation_error_message="This sample already has this test.",
             ),
-            # A clinical indication exactly for the tests that take one.
+            # A test that takes a clinical indication has one; any other has none.
             models.CheckConstraint(
                 condition=~models.Q(test__in=TAKES_INDICATION)
                 | models.Q(indication__isnull=False),
@@ -288,13 +298,15 @@ class Order(models.Model):
 
     @transaction.atomic
     def reject(self, *, reason: str, now: datetime) -> None:
-        """The laboratory rejected its lab order, for `reason`: kept, never sent
-        again; the general practitioner collects a new sample to order again."""
+        """Record that the laboratory rejected this order's lab order, and why.
+        The order is kept and not sent again; to order the test again, the
+        general practitioner collects a new sample."""
         self.rejected_at, self.reason_for_rejection = now, reason
         self.save(update_fields=["rejected_at", "reason_for_rejection"])
 
     def clean(self) -> None:
-        """Ferritin only on suspicion: its sample has a lab report suggesting it. Across rows, so no constraint can hold it."""
+        """Allow ferritin only when a lab report on the same sample suggests it.
+        The rule spans rows, so a database constraint cannot hold it."""
         suggested = self.sample.orders.filter(lab_report__ferritin_suggested=True)
         if Test(self.test).on_suspicion() and not suggested.exists():
             raise ValidationError(
@@ -303,7 +315,7 @@ class Order(models.Model):
 
     @property
     def report(self) -> "LabReport | None":
-        """Its lab report, once fetched; None before."""
+        """The order's lab report, or None until it is fetched."""
         report: LabReport | None = getattr(self, "lab_report", None)
         return report
 
@@ -317,13 +329,13 @@ class ResultValue:
 
     @property
     def shown(self) -> str:
-        """The value as measured, without a padded or trailing zero: 7, 4.16, 10.7."""
+        """The value without padding or trailing zeros: 7, 4.16, 10.7."""
         return f"{self.value:g}"
 
 
 def results_named(results: object) -> None:
-    """Each result under a result name, with its value: a lab report's results
-    as the practice stores them."""
+    """Validate a lab report's stored results: each key is a result name and
+    each value a float."""
     items = results.items() if isinstance(results, dict) else []
     for name, value in items:
         if name not in ResultName.values:
@@ -333,8 +345,8 @@ def results_named(results: object) -> None:
 
 
 class LabReport(models.Model):
-    """A lab report fetched from the hospital (DF25): results, and whether
-    ferritin is suggested; nothing else of screening (features/practice/reports.feature)."""
+    """A lab report fetched from the hospital: the results and whether ferritin
+    is suggested. The practice learns nothing else about the screening."""
 
     order = models.OneToOneField(
         Order, on_delete=models.PROTECT, related_name="lab_report"
@@ -346,16 +358,18 @@ class LabReport(models.Model):
     fetched_at = models.DateTimeField()
 
     def ferritin_order_offered(self) -> bool:
-        """Order ferritin beside a suggestion, until its sample has ferritin."""
-        # .all(), not .filter(): uses the sample's orders when the page prefetched them.
+        """Whether to offer a ferritin order: the lab report suggests ferritin and its
+        sample has no ferritin order yet."""
+        # .all() instead of .filter() reuses the orders the page prefetched.
         return self.ferritin_suggested and not any(
             order.test == Test.FERRITIN for order in self.order.sample.orders.all()
         )
 
     @property
     def comment(self) -> str:
-        """The comment the general practitioner reads: only for a suggestion,
-        saying where it comes from and that it is no diagnosis."""
+        """The comment shown to the general practitioner when ferritin is
+        suggested: where the suggestion comes from, and that it is not a
+        diagnosis. Empty otherwise."""
         if not self.ferritin_suggested:
             return ""
         return (
@@ -365,15 +379,16 @@ class LabReport(models.Model):
 
     @property
     def note(self) -> str:
-        """Under a screened test's report without a suggestion: the same words
-        whether it was not suggested or not screened, so silence reassures no one."""
+        """The note under a screened test's report that has no suggestion. It
+        reads the same whether ferritin was not suggested or the CBC was not
+        screened, so the lack of a suggestion is not read as reassurance."""
         if self.ferritin_suggested or not Test(self.order.test).is_screened():
             return ""
         return "No ferritin suggestion. This does not rule out iron deficiency."
 
     def values(self) -> list[ResultValue]:
-        """The measured values under NHANES's names and units, uninterpreted;
-        empty when the laboratory reported none."""
+        """The measured values under NHANES's names and units, without
+        interpretation; empty when the laboratory reported none."""
         return [
             ResultValue(name.value, name.label, name.unit(), self.results[name.value])
             for name in ResultName

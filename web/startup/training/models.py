@@ -16,8 +16,9 @@ if TYPE_CHECKING:
 class RecipientManager(models.Manager["Recipient"]):
     @transaction.atomic
     def add(self, *, name: str) -> "Recipient":
-        """Register a recipient hospital by its name, once; a name whose slug
-        another recipient has is refused."""
+        """Register a recipient hospital by name; the same name again returns the
+        existing one. A name whose slug another recipient already has is
+        refused."""
         recipient = self.filter(name=name).first()
         if recipient is None:
             recipient = Recipient(name=name, slug=slugify(name))
@@ -27,12 +28,12 @@ class RecipientManager(models.Manager["Recipient"]):
 
 
 class Recipient(models.Model):
-    """A hospital the startup registered by its name, which never
-    changes; it calls as the name's slug, and may fetch every released final
-    model, whether or not it trained."""
+    """A hospital the startup registered by its name, which never changes. The
+    hospital calls as the name's slug and may fetch every released final model,
+    whether or not it took part in training."""
 
     name = models.CharField(max_length=100, unique=True)
-    # What the hospital's web app calls as; follows from the name.
+    # The name the hospital's web app calls as; derived from the name.
     slug = models.SlugField(max_length=100, editable=False)
 
     objects = RecipientManager()
@@ -53,14 +54,15 @@ class Recipient(models.Model):
 
 class ReleaseQuerySet(models.QuerySet["Release"]):
     def not_held(self, held_run_ids: list[str]) -> "ReleaseQuerySet":
-        """The released final models a recipient does not hold, of the run IDs it
-        says it holds; oldest release first."""
+        """The releases whose run ID is not among those the recipient says it
+        holds; oldest release first."""
         return self.exclude(final_model_run_id__in=held_run_ids).order_by(
             "released_at", "pk"
         )
 
     def with_fetches(self) -> "ReleaseQuerySet":
-        """Each release with the recipients that fetched it, for the final models page."""
+        """Prefetch the recipients that fetched each release, for the final models
+        page."""
         return self.prefetch_related("fetches__recipient")
 
     @transaction.atomic
@@ -78,7 +80,8 @@ class ReleaseQuerySet(models.QuerySet["Release"]):
     def record_fetched(
         self, *, recipient: Recipient, run_ids: list[str], now: datetime
     ) -> None:
-        """`recipient` was sent these released final models; the first time counts."""
+        """Record that `recipient` was sent the released final models with these
+        run IDs; only the first fetch of each is recorded."""
         for release in self.filter(final_model_run_id__in=run_ids):
             Fetch.objects.get_or_create(
                 release=release, recipient=recipient, defaults={"fetched_at": now}
@@ -99,7 +102,7 @@ class Release(models.Model):
         return f"Final model {self.final_model_run_id}, released"
 
     def fetched_by(self) -> list[Recipient]:
-        """The recipient hospitals that fetched it, by name."""
+        """The recipient hospitals that fetched this release, sorted by name."""
         return sorted(
             (fetch.recipient for fetch in self.fetches.all()),
             key=lambda each: each.name,
@@ -107,9 +110,9 @@ class Release(models.Model):
 
 
 class Fetch(models.Model):
-    """A recipient hospital fetched a released final model: the startup sent it
-    to a hospital still waiting for the reply, whether or not the hospital stored
-    it."""
+    """A record that the startup sent a released final model to a recipient
+    hospital that was still waiting for the reply, whether or not the hospital
+    then stored it."""
 
     release = models.ForeignKey(
         Release, on_delete=models.PROTECT, related_name="fetches"

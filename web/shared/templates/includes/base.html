@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{% endblock %}{% if party_name %} · {{ party_name }}{% endif %}</title>
-  {# 500.html renders without context, so the party's theme may be absent. #}
+  {# 500.html may render without context, so the party's theme may be missing. #}
   <link rel="stylesheet" href="{% if party_stylesheet %}{% static party_stylesheet %}{% else %}{% static 'css/vendor/pico-2.1.1/pico.min.css' %}{% endif %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
@@ -12,7 +12,7 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="container">
     <nav>
-      {# 500.html renders without context, so the name may be absent. #}
+      {# 500.html may render without context, so the party's name may be missing. #}
       <ul><li>{% if party_name %}<strong>{{ party_name }}</strong>{% endif %}</li></ul>
       {% if user.is_authenticated %}
       <ul>
@@ -29,7 +29,7 @@
   </header>
   <main id="main" class="container">
     {% for message in messages %}
-    {# An error the reader must act on is announced at once (includes/alert.html). #}
+    {# Screen readers announce an error at once (role="alert") and other messages politely (role="status"). #}
     {% if message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
     {% include "includes/alert.html" with level=message.tags role="alert" text=message %}
     {% else %}

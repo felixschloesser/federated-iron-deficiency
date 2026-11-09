@@ -1,5 +1,7 @@
-"""Register a practice the hospital works with by its name, which never changes
-(features/hospital/lab_orders.feature); run again, it changes nothing."""
+"""Register a practice the hospital works with, by its name.
+
+The name never changes. Running the command again with the same name changes
+nothing (features/hospital/lab_orders.feature)."""
 
 from typing import Any
 

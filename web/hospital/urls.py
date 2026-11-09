@@ -1,4 +1,4 @@
-"""The hospital's web app's pages."""
+"""The URLs of the hospital's web app."""
 
 from django.urls import include, path
 

@@ -2,9 +2,10 @@
 
 Every hospital's analyser stand-in holds the same pool: women aged 18–49 with a
 complete CBC and a measured ferritin, the people the screening is for. A
-practice's stock of sample IDs is a seeded draw of the pool's numbers, so each
-sample carries the blood of the participant its sample ID names. Its patients
-are drawn apart, from every group, so every screening outcome can be shown."""
+practice's stock of sample IDs is a seeded random draw of the pool's numbers, so
+each sample carries the blood of the participant whose number is its sample ID.
+A practice's patients are drawn separately, from every group, so the demo can
+show every screening outcome."""
 
 import enum
 from typing import assert_never
@@ -13,15 +14,16 @@ import pandas as pd
 
 from ml.cohort import ELIGIBLE_SEX, eligible, iron_deficient
 
-# Patients per practice unless nhanes-download's --pair says otherwise; the
-# groups share them.
+# Patients per practice unless nhanes-download's --pair gives another number;
+# the groups share them.
 PATIENTS = 12
 # Sample IDs in a practice's stock for each of its patients.
 SAMPLE_IDS_PER_PATIENT = 3
 
 
 class Group(enum.Enum):
-    """Kinds of patient, so that every screening outcome can be shown."""
+    """The kinds of patient the demo seeds, so it can show every screening
+    outcome."""
 
     IRON_DEFICIENT = "eligible women iron deficient"
     NOT_IRON_DEFICIENT = "eligible women not iron deficient"
@@ -31,7 +33,8 @@ class Group(enum.Enum):
     def selects(self, rows: pd.DataFrame) -> "pd.Series[bool]":
         women = rows["sex"] == ELIGIBLE_SEX
         screened = eligible(rows["sex"], rows["age"])
-        # As the model learns it; without both results her label is unknown.
+        # The training label needs both ferritin and CRP; without both, whether
+        # she is iron deficient is unknown.
         known = rows["LBXFER"].notna() & rows["CRP"].notna()
         deficient = iron_deficient(rows["LBXFER"], rows["CRP"])
         match self:
@@ -48,8 +51,9 @@ class Group(enum.Enum):
 
 
 def choose(rows: pd.DataFrame, seed: int, patients: int = PATIENTS) -> pd.DataFrame:
-    """`patients` participants shared by the groups, the first groups rounding up,
-    the same ones for the same seed."""
+    """Draw `patients` participants spread evenly over the groups; when they do
+    not divide evenly, the first groups get one more. The same seed gives the
+    same draw."""
     groups = list(Group)
     return pd.concat(
         [
@@ -68,13 +72,14 @@ def pool(rows: pd.DataFrame) -> pd.DataFrame:
 
 
 def stock(rows: pd.DataFrame, seed: int, patients: int = PATIENTS) -> pd.DataFrame:
-    """A practice's stock of sample IDs: SAMPLE_IDS_PER_PATIENT numbers of the
-    pool for each patient, the same for the same seed, in the order drawn."""
+    """A practice's stock of sample IDs: SAMPLE_IDS_PER_PATIENT numbers from the
+    pool per patient, in the order drawn. The same seed gives the same stock."""
     drawn = pool(rows).sample(n=patients * SAMPLE_IDS_PER_PATIENT, random_state=seed)
     return drawn[["sample_id"]]
 
 
 def patients(rows: pd.DataFrame, seed: int, count: int = PATIENTS) -> pd.DataFrame:
-    """A practice's patients: their NHANES number (for a name), sex and age."""
+    """A practice's patients: their NHANES number (used to make up a name), sex
+    and age."""
     chosen = choose(rows, seed, count)
     return chosen.rename(columns={"sample_id": "seqn"})[["seqn", "sex", "age"]]

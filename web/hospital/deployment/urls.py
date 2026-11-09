@@ -14,7 +14,8 @@ urlpatterns = [
         views.FetchScreeningModelsView.as_view(),
         name="fetch_screening_models",
     ),
-    # slug: a run ID never holds a path separator (the file is <run_id>.pt).
+    # slug is enough: a run ID never contains a path separator (its file is
+    # <run_id>.pt).
     path(
         "screening-models/<slug:run_id>/deploy/",
         views.DeployView.as_view(),
