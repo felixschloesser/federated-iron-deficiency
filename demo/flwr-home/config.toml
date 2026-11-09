@@ -1,0 +1,10 @@
+# The startup's flwr command line (FLWR_HOME/config.toml): its SuperLink, in
+# plaintext, as the demo leaves out the report's TLS and SuperNode
+# authentication for simplicity. The startup's image brings it into the
+# startup's volume (demo/startup.Dockerfile).
+[superlink]
+default = "demo"
+
+[superlink.demo]
+address = "flower-superlink:9092"
+insecure = true

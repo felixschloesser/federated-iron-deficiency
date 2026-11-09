@@ -66,12 +66,12 @@ startup's Flower app with PyTorch, CPU only), then runs these steps in order:
    (from the 2021–2023 blood counts). It is the only container that reaches
    the internet (Hugging Face; set `HF_TOKEN` in `.env` if it refuses), and it
    sees no party's folder. Once the extracts exist, it is done in a second.
-2. **Each party's web app sets itself up** as it starts (`demo/party.py`), as
-   each organisation would its own system: it migrates its database, seeds it
-   from its own extract (read-only, the only one it sees) with its demo
-   accounts, registers whom it knows, and prints the line saying where it is.
-   Docker gives a fresh volume the folders the party's image brings, so no
-   container needs root. No container sees another party's folder.
+2. **Each party's setup job sets the party up** (`<party>-setup` in
+   `compose.yaml`), as each organisation would its own system: it migrates
+   its database, seeds it from its own extract (read-only, the only one it
+   sees) with its demo accounts, registers whom it knows, and exits. It reaches
+   no network. Docker gives a fresh volume the folders the party's image
+   brings, so no container needs root. No container sees another party's folder.
 3. Everything else starts, each part after what it needs: the startup's SuperLink and ServerApp; per
    hospital a SuperNode, the startup's ClientApp (in a container that sees
    only the cohort and the final models and reaches only its SuperNode), the
@@ -81,10 +81,9 @@ startup's Flower app with PyTorch, CPU only), then runs these steps in order:
 `--abort-on-container-failure` stops every party when one fails, so a broken
 setup never looks half alive. Ctrl-C stops them all.
 
-Later starts reuse what each party made and are quick. A party's database
-from before the code's migrations were reset cannot migrate: its web app
-renames it to `web.sqlite3.before-reset`, beside it in the volume, and starts a
-new one.
+Later starts reuse what each party made and are quick. A party's volume from
+before the code's migrations were reset cannot migrate: start over with
+`docker compose down -v`.
 
 The demo has no TLS, SuperNode authentication or mutual TLS: every connection
 is plaintext and the SuperLink admits any node. The report describes these

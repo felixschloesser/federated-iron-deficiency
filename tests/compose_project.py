@@ -50,6 +50,21 @@ IMAGES = (
 )
 # Each project's images built so far: a test run builds each once.
 BUILT: dict[str, set[str]] = {}
+# Each project's parties set up so far: a test run sets each up once.
+SET_UP: dict[str, set[str]] = {}
+# The setup jobs the tests change: hospitals whose director provided no cohort,
+# knowing the practice under test, and that practice, knowing only AZ Diest.
+HOSPITAL_SETUP = (
+    "python manage.py migrate -v0"
+    " && python -m demo.seed hospital --rows /nhanes/participants.csv"
+    " && python -m demo.seed lab-records --csv /nhanes/lab-records.csv"
+    " && python manage.py add_practice 'Huisartsenpraktijk De Ceder'"
+)
+PRACTICE_SETUP = (
+    "python manage.py migrate -v0"
+    " && python -m demo.seed practice --rows /nhanes/sample-ids.csv"
+    f" && python manage.py add_laboratory 'AZ Diest' {APP_HOSPITAL}-grpc:8441 --primary"
+)
 
 
 def engine_running() -> bool:
@@ -136,11 +151,10 @@ def compose(
         f"      {APP_HOSPITAL}-web: {{condition: service_healthy}}\n"
         f"      {APP_PRACTICE}-web: {{condition: service_healthy}}\n"
         + "".join(
-            f'  {slug}-web:\n    environment: {{DEMO_PROVIDE: "0"}}\n'
+            f"  {slug}-setup:\n    command: {json.dumps(['sh', '-c', HOSPITAL_SETUP])}\n"
             for slug in (HOSPITAL, SECOND_HOSPITAL)
         )
-        + f"  {APP_PRACTICE}-web:\n    environment:\n"
-        f"      DEMO_REGISTER: add_laboratory 'AZ Diest' {APP_HOSPITAL}-grpc:8441 --primary\n"
+        + f"  {APP_PRACTICE}-setup:\n    command: {json.dumps(['sh', '-c', PRACTICE_SETUP])}\n"
     )
     write_nhanes_extracts(folder / ".demo" / "nhanes")
     name = f"test-{uuid.uuid4().hex[:8]}"
@@ -220,7 +234,10 @@ def compose_folder(compose: Compose) -> Path:
 
 
 def up(compose: Compose, service: str) -> None:
-    """Start one service and wait until its health check passes."""
+    """Start one service and wait until its health check passes; a party's web
+    app after its party's setup job, as compose.yaml's depends_on says."""
+    if service.endswith("-web"):
+        set_up(compose, service.removesuffix("-web"))
     compose(
         "up",
         "--detach",
@@ -231,6 +248,14 @@ def up(compose: Compose, service: str) -> None:
         "--no-build",
         service,
     )
+
+
+def set_up(compose: Compose, party: str) -> None:
+    """Run the party's setup job to completion, once per test run."""
+    done = SET_UP.setdefault(PROJECT[compose], set())
+    if party not in done:
+        compose("run", "--rm", "--no-deps", f"{party}-setup")
+        done.add(party)
 
 
 def write_nhanes_extracts(folder: Path) -> None:
@@ -281,9 +306,9 @@ def synthetic_cohort(hospital: str) -> str:
 
 @pytest.fixture(scope="session")
 def superlink(compose: Compose) -> None:
-    """The startup's web app, which brings the SuperLink's folder and writes
-    flwr-home's connection (demo/party.py), its screening-models endpoint, then the
-    SuperLink."""
+    """The startup's setup job and web app, which bring the SuperLink's folder and
+    flwr-home's connection (demo/startup.Dockerfile), its screening-models
+    endpoint, then the SuperLink."""
     build(compose, "startup-web")
     up(compose, "startup-web")
     up(compose, "startup-grpc")
@@ -349,7 +374,7 @@ def hospital_app(compose: Compose) -> str:
     """AZ Diest's web app running, and its lab-order endpoint beside it."""
     build(compose, "hospital-web")
     name = f"{APP_HOSPITAL}-web"
-    # It sets the hospital up as it starts; the endpoint waits until it has.
+    # Its setup job runs first; the endpoint runs on what it set up.
     up(compose, name)
     up(compose, f"{APP_HOSPITAL}-grpc")
     return name

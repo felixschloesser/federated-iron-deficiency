@@ -2,6 +2,7 @@
 *
 !pyproject.toml
 !uv.lock
+# The startup's FAB includes them (pyproject.toml's fab-include).
 !README.md
 !LICENSE
 !manage.py
@@ -10,4 +11,5 @@
 # The demo's code only: never a stray download or CA under demo/.
 !demo/*.py
 !demo/seeding/
+!demo/flwr-home/
 **/__pycache__

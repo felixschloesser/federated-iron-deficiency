@@ -2,9 +2,9 @@
 # each party's web app then loads (demo/nhanes.py). The only container with
 # internet access. It holds just the `nhanes` dependency group and the few
 # modules it needs, so changes elsewhere never rebuild it.
-FROM python:3.13-slim
+FROM python:3.13.18-slim
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/
-RUN useradd --create-home app && install -d -o app /app /opt/venv
+RUN useradd --uid 1000 --create-home app && install -d -o app /app /opt/venv
 WORKDIR /app
 USER app
 # HOME=/tmp: compose runs this image as DEMO_USER, who has no home folder here.
