@@ -44,12 +44,14 @@ def make_practice(name: str = "Practice") -> "Practice":
 
 def make_tube() -> "Participant":
     """What a new patient's samples would measure at the hospital's analyser
-    stand-in: placeholder CBC values, no ferritin. Its number starts their sample IDs."""
+    stand-in: placeholder CBC values and ferritin. Its number starts their sample IDs."""
     from ml.cohort import CBC_VARS
     from web.hospital.analyser.models import Participant
 
     return Participant.objects.create(
-        seqn=Participant.objects.count() + 1, cbc=dict.fromkeys(CBC_VARS, 1.0)
+        seqn=Participant.objects.count() + 1,
+        cbc=dict.fromkeys(CBC_VARS, 1.0),
+        ferritin=40.0,
     )
 
 

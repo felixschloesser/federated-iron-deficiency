@@ -74,7 +74,6 @@ enum ResultName {
   RESULT_NAME_SEGMENTED_NEUTROPHILS_NUMBER = 12;
   RESULT_NAME_MONOCYTE_NUMBER = 13;
   RESULT_NAME_FERRITIN = 14;
-  RESULT_NAME_MADE_UP_FERRITIN = 15;
 }
 
 // One measured value, under its name, in the unit the name fixes

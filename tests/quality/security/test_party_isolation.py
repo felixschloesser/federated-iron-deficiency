@@ -86,7 +86,8 @@ def seed(party: str, env: dict[str, str], extracts: Path) -> None:
             arguments = ["--rows", str(hospital / "participants.csv")]
             arguments += ["--lab-records", str(hospital / "lab-records.csv")]
         case "practice":
-            arguments = ["--rows", str(practice / "sample-ids.csv")]
+            arguments = ["--sample-ids", str(practice / "sample-ids.csv")]
+            arguments += ["--patients", str(practice / "patients.csv")]
         case _:
             arguments = []
     subprocess.run(

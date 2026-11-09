@@ -35,7 +35,6 @@ Each party speaks its own language: the practice *orders*, the wire carries a
 | other | Not screened: any reason not listed. | Project decision |
 | screening model | A released final model as a hospital holds it, with this hospital's standardization and local validation; named by when it arrived. | Report, P10 and Use case |
 | result names and units (*Hemoglobin*, g/dL; *Ferritin*, ng/mL) | NHANES's own names and units, unconverted. | NHANES 2021–2023 CBC_L and FERTIN_L codebooks |
-| Ferritin (made up for the demo) | A ferritin invented where NHANES has none, named so that nobody takes it for a measurement. | Project decision |
 | Flower container (`flower-` prefix) | A compose service that is a Flower component, not a party's own app. | Flower docs, *Flower Architecture* |
 
 ## Hospital
@@ -44,7 +43,7 @@ Each party speaks its own language: the practice *orders*, the wire carries a
 |---|---|---|
 | laboratory staff | The people who run the analyser on test requests. | WHO LQMS |
 | laboratory director | Decides which screening model screens the hospital's patients, and provides its training cohort. | WHO LQMS ch. 2, p. 21 |
-| analyser | The instrument that measures a sample; outside the laboratory's software, simulated in the demo from NHANES participants. | Report, P9, DF36 |
+| analyser | The instrument that measures a sample; outside the laboratory's software, simulated in the demo by NHANES 2021–2023 women aged 18–49, whose numbers are the practices' sample IDs. | Report, P9, DF36 |
 | test request | One test on a sample, as the laboratory received it from a lab order. | WHO LQMS |
 | stored sample | A sample the laboratory already holds; a later test is measured on it. | WHO LQMS 5-5, p. 68 |
 | analysed | A test request the analyser has measured. | Report, P9 |

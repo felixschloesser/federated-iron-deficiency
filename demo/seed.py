@@ -2,7 +2,7 @@
 NHANES extract nhanes-download wrote for it (demo/nhanes.py):
 
     python -m demo.seed hospital --rows PARTICIPANTS --lab-records CSV [--provide]
-    python -m demo.seed practice --rows SAMPLE_IDS
+    python -m demo.seed practice --sample-ids CSV --patients CSV
     python -m demo.seed startup
 
 DATA_DIR names the party's folder, as for its web app. Its accounts share a
@@ -35,7 +35,12 @@ def parser() -> argparse.ArgumentParser:
         help="the laboratory director provides the training cohort",
     )
     practice = parties.add_parser("practice")
-    practice.add_argument("--rows", type=Path, required=True, help="its sample-ids.csv")
+    practice.add_argument(
+        "--sample-ids", type=Path, required=True, help="its sample-ids.csv"
+    )
+    practice.add_argument(
+        "--patients", type=Path, required=True, help="its patients.csv"
+    )
     parties.add_parser("startup")
     return arguments
 
@@ -54,17 +59,17 @@ def main(argv: list[str] | None = None) -> str:
     if options.party == "startup":
         accounts = parties.seed_startup()
         return f"Accounts {', '.join(accounts)} and no-role, password {PASSWORD}"
-    rows = parties.read_rows(options.rows)
     if options.party == "hospital":
+        rows = parties.read_rows(options.rows)
         accounts = parties.seed_hospital(rows)
         records = parties.seed_lab_records(options.lab_records, options.provide)
+        seeded = f"{len(rows)} NHANES participants, {records}"
     else:
-        accounts = parties.seed_practice(rows)
-        records = "no lab records"
-    return (
-        f"Accounts {', '.join(accounts)} and no-role, password {PASSWORD};"
-        f" {len(rows)} NHANES participants, {records}"
-    )
+        sample_ids = parties.read_rows(options.sample_ids)
+        patients = parties.read_rows(options.patients)
+        accounts = parties.seed_practice(sample_ids, patients)
+        seeded = f"{len(sample_ids)} sample IDs, {len(patients)} patients"
+    return f"Accounts {', '.join(accounts)} and no-role, password {PASSWORD}; {seeded}"
 
 
 if __name__ == "__main__":

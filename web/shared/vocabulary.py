@@ -48,8 +48,7 @@ class ClinicalIndication(models.TextChoices):
 class ResultName(models.TextChoices):
     """How a lab report names a measured value: NHANES 2021–2023's own label and
     unit (CBC_L and FERTIN_L codebooks); its value is the NHANES variable. In the
-    order of ml.cohort.CBC_VARS, then ferritin, then the demo's made-up ferritin
-    (web.hospital.analyser.models.MADE_UP_FERRITIN); a test checks the order."""
+    order of ml.cohort.CBC_VARS, then ferritin; a test checks the order."""
 
     WHITE_BLOOD_CELL_COUNT = "LBXWBCSI", "White blood cell count"
     RED_BLOOD_CELL_COUNT = "LBXRBCSI", "Red blood cell count"
@@ -65,7 +64,6 @@ class ResultName(models.TextChoices):
     SEGMENTED_NEUTROPHILS_NUMBER = "LBDNENO", "Segmented neutrophils number"
     MONOCYTE_NUMBER = "LBDMONO", "Monocyte number"
     FERRITIN = "LBXFER", "Ferritin"
-    MADE_UP_FERRITIN = "MADE_UP_LBXFER", "Ferritin (made up for the demo)"
 
     def unit(self) -> str:
         """NHANES's unit for the value, with no conversion."""
@@ -88,7 +86,7 @@ class ResultName(models.TextChoices):
                 return "fL"
             case ResultName.MEAN_CELL_HEMOGLOBIN:
                 return "pg"
-            case ResultName.FERRITIN | ResultName.MADE_UP_FERRITIN:
+            case ResultName.FERRITIN:
                 return "ng/mL"
             case _:
                 assert_never(self)

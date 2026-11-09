@@ -10,10 +10,9 @@ so this needs no list of parties and its image no rebuild when the demo's partie
 change.
 
 A hospital's folder holds its past lab records (its cycle's share) and the
-participants its analyser stand-in measures; a practice's folder holds its stock
-of sample IDs, each with registered sex and age, and which are also patients.
-Each practice's stock is drawn as the seed commands draw it, so a hospital's
-analyser holds a tube for every sample ID of every practice.
+participants its analyser stand-in measures, the same pool at every hospital; a
+practice's folder holds its stock of sample IDs, drawn from that pool, and its
+patients (demo/seeding/participants.py).
 
 Once written, the extracts are kept: a later run that finds them, made by the
 same code, touches neither the network nor the files.
@@ -29,7 +28,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from demo.seeding.participants import stock, with_made_up_ferritin
+from demo.seeding.participants import patients, pool, stock
 from ml import dataset
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,6 +69,7 @@ def expected(pairs: list[Pair]) -> list[Path]:
             Path(pair.hospital, "lab-records.csv"),
             Path(pair.hospital, "participants.csv"),
             Path(pair.practice, "sample-ids.csv"),
+            Path(pair.practice, "patients.csv"),
         ]
     return files
 
@@ -82,21 +82,19 @@ def extracts(
     """Each extract's rows: `lab_records` gives a cycle's share of participants,
     `nhanes` the 2021-2023 participants practices and analysers seed from. The
     pairs' order numbers the practices' draws, as the seed commands number them."""
-    stocks = {
-        pair.practice: stock(nhanes, seed=partition, patients=pair.patients)
-        for partition, pair in enumerate(pairs)
-    }
-    # Any practice may send a sample to any hospital.
-    every_sample_id = pd.concat(stocks.values()).drop_duplicates("sample_id")
-    participants = with_made_up_ferritin(every_sample_id, nhanes)
+    # Any practice may send a sample to any hospital: each holds the whole pool.
+    participants = pool(nhanes)
     files: dict[Path, pd.DataFrame] = {}
-    for pair in pairs:
+    for partition, pair in enumerate(pairs):
         files[Path(pair.hospital, "lab-records.csv")] = lab_records(pair.cycle)
         files[Path(pair.hospital, "participants.csv")] = participants
-        # The practice holds no blood values: only what its stock says.
-        files[Path(pair.practice, "sample-ids.csv")] = stocks[pair.practice][
-            ["sample_id", "sex", "age", "patient"]
-        ]
+        # The practice holds no blood values.
+        files[Path(pair.practice, "sample-ids.csv")] = stock(
+            nhanes, seed=partition, patients=pair.patients
+        )
+        files[Path(pair.practice, "patients.csv")] = patients(
+            nhanes, seed=partition, count=pair.patients
+        )
     return files
 
 

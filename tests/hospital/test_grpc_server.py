@@ -198,7 +198,7 @@ def test_every_call_from_a_practice_the_hospital_does_not_know_is_refused(
 def test_a_released_lab_report_is_fetched_until_acknowledged(
     endpoint: messages_pb2_grpc.LaboratoryStub, tmp_path: Path
 ) -> None:
-    Participant.objects.create(seqn=1, cbc={})
+    Participant.objects.create(seqn=1, cbc={}, ferritin=40.0)
     test_request = TestRequest.objects.receive(
         practice=Practice.objects.get(),
         details=LabOrderDetails(

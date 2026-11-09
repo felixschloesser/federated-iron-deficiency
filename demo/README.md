@@ -191,5 +191,5 @@ own NHANES extract, as in Docker (beside them in `.data/`, not the demo's
     DJANGO_SETTINGS_MODULE=web.hospital.settings uv run python -m demo.seed hospital --rows .data/nhanes/az-diest/participants.csv --lab-records .data/nhanes/az-diest/lab-records.csv
     DJANGO_SETTINGS_MODULE=web.hospital.settings uv run python manage.py runserver 8001
     DJANGO_SETTINGS_MODULE=web.practice.settings uv run python manage.py migrate
-    DJANGO_SETTINGS_MODULE=web.practice.settings uv run python -m demo.seed practice --rows .data/nhanes/huisartsenpraktijk-de-ceder/sample-ids.csv
+    DJANGO_SETTINGS_MODULE=web.practice.settings uv run python -m demo.seed practice --sample-ids .data/nhanes/huisartsenpraktijk-de-ceder/sample-ids.csv --patients .data/nhanes/huisartsenpraktijk-de-ceder/patients.csv
     DJANGO_SETTINGS_MODULE=web.practice.settings uv run python manage.py runserver 8002

@@ -5,7 +5,6 @@ from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
-from django.db.models.functions import Abs
 
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, ResultName, Test
 
@@ -91,15 +90,15 @@ class Patient(models.Model):
 
     @transaction.atomic
     def collect_sample(self, *, now: datetime, laboratory: Laboratory) -> "Sample":
-        """Record blood collected from this patient, under an unused sample ID from
-        the practice's stock, for the laboratory chosen for it; tests are ordered on
-        it afterwards and follow it there."""
-        sample_id = SampleId.objects.unused().nearest(self).first()
+        """Record blood collected from this patient, under the next unused sample
+        ID of the practice's stock, for the laboratory chosen for it; tests are
+        ordered on it afterwards and follow it there."""
+        sample_id = SampleId.objects.unused().order_by("pk").first()
         if sample_id is None:
             raise ValidationError(
                 {
                     "sample_id": ValidationError(
-                        "The practice has no sample ID left for this patient.",
+                        "The practice has no sample ID left.",
                         code="no_sample_id",
                     )
                 }
@@ -117,24 +116,14 @@ class SampleIdQuerySet(models.QuerySet["SampleId"]):
         """The sample IDs no sample has taken yet."""
         return self.filter(sample__isnull=True)
 
-    def nearest(self, patient: Patient) -> "SampleIdQuerySet":
-        """Those of the patient's registered sex, nearest the patient's age first."""
-        return (
-            self.filter(registered_sex=patient.registered_sex)
-            .annotate(age_difference=Abs(models.F("age") - patient.age))
-            .order_by("age_difference", "value")
-        )
-
 
 class SampleId(models.Model):
-    """A sample ID from the practice's stock, each taken by one sample
-    (features/practice/ordering.feature). The demo seeds the stock with NHANES
-    participants' numbers, registered sex and age, so the analyser stand-in
-    measures the blood of the participant whose number a sample carries."""
+    """A sample ID from the practice's stock of labels, each taken by one sample
+    (features/practice/ordering.feature). The demo's labels carry NHANES
+    participants' numbers, so the analyser stand-in measures the blood of the
+    participant whose number a sample carries."""
 
     value = models.CharField(max_length=20, unique=True)
-    registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
-    age = models.PositiveSmallIntegerField()
 
     objects = SampleIdQuerySet.as_manager()
 
@@ -350,7 +339,7 @@ class LabReport(models.Model):
     order = models.OneToOneField(
         Order, on_delete=models.PROTECT, related_name="lab_report"
     )
-    # Empty when NHANES lacks the values.
+    # Empty when the laboratory reported no values.
     results = models.JSONField(blank=True, validators=[results_named])
     ferritin_suggested = models.BooleanField(default=False)
     released_at = models.DateTimeField()
@@ -384,7 +373,7 @@ class LabReport(models.Model):
 
     def values(self) -> list[ResultValue]:
         """The measured values under NHANES's names and units, uninterpreted;
-        empty when NHANES has none."""
+        empty when the laboratory reported none."""
         return [
             ResultValue(name.value, name.label, name.unit(), self.results[name.value])
             for name in ResultName

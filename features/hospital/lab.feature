@@ -40,12 +40,6 @@ Feature: Analysing samples
     When laboratory staff run the analyser
     Then the sample has ferritin 11.0 ng/mL
 
-  Scenario: Ferritin missing from NHANES
-    Given patient "Test Patient 2" without NHANES ferritin
-    And a ferritin order for "Test Patient 2"
-    When laboratory staff run the analyser
-    Then the sample's ferritin is not available in the demo data
-
   Scenario: A later test is measured on the stored sample
     Given an analysed CBC sample for "Test Patient 1"
     And a ferritin order on that sample

@@ -7,14 +7,11 @@ import pytest
 from pytest_django.fixtures import Settings
 
 from demo.seed import main
-from demo.seeding.participants import SAMPLE_IDS_PER_PATIENT
 from ml.cohort import CBC_VARS
 from tests.conftest import PEOPLE, write_extracts
-from web.hospital.analyser.models import MADE_UP_FERRITIN, Participant
+from web.hospital.analyser.models import Participant
 from web.shared.accounts.models import User
 from web.shared.accounts.roles import Role, role_of
-from web.shared.vocabulary import ResultName
-from web.shared.vocabulary import Test as OrderedTest
 
 pytestmark = pytest.mark.django_db
 
@@ -53,27 +50,28 @@ def test_seeds_its_staff(seeded: None) -> None:
     assert User.objects.get(username="staff").check_password("demo-pass-2026")
 
 
-def test_seeds_a_participant_for_each_sample_id_of_the_stock(seeded: None) -> None:
-    """Three sample IDs for each of 12 patients: nine participants of each group
+# The pool: the two groups of eligible women with ferritin, 20 each.
+POOL = 2 * 20
+
+
+def test_seeds_every_eligible_woman_with_ferritin(seeded: None) -> None:
+    """Men, women outside 18–49 and women without ferritin are not in the pool
     (demo/seeding/participants.py)."""
-    assert Participant.objects.count() == SAMPLE_IDS_PER_PATIENT * 3 * len(PEOPLE)
-    for group, (_, _, ferritin) in enumerate(PEOPLE):
+    assert Participant.objects.count() == POOL
+    for group, (_, _, ferritin) in enumerate(PEOPLE[:2]):
         participants = Participant.objects.filter(
             seqn__range=(1000 + 100 * group, 1099 + 100 * group)
         )
-        assert participants.count() == SAMPLE_IDS_PER_PATIENT * 3
+        assert participants.count() == 20
         for participant in participants:
             assert participant.ferritin == ferritin
-            # NHANES did not measure them: a value made up from the women who
-            # were, at or above the cutoff (here the 25-year-olds' 40.0).
-            assert participant.made_up_ferritin == (40.0 if ferritin is None else None)
             assert participant.cbc == dict.fromkeys(CBC_VARS, float(group))
 
 
 def test_running_twice_changes_nothing(seeded: None, extract: Path) -> None:
     main(seeding(extract))
     assert User.objects.count() == 3
-    assert Participant.objects.count() == SAMPLE_IDS_PER_PATIENT * 3 * len(PEOPLE)
+    assert Participant.objects.count() == POOL
 
 
 def test_refuses_outside_development(settings: Settings, extract: Path) -> None:
@@ -85,13 +83,6 @@ def test_refuses_outside_development(settings: Settings, extract: Path) -> None:
 
 def test_eligible_women_without_ferritin_are_never_seeded(seeded: None) -> None:
     assert not Participant.objects.filter(seqn__range=(1400, 1499)).exists()
-
-
-def test_a_made_up_ferritin_is_reported_under_its_own_name() -> None:
-    participant = Participant(seqn=1, cbc={}, ferritin=None, made_up_ferritin=60.0)
-    assert participant.measure(OrderedTest.FERRITIN) == {MADE_UP_FERRITIN: 60.0}
-    name = ResultName(MADE_UP_FERRITIN)
-    assert (name.label, name.unit()) == ("Ferritin (made up for the demo)", "ng/mL")
 
 
 def lab_records_file(tmp_path: Path, deficient: int, sound: int) -> Path:

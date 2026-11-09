@@ -76,16 +76,6 @@ def nhanes_values(world: World, patient: str, ferritin: float) -> None:
     participant.save()
 
 
-@given(parsers.parse('patient "{patient}" without NHANES ferritin'))
-def patient_without_ferritin(world: World, patient: str) -> None:
-    world["patients"][patient] = {
-        "seqn": make_tube().seqn,
-        "sex": RegisteredSex.FEMALE,
-        "age": 30,
-        "samples": 0,
-    }
-
-
 @given(parsers.re(r'a (?P<test>CBC|ferritin) order for "(?P<patient>[^"]+)"$'))
 def an_order(world: World, test: str, patient: str) -> None:
     place(world, test, patient)
@@ -187,12 +177,6 @@ def stored_sample(world: World, negated: str | None) -> None:
 @then(parsers.parse("the sample has ferritin {ferritin:g} ng/mL"))
 def sample_has_ferritin(world: World, ferritin: float) -> None:
     assert world["test_request"].results == {FERRITIN: ferritin}
-
-
-@then("the sample's ferritin is not available in the demo data")
-def ferritin_not_available(world: World) -> None:
-    assert world["test_request"].analysed_at == NOW
-    assert world["test_request"].results == {}
 
 
 @then(
