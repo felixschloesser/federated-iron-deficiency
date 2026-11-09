@@ -6,7 +6,6 @@ from the client's certificate, context.auth_context(), and only `caller` would
 change."""
 
 import grpc
-from django.core.exceptions import ImproperlyConfigured
 from django.utils.text import slugify
 
 KEY = "party"
@@ -14,10 +13,8 @@ KEY = "party"
 type Metadata = tuple[tuple[str, str], ...]
 
 
-def calling_as(name: str | None) -> Metadata:
-    """The metadata a call names its party by; a party nobody named cannot call."""
-    if not name or not slugify(name):
-        raise ImproperlyConfigured("Calling another party needs its name.")
+def calling_as(name: str) -> Metadata:
+    """The metadata a call names its party by."""
     return ((KEY, slugify(name)),)
 
 

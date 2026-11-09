@@ -5,6 +5,7 @@ are features/hospital/lab_orders.feature. No general practitioner's code."""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import grpc
@@ -195,7 +196,7 @@ def test_every_call_from_a_practice_the_hospital_does_not_know_is_refused(
 
 
 def test_a_released_lab_report_is_fetched_until_acknowledged(
-    endpoint: messages_pb2_grpc.LaboratoryStub,
+    endpoint: messages_pb2_grpc.LaboratoryStub, tmp_path: Path
 ) -> None:
     Participant.objects.create(seqn=1, cbc={})
     test_request = TestRequest.objects.receive(
@@ -208,7 +209,7 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
             age=32,
             ordered_at=NOW,
         ),
-    ).run_analyser(directory=None, now=NOW)
+    ).run_analyser(directory=tmp_path, now=NOW)
     # As the deployed screening model would have decided (features/hospital/screening.feature).
     TestRequest.objects.filter(pk=test_request.pk).update(
         screening_result=ScreeningResult.FERRITIN_SUGGESTED

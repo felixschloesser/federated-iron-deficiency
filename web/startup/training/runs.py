@@ -32,8 +32,7 @@ def run_configuration(chosen: Mapping[str, int | float | str]) -> str:
     scientist chose and, in the demo, the folder above the startup's. No
     threshold: each hospital's laboratory director chooses one."""
     pairs = [f"{key}={value!r}" for key, value in chosen.items()]
-    if settings.DATA_DIR is not None:
-        pairs.append(f"demo-dir='{settings.DATA_DIR.parent}'")
+    pairs.append(f"demo-dir='{settings.DATA_DIR.parent}'")
     return " ".join(pairs)
 
 

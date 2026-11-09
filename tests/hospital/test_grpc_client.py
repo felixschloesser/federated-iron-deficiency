@@ -44,7 +44,7 @@ def startup(settings: Settings) -> Iterator[FakeStartup]:
     fake = FakeStartup()
     with running(fake) as address:
         settings.STARTUP_ADDRESS = address
-        settings.HOSPITAL_NAME = "UZ Leuven"
+        settings.PARTY_NAME = "UZ Leuven"
         yield fake
 
 

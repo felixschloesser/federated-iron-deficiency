@@ -3,6 +3,7 @@
 lab-order endpoint records them."""
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -118,10 +119,10 @@ def no_tube(world: World, patient: str) -> None:
 
 
 @when("laboratory staff run the analyser")
-def run_analyser(world: World) -> None:
+def run_analyser(world: World, tmp_path: Path) -> None:
     test_request = TestRequest.objects.get(pk=world["test_request"].pk)
     try:
-        world["test_request"] = test_request.run_analyser(directory=None, now=NOW)
+        world["test_request"] = test_request.run_analyser(directory=tmp_path, now=NOW)
     except ValidationError as error:
         world["error"] = error
 

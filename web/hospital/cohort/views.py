@@ -15,8 +15,6 @@ from web.hospital.cohort.models import LabRecord, TrainingCohort
 from web.hospital.deployment.views import LaboratoryDirectorRequiredMixin
 from web.shared.accounts.models import User
 
-NO_FOLDER = "This web app has no folder for the training cohort (TRAINING_COHORT_DIR)."
-
 
 def director(request: HttpRequest) -> User:
     """The laboratory director LaboratoryDirectorRequiredMixin let in."""
@@ -44,9 +42,6 @@ class TrainingCohortView(LaboratoryDirectorRequiredMixin, TemplateView):
 
 class ProvideView(LaboratoryDirectorRequiredMixin, View):
     def post(self, request: HttpRequest) -> HttpResponse:
-        if settings.TRAINING_COHORT_DIR is None:
-            messages.error(request, NO_FOLDER)
-            return redirect("cohort:training_cohort")
         try:
             cohort = TrainingCohort.objects.provide(
                 directory=settings.TRAINING_COHORT_DIR,
@@ -65,9 +60,6 @@ class ProvideView(LaboratoryDirectorRequiredMixin, View):
 
 class WithdrawView(LaboratoryDirectorRequiredMixin, View):
     def post(self, request: HttpRequest) -> HttpResponse:
-        if settings.TRAINING_COHORT_DIR is None:
-            messages.error(request, NO_FOLDER)
-            return redirect("cohort:training_cohort")
         try:
             TrainingCohort.objects.withdraw(
                 directory=settings.TRAINING_COHORT_DIR,

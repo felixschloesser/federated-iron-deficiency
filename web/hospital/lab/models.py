@@ -296,7 +296,7 @@ class TestRequest(models.Model):
         return self.screening_result == ScreeningResult.FERRITIN_SUGGESTED
 
     @transaction.atomic
-    def run_analyser(self, *, directory: Path | None, now: datetime) -> TestRequest:
+    def run_analyser(self, *, directory: Path, now: datetime) -> TestRequest:
         """Record what the analyser measures on the stored sample for the test, screen a CBC with the deployed screening model in `directory`, and so release its
         lab report at once: the report goes out with the analysis, never before."""
         # Read again under the write lock: this copy may predate another analysis.
@@ -324,7 +324,7 @@ class TestRequest(models.Model):
         )
         return self
 
-    def _screen(self, directory: Path | None) -> None:
+    def _screen(self, directory: Path) -> None:
         """Set an analysed CBC's screening result: not screened outside the
         screening, screening failed without a usable deployed screening model, else
         the model's decision. Nothing else of it is kept."""

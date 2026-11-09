@@ -3,6 +3,7 @@
 endpoint around them is tests/hospital/test_grpc_server.py."""
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -60,10 +61,10 @@ def sends(practice: str, sample_id: str) -> None:
         ' of practice "{practice}"'
     )
 )
-def released(name: str, sample_id: str, practice: str) -> None:
+def released(name: str, sample_id: str, practice: str, tmp_path: Path) -> None:
     Participant.objects.create(seqn=int(sample_id), cbc={})
     receive(practice, sample_id, OrderedTest.FERRITIN).run_analyser(
-        directory=None, now=NOW
+        directory=tmp_path, now=NOW
     )
 
 

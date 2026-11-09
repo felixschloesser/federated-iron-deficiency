@@ -190,9 +190,9 @@ def read_screening_model(data: bytes) -> ScreeningModel | None:
         return None
 
 
-def screening_models(directory: Path | None) -> list[ScreeningModel]:
+def screening_models(directory: Path) -> list[ScreeningModel]:
     """Every readable screening model in the hospital's folder, newest first."""
-    if directory is None or not directory.is_dir():
+    if not directory.is_dir():
         return []
     files = [
         file

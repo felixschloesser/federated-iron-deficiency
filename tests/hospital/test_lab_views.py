@@ -1,6 +1,7 @@
 """Views of the laboratory side, and moving between the two roles' pages."""
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from django.test import Client
@@ -183,9 +184,9 @@ def test_to_analyse_marks_a_stored_sample(
 
 
 def test_analysed_names_no_general_practitioner(
-    client: Client, staff_member: User, test_request: TestRequest
+    client: Client, staff_member: User, test_request: TestRequest, tmp_path: Path
 ) -> None:
-    test_request.run_analyser(directory=None, now=test_request.ordered_at)
+    test_request.run_analyser(directory=tmp_path, now=test_request.ordered_at)
     response = logged_in(client, staff_member).get(reverse("lab:analysed"))
     assertNotContains(response, '<th scope="col">General practitioner</th>')
 

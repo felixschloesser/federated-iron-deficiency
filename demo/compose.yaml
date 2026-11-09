@@ -210,7 +210,7 @@ services:
     build: {context: .., dockerfile: demo/hospital.Dockerfile}
     environment:
       # Its name: shown on its pages, and what it calls the startup as.
-      HOSPITAL_NAME: UZ Leuven
+      PARTY_NAME: UZ Leuven
       PRIMARY_COLOUR: jade
     volumes:
       - {type: volume, source: uz-leuven, target: /data}
@@ -269,7 +269,7 @@ services:
       heilig-hart-leuven-setup: {condition: service_completed_successfully}
     environment:
       # Its name: shown on its pages, and what it calls the startup as.
-      HOSPITAL_NAME: Heilig Hart Leuven
+      PARTY_NAME: Heilig Hart Leuven
       PRIMARY_COLOUR: pumpkin
     volumes:
       - {type: volume, source: heilig-hart-leuven, target: /data}
@@ -328,7 +328,7 @@ services:
       az-diest-setup: {condition: service_completed_successfully}
     environment:
       # Its name: shown on its pages, and what it calls the startup as.
-      HOSPITAL_NAME: AZ Diest
+      PARTY_NAME: AZ Diest
       PRIMARY_COLOUR: violet
     volumes:
       - {type: volume, source: az-diest, target: /data}
@@ -366,7 +366,7 @@ services:
     build: {context: .., dockerfile: demo/practice.Dockerfile}
     environment:
       # Its name: shown on its pages, and what it calls each hospital as.
-      PRACTICE_NAME: Huisartsenpraktijk De Akker
+      PARTY_NAME: Huisartsenpraktijk De Akker
       PRIMARY_COLOUR: green
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-akker, target: /data}
@@ -393,7 +393,7 @@ services:
       huisartsenpraktijk-de-berk-setup: {condition: service_completed_successfully}
     environment:
       # Its name: shown on its pages, and what it calls each hospital as.
-      PRACTICE_NAME: Huisartsenpraktijk De Berk
+      PARTY_NAME: Huisartsenpraktijk De Berk
       PRIMARY_COLOUR: amber
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-berk, target: /data}
@@ -420,7 +420,7 @@ services:
       huisartsenpraktijk-de-ceder-setup: {condition: service_completed_successfully}
     environment:
       # Its name: shown on its pages, and what it calls each hospital as.
-      PRACTICE_NAME: Huisartsenpraktijk De Ceder
+      PARTY_NAME: Huisartsenpraktijk De Ceder
       PRIMARY_COLOUR: purple
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-ceder, target: /data}

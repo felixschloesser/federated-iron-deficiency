@@ -1,12 +1,12 @@
 """The startup's web app: its data scientist's training runs and final models."""
 
-import os
+from pathlib import Path
 from typing import Any
 
 from web.shared.accounts.roles import Role
 from web.shared.settings import *
 
-DATA_DIR = data_dir("startup")
+DATA_DIR: Path = data_dir("startup")
 DATABASES: dict[str, Any] = databases(DATA_DIR)
 SECRET_KEY: str = secret_key(DATA_DIR)
 SESSION_COOKIE_NAME, CSRF_COOKIE_NAME = cookie_names(DATA_DIR)
@@ -18,5 +18,4 @@ INSTALLED_APPS: list[str] = [
 ]
 ROLES = [Role.DATA_SCIENTIST]
 ROOT_URLCONF = "web.startup.urls"
-STARTUP_NAME = os.environ.get("STARTUP_NAME")
-FINAL_MODELS_DIR = DATA_DIR / "final-models"
+FINAL_MODELS_DIR: Path = DATA_DIR / "final-models"

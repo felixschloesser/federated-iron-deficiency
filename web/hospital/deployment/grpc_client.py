@@ -71,12 +71,9 @@ def fetch_screening_models(*, now: datetime) -> list[int]:
     grpc.RpcError when the startup cannot be reached or refuses."""
     address, directory = settings.STARTUP_ADDRESS, settings.SCREENING_MODELS_DIR
     cohort_dir = settings.TRAINING_COHORT_DIR
-    if address is None or directory is None or cohort_dir is None:
-        raise ImproperlyConfigured(
-            "Fetching needs STARTUP_ADDRESS, the screening models' folder and the"
-            " training cohort's."
-        )
-    metadata = calling_as(settings.HOSPITAL_NAME)
+    if address is None:
+        raise ImproperlyConfigured("Fetching needs STARTUP_ADDRESS.")
+    metadata = calling_as(settings.PARTY_NAME)
     if not training_cohorts(cohort_dir):
         raise TrainingCohortUnavailable("No training cohort to validate on.")
     with grpc.insecure_channel(address) as channel:
