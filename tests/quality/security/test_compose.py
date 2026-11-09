@@ -544,9 +544,9 @@ def test_every_flower_connection_runs_without_tls() -> None:
 def test_compose_gives_the_startups_code_only_the_cohort_read_only(
     slug: str,
 ) -> None:
-    """The ClientApp, the startup's code at each hospital (DF7, TB4), sees no
+    """The ClientApp, the startup's code at each hospital, sees no
     database, no key and no other party's folder, so what it sends leaves only
-    through DF9 and DF10, and it writes nothing at the hospital: a screening model
+    in the updates it sends back to the ServerApp, and it writes nothing at the hospital: a screening model
     enters only when the hospital fetches it (features/hospital/fetch.feature).
     Pass: it mounts only its hospital's cohort, read-only, and shares one
     internal network only with its hospital's SuperNode."""

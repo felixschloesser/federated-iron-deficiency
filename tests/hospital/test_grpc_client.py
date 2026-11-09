@@ -30,7 +30,7 @@ scenarios("hospital/fetch.feature")
 
 
 def offered(run_id: str, seed: int) -> messages_pb2.ScreeningModel:
-    """A screening model as the startup's endpoint sends it (DF33)."""
+    """A screening model as the startup's endpoint sends it."""
     torch.manual_seed(seed)
     return messages_pb2.ScreeningModel(
         run_id=int(run_id),

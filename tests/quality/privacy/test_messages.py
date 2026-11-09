@@ -1,4 +1,4 @@
-"""What crosses between practice and hospital (DF23, DF25): data minimisation
+"""What crosses between practice and hospital: data minimisation
 read from the gRPC contract itself, no database and no process. The cheapest
 tier: a privacy property the contract decides is tested on the contract."""
 
@@ -49,7 +49,7 @@ def test_a_lab_order_names_its_indication_only_as_one_of_the_choices() -> None:
 def test_a_message_between_practice_and_hospital_carries_only_these_fields(
     message: str, fields: set[str]
 ) -> None:
-    """What crosses from the practice to the hospital and back (DF23, DF25):
+    """What crosses from the practice to the hospital and back:
     a new field fails this until it is added here on purpose."""
     from web.shared.grpc import messages_pb2
 

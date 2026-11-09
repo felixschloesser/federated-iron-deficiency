@@ -1,4 +1,4 @@
-"""What the startup's code can see and reach from inside a hospital (TB4)."""
+"""What the startup's code can see and reach from inside a hospital."""
 
 import os
 import socket

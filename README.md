@@ -21,14 +21,14 @@ Three kinds of party, each with a web app of its own: the general
 practitioner's **practice**, the **hospital** (its laboratory), and the
 **startup**. `GLOSSARY.md` defines the words.
 
-| From → to | What | Carries | Over | Report |
-|---|---|---|---|---|
-| practice → hospital | lab order | sample ID, test, clinical indication, registered sex, age; no name, no values | gRPC, `SendLabOrder` | DF23 |
-| hospital → practice | lab report | sample ID, test, results, whether ferritin is suggested; never the score | gRPC, `FetchNewLabReports` | DF25 |
-| practice → hospital | acknowledgement | sample ID and test of each lab report received | gRPC, `AcknowledgeLabReports` | |
-| startup → SuperLink | training run | the app and its run configuration | `flwr run` | DF4 |
-| startup ↔ hospital | each round | the global model's weights and learning rate; back, the updated weights, training loss, validation loss and AUROC, and example counts | Flower | DF7–DF10 |
-| startup → hospital | screening model | a released final model's weights and its AUROC across hospitals; never its run configuration | gRPC, `FetchNewScreeningModels` | DF37 |
+| From → to | What | Carries | Over |
+|---|---|---|---|
+| practice → hospital | lab order | sample ID, test, clinical indication, registered sex, age; no name, no values | gRPC, `SendLabOrder` |
+| hospital → practice | lab report | sample ID, test, results, whether ferritin is suggested; never the score | gRPC, `FetchNewLabReports` |
+| practice → hospital | acknowledgement | sample ID and test of each lab report received | gRPC, `AcknowledgeLabReports` |
+| startup → SuperLink | training run | the app and its run configuration | `flwr run` |
+| startup ↔ hospital | each round | the global model's weights and learning rate; back, the updated weights, training loss, validation loss and AUROC, and example counts | Flower |
+| startup → hospital | screening model | a released final model's weights and its AUROC across hospitals; never its run configuration | gRPC, `FetchNewScreeningModels` |
 
 The messages are defined in `web/shared/grpc/messages.proto`; the Flower ones
 in `ml/server_app.py` and `ml/client_app.py`. Every gRPC call is made by the

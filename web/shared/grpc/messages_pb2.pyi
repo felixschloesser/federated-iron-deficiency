@@ -138,7 +138,7 @@ Global___ResultName: _TypeAlias = ResultName  # noqa: Y015
 
 @_typing.final
 class LabOrder(_message.Message):
-    """DF23: the lab order, practice → hospital. It carries no patient name and no
+    """The lab order, practice → hospital. It carries no patient name and no
     blood values: the sample's values are measured at the hospital. From the
     clinical indication, the laboratory decides whether to screen a CBC.
     """
@@ -208,7 +208,7 @@ Global___Result: _TypeAlias = Result  # noqa: Y015
 
 @_typing.final
 class LabReport(_message.Message):
-    """DF25: the lab report, hospital → practice: the results and one bit of
+    """The lab report, hospital → practice: the results and one bit of
     screening. It carries no score, and does not tell "ferritin not suggested"
     apart from "not screened". The practice matches a lab report to its order,
     and acknowledges it, by sample ID and test.
@@ -388,7 +388,7 @@ Global___AcknowledgeLabReportsResponse: _TypeAlias = AcknowledgeLabReportsRespon
 
 @_typing.final
 class ScreeningModel(_message.Message):
-    """DF37: the screening model, startup → hospital: a released final model as a
+    """The screening model, startup → hospital: a released final model as a
     recipient hospital receives it. It carries its weights (a saved state dict),
     the AUROC across hospitals and its training run's ID, never its run
     configuration.

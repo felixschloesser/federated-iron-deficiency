@@ -43,7 +43,7 @@ enum RegisteredSex {
   REGISTERED_SEX_MALE = 2;
 }
 
-// DF23: the lab order, practice → hospital. It carries no patient name and no
+// The lab order, practice → hospital. It carries no patient name and no
 // blood values: the sample's values are measured at the hospital. From the
 // clinical indication, the laboratory decides whether to screen a CBC.
 message LabOrder {
@@ -83,7 +83,7 @@ message Result {
   double value = 2 [features.field_presence = EXPLICIT];
 }
 
-// DF25: the lab report, hospital → practice: the results and one bit of
+// The lab report, hospital → practice: the results and one bit of
 // screening. It carries no score, and does not tell "ferritin not suggested"
 // apart from "not screened". The practice matches a lab report to its order,
 // and acknowledges it, by sample ID and test.
@@ -131,7 +131,7 @@ service Laboratory {
   rpc AcknowledgeLabReports(AcknowledgeLabReportsRequest) returns (AcknowledgeLabReportsResponse);
 }
 
-// DF37: the screening model, startup → hospital: a released final model as a
+// The screening model, startup → hospital: a released final model as a
 // recipient hospital receives it. It carries its weights (a saved state dict),
 // the AUROC across hospitals and its training run's ID, never its run
 // configuration.

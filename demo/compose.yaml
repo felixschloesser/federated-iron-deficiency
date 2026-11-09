@@ -453,7 +453,7 @@ networks:
   internet: {internal: true}
   # The proxy's published port; an internal network can publish none.
   browser: {}
-  # The startup's code at each hospital reaches only its SuperNode (TB4).
+  # The startup's code at each hospital reaches only its SuperNode.
   uz-leuven-flower-client-app: {internal: true}
   heilig-hart-leuven-flower-client-app: {internal: true}
   az-diest-flower-client-app: {internal: true}
