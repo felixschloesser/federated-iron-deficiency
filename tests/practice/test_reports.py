@@ -164,9 +164,13 @@ def ferritin_not_offered(world: World) -> None:
 
 
 def test_every_cbc_value_and_ferritin_has_a_name_in_cbc_order() -> None:
-    from web.shared.vocabulary import RESULT_NAMES
+    from web.shared.vocabulary import ResultName
 
-    assert list(RESULT_NAMES) == [*CBC_VARS, "LBXFER", "MADE_UP_LBXFER"]
+    assert [name.value for name in ResultName] == [
+        *CBC_VARS,
+        "LBXFER",
+        "MADE_UP_LBXFER",
+    ]
 
 
 @pytest.mark.parametrize(

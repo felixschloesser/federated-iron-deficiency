@@ -49,7 +49,7 @@ def test_the_contract_types_choices_and_times(
 
 
 # The vocabularies that cross the wire; the clinical indication does not.
-VOCABULARIES = ("Test", "RegisteredSex")
+VOCABULARIES = ("Test", "RegisteredSex", "ResultName")
 
 
 def _members() -> list[tuple[str, str]]:

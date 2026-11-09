@@ -72,7 +72,9 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
             report_id=report_id,
             sample_id=sample_id,
             test=test,
-            results={"LBXFER": 11.0},
+            results=[
+                messages_pb2.Result(name=messages_pb2.RESULT_NAME_FERRITIN, value=11.0)
+            ],
             ferritin_suggested=ferritin_suggested,
             released_at=timestamp(released_at),
         )

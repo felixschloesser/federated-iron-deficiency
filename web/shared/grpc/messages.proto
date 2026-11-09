@@ -58,13 +58,39 @@ message LabOrder {
   google.protobuf.Timestamp ordered_at = 6;
 }
 
+enum ResultName {
+  RESULT_NAME_UNSPECIFIED = 0;
+  RESULT_NAME_WHITE_BLOOD_CELL_COUNT = 1;
+  RESULT_NAME_RED_BLOOD_CELL_COUNT = 2;
+  RESULT_NAME_HEMOGLOBIN = 3;
+  RESULT_NAME_HEMATOCRIT = 4;
+  RESULT_NAME_MEAN_CELL_VOLUME = 5;
+  RESULT_NAME_MEAN_CELL_HEMOGLOBIN_CONCENTRATION = 6;
+  RESULT_NAME_MEAN_CELL_HEMOGLOBIN = 7;
+  RESULT_NAME_RED_CELL_DISTRIBUTION_WIDTH = 8;
+  RESULT_NAME_PLATELET_COUNT = 9;
+  RESULT_NAME_MEAN_PLATELET_VOLUME = 10;
+  RESULT_NAME_LYMPHOCYTE_NUMBER = 11;
+  RESULT_NAME_SEGMENTED_NEUTROPHILS_NUMBER = 12;
+  RESULT_NAME_MONOCYTE_NUMBER = 13;
+  RESULT_NAME_FERRITIN = 14;
+  RESULT_NAME_MADE_UP_FERRITIN = 15;
+}
+
+// One measured value, under its name, in the unit the name fixes
+// (web.shared.vocabulary.ResultName.unit). A value of 0 is a value.
+message Result {
+  ResultName name = 1;
+  double value = 2 [features.field_presence = EXPLICIT];
+}
+
 // DF25. Results and one bit of screening (features/practice/reports.feature, tests/quality/privacy/test_messages.py): no score, and nothing that
 // tells ferritin not suggested from not screened.
 message LabReport {
   uint64 report_id = 1;
   string sample_id = 2;
   Test test = 3;
-  map<string, double> results = 4;  // empty when NHANES lacks the value
+  repeated Result results = 4;  // empty when NHANES lacks the values
   google.protobuf.Timestamp released_at = 5;
   bool ferritin_suggested = 6 [features.field_presence = EXPLICIT];
 }
