@@ -200,3 +200,28 @@ def test_each_image_starts_from_one_python_release(image: str) -> None:
     assert re.findall(r"^FROM (\S+)", dockerfile, re.MULTILINE) == [
         "python:3.13.18-slim"
     ]
+
+
+@pytest.mark.parametrize("image", [*OUR_IMAGES, "superexec"])
+def test_no_image_keeps_uv(image: str) -> None:
+    """uv installs the locked dependencies and nothing at run time calls it: each
+    image mounts it for that one step instead of copying it in."""
+    dockerfile = (ROOT / "demo" / f"{image}.Dockerfile").read_text()
+    assert "COPY --from=ghcr.io/astral-sh/uv" not in dockerfile
+    assert "--mount=from=ghcr.io/astral-sh/uv:" in dockerfile
+
+
+@pytest.mark.parametrize("image", OUR_IMAGES)
+def test_each_image_keeps_its_environment_where_uv_puts_it(image: str) -> None:
+    """uv's own default, /app/.venv: no project-environment setting to explain."""
+    dockerfile = (ROOT / "demo" / f"{image}.Dockerfile").read_text()
+    assert "UV_PROJECT_ENVIRONMENT" not in dockerfile
+    assert "PATH=/app/.venv/bin:$PATH" in dockerfile
+
+
+@pytest.mark.parametrize("image", ["hospital", "practice", "startup"])
+def test_each_party_image_runs_with_its_users_own_home(image: str) -> None:
+    """compose runs a party's containers as 1000:1000, the image's app user, whose
+    home folder exists: no stand-in home. Only nhanes-download runs as anyone."""
+    dockerfile = (ROOT / "demo" / f"{image}.Dockerfile").read_text()
+    assert "HOME=" not in dockerfile
