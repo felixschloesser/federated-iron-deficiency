@@ -55,8 +55,7 @@ suggests ferritin.
     templates and stylesheet.
 - `ml/`: the Flower app: the ServerApp at the startup, the ClientApp at each
   hospital, and the model.
-- `demo/`: the whole scenario in containers, one network per trust boundary
-  (`demo/README.md`).
+- `demo/`: the whole scenario in containers, one per server (`demo/README.md`).
 - `features/`: the requirements as Gherkin scenarios, one folder per party, the
   ones crossing parties at the top.
 - `tests/`: the scenarios' steps and the other tests (see [Tests](#tests)).
