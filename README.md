@@ -147,7 +147,7 @@ running the simulation from another checkout.
 
 ## Run the demo
 
-The whole scenario in containers, one network per trust boundary: see
+The whole scenario in containers, one per server: see
 `demo/README.md` in the repository.
 
 ## Screen new blood counts

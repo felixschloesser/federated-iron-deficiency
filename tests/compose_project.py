@@ -137,16 +137,12 @@ def compose(
     (folder / "demo").mkdir()
     # compose.yaml's services extend kinds.yaml, found from the project folder.
     shutil.copy(ROOT / "demo" / "kinds.yaml", folder / "demo")
-    # The proxy joins every party's network in the demo; here only the hospital
-    # and practice under test, so the project takes the networks it tests.
     override = folder / "demo" / "test-override.yaml"
     # The hospitals train on a synthetic cohort here, not on one their director
     # provides; the practice under test knows only the hospital under test.
     override.write_text(
         "services:\n  proxy:\n"
-        f"    networks: !override [{APP_HOSPITAL}, {APP_PRACTICE}]\n"
-        # Compose makes the networks of whatever a service waits for, even
-        # under --no-deps: the proxy waits only for the two under test.
+        # The proxy waits only for the two web apps under test.
         "    depends_on: !override\n"
         f"      {APP_HOSPITAL}-web: {{condition: service_healthy}}\n"
         f"      {APP_PRACTICE}-web: {{condition: service_healthy}}\n"

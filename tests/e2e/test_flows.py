@@ -27,7 +27,7 @@ from tests.compose_project import (
     wait_until_online,
 )
 
-# Runs on the hospital's network and talks to both parties only through the
+# Runs beside the hospital's web app and talks to both parties only through the
 # proxy, as a browser would: their login forms, CSRF tokens and POST forms,
 # one cookie jar per party. Prints what each step showed.
 END_TO_END = r"""
@@ -246,7 +246,7 @@ Release.objects.release(
 """
 
 # What the laboratory director's Fetch new screening models runs, in AZ Diest's
-# own web app container, on the screening-models network; the run IDs it stored.
+# own web app container; the run IDs it stored.
 FETCH_SCREENING_MODELS = """
 import json
 from django.utils import timezone

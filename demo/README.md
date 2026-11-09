@@ -3,9 +3,12 @@
 Run every command here from the repository root. The demo runs the whole scenario on your machine: the startup, three
 hospitals and each hospital's general practitioner's practice. Each party
 runs in its own containers, which see only that party's folder under `.demo/`
-(gitignored), on Docker networks that follow the report's trust boundaries.
-So "UZ Leuven's data never reaches the startup" holds because no network or
-mount connects them, not merely because the code is careful. Who the parties
+(gitignored). So "UZ Leuven's data never reaches the startup" holds because
+no mount connects them, not merely because the code is careful. The parties'
+servers share one network, as they would share the internet: reaching a
+server grants nothing, so no boundary rests on a network. In the report,
+mutual TLS says who calls; the demo leaves it out, so a caller names its party
+and the server believes it. Who the parties
 are, and each one's colour, whom it knows and how many patients it seeds, is
 written in `demo/compose.yaml`, in each party's own services; `demo/proxy.conf`
 routes each party's name to its web app.
@@ -14,8 +17,8 @@ routes each party's name to its web app.
 
 On a Mac, [OrbStack](https://orbstack.dev) or Docker Desktop; on Linux,
 Docker Engine with the compose plugin (`docker compose version` should
-answer). Docker is what keeps the parties apart: every trust boundary gets its
-own network, and each party runs in containers of its own. Each container is
+answer). Docker is what keeps the parties' data apart: each party runs in
+containers of its own, on a volume of its own. Each container is
 one compose *service*: one long-running command, such as gunicorn serving a
 hospital's web app, which may start child processes of its own. A service is
 not a process of the report's DFDs:
@@ -27,8 +30,8 @@ not a process of the report's DFDs:
 | P2 Train locally | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
 | P3 Relay messages | `flower-superlink` |
 | P4 Average weights (FedAvg) | `flower-server-app` |
-| P5 Release final models | `startup-web`, its pages, where the data scientist releases; and `startup-grpc`, the screening-models endpoint the hospitals fetch screening models from, alone on the `screening-models` network with the hospitals' web apps |
-| P6 Validate and deploy model, P8 Receive lab orders, P9 Analyse samples, P10 Screen CBC, P12 Send lab reports | two containers of one Django app, on one database: `<hospital>-web`, its pages, which screen a CBC as they record the analysis; and `<hospital>-grpc`, the lab-order endpoint, alone on the `lab-orders` network with the practices |
+| P5 Release final models | `startup-web`, its pages, where the data scientist releases; and `startup-grpc`, the screening-models endpoint the hospitals fetch screening models from |
+| P6 Validate and deploy model, P8 Receive lab orders, P9 Analyse samples, P10 Screen CBC, P12 Send lab reports | two containers of one Django app, on one database: `<hospital>-web`, its pages, which screen a CBC as they record the analysis; and `<hospital>-grpc`, the lab-order endpoint the practices call |
 | P7 Order tests, P11 Show lab reports | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
 | E1 Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models (DS4) and submits a training run; or `train`, run by hand |
 
@@ -64,8 +67,8 @@ startup's Flower app with PyTorch, CPU only), then runs these steps in order:
    from, one folder per party in `.demo/nhanes/`: each hospital's lab records
    (its cycle) and its analyser's participants, each practice's patients
    (from the 2021–2023 blood counts). It is the only container that reaches
-   the internet (Hugging Face; set `HF_TOKEN` in `.env` if it refuses), and it
-   sees no party's folder. Once the extracts exist, it is done in a second.
+   the internet, besides the proxy (Hugging Face; set `HF_TOKEN` in `.env` if
+   it refuses), and like the proxy it sees no party's folder. Once the extracts exist, it is done in a second.
 2. **Each party's setup job sets the party up** (`<party>-setup` in
    `compose.yaml`), as each organisation would its own system: it migrates
    its database, seeds it from its own extract (read-only, the only one it
@@ -134,8 +137,7 @@ docker compose run --rm train
 This is the startup's data scientist submitting a training run. Both run in a
 container inside the startup's network because that is where the data
 scientist sits in the report's DFD; the SuperLink's control API is never
-published to your machine, and the proxy reaches the startup's web app on a
-network of its own, `startup-web`, never the SuperLink. When the run
+published to your machine. When the run
 finishes, its final model appears on the startup's Final models page; release
 it there. Then log in to a hospital as `director`, fetch new screening models, compare
 its local validation at each threshold and deploy it at one. Then order a
@@ -154,7 +156,8 @@ screening comes back to the practice.
   them (`.demo/nhanes/`), so the next `up` downloads nothing.
 - When a change to `demo/compose.yaml` renames or drops a network,
   `docker compose down --remove-orphans` leaves the old one behind, and Docker
-  has room for only about 30 networks. With the demo stopped,
+  has room for only about 30 networks, which test projects share. With the
+  demo stopped,
   `docker network prune --filter label=com.docker.compose.project=iron-deficiency`
   removes this demo's networks that no container uses; the next `up` creates
   the ones it needs again.
