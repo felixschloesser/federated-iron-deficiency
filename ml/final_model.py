@@ -118,10 +118,11 @@ def load_contents(data: bytes) -> dict[str, Any] | None:
 
 
 def write_contents(path: Path, contents: dict[str, Any]) -> None:
-    """Write `contents` to `path`; fail if a file already exists there."""
+    """Write `contents` to `path`; fail if a file already exists there, or if
+    its folder does not exist. The folder's owner creates it, never a writer,
+    so a wrong path fails instead of keeping a file where no reader looks."""
     if path.exists():
         raise FileExistsError(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
     # Write to a temporary file in the same folder, then hard-link it to its
     # final name. A reader never sees half a file, the "*.pt" glob never matches
     # the temporary one, and if two writers race, the second fails because a

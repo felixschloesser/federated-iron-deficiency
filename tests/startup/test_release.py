@@ -34,6 +34,7 @@ def startup(settings: Settings, tmp_path: Path) -> Iterator[str]:
     from web.startup.training.grpc_server import serve
 
     settings.FINAL_MODELS_DIR = tmp_path / "final-models"
+    settings.FINAL_MODELS_DIR.mkdir()
     server, port = serve("127.0.0.1:0")
     yield f"127.0.0.1:{port}"
     server.stop(grace=None)

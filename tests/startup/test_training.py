@@ -36,6 +36,7 @@ def data_scientist(world: World, db: None, name: str, tmp_path: Path) -> None:
 
     world["data_scientist"] = make_data_scientist(name)
     world["final_models_dir"] = tmp_path / "final-models"
+    world["final_models_dir"].mkdir()
 
 
 @when(
