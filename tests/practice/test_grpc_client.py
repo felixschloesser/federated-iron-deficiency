@@ -1,7 +1,7 @@
 """The general practitioner's app sending lab orders and fetching lab reports
 over gRPC, and its pages and commands that do. The hospital is the stand-in
 tests/practice/fake_laboratory.py: no hospital code, no hospital database; the
-real endpoint is held to the same messages by tests/hospital/test_messaging.py."""
+real endpoint is held to the same messages by tests/hospital/test_grpc_server.py."""
 
 from datetime import UTC, datetime
 
@@ -22,11 +22,11 @@ from tests.practice.conftest import (
     suggest_ferritin_on,
 )
 from tests.practice.fake_laboratory import FakeLaboratory
-from web.practice import messaging
+from web.practice import grpc_client
 from web.practice.models import Laboratory, LabReport, Order, Patient
 from web.shared.accounts.models import User
-from web.shared.messaging import messages_pb2
-from web.shared.messaging.convert import to_proto
+from web.shared.grpc import messages_pb2
+from web.shared.grpc.convert import to_proto
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
 
@@ -61,7 +61,7 @@ def send_cbc(laboratory: Laboratory, indication: ClinicalIndication) -> Order:
     placed = collect_and_order(
         patient=record, test=OrderedTest.CBC, indication=indication, now=NOW
     )
-    messaging.send_pending_lab_orders(laboratory, now=NOW)
+    grpc_client.send_pending_lab_orders(laboratory, now=NOW)
     return placed
 
 
@@ -104,8 +104,8 @@ def test_a_rejected_lab_order_keeps_its_reason_and_is_sent_no_more(
     order, which is never sent again: the general practitioner orders anew."""
     placed = place_cbc("Test Patient 1")
     fake_laboratory.laboratory.rejects[placed.sample.sample_id.value] = AGE_REQUIRED
-    messaging.send_pending_lab_orders(practice, now=NOW)
-    messaging.send_pending_lab_orders(practice, now=NOW)
+    grpc_client.send_pending_lab_orders(practice, now=NOW)
+    grpc_client.send_pending_lab_orders(practice, now=NOW)
     order = Order.objects.get(pk=placed.pk)
     assert (order.rejected_at, order.sent_at) == (NOW, None)
     assert order.reason_for_rejection == "age: This field is required."
@@ -121,7 +121,7 @@ def test_a_rejected_lab_order_holds_back_no_other_and_reports_still_arrive(
     fake_laboratory.laboratory.rejects[rejected.sample.sample_id.value] = AGE_REQUIRED
     accepted = place_cbc("Test Patient 3")
     placed, report_id = released_ferritin(fake_laboratory.laboratory)
-    assert messaging.check_for_lab_reports(practice, now=NOW) == 1
+    assert grpc_client.check_for_lab_reports(practice, now=NOW) == 1
     sent = [order.sample_id for order in fake_laboratory.laboratory.lab_orders]
     assert accepted.sample.sample_id.value in sent
     assert LabReport.objects.filter(order=placed).exists()
@@ -247,7 +247,7 @@ def test_checking_fetches_a_lab_report_and_acknowledges_it(
     placed, report_id = released_ferritin(
         fake_laboratory.laboratory, ferritin_suggested=True
     )
-    assert messaging.check_for_lab_reports(practice, now=NOW) == 1
+    assert grpc_client.check_for_lab_reports(practice, now=NOW) == 1
     assert LabReport.objects.get(order=placed).ferritin_suggested is True
     assert report_id in fake_laboratory.laboratory.acknowledged
 
@@ -256,10 +256,10 @@ def test_a_lab_report_is_fetched_once(
     practice: Laboratory, fake_laboratory: Running
 ) -> None:
     placed, report_id = released_ferritin(fake_laboratory.laboratory)
-    messaging.check_for_lab_reports(practice, now=NOW)
+    grpc_client.check_for_lab_reports(practice, now=NOW)
     # The stand-in forgets the acknowledgement: the app still stores it once.
     fake_laboratory.laboratory.acknowledged.discard(report_id)
-    messaging.check_for_lab_reports(practice, now=NOW)
+    grpc_client.check_for_lab_reports(practice, now=NOW)
     assert LabReport.objects.filter(order=placed).count() == 1
 
 
@@ -270,7 +270,7 @@ def test_a_lab_report_the_app_cannot_match_does_not_block_the_others(
     stranger = fake_laboratory.laboratory.release(
         "999999-1", messages_pb2.TEST_FERRITIN, NOW
     )
-    assert messaging.check_for_lab_reports(practice, now=NOW) == 1
+    assert grpc_client.check_for_lab_reports(practice, now=NOW) == 1
     assert LabReport.objects.filter(order=placed).exists()
     assert report_id in fake_laboratory.laboratory.acknowledged
     assert stranger not in fake_laboratory.laboratory.acknowledged
@@ -301,7 +301,7 @@ def test_a_lab_report_missing_any_part_is_not_stored(
             if field.name != part
         }
     )
-    assert messaging.check_for_lab_reports(practice, now=NOW) == 0
+    assert grpc_client.check_for_lab_reports(practice, now=NOW) == 0
     assert not LabReport.objects.filter(order=placed).exists()
     assert fake_laboratory.laboratory.acknowledged == set()
 
@@ -444,7 +444,7 @@ def test_lab_orders_go_only_to_their_samples_laboratory(
         sample = record.collect_sample(laboratory=laboratory, now=NOW)
         suggest_ferritin_on(sample, NOW)
         sample.place_order(test=OrderedTest.FERRITIN, indication=None, now=NOW)
-    assert messaging.send_pending_lab_orders(practice, now=NOW) == 1
+    assert grpc_client.send_pending_lab_orders(practice, now=NOW) == 1
     assert [sent.sample_id for sent in fake_laboratory.laboratory.lab_orders] == [
         latest_sample_id(first)
     ]
@@ -466,7 +466,7 @@ def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
     report_id = fake_laboratory.laboratory.release(
         sample.sample_id.value, messages_pb2.TEST_FERRITIN, NOW
     )
-    assert messaging.check_for_lab_reports(practice, now=NOW) == 0
+    assert grpc_client.check_for_lab_reports(practice, now=NOW) == 0
     assert not LabReport.objects.filter(order=placed).exists()
     assert report_id not in fake_laboratory.laboratory.acknowledged
 
@@ -484,17 +484,17 @@ def test_check_for_reports_names_an_unreachable_laboratory_and_asks_the_others(
 
 
 def test_add_laboratory_primary_makes_it_the_primary_one() -> None:
-    call_command("add_laboratory", "UZ Leuven", "uz-leuven-messaging:8441")
-    call_command("add_laboratory", "AZ Diest", "az-diest-messaging:8441", "--primary")
+    call_command("add_laboratory", "UZ Leuven", "uz-leuven-grpc:8441")
+    call_command("add_laboratory", "AZ Diest", "az-diest-grpc:8441", "--primary")
     primary = Laboratory.objects.primary()
     assert primary is not None
     assert primary.name == "AZ Diest"
     # Adding another without --primary keeps the primary one.
-    call_command("add_laboratory", "UZ Leuven", "uz-leuven-messaging:9441")
+    call_command("add_laboratory", "UZ Leuven", "uz-leuven-grpc:9441")
     assert Laboratory.objects.primary() == primary
 
 
 def test_add_laboratory_adds_it_then_changes_its_address() -> None:
-    call_command("add_laboratory", "UZ Leuven", "uz-leuven-messaging:8441")
-    call_command("add_laboratory", "UZ Leuven", "uz-leuven-messaging:9441")
-    assert Laboratory.objects.get().address == "uz-leuven-messaging:9441"
+    call_command("add_laboratory", "UZ Leuven", "uz-leuven-grpc:8441")
+    call_command("add_laboratory", "UZ Leuven", "uz-leuven-grpc:9441")
+    assert Laboratory.objects.get().address == "uz-leuven-grpc:9441"

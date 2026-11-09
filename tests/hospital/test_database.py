@@ -1,4 +1,4 @@
-"""Two processes write one party's SQLite file: the web app, and the messaging
+"""Two processes write one party's SQLite file: the web app, and the gRPC
 endpoint or the check for lab reports."""
 
 import sqlite3

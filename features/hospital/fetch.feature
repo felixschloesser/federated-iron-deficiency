@@ -1,7 +1,7 @@
 Feature: A hospital fetches screening models when its laboratory director asks
   A released final model reaches a hospital as a screening model, and only when
   its laboratory director fetches new screening models: the hospital's own web
-  app asks the startup's messaging endpoint as the hospital, by its name, saying
+  app asks the startup's screening-models endpoint as the hospital, by its name, saying
   which screening models it holds (DF33), validates each screening model on the hospital's test split
   (DF34) and stores it under its training run's ID (DF17). The startup's code at the
   hospital writes nothing there (tests/quality/security/test_compose.py).

@@ -1,6 +1,6 @@
 """Scenarios: lab orders in and lab reports out, practice by practice
 (features/hospital/lab_orders.feature), against TestRequest.objects; the gRPC
-endpoint around them is tests/hospital/test_messaging.py."""
+endpoint around them is tests/hospital/test_grpc_server.py."""
 
 from datetime import UTC, datetime
 

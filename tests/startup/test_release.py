@@ -1,5 +1,5 @@
 """Scenarios: the startup releases final models and recipient hospitals fetch
-them as screening models from its messaging endpoint, over gRPC, driven as a hospital's web app
+them as screening models from its screening-models endpoint, over gRPC, driven as a hospital's web app
 would drive it (features/startup/release.feature)."""
 
 from collections.abc import Iterator
@@ -18,7 +18,7 @@ from pytest_django.fixtures import Settings
 
 from tests.conftest import World
 from tests.startup.conftest import make_data_scientist
-from web.shared.messaging import messages_pb2, messages_pb2_grpc
+from web.shared.grpc import messages_pb2, messages_pb2_grpc
 
 NOW = datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
 # The endpoint runs in its own threads, so the test may not hold a transaction.
@@ -29,9 +29,9 @@ scenarios("startup/release.feature")
 
 @pytest.fixture
 def startup(settings: Settings, tmp_path: Path) -> Iterator[str]:
-    """The startup's messaging endpoint, running, over its final models; its
+    """The startup's screening-models endpoint, running, over its final models; its
     address."""
-    from web.startup.training.messaging import serve
+    from web.startup.training.grpc_server import serve
 
     settings.FINAL_MODELS_DIR = tmp_path / "final-models"
     server, port = serve("127.0.0.1:0")

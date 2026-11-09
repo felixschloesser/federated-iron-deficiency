@@ -1,15 +1,15 @@
-"""The startup's messaging endpoint (P5): a released final model reaches a
+"""The startup's screening-models endpoint (P5): a released final model reaches a
 hospital as a screening model; a recipient hospital fetches the screening
 models it does not hold, saying which it holds
-(web/shared/messaging/messages.proto, features/startup/release.feature)."""
+(web/shared/grpc/messages.proto, features/startup/release.feature)."""
 
 import grpc
 from django.conf import settings
 from django.utils import timezone
 
-from web.shared.messaging import messages_pb2, messages_pb2_grpc
-from web.shared.messaging.endpoint import start, with_database
-from web.shared.messaging.identity import caller
+from web.shared.grpc import messages_pb2, messages_pb2_grpc
+from web.shared.grpc.endpoint import start, with_database
+from web.shared.grpc.identity import caller
 from web.startup.training.final_models import released_final_model
 from web.startup.training.models import Recipient, Release
 

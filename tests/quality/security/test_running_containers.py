@@ -121,14 +121,14 @@ def test_a_practice_reaches_the_hospitals_lab_order_endpoint_and_not_its_pages(
 ) -> None:
     """AZ Diest's pages (8000) and its lab-order endpoint (8441, DF23, DF25) run
     in containers of their own, each on one network. Pass: from practice De
-    Ceder's web app, on the messaging network, the endpoint answers on 8441
+    Ceder's web app, on the lab-orders network, the endpoint answers on 8441
     and nothing else, and the pages' container is not even a name there."""
     build(compose, "practice-web")
 
     def answers(host: str) -> Any:
         return probe(compose, f"{APP_PRACTICE}-web", PORTS, host, "8441", "8000")
 
-    assert answers(f"{APP_HOSPITAL}-messaging") == {
+    assert answers(f"{APP_HOSPITAL}-grpc") == {
         "8441": "open",
         "8000": "ConnectionRefusedError",
     }

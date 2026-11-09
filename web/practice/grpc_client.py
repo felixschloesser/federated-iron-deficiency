@@ -1,5 +1,5 @@
 """The general practitioner's app as client of each laboratory it works with: lab
-orders out, lab reports in (tests/practice/test_messaging.py)."""
+orders out, lab reports in (tests/practice/test_grpc_client.py)."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -12,10 +12,10 @@ from django.core.exceptions import ValidationError
 from google.protobuf.empty_pb2 import Empty
 
 from web.practice.models import Laboratory, LabReport, Order
-from web.shared.messaging import messages_pb2, messages_pb2_grpc
-from web.shared.messaging.convert import from_proto, moment, timestamp, to_proto
-from web.shared.messaging.identity import calling_as
-from web.shared.messaging.rejection import reason_for_rejection
+from web.shared.grpc import messages_pb2, messages_pb2_grpc
+from web.shared.grpc.convert import from_proto, moment, timestamp, to_proto
+from web.shared.grpc.identity import calling_as
+from web.shared.grpc.rejection import reason_for_rejection
 from web.shared.parsing import parsed
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
@@ -93,7 +93,7 @@ def send_pending_lab_orders(
     timeout: float = TIMEOUT_SECONDS,
 ) -> int:
     """Send the laboratory the lab orders of its samples it has not confirmed yet,
-    over one channel; it records each once (tests/practice/test_messaging.py)."""
+    over one channel; it records each once (tests/practice/test_grpc_client.py)."""
     with open_laboratory(laboratory) as endpoint:
         return _send_pending(endpoint, laboratory, now=now, timeout=timeout)
 
@@ -179,7 +179,7 @@ class Check:
 
 
 def check_every_laboratory(*, now: datetime) -> Check:
-    """Check each laboratory in turn; one that fails holds back no other (tests/practice/test_messaging.py)."""
+    """Check each laboratory in turn; one that fails holds back no other (tests/practice/test_grpc_client.py)."""
     asked, fetched, failures = 0, 0, []
     for laboratory in Laboratory.objects.order_by("name"):
         asked += 1

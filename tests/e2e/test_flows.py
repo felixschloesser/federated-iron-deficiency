@@ -250,7 +250,7 @@ Release.objects.release(
 FETCH_SCREENING_MODELS = """
 import json
 from django.utils import timezone
-from web.hospital.deployment.fetching import fetch_screening_models
+from web.hospital.deployment.grpc_client import fetch_screening_models
 print(json.dumps(fetch_screening_models(now=timezone.now())))
 """
 

@@ -120,6 +120,8 @@ def compose(
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
     folder = tmp_path_factory.mktemp("compose")
     (folder / "demo").mkdir()
+    # compose.yaml's services extend kinds.yaml, found from the project folder.
+    shutil.copy(ROOT / "demo" / "kinds.yaml", folder / "demo")
     # The proxy joins every party's network in the demo; here only the hospital
     # and practice under test, so the project takes the networks it tests.
     override = folder / "demo" / "test-override.yaml"
@@ -138,7 +140,7 @@ def compose(
             for slug in (HOSPITAL, SECOND_HOSPITAL)
         )
         + f"  {APP_PRACTICE}-web:\n    environment:\n"
-        f"      DEMO_REGISTER: add_laboratory 'AZ Diest' {APP_HOSPITAL}-messaging:8441 --primary\n"
+        f"      DEMO_REGISTER: add_laboratory 'AZ Diest' {APP_HOSPITAL}-grpc:8441 --primary\n"
     )
     write_nhanes_extracts(folder / ".demo" / "nhanes")
     name = f"test-{uuid.uuid4().hex[:8]}"
@@ -280,11 +282,11 @@ def synthetic_cohort(hospital: str) -> str:
 @pytest.fixture(scope="session")
 def superlink(compose: Compose) -> None:
     """The startup's web app, which brings the SuperLink's folder and writes
-    flwr-home's connection (demo/party.py), its messaging endpoint, then the
+    flwr-home's connection (demo/party.py), its screening-models endpoint, then the
     SuperLink."""
     build(compose, "startup-web")
     up(compose, "startup-web")
-    up(compose, "startup-messaging")
+    up(compose, "startup-grpc")
     up(compose, "flower-superlink")
 
 
@@ -349,7 +351,7 @@ def hospital_app(compose: Compose) -> str:
     name = f"{APP_HOSPITAL}-web"
     # It sets the hospital up as it starts; the endpoint waits until it has.
     up(compose, name)
-    up(compose, f"{APP_HOSPITAL}-messaging")
+    up(compose, f"{APP_HOSPITAL}-grpc")
     return name
 
 

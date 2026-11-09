@@ -159,9 +159,6 @@ rejected = []
 ["threshold"]
 rejected = ["cutoff (reserved for ferritin's 15 ng/mL)"]
 
-["messaging"]
-rejected = ["API", "integration"]
-
 ["release"]
 rejected = ["transmit (the startup no longer sends: a hospital fetches)", "publish (only recipient hospitals may fetch)", "share", "offer (reads like the model sale it replaced)"]
 

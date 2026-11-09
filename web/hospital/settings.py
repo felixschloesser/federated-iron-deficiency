@@ -25,6 +25,6 @@ ROOT_URLCONF = "web.hospital.urls"
 HOSPITAL_NAME = os.environ.get("HOSPITAL_NAME")
 SCREENING_MODELS_DIR = DATA_DIR / "screening-models"
 TRAINING_COHORT_DIR = DATA_DIR / "cohort"
-# The startup's messaging endpoint (host:port); without it, the hospital
+# The startup's screening-models endpoint (host:port); without it, the hospital
 # offers no fetching.
 STARTUP_ADDRESS = os.environ.get("STARTUP_ADDRESS") or None

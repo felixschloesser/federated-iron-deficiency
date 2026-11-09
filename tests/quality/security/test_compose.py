@@ -24,7 +24,7 @@ STARTUP_SERVICES = {
     "flower-server-app",
     "train",
     "startup-web",
-    "startup-messaging",
+    "startup-grpc",
 }
 # Out-of-band setup (report, assumptions): nhanes-download, the one service
 # that reaches the internet, sees no party's folder.
@@ -155,7 +155,7 @@ def test_one_service_per_process_of_each_party() -> None:
     } | {
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
-        for role in ("flower-supernode", "flower-client-app", "web", "messaging")
+        for role in ("flower-supernode", "flower-client-app", "web", "grpc")
     } | {f"{slug}-web" for slug in PRACTICE_SLUGS}
 
 
@@ -260,9 +260,12 @@ def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
 def test_crossings_and_the_startup_are_internal_networks() -> None:
     networks = config()["networks"]
     internal = {name for name, spec in networks.items() if spec.get("internal")}
-    assert internal == {"startup", "model-updates", "messaging", "screening-models"} | {
-        f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS
-    }
+    assert internal == {
+        "startup",
+        "model-updates",
+        "lab-orders",
+        "screening-models",
+    } | {f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS}
 
 
 def test_model_updates_connect_only_the_superlink_and_the_supernodes() -> None:
@@ -283,40 +286,40 @@ def test_each_practice_reaches_every_hospitals_lab_order_endpoint_and_nothing_el
     """A practice chooses the laboratory per sample (features/practice/ordering.feature); its laboratories are
     rows add_laboratory made, not environment variables."""
     spec = service(f"{practice}-web")
-    assert set(spec["networks"]) == {practice, "messaging"}
+    assert set(spec["networks"]) == {practice, "lab-orders"}
     assert "MESSAGING_ADDRESS" not in spec["environment"]
 
 
-def test_one_messaging_network_holds_every_hospital_and_practice_only() -> None:
+def test_one_lab_orders_network_holds_every_hospital_and_practice_only() -> None:
     """Every practice may send to every hospital (features/practice/ordering.feature): one crossing, TB3-TB1,
     like the internet between them; separate networks would isolate nothing."""
     members = {
         name
         for name, spec in config()["services"].items()
-        if "messaging" in spec.get("networks", {})
+        if "lab-orders" in spec.get("networks", {})
     }
-    assert members == {f"{slug}-messaging" for slug in HOSPITAL_SLUGS} | {
+    assert members == {f"{slug}-grpc" for slug in HOSPITAL_SLUGS} | {
         f"{slug}-web" for slug in PRACTICE_SLUGS
     }
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
-def test_the_hospital_serves_its_pages_and_its_messaging_from_containers_of_their_own(
+def test_the_hospital_serves_its_pages_and_its_grpc_from_containers_of_their_own(
     slug: str,
 ) -> None:
     # One container per server, each on one network: its practices reach the
     # lab-order endpoint and never the pages.
-    web, messaging = service(f"{slug}-web"), service(f"{slug}-messaging")
+    web, grpc = service(f"{slug}-web"), service(f"{slug}-grpc")
     # screening-models: to fetch screening models from the startup; it serves
     # nothing there.
     assert set(web["networks"]) == {slug, "screening-models"}
-    assert set(messaging["networks"]) == {"messaging"}
+    assert set(grpc["networks"]) == {"lab-orders"}
     assert "--bind=0.0.0.0:8000" in web["command"]
-    assert messaging["command"][-2:] == ["serve_messages", "0.0.0.0:8441"]
+    assert grpc["command"][-2:] == ["grpcrunserver", "0.0.0.0:8441"]
     # Only the web app sets the party up (demo/party.py); the endpoint waits for it.
-    assert messaging["entrypoint"] == []
-    assert messaging["depends_on"][f"{slug}-web"]["condition"] == "service_healthy"
-    assert mounts(f"{slug}-messaging") == {"/data": (f"hospitals/{slug}", False)}
+    assert grpc["entrypoint"] == []
+    assert grpc["depends_on"][f"{slug}-web"]["condition"] == "service_healthy"
+    assert mounts(f"{slug}-grpc") == {"/data": (f"hospitals/{slug}", False)}
 
 
 def test_each_web_app_knows_its_name_and_primary_colour() -> None:
@@ -329,7 +332,7 @@ def test_each_web_app_knows_its_name_and_primary_colour() -> None:
 
 
 def test_no_practice_service_runs_on_a_timer() -> None:
-    # Lab reports come only on Check for reports (tests/practice/test_messaging.py).
+    # Lab reports come only on Check for reports (tests/practice/test_grpc_client.py).
     for name, spec in config()["services"].items():
         assert "REPORT_CHECK_SECONDS" not in (spec.get("environment") or {}), name
 
@@ -420,8 +423,8 @@ def test_what_others_wait_for_says_when_it_is_ready(name: str) -> None:
 
 @pytest.mark.parametrize(
     ("name", "port"),
-    [(f"{slug}-messaging", 8441) for slug in HOSPITAL_SLUGS]
-    + [("startup-messaging", 8442), ("flower-superlink", 9092)]
+    [(f"{slug}-grpc", 8441) for slug in HOSPITAL_SLUGS]
+    + [("startup-grpc", 8442), ("flower-superlink", 9092)]
     + [(f"{slug}-flower-supernode", 9094) for slug in HOSPITAL_SLUGS],
 )
 def test_a_server_without_pages_is_ready_when_its_port_answers(
@@ -568,7 +571,7 @@ def test_a_health_check_runs_often_only_while_its_service_starts() -> None:
 
 
 def test_only_the_hospitals_web_apps_reach_the_startups_messaging_endpoint() -> None:
-    """The startup's messaging endpoint (P5) serves recipient hospitals only
+    """The startup's screening-models endpoint (P5) serves recipient hospitals only
     (features/startup/release.feature). Pass: the screening-models network joins the
     startup's web app and every hospital's web app, nothing else, and is internal."""
     declared = config()
@@ -577,7 +580,7 @@ def test_only_the_hospitals_web_apps_reach_the_startups_messaging_endpoint() -> 
         for name, spec in declared["services"].items()
         if "screening-models" in spec.get("networks", {})
     }
-    assert members == {"startup-messaging"} | {f"{slug}-web" for slug in HOSPITAL_SLUGS}
+    assert members == {"startup-grpc"} | {f"{slug}-web" for slug in HOSPITAL_SLUGS}
     assert declared["networks"]["screening-models"]["internal"] is True
 
 
@@ -585,22 +588,22 @@ def test_the_startup_serves_its_pages_and_its_screening_models_from_containers_o
     None
 ):
     # The proxy reaches the pages, the hospitals' web apps only the
-    # messaging endpoint (features/startup/release.feature).
-    web, endpoint = service("startup-web"), service("startup-messaging")
+    # screening-models endpoint (features/startup/release.feature).
+    web, endpoint = service("startup-web"), service("startup-grpc")
     assert set(endpoint["networks"]) == {"screening-models"}
     assert "--bind=0.0.0.0:8000" in web["command"]
-    assert endpoint["command"][-2:] == ["serve_messages", "0.0.0.0:8442"]
+    assert endpoint["command"][-2:] == ["grpcrunserver", "0.0.0.0:8442"]
     assert endpoint["entrypoint"] == []
     assert endpoint["depends_on"]["startup-web"]["condition"] == "service_healthy"
     # Like the web app: the final models read-only, the SuperLink's state masked.
-    assert mounts("startup-messaging") == mounts("startup-web")
+    assert mounts("startup-grpc") == mounts("startup-web")
     assert endpoint["tmpfs"] == web["tmpfs"]
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
 def test_each_hospital_fetches_from_the_startup_by_its_name(slug: str) -> None:
     environment = service(f"{slug}-web")["environment"]
-    assert environment["STARTUP_ADDRESS"] == "startup-messaging:8442"
+    assert environment["STARTUP_ADDRESS"] == "startup-grpc:8442"
     # What it calls the startup as: its name's slug, its folder name.
     assert slugify(environment["HOSPITAL_NAME"]) == slug
 
@@ -640,7 +643,7 @@ def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise(
     commands = registered(f"{practice}-web")
     assert [command[1] for command in commands] == [name(h) for h in HOSPITAL_SLUGS]
     for command, hospital in zip(commands, HOSPITAL_SLUGS, strict=True):
-        assert command[2] == f"{hospital}-messaging:8441"
+        assert command[2] == f"{hospital}-grpc:8441"
         assert ("--primary" in command) is (hospital == paired)
 
 

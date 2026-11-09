@@ -13,7 +13,7 @@ from pytest_bdd import given, parsers
 from tests.conftest import World, make_user
 from tests.django_settings import _test_settings
 from tests.practice.fake_laboratory import FakeLaboratory
-from web.shared.messaging import messages_pb2_grpc
+from web.shared.grpc import messages_pb2_grpc
 
 if TYPE_CHECKING:
     from datetime import datetime

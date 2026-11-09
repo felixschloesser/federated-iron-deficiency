@@ -10,7 +10,7 @@ from ml.final_model import (
     read_final_model,
     weights_to_bytes,
 )
-from web.shared.messaging import messages_pb2
+from web.shared.grpc import messages_pb2
 from web.startup.training.forms import SubmitRunForm
 
 

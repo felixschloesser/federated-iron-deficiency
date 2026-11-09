@@ -1,7 +1,7 @@
 """A screening model enters the hospital only when its laboratory director
 fetches new screening models: the hospital's own code asks the startup's
-messaging endpoint, saying which screening models it holds, and stores each with its local
-validation (model_files.py) (web/shared/messaging/messages.proto,
+screening-models endpoint, saying which screening models it holds, and stores each with its local
+validation (model_files.py) (web/shared/grpc/messages.proto,
 features/hospital/fetch.feature). The startup's code at the hospital writes
 nothing here."""
 
@@ -21,8 +21,8 @@ from ml.training_cohort import (
     training_cohorts,
 )
 from web.hospital.deployment.model_files import store_fetched
-from web.shared.messaging import messages_pb2, messages_pb2_grpc
-from web.shared.messaging.identity import calling_as
+from web.shared.grpc import messages_pb2, messages_pb2_grpc
+from web.shared.grpc.identity import calling_as
 
 TIMEOUT_SECONDS = 30
 

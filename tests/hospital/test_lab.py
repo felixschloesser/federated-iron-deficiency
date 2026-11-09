@@ -1,6 +1,6 @@
 """Scenarios: analysing samples, and the lab never seeing a patient's name
 (features/hospital/lab.feature). Only the hospital's side: lab orders arrive as its
-messaging endpoint records them."""
+lab-order endpoint records them."""
 
 from datetime import UTC, datetime, timedelta
 

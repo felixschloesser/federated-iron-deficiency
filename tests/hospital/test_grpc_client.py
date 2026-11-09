@@ -20,7 +20,7 @@ from ml.final_model import Net, weights_to_bytes
 from tests.conftest import World
 from tests.hospital.conftest import make_laboratory_director
 from tests.hospital.fake_startup import FakeStartup, running
-from web.shared.messaging import messages_pb2
+from web.shared.grpc import messages_pb2
 
 FEDERATED_AUROC = 0.85
 # The stand-in serves from its own threads.

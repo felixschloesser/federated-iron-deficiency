@@ -1,0 +1,103 @@
+# How each kind of service in compose.yaml runs. Its services extend these
+# (`extends: {file: kinds.yaml, service: …}`), which merges them key by key:
+# a service adds its own environment, volumes and networks to its kind's.
+# Nothing here starts on its own: compose.yaml names every service that runs.
+
+services:
+  # A long-running container of the demo. Every container that touches a
+  # party's volume runs as our images' app user, who owns the folders each
+  # image brings: Docker copies them into a fresh volume, so no container needs
+  # root to hand a volume over. Checked every 2 s while it starts, so `up
+  # --wait` is quick; once healthy, every 5 minutes: each check starts a
+  # process in the container. Each kind or service gives its own test.
+  server:
+    user: "1000:1000"
+    restart: unless-stopped
+    healthcheck:
+      start_period: 2m
+      start_interval: 2s
+      interval: 5m
+
+  # A web app's start (demo/party.py) sets its party up, then runs gunicorn.
+  # Ready when its login page answers: that needs its settings, URLconf,
+  # templates and stylesheets. DEBUG off; plain HTTP, as the demo leaves out
+  # the report's TLS (tests/quality/security/test_compose.py).
+  web:
+    extends: server
+    command: [gunicorn, web.shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
+
+  # A server beside its party's web app, on the party's volume: it sets
+  # nothing up (no demo/party.py), so it waits until the web app has.
+  endpoint:
+    extends: server
+    entrypoint: []
+
+  # A hospital's web app. The laboratory director provides the training cohort
+  # and fetches screening models here, so it writes the cohort folder and
+  # screening-models, through the hospital's whole volume; it holds no
+  # SuperNode key. On screening-models to fetch from the startup; it serves
+  # nothing there.
+  hospital-web:
+    extends: web
+    image: ${COMPOSE_PROJECT_NAME}-hospital-web
+    depends_on:
+      nhanes-download: {condition: service_completed_successfully}
+    environment:
+      DJANGO_SETTINGS_MODULE: web.hospital.settings
+      DATA_DIR: /data
+      # Every practice, by its name.
+      DEMO_REGISTER: |
+        add_practice 'Huisartsenpraktijk De Akker'
+        add_practice 'Huisartsenpraktijk De Berk'
+        add_practice 'Huisartsenpraktijk De Ceder'
+      # The startup's screening-models endpoint.
+      STARTUP_ADDRESS: startup-grpc:8442
+
+  # A hospital's lab-order endpoint, the only thing its practices reach
+  # (tests/quality/security/test_running_containers.py).
+  hospital-grpc:
+    extends: endpoint
+    image: ${COMPOSE_PROJECT_NAME}-hospital-web
+    command: [python, manage.py, grpcrunserver, 0.0.0.0:8441]
+    environment:
+      DJANGO_SETTINGS_MODULE: web.hospital.settings
+      DATA_DIR: /data
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8441)).close()"]
+    networks: [lab-orders]
+
+  # A practice's web app: Django and gRPC only, no training package
+  # dependencies.
+  practice-web:
+    extends: web
+    image: ${COMPOSE_PROJECT_NAME}-practice-web
+    depends_on:
+      nhanes-download: {condition: service_completed_successfully}
+    environment:
+      DJANGO_SETTINGS_MODULE: web.practice.settings
+      DATA_DIR: /data
+
+  # Flower's SuperExec with our dependencies: the ServerApp at the startup, a
+  # ClientApp at each hospital. No health check: nothing waits on it.
+  superexec:
+    image: ${COMPOSE_PROJECT_NAME}-superexec
+    user: "1000:1000"
+    restart: unless-stopped
+
+  # Each hospital's SuperNode, and its ClientApp: the startup's code at the
+  # hospital (TB4), with only the cohort, read-only, so it writes nothing at
+  # the hospital, and a network that reaches nothing but its SuperNode
+  # (tests/quality/security/test_running_containers.py). The cohort folder is
+  # the hospital's, whose web app brings it. A SuperNode is ready when its
+  # ClientApp can connect.
+  supernode:
+    extends: server
+    image: flwr/supernode:1.40.0
+    environment:
+      FLWR_HOME: /tmp/flwr
+    depends_on:
+      flower-superlink: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 9094)).close()"]

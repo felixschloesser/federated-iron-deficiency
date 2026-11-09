@@ -1,4 +1,4 @@
-"""A stand-in for the startup's messaging endpoint, so the hospital's tests
+"""A stand-in for the startup's screening-models endpoint, so the hospital's tests
 need none of the startup's code: it offers the screening models it is given and
 records which screening models each fetch said the hospital holds."""
 
@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 import grpc
 
-from web.shared.messaging import messages_pb2, messages_pb2_grpc
+from web.shared.grpc import messages_pb2, messages_pb2_grpc
 
 
 def named(context: grpc.ServicerContext) -> str | None:

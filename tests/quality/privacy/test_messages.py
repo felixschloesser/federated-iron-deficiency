@@ -9,7 +9,7 @@ def test_a_lab_order_names_its_indication_only_as_one_of_the_choices() -> None:
     """The laboratory decides from the clinical indication whether to screen (features/hospital/screening.feature): it learns which of the six choices, pregnancy included, never free text."""
     from google.protobuf.descriptor import FieldDescriptor
 
-    from web.shared.messaging import messages_pb2
+    from web.shared.grpc import messages_pb2
 
     field = messages_pb2.LabOrder.DESCRIPTOR.fields_by_name["clinical_indication"]
     assert field.type == FieldDescriptor.TYPE_ENUM
@@ -50,7 +50,7 @@ def test_a_message_between_practice_and_hospital_carries_only_these_fields(
 ) -> None:
     """What crosses from the practice to the hospital and back (DF23, DF25):
     a new field fails this until it is added here on purpose."""
-    from web.shared.messaging import messages_pb2
+    from web.shared.grpc import messages_pb2
 
     descriptor = getattr(messages_pb2, message).DESCRIPTOR
     assert {field.name for field in descriptor.fields} == fields

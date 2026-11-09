@@ -12,14 +12,15 @@
 # published port. Networks: startup (TB2), startup-web (the startup's web app
 # and the proxy), <hospital> (TB1), <hospital>-flower-client-app (TB4,
 # internal), <practice> (TB3); model-updates crosses TB2-TB1 (DF7-DF10),
-# messaging crosses TB3-TB1 (DF23, DF25): every practice reaches every
-# hospital's lab-order endpoint, <hospital>-messaging, there;
-# screening-models joins the hospitals' web apps and the startup's messaging
-# endpoint.
+# lab-orders crosses TB3-TB1 (DF23, DF25): every practice reaches every
+# hospital's lab-order endpoint, <hospital>-grpc, there; screening-models
+# joins the hospitals' web apps and the startup's screening-models endpoint,
+# startup-grpc. A party's web app and its gRPC endpoint are two containers of
+# one image: <party>-web and <party>-grpc.
 #
 # The parties: three hospitals, each with the general practitioner's practice
-# whose primary laboratory it is (the practices are fictional). The anchors
-# below say how each kind of service runs; each party's services say only its
+# whose primary laboratory it is (the practices are fictional). Each kind of
+# service runs as kinds.yaml says; each party's services say only its
 # facts: its name and colour (a Pico theme), whom it knows (DEMO_REGISTER),
 # whether its laboratory director provided the training cohort (DEMO_PROVIDE),
 # its volume and its networks. nhanes-download's --pair arguments give each
@@ -32,118 +33,6 @@ name: iron-deficiency
 # Each image is built once, by the first service that names it
 # (nhanes-download, startup-web, the first hospital, flower-server-app, the
 # first practice); every other service uses it as built.
-# Every container that touches a party's volume runs as our images' app user,
-# who owns the folders each image brings: Docker copies them into a fresh
-# volume, so no container needs root to hand a volume over.
-x-user: &user "1000:1000"
-
-# Checked every 2 s while a service starts, so `up --wait` is quick; once it
-# is healthy, every 5 minutes: each check starts a process in the container.
-x-health: &health
-  start_period: 2m
-  start_interval: 2s
-  interval: 5m
-
-# A web app's start (demo/party.py) sets its party up, then runs gunicorn.
-# Ready when its login page answers: that needs its settings, URLconf,
-# templates and stylesheets. DEBUG off; plain HTTP, as the demo leaves out the
-# report's TLS (tests/quality/security/test_compose.py).
-x-web: &web
-  user: *user
-  restart: unless-stopped
-  depends_on:
-    nhanes-download: {condition: service_completed_successfully}
-  command: [gunicorn, web.shared.wsgi, --bind=0.0.0.0:8000, --workers=2, --access-logfile=-]
-  healthcheck:
-    <<: *health
-    test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
-
-# A server beside its party's web app, on the party's volume: it sets nothing
-# up (no demo/party.py), so it waits until the web app has.
-x-endpoint: &endpoint
-  user: *user
-  restart: unless-stopped
-  entrypoint: []
-
-# A hospital's web app. The laboratory director provides the training cohort
-# and fetches screening models here, so it writes the cohort folder and
-# screening-models, through the hospital's whole volume; it holds no SuperNode
-# key. On screening-models to fetch from the startup; it serves nothing there.
-x-hospital-web: &hospital-web
-  <<: *web
-  image: ${COMPOSE_PROJECT_NAME}-hospital-web
-
-x-hospital-environment: &hospital-environment
-  DJANGO_SETTINGS_MODULE: web.hospital.settings
-  DATA_DIR: /data
-
-# What every hospital's web app is told alike.
-x-hospital-web-environment: &hospital-web-environment
-  <<: *hospital-environment
-  # Every practice, by its name.
-  DEMO_REGISTER: |
-    add_practice 'Huisartsenpraktijk De Akker'
-    add_practice 'Huisartsenpraktijk De Berk'
-    add_practice 'Huisartsenpraktijk De Ceder'
-  # The startup's messaging endpoint.
-  STARTUP_ADDRESS: startup-messaging:8442
-
-# A hospital's lab-order endpoint, the only thing its practices reach
-# (tests/quality/security/test_running_containers.py).
-x-hospital-messaging: &hospital-messaging
-  <<: *endpoint
-  image: ${COMPOSE_PROJECT_NAME}-hospital-web
-  command: [python, manage.py, serve_messages, 0.0.0.0:8441]
-  environment: *hospital-environment
-  healthcheck:
-    <<: *health
-    test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8441)).close()"]
-  networks: [messaging]
-
-x-startup-environment: &startup-environment
-  DJANGO_SETTINGS_MODULE: web.startup.settings
-  DATA_DIR: /data
-
-# The startup's volume as its web app and its messaging endpoint see it:
-# the final models read-only, the SuperLink's state masked, as it is the
-# SuperLink's alone.
-x-startup-volumes: &startup-volumes
-  volumes:
-    - {type: volume, source: startup, target: /data}
-    - {type: volume, source: startup, target: /data/final-models, read_only: true, volume: {subpath: final-models}}
-  tmpfs: [/data/superlink]
-
-# A practice's web app: Django and gRPC only, no training package dependencies.
-x-practice-web: &practice-web
-  <<: *web
-  image: ${COMPOSE_PROJECT_NAME}-practice-web
-
-x-practice-environment: &practice-environment
-  DJANGO_SETTINGS_MODULE: web.practice.settings
-  DATA_DIR: /data
-
-x-superexec: &superexec
-  image: ${COMPOSE_PROJECT_NAME}-superexec
-  user: *user
-  restart: unless-stopped
-
-# Each hospital's SuperNode, and its ClientApp: the startup's code at the
-# hospital (TB4), with only the cohort, read-only, so it writes nothing at the
-# hospital, and a network that reaches nothing but its SuperNode
-# (tests/quality/security/test_running_containers.py). The cohort folder is the
-# hospital's, whose web app brings it. A SuperNode is ready when its ClientApp
-# can connect.
-x-supernode: &supernode
-  image: flwr/supernode:1.40.0
-  user: *user
-  restart: unless-stopped
-  environment:
-    FLWR_HOME: /tmp/flwr
-  depends_on:
-    flower-superlink: {condition: service_healthy}
-  healthcheck:
-    <<: *health
-    test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 9094)).close()"]
 
 services:
   # The one container that reaches the internet: it writes the public NHANES
@@ -170,9 +59,8 @@ services:
 
   # TB2, the startup.
   flower-superlink:
+    extends: {file: kinds.yaml, service: server}
     image: flwr/superlink:1.40.0
-    user: *user
-    restart: unless-stopped
     environment:
       FLWR_HOME: /tmp/flwr
     # Its folder is the startup's, whose web app brings it (demo/startup.Dockerfile).
@@ -190,11 +78,10 @@ services:
       - {type: volume, source: startup, target: /demo/startup/superlink, volume: {subpath: superlink}}
     networks: [startup, model-updates]
     healthcheck:
-      <<: *health
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 9092)).close()"]
 
   flower-server-app:
-    <<: *superexec
+    extends: {file: kinds.yaml, service: superexec}
     build: {context: .., dockerfile: demo/superexec.Dockerfile}
     depends_on:
       flower-superlink: {condition: service_healthy}
@@ -208,7 +95,7 @@ services:
   # E1, the data scientist, submits from inside TB2: `docker compose run --rm train`.
   train:
     image: ${COMPOSE_PROJECT_NAME}-startup-web
-    user: *user
+    user: "1000:1000"
     profiles: [train]
     depends_on:
       flower-superlink: {condition: service_healthy}
@@ -226,12 +113,12 @@ services:
   # training runs and releases final models. On the startup network to reach
   # the SuperLink, which neither the proxy nor a hospital reaches.
   startup-web:
-    <<: [*web, *startup-volumes]
+    extends: {file: kinds.yaml, service: web}
     image: ${COMPOSE_PROJECT_NAME}-startup-web
     build: {context: .., dockerfile: demo/startup.Dockerfile}
-    depends_on: {}
     environment:
-      <<: *startup-environment
+      DJANGO_SETTINGS_MODULE: web.startup.settings
+      DATA_DIR: /data
       FLWR_HOME: /data/flwr-home
       DEMO_ADDRESS: http://startup.localhost:${DEMO_HTTP_PORT:-80}
       # Every hospital, as a recipient of released final models.
@@ -239,25 +126,37 @@ services:
         add_hospital 'UZ Leuven'
         add_hospital 'Heilig Hart Leuven'
         add_hospital 'AZ Diest'
+    # The startup's volume: the final models read-only, the SuperLink's state
+    # masked, as it is the SuperLink's alone. The screening-models endpoint sees it
+    # alike.
+    volumes:
+      - {type: volume, source: startup, target: /data}
+      - {type: volume, source: startup, target: /data/final-models, read_only: true, volume: {subpath: final-models}}
+    tmpfs: [/data/superlink]
     networks: [startup, startup-web]
 
-  # The startup's messaging endpoint (P5), the only thing the hospitals'
+  # The startup's screening-models endpoint (P5), the only thing the hospitals'
   # web apps reach at the startup.
-  startup-messaging:
-    <<: [*endpoint, *startup-volumes]
+  startup-grpc:
+    extends: {file: kinds.yaml, service: endpoint}
     image: ${COMPOSE_PROJECT_NAME}-startup-web
-    command: [python, manage.py, serve_messages, 0.0.0.0:8442]
-    environment: *startup-environment
+    command: [python, manage.py, grpcrunserver, 0.0.0.0:8442]
+    environment:
+      DJANGO_SETTINGS_MODULE: web.startup.settings
+      DATA_DIR: /data
+    volumes:
+      - {type: volume, source: startup, target: /data}
+      - {type: volume, source: startup, target: /data/final-models, read_only: true, volume: {subpath: final-models}}
+    tmpfs: [/data/superlink]
     depends_on:
       startup-web: {condition: service_healthy}
     healthcheck:
-      <<: *health
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8442)).close()"]
     networks: [screening-models]
 
   # TB1 and TB4, UZ Leuven.
   uz-leuven-flower-supernode:
-    <<: *supernode
+    extends: {file: kinds.yaml, service: supernode}
     command:
       - --superlink=flower-superlink:9092
       - --insecure
@@ -268,7 +167,7 @@ services:
     networks: [model-updates, uz-leuven-flower-client-app]
 
   uz-leuven-flower-client-app:
-    <<: *superexec
+    extends: {file: kinds.yaml, service: superexec}
     depends_on:
       uz-leuven-flower-supernode: {condition: service_healthy}
       uz-leuven-web: {condition: service_healthy}
@@ -278,10 +177,9 @@ services:
     networks: [uz-leuven-flower-client-app]
 
   uz-leuven-web:
-    <<: *hospital-web
+    extends: {file: kinds.yaml, service: hospital-web}
     build: {context: .., dockerfile: demo/hospital.Dockerfile}
     environment:
-      <<: *hospital-web-environment
       DEMO_ADDRESS: http://uz-leuven.localhost:${DEMO_HTTP_PORT:-80}
       # Its laboratory director provided the training cohort at start.
       DEMO_PROVIDE: "1"
@@ -293,8 +191,8 @@ services:
       - ../.demo/nhanes/uz-leuven:/nhanes:ro
     networks: [uz-leuven, screening-models]
 
-  uz-leuven-messaging:
-    <<: *hospital-messaging
+  uz-leuven-grpc:
+    extends: {file: kinds.yaml, service: hospital-grpc}
     depends_on:
       uz-leuven-web: {condition: service_healthy}
     volumes:
@@ -302,7 +200,7 @@ services:
 
   # TB1 and TB4, Heilig Hart Leuven.
   heilig-hart-leuven-flower-supernode:
-    <<: *supernode
+    extends: {file: kinds.yaml, service: supernode}
     command:
       - --superlink=flower-superlink:9092
       - --insecure
@@ -313,7 +211,7 @@ services:
     networks: [model-updates, heilig-hart-leuven-flower-client-app]
 
   heilig-hart-leuven-flower-client-app:
-    <<: *superexec
+    extends: {file: kinds.yaml, service: superexec}
     depends_on:
       heilig-hart-leuven-flower-supernode: {condition: service_healthy}
       heilig-hart-leuven-web: {condition: service_healthy}
@@ -323,9 +221,8 @@ services:
     networks: [heilig-hart-leuven-flower-client-app]
 
   heilig-hart-leuven-web:
-    <<: *hospital-web
+    extends: {file: kinds.yaml, service: hospital-web}
     environment:
-      <<: *hospital-web-environment
       DEMO_ADDRESS: http://heilig-hart-leuven.localhost:${DEMO_HTTP_PORT:-80}
       # Its laboratory director provided the training cohort at start.
       DEMO_PROVIDE: "1"
@@ -337,8 +234,8 @@ services:
       - ../.demo/nhanes/heilig-hart-leuven:/nhanes:ro
     networks: [heilig-hart-leuven, screening-models]
 
-  heilig-hart-leuven-messaging:
-    <<: *hospital-messaging
+  heilig-hart-leuven-grpc:
+    extends: {file: kinds.yaml, service: hospital-grpc}
     depends_on:
       heilig-hart-leuven-web: {condition: service_healthy}
     volumes:
@@ -346,7 +243,7 @@ services:
 
   # TB1 and TB4, AZ Diest.
   az-diest-flower-supernode:
-    <<: *supernode
+    extends: {file: kinds.yaml, service: supernode}
     command:
       - --superlink=flower-superlink:9092
       - --insecure
@@ -357,7 +254,7 @@ services:
     networks: [model-updates, az-diest-flower-client-app]
 
   az-diest-flower-client-app:
-    <<: *superexec
+    extends: {file: kinds.yaml, service: superexec}
     depends_on:
       az-diest-flower-supernode: {condition: service_healthy}
       az-diest-web: {condition: service_healthy}
@@ -367,9 +264,8 @@ services:
     networks: [az-diest-flower-client-app]
 
   az-diest-web:
-    <<: *hospital-web
+    extends: {file: kinds.yaml, service: hospital-web}
     environment:
-      <<: *hospital-web-environment
       DEMO_ADDRESS: http://az-diest.localhost:${DEMO_HTTP_PORT:-80}
       # Its name: shown on its pages, and what it calls the startup as.
       HOSPITAL_NAME: AZ Diest
@@ -379,78 +275,74 @@ services:
       - ../.demo/nhanes/az-diest:/nhanes:ro
     networks: [az-diest, screening-models]
 
-  az-diest-messaging:
-    <<: *hospital-messaging
+  az-diest-grpc:
+    extends: {file: kinds.yaml, service: hospital-grpc}
     depends_on:
       az-diest-web: {condition: service_healthy}
     volumes:
       - {type: volume, source: az-diest, target: /data}
 
   # TB3, each general practitioner's practice, sending samples to every hospital's
-  # laboratory: on the messaging network.
+  # laboratory: on the lab-orders network.
   huisartsenpraktijk-de-akker-web:
-    <<: *practice-web
+    extends: {file: kinds.yaml, service: practice-web}
     build: {context: .., dockerfile: demo/practice.Dockerfile}
     environment:
-      <<: *practice-environment
       DEMO_ADDRESS: http://huisartsenpraktijk-de-akker.localhost:${DEMO_HTTP_PORT:-80}
       # Every hospital's laboratory; its paired hospital's is the primary one.
       DEMO_REGISTER: |
-        add_laboratory 'UZ Leuven' uz-leuven-messaging:8441 --primary
-        add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-messaging:8441
-        add_laboratory 'AZ Diest' az-diest-messaging:8441
+        add_laboratory 'UZ Leuven' uz-leuven-grpc:8441 --primary
+        add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-grpc:8441
+        add_laboratory 'AZ Diest' az-diest-grpc:8441
       # Its name: shown on its pages, and what it calls each hospital as.
       PRACTICE_NAME: Huisartsenpraktijk De Akker
       PRIMARY_COLOUR: green
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-akker, target: /data}
       - ../.demo/nhanes/huisartsenpraktijk-de-akker:/nhanes:ro
-    networks: [huisartsenpraktijk-de-akker, messaging]
+    networks: [huisartsenpraktijk-de-akker, lab-orders]
 
   huisartsenpraktijk-de-berk-web:
-    <<: *practice-web
+    extends: {file: kinds.yaml, service: practice-web}
     environment:
-      <<: *practice-environment
       DEMO_ADDRESS: http://huisartsenpraktijk-de-berk.localhost:${DEMO_HTTP_PORT:-80}
       # Every hospital's laboratory; its paired hospital's is the primary one.
       DEMO_REGISTER: |
-        add_laboratory 'UZ Leuven' uz-leuven-messaging:8441
-        add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-messaging:8441 --primary
-        add_laboratory 'AZ Diest' az-diest-messaging:8441
+        add_laboratory 'UZ Leuven' uz-leuven-grpc:8441
+        add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-grpc:8441 --primary
+        add_laboratory 'AZ Diest' az-diest-grpc:8441
       # Its name: shown on its pages, and what it calls each hospital as.
       PRACTICE_NAME: Huisartsenpraktijk De Berk
       PRIMARY_COLOUR: amber
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-berk, target: /data}
       - ../.demo/nhanes/huisartsenpraktijk-de-berk:/nhanes:ro
-    networks: [huisartsenpraktijk-de-berk, messaging]
+    networks: [huisartsenpraktijk-de-berk, lab-orders]
 
   huisartsenpraktijk-de-ceder-web:
-    <<: *practice-web
+    extends: {file: kinds.yaml, service: practice-web}
     environment:
-      <<: *practice-environment
       DEMO_ADDRESS: http://huisartsenpraktijk-de-ceder.localhost:${DEMO_HTTP_PORT:-80}
       # Every hospital's laboratory; its paired hospital's is the primary one.
       DEMO_REGISTER: |
-        add_laboratory 'UZ Leuven' uz-leuven-messaging:8441
-        add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-messaging:8441
-        add_laboratory 'AZ Diest' az-diest-messaging:8441 --primary
+        add_laboratory 'UZ Leuven' uz-leuven-grpc:8441
+        add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-grpc:8441
+        add_laboratory 'AZ Diest' az-diest-grpc:8441 --primary
       # Its name: shown on its pages, and what it calls each hospital as.
       PRACTICE_NAME: Huisartsenpraktijk De Ceder
       PRIMARY_COLOUR: purple
     volumes:
       - {type: volume, source: huisartsenpraktijk-de-ceder, target: /data}
       - ../.demo/nhanes/huisartsenpraktijk-de-ceder:/nhanes:ro
-    networks: [huisartsenpraktijk-de-ceder, messaging]
+    networks: [huisartsenpraktijk-de-ceder, lab-orders]
 
   # Between the browser and the parties, like the internet: routes each
   # <party>.localhost to <party>-web by its Host header (proxy.conf). The only
   # published port; up once every web app answers, so a browser never sees a
   # party that is still setting itself up.
   proxy:
+    extends: {file: kinds.yaml, service: server}
     image: nginx:1.28-alpine
-    user: *user
-    restart: unless-stopped
     depends_on:
       startup-web: {condition: service_healthy}
       uz-leuven-web: {condition: service_healthy}
@@ -462,7 +354,6 @@ services:
     ports: ["127.0.0.1:${DEMO_HTTP_PORT:-80}:8080"]
     volumes: ["./proxy.conf:/etc/nginx/nginx.conf:ro"]
     healthcheck:
-      <<: *health
       test: [CMD, nc, -z, 127.0.0.1, "8080"]
     networks:
       [startup-web, uz-leuven, heilig-hart-leuven, az-diest,
@@ -474,7 +365,7 @@ networks:
   startup-web: {}
   screening-models: {internal: true}
   model-updates: {internal: true}
-  messaging: {internal: true}
+  lab-orders: {internal: true}
   uz-leuven: {}
   uz-leuven-flower-client-app: {internal: true}
   heilig-hart-leuven: {}

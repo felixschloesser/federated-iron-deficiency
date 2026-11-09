@@ -1,7 +1,7 @@
 Feature: The startup releases final models; recipient hospitals fetch them as screening models
   A final model leaves the startup only after its data scientist released it,
   and only as a screening model a recipient hospital fetches from the
-  startup's messaging endpoint (P5, DF33). The startup knows each recipient
+  startup's screening-models endpoint (P5, DF33). The startup knows each recipient
   hospital by its name; any hospital it registers is
   one, whether or not it trained. Each scenario's last step is its response
   measure, true or false.
