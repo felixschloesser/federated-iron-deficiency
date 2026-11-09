@@ -144,6 +144,33 @@ def fetches_holding(world: World, hospital: str, run_id: str) -> None:
     world["fetched"] = call(world, "FetchNewScreeningModels", held, hospital)
 
 
+@when(
+    parsers.parse(
+        '"{hospital}" fetches new screening models but gives up before the reply'
+    )
+)
+def fetches_and_gives_up(world: World, hospital: str) -> None:
+    """The call's deadline passed, or the hospital cancelled it, while the startup
+    answered: what the startup sees then, given to its service directly."""
+    from unittest.mock import create_autospec
+
+    from web.startup.training.grpc_server import ScreeningModelsService
+
+    context = create_autospec(grpc.ServicerContext, instance=True)
+    context.invocation_metadata.return_value = (("party", slugify(hospital)),)
+    context.is_active.return_value = False
+    ScreeningModelsService().FetchNewScreeningModels(
+        messages_pb2.FetchNewScreeningModelsRequest(), context
+    )
+
+
+@then(parsers.parse('final model "{run_id}" was fetched by no hospital'))
+def fetched_by_none(world: World, run_id: str) -> None:
+    from web.startup.training.models import Release
+
+    assert Release.objects.get(final_model_run_id=run_id).fetched_by() == []
+
+
 @when("a hospital fetches new screening models without naming itself")
 def fetches_unnamed(world: World) -> None:
     world["fetched"] = call(

@@ -107,8 +107,9 @@ class Release(models.Model):
 
 
 class Fetch(models.Model):
-    """A recipient hospital fetched a released final model: the startup sent it,
-    whether or not the hospital stored it."""
+    """A recipient hospital fetched a released final model: the startup sent it
+    to a hospital still waiting for the reply, whether or not the hospital stored
+    it."""
 
     release = models.ForeignKey(
         Release, on_delete=models.PROTECT, related_name="fetches"
