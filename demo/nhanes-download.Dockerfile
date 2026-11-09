@@ -4,7 +4,7 @@
 # modules it needs, so changes elsewhere never rebuild it.
 FROM python:3.13-slim
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/
-RUN useradd --create-home app && install -d -o app /app /opt/venv
+RUN useradd --uid 1000 --create-home app && install -d -o app /app /opt/venv
 WORKDIR /app
 USER app
 # HOME=/tmp: compose runs this image as DEMO_USER, who has no home folder here.

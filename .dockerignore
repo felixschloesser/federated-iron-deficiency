@@ -2,8 +2,6 @@
 *
 !pyproject.toml
 !uv.lock
-!README.md
-!LICENSE
 !manage.py
 !ml/
 !web/

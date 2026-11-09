@@ -4,7 +4,7 @@
 # (tests/quality/security/test_running_containers.py checks this).
 FROM python:3.13-slim
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/
-RUN useradd --create-home app && install -d -o app /app /data /opt/venv
+RUN useradd --uid 1000 --create-home app && install -d -o app /app /data /opt/venv
 WORKDIR /app
 USER app
 # HOME=/tmp: a home folder any user can write to.
