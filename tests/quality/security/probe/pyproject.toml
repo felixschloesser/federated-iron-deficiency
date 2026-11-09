@@ -1,5 +1,5 @@
-# A Flower app that stands for the startup's code at a hospital (DF7, TB4): its
-# ClientApp reports what it can see and reach; the ServerApp logs it (DF9).
+# A Flower app that stands for the startup's code at a hospital: its
+# ClientApp reports what it can see and reach; the ServerApp logs it.
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

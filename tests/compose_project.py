@@ -336,7 +336,7 @@ def flower(compose: Compose, superlink: None) -> None:
 
 
 def flwr(compose: Compose, *args: str) -> str:
-    """A flwr command as the startup's data scientist, inside TB2."""
+    """A flwr command as the startup's data scientist, inside the startup."""
     return compose(
         "run",
         "--rm",

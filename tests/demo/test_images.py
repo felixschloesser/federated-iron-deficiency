@@ -97,18 +97,18 @@ def test_django_boots_without_the_training_data_libraries(party: str) -> None:
 PARTY_FOLDERS = {
     "startup": {
         "superlink",  # the SuperLink's own state, no DFD store
-        "final-models",  # DS4
+        "final-models",
         "flwr-home",
         "web.sqlite3",  # the data scientist's account
         ".secret_key",
     },
     "hospital": {
-        "cohort",  # DS2
-        "screening-models",  # DS5
-        "web.sqlite3",  # DS1, DS6, DS8, DS9
+        "cohort",
+        "screening-models",
+        "web.sqlite3",
         ".secret_key",
     },
-    "practice": {"web.sqlite3", ".secret_key"},  # DS7
+    "practice": {"web.sqlite3", ".secret_key"},
 }
 
 

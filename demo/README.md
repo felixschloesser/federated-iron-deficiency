@@ -25,15 +25,15 @@ not a process of the report's DFDs:
 
 | DFD element | Where it runs |
 |---|---|
-| DS1 Lab records | each hospital's NHANES cycle, which its web app seeds into its database when it first starts |
-| P1 Extract training cohort | *Provide the training cohort* on `<hospital>-web`, by its laboratory director; *Withdraw* takes it back |
-| P2 Train locally | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
-| P3 Relay messages | `flower-superlink` |
-| P4 Average weights (FedAvg) | `flower-server-app` |
-| P5 Release final models | `startup-web`, its pages, where the data scientist releases; and `startup-grpc`, the screening-models endpoint the hospitals fetch screening models from |
-| P6 Validate and deploy model, P8 Receive lab orders, P9 Analyse samples, P10 Screen CBC, P12 Send lab reports | two containers of one Django app, on one database: `<hospital>-web`, its pages, which screen a CBC as they record the analysis; and `<hospital>-grpc`, the lab-order endpoint the practices call |
-| P7 Order tests, P11 Show lab reports | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
-| E1 Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models (DS4) and submits a training run; or `train`, run by hand |
+| Lab records | each hospital's NHANES cycle, which its web app seeds into its database when it first starts |
+| Extract training cohort | *Provide the training cohort* on `<hospital>-web`, by its laboratory director; *Withdraw* takes it back |
+| Train locally | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code |
+| Relay messages | `flower-superlink` |
+| Average weights (FedAvg) | `flower-server-app` |
+| Release final models | `startup-web`, its pages, where the data scientist releases; and `startup-grpc`, the screening-models endpoint the hospitals fetch screening models from |
+| Validate and deploy model, Receive lab orders, Analyse samples, Screen CBC, Send lab reports | two containers of one Django app, on one database: `<hospital>-web`, its pages, which screen a CBC as they record the analysis; and `<hospital>-grpc`, the lab-order endpoint the practices call |
+| Order tests, Show lab reports | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
+| Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models and submits a training run; or `train`, run by hand |
 
 One container has no DFD element: `proxy`, which stands for the network
 between your browser and the parties.

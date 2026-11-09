@@ -32,7 +32,7 @@ def staff_member() -> User:
 
 @pytest.fixture
 def test_request() -> TestRequest:
-    """A ferritin ordered by a general practitioner, as the lab received it (DF23)."""
+    """A ferritin ordered by a general practitioner, as the lab received it."""
     receive_lab_order(str(make_tube().seqn), OrderedTest.FERRITIN, ORDERED)
     return TestRequest.objects.select_related("sample").get()
 
@@ -112,7 +112,7 @@ def test_laboratory_director_cannot_run_the_analyser(
 
 
 def cbc_lab_order(sex: RegisteredSex) -> TestRequest:
-    """A CBC for a screened indication, aged 32, as the lab received it (DF23)."""
+    """A CBC for a screened indication, aged 32, as the lab received it."""
     receive_lab_order(str(make_tube().seqn), OrderedTest.CBC, ORDERED, sex=sex)
     return TestRequest.objects.select_related("sample").get()
 

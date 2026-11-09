@@ -65,7 +65,7 @@ def test_the_hospital_stores_nothing_that_names_a_patient(
 @pytest.mark.django_db
 def test_the_training_cohort_holds_no_identifier(tmp_path: Path) -> None:
     """Example. Threat: identifiability in the training cohort the startup's
-    code reads (TB4). Pass: a provided training cohort's columns are the CBC
+    code reads. Pass: a provided training cohort's columns are the CBC
     values, age and the label, nothing else."""
     make_lab_records(120, iron_deficient=20)
     TrainingCohort.objects.provide(

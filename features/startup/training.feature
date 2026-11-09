@@ -1,5 +1,5 @@
 Feature: The startup's training runs
-  The startup keeps every training run's final model (DS4), with the AUROC
+  The startup keeps every training run's final model, with the AUROC
   across hospitals. Its data scientist sees them on the startup's own web app.
   A training run sets no threshold: each hospital's laboratory director chooses
   one when deploying (features/hospital/deployment.feature).

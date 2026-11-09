@@ -1,7 +1,7 @@
 Feature: Lab orders in, lab reports out, practice by practice
-  The hospital records the lab orders (DF23) of each practice it works with,
+  The hospital records the lab orders of each practice it works with,
   known by its name, and lets each practice fetch the lab
-  reports (DF25) of its own lab orders until the practice acknowledges them.
+  reports of its own lab orders until the practice acknowledges them.
   The gRPC endpoint that carries both is tested in tests/hospital/test_messaging.py.
 
   Background:
