@@ -1,20 +1,46 @@
 # Federated Iron-Deficiency Classification
 
-This [Flower](https://flower.ai/) app trains a
-[PyTorch](https://pytorch.org/) binary classifier to identify iron deficiency
-from routine complete blood count measurements and age. Iron deficiency is
-ferritin below 15 ng/mL, or below 70 ng/mL with inflammation (CRP above
-5 mg/L), as the WHO ferritin guideline (2020) defines it for adults.
+A worked example for a privacy impact assessment: a startup and three Belgian
+hospitals train a model together with [Flower](https://flower.ai/), without
+any hospital's patient data leaving it, and the hospitals then use the model to
+screen routine blood counts for iron deficiency.
 
-The federation has three clients, standing in for a large, a medium, and a
-small hospital. Each holds a different
-[NHANES](https://www.cdc.gov/nchs/nhanes/) survey cycle: 2005–2006, 2015–2016,
-and 2017–2018, keeping fixed 50% and 25% samples for the medium and small
-hospitals. Each client trains on its own locally standardized data.
+The model is a [PyTorch](https://pytorch.org/) binary classifier on the 13
+values of a complete blood count (CBC) and age. Iron deficiency is ferritin
+below 15 ng/mL, or below 70 ng/mL with inflammation (CRP above 5 mg/L), as the
+WHO ferritin guideline (2020) defines it for adults. The data is
+[NHANES](https://www.cdc.gov/nchs/nhanes/): each hospital holds one survey
+cycle (2005–2006, 2015–2016, 2017–2018, about 5:2:1 in size), and the 2021–2023
+cycle, which never trains, stands in for new patients. The app extends
+[`@javier/iron-deficiency`](https://flower.ai/apps/javier/iron-deficiency/)
+(see [Changes from upstream](#changes-from-upstream)).
 
-After training, the startup keeps the final model. Once its data scientist
-releases it, it reaches each hospital as a screening model, which the hospital
-fetches and screens new blood counts with.
+## Parties and what crosses between them
+
+Three kinds of party, each with a web app of its own: the general
+practitioner's **practice**, the **hospital** (its laboratory), and the
+**startup**. `GLOSSARY.md` defines the words.
+
+| From → to | What | Carries | Over | Report |
+|---|---|---|---|---|
+| practice → hospital | lab order | sample ID, test, clinical indication, registered sex, age; no name, no values | gRPC, `SendLabOrder` | DF23 |
+| hospital → practice | lab report | sample ID, test, results, whether ferritin is suggested; never the score | gRPC, `FetchNewLabReports` | DF25 |
+| practice → hospital | acknowledgement | sample ID and test of each lab report received | gRPC, `AcknowledgeLabReports` | |
+| startup → SuperLink | training run | the app and its run configuration | `flwr run` | DF4 |
+| startup ↔ hospital | each round | the global model's weights and learning rate; back, the updated weights, training loss, validation loss and AUROC, and example counts | Flower | DF7–DF10 |
+| startup → hospital | screening model | a released final model's weights and its AUROC across hospitals; never its run configuration | gRPC, `FetchNewScreeningModels` | DF37 |
+
+The messages are defined in `web/shared/grpc/messages.proto`; the Flower ones
+in `ml/server_app.py` and `ml/client_app.py`. Every gRPC call is made by the
+practice or the hospital, which names itself by its name's slug; the demo
+leaves out mutual TLS.
+
+Inside the hospital, the laboratory director provides the training cohort to
+the startup's ClientApp, fetches screening models, validates each on the
+hospital's own held-out past patients, and deploys one at a threshold of their
+choosing. When laboratory staff analyse a CBC for a screened indication in a
+woman aged 18–49, the deployed screening model decides whether the lab report
+suggests ferritin.
 
 ## Layout
 
@@ -25,65 +51,52 @@ fetches and screens new blood counts with.
   - `web/practice/`: the general practitioner's patients, samples and orders;
   - `web/startup/`: training runs and the final models the data scientist
     releases;
-  - `web/shared/`: what all three use: accounts, the gRPC messages between them
-    (`web/shared/grpc/messages.proto`), the page templates and stylesheet.
+  - `web/shared/`: what all three use: accounts, the gRPC messages, the page
+    templates and stylesheet.
 - `ml/`: the Flower app: the ServerApp at the startup, the ClientApp at each
   hospital, and the model.
-- `demo/`: the whole scenario in containers (`demo/README.md`).
+- `demo/`: the whole scenario in containers, one network per trust boundary
+  (`demo/README.md`).
 - `features/`: the requirements as Gherkin scenarios, one folder per party, the
   ones crossing parties at the top.
-- `tests/`: the scenarios' steps and the other tests (see Tests below).
+- `tests/`: the scenarios' steps and the other tests (see [Tests](#tests)).
 - `GLOSSARY.md`: each party's words, what each means and where it comes from.
 
-## Changes from `@javier/iron-deficiency`
+## Run the demo
 
-This app extends [`@javier/iron-deficiency`](https://flower.ai/apps/javier/iron-deficiency/)
-v1.3.0 for a privacy impact assessment of a hypothetical deployment: a startup
-and three Belgian hospitals.
+The whole scenario, every party in its own containers: see `demo/README.md`.
 
-- **Package `ml/`.** The original's package is `iron_deficiency/`; here the
-  Flower app is `ml/`, beside the web apps in `web/` and the demo in `demo/`.
-- **Data from Hugging Face.** The original downloads the NHANES files from the
-  CDC on each client. Here the cohorts come from a pinned revision of
-  `gracemyu/nhanes-merged` through Flower Datasets, so the app also runs in
-  simulation, and a SuperNode reads its partition from the `data-path` in its
-  node config instead of a `CYCLES` name.
-- **No evaluation on other hospitals' data.** The original ClientApp also
-  evaluated on a global test set built from every cycle, so each client loaded
-  the other clients' data. Each client now evaluates on its own validation
-  split only.
-- **W&B key at submit time.** The key is passed with `-c` instead of being set
-  in `pyproject.toml`, which is packaged with the app.
-- **Three hospitals instead of four cycles.** The 2015–2016 and 2017–2018
-  cycles keep fixed 50% and 25% samples, giving a large, a medium, and a small
-  hospital (about 5:2:1). The latest cycle, 2021–2023, no longer trains, so it
-  can stand in for new blood counts screened after training.
-- **Final models.** The original app stops after training. Here the startup
-  keeps each final model, and its data scientist releases one; a hospital's
-  laboratory director then fetches it as a screening model, with the aggregated evaluation metrics,
-  from the startup's web app over gRPC, never through Flower: the startup's
-  code at a hospital writes nothing there. The hospital's own web app stores it
-  as a new file named after the training run ID in its screening-models
-  folder, with its own standardization and a local validation on
-  its test split, which no training run saw or was chosen on: the confusion matrix at each threshold from 0.05 to
-  0.95 in steps of 0.05, and AUROC (`hospital/deployment/model_files.py`). A
-  hospital decides itself which screening model to deploy, and at which threshold. The startup keeps a copy of every final
-  model in `<demo-dir>/startup/final-models/`, so the assessment can cover how
-  the model is used, not only how it is trained.
-- **Screening at the hospital.** `ml/inference.py` gives a CBC's probability
-  of iron deficiency; the hospital compares it with the threshold its
-  laboratory director deployed the model at. Only registered women aged 18–49
-  are scored, as the model was trained on them alone. The lab report carries
-  only whether ferritin is suggested, never the score.
-- **Seeded training.** The initial weights and dropout are seeded, so repeated
-  runs give the same flags.
-- **Tests** for the screening, run with `pytest`.
+## Run in simulation
+
+Each virtual SuperNode loads the cycle matching its `partition-id` from a
+pinned revision of the
+[`gracemyu/nhanes-merged`](https://huggingface.co/datasets/gracemyu/nhanes-merged)
+dataset (CC0). The first run downloads about 280 MB; set `HF_TOKEN` for faster
+downloads. On your machine, which also keeps the final models in
+`<demo-dir>/startup/final-models/<run-id>.pt` (`demo-dir` must be absolute and
+defaults to `~/.cache/iron-deficiency`):
+
+```shell
+flwr run . --federation-config "num-supernodes=3" --run-config "demo-dir='$PWD/.demo'" --stream
+```
+
+`flwr run` starts a local SuperLink in the background and reuses it for later
+runs, from any checkout: its simulation imports `ml` from the environment it
+was started in. Stop it (`pkill -f flower-superlink`) before running from
+another checkout.
+
+On SuperGrid's simulation federation instead, with three virtual SuperNodes:
+
+```shell
+flwr federation simulation-config @<username>/<federation-name> supergrid --num-supernodes 3
+flwr run . supergrid --federation @<username>/<federation-name>
+```
 
 ## Run on SuperGrid
 
-The app is designed for a SuperGrid deployment federation with three SuperNodes.
-Before connecting a SuperNode, first register its public key with SuperGrid and
-then add the registered SuperNode to the deployment federation of interest. See
+The app is designed for a SuperGrid deployment federation with three
+SuperNodes. Register each SuperNode's public key with SuperGrid and add it to
+the federation first: see
 [Create and Manage Federations on SuperGrid](https://flower.ai/docs/framework/how-to-create-and-manage-federations.html)
 and
 [Connect SuperNodes to SuperGrid](https://flower.ai/docs/framework/how-to-connect-supernodes-to-supergrid.html).
@@ -96,8 +109,7 @@ cycle from NHANES instead (`demo_data/2005-2006`, `demo_data/2015-2016`, ...):
 python -m ml.dataset --out-dir demo_data
 ```
 
-Then pass each SuperNode its folder through its node configuration. For
-example:
+Then start each SuperNode with its folder:
 
 ```shell
 flower-supernode \
@@ -107,53 +119,25 @@ flower-supernode \
   --allow-runtime-dependency-installation # optional
 ```
 
-Launch the other two SuperNodes in the same way, pointing `data-path` to the
-`2015-2016` and `2017-2018` folders.
-
-Once the three SuperNodes are online and part of the federation, follow
+and the other two with `2015-2016` and `2017-2018`. Once all three are online,
+submit the app as
 [Run Flower Apps on SuperGrid](https://flower.ai/docs/framework/how-to-run-flower-apps-on-supergrid.html)
-to submit the app.
+describes.
 
-The dataset is built from the NHANES demographics, complete blood count, and
-ferritin components, read from the
-[`gracemyu/nhanes-merged`](https://huggingface.co/datasets/gracemyu/nhanes-merged)
-dataset (CC0) at a pinned revision. It includes women aged 18–49 with complete
-measurements, using 13 blood-count variables plus age as model features.
+The cohorts hold women aged 18–49 with complete measurements: 13 blood-count
+variables plus age as features.
 
-## Run in simulation
+### Weights & Biases
 
-In simulation, each virtual SuperNode loads the cycle matching its
-`partition-id` from the Hugging Face dataset. The first run downloads about
-280 MB; set `HF_TOKEN` for faster downloads. Use three virtual SuperNodes, one
-per cycle, and submit the app to the simulation federation:
+To upload the aggregated metrics after a run, pass your W&B API key when you
+submit; without it, W&B logging is off. The ServerApp runs on SuperGrid, so it
+cannot read your environment, and the key must not go in `pyproject.toml`,
+which is packaged with the app:
 
 ```shell
-flwr federation simulation-config @<username>/<federation-name> supergrid --num-supernodes 3
-flwr run . supergrid --federation @<username>/<federation-name>
+flwr run . supergrid --federation @<username>/<federation-name> \
+  -c "wandb-api-key='$WANDB_API_KEY'"
 ```
-
-To keep the final models, run the simulation on your machine instead. The
-ServerApp keeps each in `<demo-dir>/startup/final-models/<run-id>.pt`;
-`demo-dir` must be absolute and defaults to `~/.cache/iron-deficiency`:
-
-```shell
-flwr run . --federation-config "num-supernodes=3" --run-config "demo-dir='$PWD/.demo'" --stream
-```
-
-`flwr run` starts a local SuperLink in the background and reuses it for later
-runs, from any checkout: its simulation imports `ml` from the
-environment it was started in. Stop it (`pkill -f flower-superlink`) before
-running the simulation from another checkout.
-
-## Run the demo
-
-The whole scenario in containers, one network per trust boundary: see
-`demo/README.md` in the repository.
-
-## Screen new blood counts
-
-Hospitals fetch released final models as screening models and screen with
-them in their own web app: see `demo/README.md`.
 
 ## Tests
 
@@ -174,50 +158,38 @@ holds them (`tests/hospital/`, `tests/quality/privacy/hospital/`). Plain
 - `tests/quality/security/` and `tests/quality/privacy/`: one test per threat;
   the privacy folder's `conftest.py` says how to write one.
 
-## Weights & Biases
+## Changes from upstream
 
-To upload the aggregated strategy metrics after a run, export your W&B API key
-and pass it when you submit the app. Without it, W&B logging is disabled:
+What differs from [`@javier/iron-deficiency`](https://flower.ai/apps/javier/iron-deficiency/)
+v1.3.0:
 
-```shell
-export WANDB_API_KEY=<your-key>
-flwr run . supergrid --federation @<username>/<federation-name> \
-  -c "wandb-api-key='$WANDB_API_KEY'"
-```
-
-The ServerApp runs on SuperGrid, so it cannot read your local environment. Do
-not put the key in `pyproject.toml`, since that file is packaged with the app.
-
-## Ways to improve the app
-
-For background and step-by-step guidance, follow the Flower tutorial series:
-[Get started with Flower](https://flower.ai/docs/framework/tutorial-series-get-started-with-flower.html),
-[Write your first Flower App](https://flower.ai/docs/framework/tutorial-series-write-your-first-flower-app.html),
-[Write your first Flower App with PyTorch](https://flower.ai/docs/framework/tutorial-series-write-your-first-flower-app-pytorch.html),
-[Use a federated learning strategy](https://flower.ai/docs/framework/tutorial-series-use-a-federated-learning-strategy-pytorch.html),
-[Customize a Flower Strategy](https://flower.ai/docs/framework/tutorial-series-build-a-strategy-from-scratch-pytorch.html),
-and
-[Communicate custom Messages](https://flower.ai/docs/framework/tutorial-series-customize-the-client-pytorch.html).
-
-Fetch the app into a local directory so you can modify and experiment with it:
-
-```shell
-flwr new @javier/iron-deficiency
-```
-
-Possible next steps for experimenting with and improving the app include:
-
-- Tune hyperparameters such as the learning rate, weight decay, batch size, and
-  number of training rounds.
-- Change the model architecture or compare it with other models suitable for
-  tabular clinical data.
-- Try a different built-in federated aggregation strategy.
-- Create a custom aggregation strategy tailored to differences between the
-  three NHANES cohorts.
-
-After making your changes, submit the app to your SuperGrid federation:
-
-```shell
-cd iron-deficiency
-flwr run . --federation @<username>/<federation-name> supergrid
-```
+- **Package `ml/`** instead of `iron_deficiency/`, beside the web apps in
+  `web/` and the demo in `demo/`.
+- **Data from Hugging Face.** The cohorts come from a pinned revision of
+  `gracemyu/nhanes-merged` through Flower Datasets instead of the CDC, so the
+  app also runs in simulation; a SuperNode reads its partition from the
+  `data-path` in its node config instead of a `CYCLES` name.
+- **No evaluation on other hospitals' data.** The original ClientApp also
+  evaluated on a global test set built from every cycle, so each client loaded
+  the others' data. Each client now evaluates on its own validation split only.
+- **W&B key at submit time**, with `-c`, not in `pyproject.toml`.
+- **Three hospitals instead of four cycles.** The 2015–2016 and 2017–2018
+  cycles keep fixed 50% and 25% samples, giving a large, a medium and a small
+  hospital. The 2021–2023 cycle no longer trains, so it can stand in for new
+  blood counts.
+- **Final models.** The original stops after training. Here the startup keeps
+  each final model and its data scientist releases one. A hospital's laboratory
+  director fetches it as a screening model over gRPC, never through Flower, so
+  the startup's code at a hospital writes nothing there. The hospital stores it
+  with its own standardization and a local validation on its held-out split:
+  the confusion matrix at each threshold from 0.05 to 0.95, and AUROC. Each
+  hospital decides which screening model to deploy, and at which threshold.
+- **Screening at the hospital.** `ml/inference.py` gives a CBC's probability of
+  iron deficiency, which the hospital compares with its threshold. Only
+  registered women aged 18–49 are scored, as the model was trained on them
+  alone; the lab report says only whether ferritin is suggested.
+- **The analyser stand-in.** Each hospital's analyser holds real 2021–2023
+  CBCs of women aged 18–49; a practice's sample IDs are their NHANES numbers,
+  so every sample carries real held-out blood.
+- **Seeded training.** The initial weights and dropout are seeded, so repeated
+  runs give the same flags.
