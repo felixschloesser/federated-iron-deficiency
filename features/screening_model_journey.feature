@@ -3,8 +3,9 @@ Feature: A released final model reaches a hospital as a screening model only whe
   cohort, and the startup's and the hospital's real web app containers: a
   training run keeps its final model at the startup; a hospital holds none until
   the data scientist releases it and the hospital fetches it as a screening
-  model over the screening-models network, even AZ Diest, which never trained; fetching again
-  changes nothing
+  model over the screening-models network, even AZ Diest, which took no part in
+  training, as its laboratory director provided no training cohort; fetching
+  again changes nothing
   (features/startup/release.feature, features/hospital/fetch.feature).
   Each scenario's last step is its response measure, true or false.
 
@@ -12,8 +13,10 @@ Feature: A released final model reaches a hospital as a screening model only whe
   Scenario: Train, release, fetch, fetch again
     Given the SuperLink and UZ Leuven's SuperNode and ClientApp are running
     And Heilig Hart Leuven's SuperNode and ClientApp too, as FedAvg trains only with two hospitals
+    And AZ Diest's SuperNode and ClientApp, whose laboratory director provided no training cohort
     When the data scientist trains for one round
     Then the startup keeps the run's final model and UZ Leuven stores none
+    And AZ Diest took no part, its ClientApp saying why without a traceback
     When the data scientist releases that final model
     Then AZ Diest stores none yet
     When AZ Diest fetches new screening models

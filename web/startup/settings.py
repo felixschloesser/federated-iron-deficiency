@@ -18,7 +18,7 @@ INSTALLED_APPS: list[str] = [
 ]
 ROLES = [Role.DATA_SCIENTIST]
 ROOT_URLCONF = "web.startup.urls"
-# The ServerApp writes here and only checks the folder exists, so the web app,
-# which owns it, creates it (in the demo, the startup's image already has).
+# The web app owns it, so it creates it (in the demo, the startup's image
+# already has); the ServerApp writes to it and never creates it.
 FINAL_MODELS_DIR: Path = DATA_DIR / "final-models"
 FINAL_MODELS_DIR.mkdir(exist_ok=True)

@@ -23,7 +23,10 @@ INSTALLED_APPS: list[str] = [
 ]
 ROLES = [Role.LABORATORY_STAFF, Role.LABORATORY_DIRECTOR]
 ROOT_URLCONF = "web.hospital.urls"
+# The web app owns it, so it creates it (in the demo, the hospital's image
+# already has); writing a screening model never creates it.
 SCREENING_MODELS_DIR: Path = DATA_DIR / "screening-models"
+SCREENING_MODELS_DIR.mkdir(exist_ok=True)
 TRAINING_COHORT_DIR: Path = DATA_DIR / "cohort"
 # The startup's screening-models endpoint (host:port); without it, the hospital
 # offers no fetching.

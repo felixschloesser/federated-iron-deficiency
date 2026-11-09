@@ -24,6 +24,7 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def final_models_dir(tmp_path: Path, settings: Settings) -> Path:
     directory = tmp_path / "final-models"
+    directory.mkdir()
     settings.FINAL_MODELS_DIR = directory
     keep_final_model(
         directory,

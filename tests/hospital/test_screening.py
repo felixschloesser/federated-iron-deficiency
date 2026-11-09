@@ -90,6 +90,7 @@ def write_model(directory: Path, run_id: str, local_auroc: float) -> None:
 @given(parsers.parse('screening model "{run_id}"'))
 def screening_model(world: World, tmp_path: Path, run_id: str) -> None:
     world["screening_models_dir"] = tmp_path / "screening-models"
+    world["screening_models_dir"].mkdir(exist_ok=True)
     write_model(world["screening_models_dir"], run_id, local_auroc=0.84)
 
 
