@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 SUBMIT_TIMEOUT_SECONDS = 20
 # Listing runs is part of loading the page: a SuperLink that hangs must not.
 LIST_TIMEOUT_SECONDS = 5
-# The SuperLink connection in FLWR_HOME's config.toml (demo/party.py writes it).
+# The SuperLink connection in FLWR_HOME's config.toml (the startup's image
+# brings it, demo/flwr-home/).
 CONNECTION = "demo"
 
 

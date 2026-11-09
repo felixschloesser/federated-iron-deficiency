@@ -24,8 +24,8 @@ RUN --mount=type=cache,target=/tmp/.cache/uv,uid=1000,gid=1000 uv sync --locked 
 # Empty folders for this party's data. compose mounts a new volume on /data,
 # and Docker copies these folders into it, owned by app.
 RUN mkdir -p /data/final-models /data/superlink /data/flwr-home
-# demo/party.py runs first: it creates the database and demo accounts from
-# the NHANES extract, then runs the server command compose gives it.
-COPY --chown=app demo/__init__.py demo/party.py demo/seed.py /app/demo/
+# The setup job's seeding (compose.yaml): the demo accounts and NHANES records.
+COPY --chown=app demo/__init__.py demo/seed.py /app/demo/
 COPY --chown=app demo/seeding/__init__.py demo/seeding/accounts.py demo/seeding/parties.py demo/seeding/names.py /app/demo/seeding/
-ENTRYPOINT ["python", "-m", "demo.party"]
+# The data scientist's flwr reaches the SuperLink with this (demo/flwr-home/).
+COPY --chown=app demo/flwr-home/config.toml /data/flwr-home/config.toml

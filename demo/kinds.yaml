@@ -18,7 +18,43 @@ services:
       start_interval: 2s
       interval: 5m
 
-  # A web app's start (demo/party.py) sets its party up, then runs gunicorn.
+  # A party's setup job: it migrates the party's database, seeds it from the
+  # party's own NHANES extract, read-only at /nhanes, and registers whom the
+  # party knows, as its people would type it; then it exits. Its demo accounts
+  # share a known password, so DEBUG is on here alone. On no network. Each step
+  # is idempotent, so a restart is quick. The first container on a fresh volume,
+  # so Docker gives it the folders the party's image brings. Its party's
+  # servers start once it has succeeded.
+  setup:
+    user: "1000:1000"
+    network_mode: none
+    environment:
+      DJANGO_DEBUG: "1"
+      DATA_DIR: /data
+
+  hospital-setup:
+    extends: setup
+    image: ${COMPOSE_PROJECT_NAME}-hospital-web
+    depends_on:
+      nhanes-download: {condition: service_completed_successfully}
+    environment:
+      DJANGO_SETTINGS_MODULE: web.hospital.settings
+
+  practice-setup:
+    extends: setup
+    image: ${COMPOSE_PROJECT_NAME}-practice-web
+    depends_on:
+      nhanes-download: {condition: service_completed_successfully}
+    environment:
+      DJANGO_SETTINGS_MODULE: web.practice.settings
+
+  startup-setup:
+    extends: setup
+    image: ${COMPOSE_PROJECT_NAME}-startup-web
+    environment:
+      DJANGO_SETTINGS_MODULE: web.startup.settings
+
+  # A web app runs gunicorn on its party's volume, once its setup job is done.
   # Ready when its login page answers: that needs its settings, URLconf,
   # templates and stylesheets. DEBUG off; plain HTTP, as the demo leaves out
   # the report's TLS (tests/quality/security/test_compose.py).
@@ -28,12 +64,6 @@ services:
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/login/', timeout=5)"]
 
-  # A server beside its party's web app, on the party's volume: it sets
-  # nothing up (no demo/party.py), so it waits until the web app has.
-  endpoint:
-    extends: server
-    entrypoint: []
-
   # A hospital's web app. The laboratory director provides the training cohort
   # and fetches screening models here, so it writes the cohort folder and
   # screening-models, through the hospital's whole volume; it holds no
@@ -42,23 +72,16 @@ services:
   hospital-web:
     extends: web
     image: ${COMPOSE_PROJECT_NAME}-hospital-web
-    depends_on:
-      nhanes-download: {condition: service_completed_successfully}
     environment:
       DJANGO_SETTINGS_MODULE: web.hospital.settings
       DATA_DIR: /data
-      # Every practice, by its name.
-      DEMO_REGISTER: |
-        add_practice 'Huisartsenpraktijk De Akker'
-        add_practice 'Huisartsenpraktijk De Berk'
-        add_practice 'Huisartsenpraktijk De Ceder'
       # The startup's screening-models endpoint.
       STARTUP_ADDRESS: startup-grpc:8442
 
   # A hospital's lab-order endpoint, the only thing its practices reach
   # (tests/quality/security/test_running_containers.py).
   hospital-grpc:
-    extends: endpoint
+    extends: server
     image: ${COMPOSE_PROJECT_NAME}-hospital-web
     command: [python, manage.py, grpcrunserver, 0.0.0.0:8441]
     environment:
@@ -73,8 +96,6 @@ services:
   practice-web:
     extends: web
     image: ${COMPOSE_PROJECT_NAME}-practice-web
-    depends_on:
-      nhanes-download: {condition: service_completed_successfully}
     environment:
       DJANGO_SETTINGS_MODULE: web.practice.settings
       DATA_DIR: /data

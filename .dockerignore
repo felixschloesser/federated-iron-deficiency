@@ -10,4 +10,5 @@
 # The demo's code only: never a stray download or CA under demo/.
 !demo/*.py
 !demo/seeding/
+!demo/flwr-home/
 **/__pycache__

@@ -18,8 +18,6 @@ COPY --chown=app ml/__init__.py ml/cohort.py /app/ml/
 COPY --chown=app web/__init__.py /app/web/
 COPY --chown=app web/shared/ /app/web/shared/
 COPY --chown=app web/practice/ /app/web/practice/
-# demo/party.py runs first: it creates the database and demo accounts from
-# the NHANES extract, then runs the server command compose gives it.
-COPY --chown=app demo/__init__.py demo/party.py demo/seed.py /app/demo/
+# The setup job's seeding (compose.yaml): the demo accounts and NHANES records.
+COPY --chown=app demo/__init__.py demo/seed.py /app/demo/
 COPY --chown=app demo/seeding/__init__.py demo/seeding/accounts.py demo/seeding/parties.py demo/seeding/names.py /app/demo/seeding/
-ENTRYPOINT ["python", "-m", "demo.party"]
