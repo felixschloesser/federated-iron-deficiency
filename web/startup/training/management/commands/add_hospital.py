@@ -1,5 +1,7 @@
-"""Register a recipient hospital by its name, which never changes
-(features/startup/release.feature); run again, it changes nothing."""
+"""Register a recipient hospital by its name.
+
+The name never changes; running the command again with it changes nothing
+(features/startup/release.feature)."""
 
 from typing import Any
 

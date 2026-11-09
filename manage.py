@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-"""Django's command-line utility, as one party's web app: DJANGO_SETTINGS_MODULE
-names its settings, web.hospital.settings, web.practice.settings or
+"""Django's command-line utility for one party's web app. DJANGO_SETTINGS_MODULE
+names the party's settings: web.hospital.settings, web.practice.settings or
 web.startup.settings."""
 
 import os

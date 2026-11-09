@@ -1,7 +1,7 @@
 # Runs the startup's training code: the ServerApp at the startup and the
-# ClientApp at each hospital (TB4). This is Flower's own SuperExec image plus
-# our locked dependencies: Flower installs nothing at run time, and the code
-# itself arrives with each run (the FAB).
+# ClientApp at each hospital. It is Flower's own SuperExec image plus our locked
+# dependencies, so Flower installs nothing at run time; the code itself arrives
+# with each run, in the FAB.
 FROM flwr/superexec:1.40.0
 USER root
 # uv and the lock are mounted for this one step, so neither stays in the

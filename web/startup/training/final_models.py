@@ -1,4 +1,5 @@
-"""The startup's copy of every final model (DS4), as its data scientist sees it."""
+"""Reads the final models the startup keeps on disk, for its data scientist's
+pages and for release to hospitals."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -25,7 +26,8 @@ class KeptFinalModel:
 
     @property
     def run_configuration_items(self) -> list[tuple[str, int | float]]:
-        """The parameters the data scientist chose, in the form's words and order."""
+        """The parameters the data scientist chose, labelled and ordered as in the
+        submit form."""
         return [
             (str(field.label), self.run_configuration[key])
             for name, field in SubmitRunForm.base_fields.items()
@@ -34,7 +36,7 @@ class KeptFinalModel:
 
     @property
     def run_configuration_shown(self) -> str | None:
-        """The same on one line."""
+        """The same parameters on one line, or None if there are none."""
         shown = [f"{label} {value}" for label, value in self.run_configuration_items]
         return ", ".join(shown) or None
 
@@ -59,9 +61,9 @@ def final_models(directory: Path) -> list[KeptFinalModel]:
 def released_final_model(
     directory: Path, run_id: str
 ) -> messages_pb2.ScreeningModel | None:
-    """A released final model as a recipient hospital fetches it (DF33): its
-    weights only, the AUROC across hospitals, and its run ID; never its run
-    configuration. None for a run the startup kept no readable model of."""
+    """A released final model as a recipient hospital fetches it: its weights,
+    the AUROC across hospitals and its run ID, but never its run configuration.
+    None if the startup has no readable model for that run."""
     path = model_file_path(directory, run_id)
     model = read_final_model(path) if path.is_file() else None
     if model is None:

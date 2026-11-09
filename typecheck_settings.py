@@ -1,5 +1,7 @@
-"""For mypy only (django-stubs reads one settings module), at the top so no party and no shared code imports it: every party's apps
-together, so it can type every model. No web app runs with it."""
+"""Settings for mypy only. django-stubs reads one settings module, so this one
+installs every party's apps together and mypy can type every model. It sits at
+the repository root so no party's or shared code imports it; no web app runs
+with it."""
 
 from web.hospital import settings as hospital
 from web.practice import settings as practice

@@ -1,5 +1,5 @@
-"""What each party's web app gets for the demo: its accounts, and its records of
-the chosen NHANES participants. Runs inside that party's Django
+"""Seed each party's web app for the demo: its accounts, and its records of the
+chosen NHANES participants. Runs inside that party's Django project
 (python -m demo.seed); the accounts share a known password."""
 
 import csv
@@ -54,8 +54,8 @@ def user(username: str, role: Role | None) -> User:
 
 @transaction.atomic
 def seed_hospital(rows: Rows) -> list[str]:
-    """The hospital's laboratory staff and director, and what its analyser's
-    stand-in measures for each chosen participant."""
+    """Create the hospital's laboratory staff and director accounts, and what its
+    analyser stand-in measures for each chosen participant."""
     from web.hospital.analyser.models import Participant
 
     user(LABORATORY_STAFF, Role.LABORATORY_STAFF)
@@ -68,14 +68,15 @@ def seed_hospital(rows: Rows) -> list[str]:
                 "ferritin": float(row["LBXFER"]),
             },
         )
-    user("no-role", None)  # Has no role: for the refusal at login.
+    user("no-role", None)  # An account with no role, to show login refusing it.
     return [LABORATORY_STAFF, LABORATORY_DIRECTOR]
 
 
 @transaction.atomic
 def seed_practice(sample_ids: Rows, patients: Rows) -> list[str]:
-    """The practice's general practitioner, its stock of sample IDs in the order
-    drawn, and, once, its patients, each named after their NHANES number."""
+    """Create the practice's general practitioner account and its stock of sample
+    IDs, in the order drawn, and, the first time only, its patients, each named
+    from their NHANES number."""
     from web.practice.models import Patient, SampleId
 
     user(GENERAL_PRACTITIONER, Role.GENERAL_PRACTITIONER)
@@ -95,15 +96,16 @@ def seed_practice(sample_ids: Rows, patients: Rows) -> list[str]:
 
 @transaction.atomic
 def seed_startup() -> list[str]:
-    """The startup's data scientist; the startup holds no patients."""
+    """Create the startup's data scientist account; the startup holds no
+    patients."""
     user(DATA_SCIENTIST, Role.DATA_SCIENTIST)
     user("no-role", None)
     return [DATA_SCIENTIST]
 
 
 def indication(pregnant: bool, number: int) -> ClinicalIndication:
-    """A past CBC's indication: at the start of pregnancy for a woman NHANES
-    found pregnant, else one of the screened indications in turn."""
+    """A past CBC's clinical indication: start of pregnancy for a woman NHANES
+    found pregnant, otherwise each screened indication in turn."""
     if pregnant:
         return ClinicalIndication.START_OF_PREGNANCY
     from web.hospital.lab.models import SCREENED_INDICATIONS
@@ -112,9 +114,9 @@ def indication(pregnant: bool, number: int) -> ClinicalIndication:
 
 
 def seed_lab_records(csv_path: Path, provide: bool) -> str:
-    """The hospital's lab records (DS1), once, from nhanes-download's CSV
-    (demo/nhanes.py); with `provide`, the laboratory director then
-    provides the training cohort, as on the Training cohort page."""
+    """Seed the hospital's lab records from nhanes-download's CSV if it has none
+    yet. With `provide`, the laboratory director then provides the training
+    cohort, as on the Training cohort page."""
     from web.hospital.cohort.models import LabRecord, TrainingCohort
 
     with transaction.atomic():
@@ -147,7 +149,7 @@ def seed_lab_records(csv_path: Path, provide: bool) -> str:
             directory=settings.TRAINING_COHORT_DIR, by=director, now=timezone.now()
         )
     except ValidationError as error:
-        # Provided on an earlier start: nothing to do.
+        # Already provided on an earlier start, so there is nothing to do.
         if [refusal.code for refusal in error.error_list] != ["unchanged"]:
             raise SystemExit(" ".join(error.messages)) from error
     return f"{summary}; training cohort provided"

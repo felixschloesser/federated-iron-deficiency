@@ -1,6 +1,5 @@
-"""Submitting a training run to the startup's SuperLink (DF4), as `flwr run`
-does, following each run's status, as `flwr ls` does, and stopping one, as
-`flwr stop` does."""
+"""Submits training runs to the startup's SuperLink, lists their status and
+stops them, by calling the Flower CLI (`flwr run`, `flwr ls`, `flwr stop`)."""
 
 import json
 import logging
@@ -17,20 +16,22 @@ from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 from django.db import models
 
 logger = logging.getLogger(__name__)
-# Under gunicorn's worker timeout (30 s): the page says why instead of the
-# request ending blank.
+# Below gunicorn's 30-second worker timeout, so the page can say what happened
+# instead of the request ending blank.
 SUBMIT_TIMEOUT_SECONDS = 20
-# Listing runs is part of loading the page: a SuperLink that hangs must not.
+# Listing runs is part of loading the page, so a hanging SuperLink must not hang
+# the page.
 LIST_TIMEOUT_SECONDS = 5
-# The SuperLink connection in FLWR_HOME's config.toml (the startup's image
-# brings it, demo/flwr-home/).
+# The SuperLink connection named in FLWR_HOME's config.toml, which the startup's
+# image provides (demo/flwr-home/).
 CONNECTION = "demo"
 
 
 def run_configuration(chosen: Mapping[str, int | float | str]) -> str:
-    """The run configuration as `flwr run --run-config` takes it: what the data
-    scientist chose and, in the demo, the folder above the startup's. No
-    threshold: each hospital's laboratory director chooses one."""
+    """Format the run configuration for `flwr run --run-config`: the data
+    scientist's choices plus, in the demo, the folder above the startup's data
+    folder, where the ServerApp keeps each final model. There is no threshold,
+    because each hospital's laboratory director chooses one."""
     pairs = [f"{key}={value!r}" for key, value in chosen.items()]
     pairs.append(f"demo-dir='{settings.DATA_DIR.parent}'")
     return " ".join(pairs)
@@ -49,7 +50,8 @@ def flower(arguments: list[str], timeout: int) -> dict[str, Any]:
     try:
         answer: dict[str, Any] = json.loads(result.stdout)
     except json.JSONDecodeError:
-        # The CLI's own output names server paths: for the log, not the page.
+        # The CLI's error output names server paths, so it goes to the log, not
+        # the page.
         logger.error("flwr %s gave no answer: %s", arguments[0], result.stderr.strip())
         return {"error-message": "it gave no answer"}
     return answer
@@ -121,7 +123,7 @@ class RunStatus(models.TextChoices):
 
     @property
     def in_progress(self) -> bool:
-        """Whether the run has yet to finish: the page marks it out."""
+        """Whether the run has not finished yet; the page highlights such runs."""
         match self:
             case RunStatus.PENDING | RunStatus.STARTING | RunStatus.RUNNING:
                 return True
@@ -132,7 +134,7 @@ class RunStatus(models.TextChoices):
 
 
 def flower_time(text: str) -> datetime | None:
-    """A time as `flwr ls` gives it; None for "N/A", a state not reached."""
+    """Parse a time as `flwr ls` gives it; None for "N/A", a state not reached."""
     try:
         return datetime.fromisoformat(text)
     except ValueError:
@@ -144,7 +146,7 @@ class TrainingRun:
     """A training run as the SuperLink reports it."""
 
     run_id: int
-    # None for a status this app does not know yet; status_label then shows
+    # None for a status this app does not know; status_label then shows
     # Flower's own text.
     status: RunStatus | None
     status_text: str
@@ -188,14 +190,15 @@ def training_runs() -> list[TrainingRun]:
             code="superlink_no_answer",
         ) from error
     if not answer.get("success"):
-        # Its message names the SuperLink's address: for the log, not the page.
+        # The error message names the SuperLink's address, so it goes to the log,
+        # not the page.
         logger.error("flwr ls failed: %s", answer.get("error-message"))
         raise ValidationError(
             "The SuperLink is unavailable, so the training runs' statuses are unknown.",
             code="superlink_unavailable",
         )
     runs = [TrainingRun.from_flower(run) for run in answer.get("runs", [])]
-    # A run ID is random, not a sequence: newest is last submitted.
+    # Run IDs are random, so sort by submission time to put the newest first.
     return sorted(
         runs,
         key=lambda run: (run.submitted_at is not None, run.submitted_at),

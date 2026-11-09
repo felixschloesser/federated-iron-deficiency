@@ -12,7 +12,7 @@ class HomeView(LoginRequiredMixin, RedirectView):
 
     def get_redirect_url(self, *args: Any, **kwargs: Any) -> str:
         role = role_of(self.request.user)
-        # Only if the role was removed after logging in, or is another party's.
+        # Only if the role was removed after logging in, or belongs to another party.
         if role is None:
             raise PermissionDenied
         return role.start_url()

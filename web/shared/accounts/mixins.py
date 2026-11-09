@@ -10,7 +10,8 @@ from web.shared.accounts.roles import Role, role_of
 
 
 class RoleRequiredMixin(LoginRequiredMixin):
-    """Lets in only users of `role`; others go to their own start page, told why."""
+    """Let in only users with `role`; send anyone else to their own start page with
+    a message saying why."""
 
     role: ClassVar[Role]
 
@@ -21,7 +22,8 @@ class RoleRequiredMixin(LoginRequiredMixin):
         if not user.is_authenticated:
             return self.handle_no_permission()
         role = role_of(user)
-        # Cannot log in without a role here; only if it was removed since.
+        # Logging in requires a role here, so this happens only if the role was
+        # removed after the user logged in.
         if role is None:
             raise PermissionDenied
         if role is not self.role:

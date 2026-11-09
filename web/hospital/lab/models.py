@@ -1,4 +1,5 @@
-"""The hospital's samples and the practices it works with."""
+"""The hospital's samples and the practices it works with
+(features/hospital/lab.feature)."""
 
 from __future__ import annotations
 
@@ -23,8 +24,8 @@ from web.hospital.deployment.models import (
 from web.shared.parsing import once_each, parsed
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
-# The indications whose CBC the hospital screens: the guidelines order a CBC
-# without ferritin first, so a suggestion can add something.
+# The indications whose CBC the hospital screens: for these the guidelines order
+# a CBC without ferritin first, so a ferritin suggestion can add something.
 SCREENED_INDICATIONS = (
     ClinicalIndication.SUSPECTED_ANAEMIA,
     ClinicalIndication.SUSPECTED_IBS,
@@ -33,9 +34,9 @@ SCREENED_INDICATIONS = (
 
 
 class ScreeningResult(models.TextChoices):
-    """What screening records of a CBC (features/hospital/screening.feature): the
-    model's decision; not screened, for a CBC outside the screening, never why; or
-    screening failed, when no deployed screening model was usable."""
+    """What screening records of a CBC: the model's decision; not screened, for a
+    CBC the screening does not cover (without saying why); or screening failed,
+    when no deployed screening model was usable."""
 
     FERRITIN_SUGGESTED = "ferritin_suggested", "Ferritin suggested"
     FERRITIN_NOT_SUGGESTED = "ferritin_not_suggested", "Ferritin not suggested"
@@ -46,8 +47,8 @@ class ScreeningResult(models.TextChoices):
 class PracticeManager(models.Manager["Practice"]):
     @transaction.atomic
     def add(self, *, name: str) -> Practice:
-        """Register a practice the hospital works with by its name, once; a name
-        whose slug another practice has is refused."""
+        """Register a practice by its name, once; a name whose slug another
+        practice already has is refused."""
         practice = self.filter(name=name).first()
         if practice is None:
             practice = Practice(name=name, slug=slugify(name))
@@ -57,11 +58,11 @@ class PracticeManager(models.Manager["Practice"]):
 
 
 class Practice(models.Model):
-    """A practice the hospital works with, by its name, which
-    never changes; its app calls as the name's slug."""
+    """A practice the hospital works with. Its name never changes, and its app
+    calls as the name's slug."""
 
     name = models.CharField(max_length=100, unique=True)
-    # What the practice's app calls as; follows from the name.
+    # The name the practice's app calls as; derived from the name.
     slug = models.SlugField(max_length=100, editable=False)
 
     objects = PracticeManager()
@@ -81,9 +82,10 @@ class Practice(models.Model):
 
 
 class Sample(models.Model):
-    """A sample, known by the sample ID on its label and the practice that sent it
-    (features/hospital/lab.feature): two practices may use the same sample ID. It arrives with its lab
-    order; a later test on it is measured on the stored sample."""
+    """A sample, identified by the sample ID on its label together with the
+    practice that sent it, because two practices may use the same sample ID. It
+    arrives with its lab order; a later test on it is measured on the stored
+    sample."""
 
     practice = models.ForeignKey(
         Practice, on_delete=models.PROTECT, related_name="samples"
@@ -103,12 +105,13 @@ class Sample(models.Model):
 
 @dataclass(frozen=True)
 class LabOrderDetails:
-    """What a lab order (DF23) says, as it arrived: no patient name, no values
-    (features/hospital/lab.feature). Only receive's models make it a test request."""
+    """What a lab order says, as it arrived: no patient name, no values. It
+    becomes a test request only through TestRequest.objects.receive, which checks
+    each part against the model fields."""
 
     sample_id: str
     test: str | None
-    # Absent for ferritin, which takes none.
+    # None for ferritin, which needs no clinical indication.
     clinical_indication: str | None
     registered_sex: str | None
     age: int | None
@@ -120,11 +123,13 @@ class StoredSample(TypedDict):
 
 
 class TestRequestManager(models.Manager["TestRequest"]):
-    """What laboratory staff see: test requests, which hold no patient field (features/practice/access.feature)."""
+    """Test requests as laboratory staff see and handle them; they hold no patient
+    field."""
 
     def to_analyse(self) -> models.QuerySet[WithAnnotations[TestRequest, StoredSample]]:
-        """Tests the analyser has not run yet. A sample arrives with its lab order; it
-        is a stored sample once another test on it has been analysed."""
+        """Test requests the analyser has not run yet, oldest order first. A sample
+        arrives with its lab order; it is a stored sample once another test on it
+        has been analysed."""
         analysed_on_same_sample = TestRequest.objects.filter(
             sample=OuterRef("sample"), analysed_at__isnull=False
         )
@@ -136,7 +141,7 @@ class TestRequestManager(models.Manager["TestRequest"]):
         )
 
     def analysed(self) -> models.QuerySet[TestRequest]:
-        """Tests with results, newest first."""
+        """Analysed test requests, newest first."""
         return (
             self.filter(analysed_at__isnull=False)
             .select_related("sample")
@@ -144,7 +149,8 @@ class TestRequestManager(models.Manager["TestRequest"]):
         )
 
     def reports_to_send(self, practice: Practice) -> models.QuerySet[TestRequest]:
-        """`practice`'s analysed test requests it has not acknowledged yet."""
+        """`practice`'s analysed test requests whose lab reports it has not
+        acknowledged yet."""
         return (
             self.filter(
                 sample__practice=practice,
@@ -157,9 +163,9 @@ class TestRequestManager(models.Manager["TestRequest"]):
 
     @transaction.atomic
     def receive(self, *, practice: Practice, details: LabOrderDetails) -> TestRequest:
-        """Receive a lab order (DF23) from `practice` as a test request, once,
-        however often it arrives. Raises ValidationError, by part, for each part
-        the sample's and the test request's fields refuse (parsing.py)."""
+        """Receive a lab order from `practice` as a test request, recorded once
+        however often it arrives. Raises ValidationError with one error for each
+        part the Sample or TestRequest fields refuse (web/shared/parsing.py)."""
         values = parsed(
             (Sample, {"sample_id": details.sample_id}),
             (
@@ -189,8 +195,9 @@ class TestRequestManager(models.Manager["TestRequest"]):
         lab_reports: list[tuple[str, str | None]],
         now: datetime,
     ) -> None:
-        """`practice` has these lab reports of its own, each by its sample ID and
-        test: hand them out no more. One named twice refuses them all."""
+        """Record that `practice` has these lab reports of its own, each named by
+        sample ID and test, so they are handed out no more. Naming one twice
+        refuses them all."""
         once_each("acknowledgements", lab_reports, code="duplicate_lab_report")
         named = models.Q(pk__in=[])
         for sample_id, test in lab_reports:
@@ -201,28 +208,29 @@ class TestRequestManager(models.Manager["TestRequest"]):
 
 
 class TestRequest(models.Model):
-    """A test request: one test on a sample, as its lab order (DF23) said; no patient field (features/practice/access.feature)."""
+    """One test on a sample, as its lab order asked for it; it holds no patient
+    field."""
 
     sample = models.ForeignKey(
         Sample, on_delete=models.PROTECT, related_name="test_requests"
     )
     test = models.CharField(max_length=8, choices=Test.choices)
-    # Why the general practitioner ordered it; absent for ferritin.
+    # Why the general practitioner ordered it; None for ferritin.
     clinical_indication = models.CharField(
         max_length=19, choices=ClinicalIndication.choices, null=True, blank=True
     )
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
-    # No general practitioner: the sample's practice says who ordered.
+    # No general practitioner field: the sample's practice says who ordered.
     ordered_at = models.DateTimeField()
-    # Absent until the analyser has run.
+    # None until the analyser has run.
     analysed_at = models.DateTimeField(null=True, blank=True)
     results = models.JSONField(null=True, blank=True)
-    # Absent for ferritin, which is never screened, and until analysed.
+    # None for ferritin, which is never screened, and until analysed.
     screening_result = models.CharField(
         max_length=22, choices=ScreeningResult.choices, null=True, blank=True
     )
-    # The screening model that screened this CBC; absent when not screened.
+    # The deployed screening model that screened this CBC; None when not screened.
     screened_by = models.ForeignKey(
         DeployedScreeningModel,
         on_delete=models.PROTECT,
@@ -230,7 +238,7 @@ class TestRequest(models.Model):
         null=True,
         blank=True,
     )
-    # Absent until the general practitioner's app confirmed it has the lab report.
+    # None until the practice's app confirms it has the lab report.
     report_acknowledged_at = models.DateTimeField(null=True, blank=True)
 
     objects = TestRequestManager()
@@ -247,8 +255,8 @@ class TestRequest(models.Model):
 
     def is_eligible(self) -> bool:
         """Whether the screening covers the CBC: a screened indication, registered
-        sex female, an age in the trained range. Which of them excluded a CBC is
-        never recorded: nobody acts on it."""
+        sex female, and an age in the trained range. Which condition excluded a
+        CBC is not recorded, because nobody acts on it."""
         return (
             self.clinical_indication in SCREENED_INDICATIONS
             and self.registered_sex == RegisteredSex.FEMALE
@@ -257,14 +265,16 @@ class TestRequest(models.Model):
 
     @property
     def ferritin_suggested(self) -> bool:
-        """All the lab report says of screening."""
+        """Whether ferritin is suggested: all the lab report says about screening."""
         return self.screening_result == ScreeningResult.FERRITIN_SUGGESTED
 
     @transaction.atomic
     def run_analyser(self, *, directory: Path, now: datetime) -> TestRequest:
-        """Record what the analyser measures on the stored sample for the test, screen a CBC with the deployed screening model in `directory`, and so release its
-        lab report at once: the report goes out with the analysis, never before."""
-        # Read again under the write lock: this copy may predate another analysis.
+        """Record what the analyser measures for this test, screen a CBC with the
+        deployed screening model in `directory`, and so release the lab report:
+        it goes out with the analysis, never before."""
+        # Read analysed_at again inside the transaction: this in-memory copy may
+        # predate another analysis of the same test.
         self.refresh_from_db(fields=["analysed_at"])
         if self.analysed_at is not None:
             raise ValidationError(
@@ -290,9 +300,10 @@ class TestRequest(models.Model):
         return self
 
     def _screen(self, directory: Path) -> None:
-        """Set an analysed CBC's screening result: not screened outside the
-        screening, screening failed without a usable deployed screening model, else
-        the model's decision. Nothing else of it is kept."""
+        """Set an analysed CBC's screening result: not screened when the screening
+        does not cover it, screening failed without a usable deployed screening
+        model, otherwise the model's decision. Nothing else about the screening is
+        kept."""
         if not self.is_eligible():
             self.screening_result = ScreeningResult.NOT_SCREENED
             return

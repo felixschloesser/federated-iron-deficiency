@@ -19,8 +19,8 @@ from web.hospital.deployment.model_files import (
 
 
 class NoUsableModel(models.TextChoices):
-    """Why no deployed screening model can screen, as the Models page says; a CBC
-    analysed meanwhile records only that screening failed."""
+    """Why no deployed screening model can screen, as the Models page says. A CBC
+    analysed meanwhile records only that screening failed, not why."""
 
     NO_DEPLOYED_MODEL = "no_deployed_model", "No screening model is deployed"
     DEPLOYED_MODEL_CHANGED = (
@@ -30,15 +30,16 @@ class NoUsableModel(models.TextChoices):
 
 
 class DeployedScreeningModel(models.Model):
-    """A screening model as it was deployed, at the threshold its laboratory
-    director chose; the file itself stays on disk."""
+    """A screening model as it was deployed, at the threshold the laboratory
+    director chose. The file itself stays on disk; the SHA-256 here detects a
+    change to it."""
 
     run_id = models.CharField(max_length=64)
     sha256 = models.CharField(max_length=64)
     stored_at = models.DateTimeField()
     federated_auroc = models.FloatField()
     threshold = models.FloatField()
-    # The confusion matrix at the threshold, and AUROC.
+    # The confusion matrix at the threshold, and the AUROC.
     local_validation = models.JSONField(default=dict)
 
     class Meta:
@@ -68,10 +69,11 @@ class DeploymentManager(models.Manager["Deployment"]):
     def deploy(
         self, *, run_id: str, threshold: float, directory: Path, now: datetime
     ) -> Deployment:
-        """Make a screening model in the hospital's folder the deployed screening model, at a
-        threshold its local validation holds, from `now`."""
+        """Make a screening model in the hospital's folder the deployed screening
+        model from `now`, at a threshold its local validation covers."""
         stored = read_stored(directory, run_id)
-        # A missing file and an unreadable one alike: neither is listed.
+        # A missing file and an unreadable one get the same error, because the
+        # Models page lists neither.
         if stored is None:
             raise ValidationError(
                 f"There is no readable model of run {run_id}.", code="not_found"
@@ -119,7 +121,8 @@ class DeploymentManager(models.Manager["Deployment"]):
 
 
 class Deployment(models.Model):
-    """One deployment; the latest names the deployed screening model. Nothing about who or why."""
+    """One deployment; the latest names the deployed screening model. It records
+    nothing about who deployed it or why."""
 
     deployed_screening_model = models.ForeignKey(
         DeployedScreeningModel, on_delete=models.PROTECT, related_name="deployments"
@@ -131,13 +134,14 @@ class Deployment(models.Model):
 
 @dataclass(frozen=True)
 class Screener:
-    """The deployed screening model, loaded from the very bytes whose hash was checked (features/hospital/screening.feature)."""
+    """The deployed screening model, loaded from the same bytes whose hash was
+    checked."""
 
     deployed_screening_model: DeployedScreeningModel
     file: ScreeningModel
 
     def suggests_ferritin(self, cbc: Mapping[str, float], age: int) -> bool:
-        """Whether the deployed screening model scores the CBC at or above the threshold the
+        """Whether the model scores the CBC at or above the threshold the
         laboratory director deployed it at."""
         file = self.file
         score = probability(file.state_dict, file.mean, file.std, cbc, age)

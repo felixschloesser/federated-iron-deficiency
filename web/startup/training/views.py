@@ -24,7 +24,7 @@ class DataScientistRequiredMixin(RoleRequiredMixin):
 
 
 def listed_runs() -> tuple[list[TrainingRun] | None, str | None]:
-    """The SuperLink's runs, or None and why their statuses are unknown."""
+    """The SuperLink's runs, or None and the reason their statuses are unknown."""
     try:
         return training_runs(), None
     except ValidationError as error:
@@ -44,7 +44,8 @@ class TrainingRunsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
             **super().get_context_data(**kwargs),
             "training_runs": runs or [],
             "runs_unknown": runs_unknown,
-            # A SuperLink that does not list runs would not take one, nor a stop.
+            # A SuperLink that cannot list runs cannot take a new run or a stop
+            # either, so the page hides both.
             "submits": runs_unknown is None,
             "checked_at": timezone.now(),
         }
@@ -67,8 +68,8 @@ class TrainingRunsView(DataScientistRequiredMixin, FormView[SubmitRunForm]):
 
 
 class FinalModelsView(DataScientistRequiredMixin, TemplateView):
-    """The startup's final models, each released or not, and which recipient
-    hospitals fetched it (features/startup/release.feature)."""
+    """The startup's final models, whether each is released, and which
+    recipient hospitals fetched it."""
 
     template_name = "training/final_models.html"
 
@@ -79,7 +80,8 @@ class FinalModelsView(DataScientistRequiredMixin, TemplateView):
         }
         return {
             **super().get_context_data(**kwargs),
-            # Each final model with its release, or None: then Release is offered.
+            # Each final model paired with its release, or None if unreleased (the
+            # page then offers Release).
             "final_models": [
                 (model, releases.get(model.run_id))
                 for model in final_models(settings.FINAL_MODELS_DIR)
@@ -88,7 +90,7 @@ class FinalModelsView(DataScientistRequiredMixin, TemplateView):
 
 
 class StopRunView(DataScientistRequiredMixin, View):
-    """Stops a training run in progress, then back to the training runs."""
+    """Stop a training run in progress, then return to the training runs."""
 
     def post(self, request: HttpRequest, run_id: int) -> HttpResponse:
         try:
@@ -101,11 +103,14 @@ class StopRunView(DataScientistRequiredMixin, View):
 
 
 class ReleaseView(DataScientistRequiredMixin, View):
-    """Releases a final model, so recipient hospitals may fetch it, then back."""
+    """Release a final model so recipient hospitals may fetch it, then return to
+    the final models."""
 
     def post(self, request: HttpRequest, run_id: str) -> HttpResponse:
         user = request.user
-        if not isinstance(user, User):  # The mixin let in only a data scientist.
+        if not isinstance(
+            user, User
+        ):  # Narrows the type: the mixin let in only a data scientist.
             raise PermissionDenied
         if run_id not in {
             model.run_id for model in final_models(settings.FINAL_MODELS_DIR)

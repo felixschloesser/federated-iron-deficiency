@@ -1,10 +1,11 @@
-"""The training cohort as files: the hospital writes it when its laboratory
-director provides it, the startup's code at the hospital (the ClientApp) reads
-it (features/hospital/training_cohort.feature).
+"""The training cohort as files on disk (features/hospital/training_cohort.feature).
 
-A folder holds at most one training cohort, in a folder named after its
-SHA-256; none once withdrawn. Flower is not imported here, so the hospital's
-web app can write what the ClientApp reads: one Parquet file, through pandas."""
+The hospital's web app writes the training cohort when the laboratory director
+provides it; the ClientApp, the startup's code running at the hospital, reads
+it. A folder holds at most one training cohort, in a subfolder named after its
+SHA-256, and none once it is withdrawn. This module does not import Flower, so
+the hospital's web app can write the one Parquet file the ClientApp reads using
+only pandas."""
 
 import hashlib
 import shutil
@@ -17,16 +18,18 @@ COHORT_FILE = "cohort.parquet"
 
 
 class TrainingCohortUnavailable(RuntimeError):
-    """The ClientApp has no training cohort to read this round."""
+    """Raised when the ClientApp has no usable training cohort this round."""
 
 
 def sha256(rows: pd.DataFrame) -> str:
-    """The cohort's SHA-256: of its rows as CSV, so the same rows hash the same."""
+    """The cohort's SHA-256, taken over its rows as CSV, so the same rows always
+    give the same hash."""
     return hashlib.sha256(rows.to_csv(index=False).encode()).hexdigest()
 
 
 def training_cohorts(directory: Path) -> list[Path]:
-    """The training cohorts in `directory`; a dot folder is one still being written."""
+    """The training cohorts in `directory`. A folder whose name starts with a dot
+    is still being written and is skipped."""
     if not directory.is_dir():
         return []
     return [
@@ -37,9 +40,9 @@ def training_cohorts(directory: Path) -> list[Path]:
 
 
 def write_training_cohort(rows: pd.DataFrame, directory: Path) -> str:
-    """Make `rows` the training cohort in `directory`, in place of any other,
-    and return its SHA-256. Written beside, then renamed: a reader never sees
-    half a cohort."""
+    """Make `rows` the only training cohort in `directory` and return its SHA-256.
+    The cohort is written to a dot folder first and then renamed, so a reader
+    never sees half a cohort."""
     digest = sha256(rows)
     directory.mkdir(parents=True, exist_ok=True)
     staging = directory / f".{digest}"
@@ -52,7 +55,7 @@ def write_training_cohort(rows: pd.DataFrame, directory: Path) -> str:
 
 
 def remove_training_cohort(directory: Path, keep: str | None = None) -> None:
-    """Remove every training cohort in `directory` but `keep`."""
+    """Remove every training cohort in `directory` except `keep`."""
     for path in training_cohorts(directory):
         if path.name != keep:
             shutil.rmtree(path)
@@ -61,9 +64,11 @@ def remove_training_cohort(directory: Path, keep: str | None = None) -> None:
 def read_training_cohort(
     directory: Path, noted: str | None
 ) -> tuple[str, pd.DataFrame]:
-    """The training cohort in `directory` and its SHA-256. `noted` is the one a
-    run read in an earlier round: a run trains on one training cohort, so a
-    withdrawn or replaced one fails the round instead."""
+    """The training cohort in `directory` and its SHA-256.
+
+    `noted` is the SHA-256 the run read in an earlier round, or None in its
+    first round. A run must train on one training cohort throughout, so if the
+    cohort was withdrawn or replaced since, the round fails."""
     found = training_cohorts(directory)
     if not found:
         raise TrainingCohortUnavailable(

@@ -1,5 +1,5 @@
-"""The pages every party's web app has; each party's URLconf (web/<party>/urls.py,
-its settings' ROOT_URLCONF) adds its own."""
+"""The pages every party's web app has. Each party's own URLconf
+(web/<party>/urls.py, its settings' ROOT_URLCONF) adds its pages."""
 
 from django.contrib.auth import views as auth_views
 from django.urls import URLPattern, URLResolver, path

@@ -17,7 +17,8 @@ from web.shared.accounts.models import User
 
 
 def director(request: HttpRequest) -> User:
-    """The laboratory director LaboratoryDirectorRequiredMixin let in."""
+    """The logged-in user, whom LaboratoryDirectorRequiredMixin has already checked
+    is a laboratory director."""
     if not isinstance(request.user, User):
         raise PermissionDenied
     return request.user

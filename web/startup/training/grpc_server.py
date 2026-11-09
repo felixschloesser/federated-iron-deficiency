@@ -1,7 +1,6 @@
-"""The startup's screening-models endpoint (P5): a released final model reaches a
-hospital as a screening model; a recipient hospital fetches the screening
-models it does not hold, saying which it holds
-(web/shared/grpc/messages.proto, features/startup/release.feature)."""
+"""The startup's screening-models gRPC endpoint. A recipient hospital says which
+screening models it holds and fetches the released final models it does not
+hold yet (web/shared/grpc/messages.proto, features/startup/release.feature)."""
 
 import grpc
 from django.conf import settings
@@ -18,9 +17,9 @@ from web.startup.training.models import Recipient, Release
 
 
 def recipient_of(context: grpc.ServicerContext) -> Recipient:
-    """The calling hospital, by the slug the call names it by; a call that names
-    none, or a hospital the startup does not know, is refused before anything is
-    read."""
+    """Return the calling hospital, found by the slug the call names. A call
+    that names no hospital, or one the startup does not know, is aborted before
+    anything is read."""
     slug = caller(context)
     if slug is None:
         context.abort(grpc.StatusCode.UNAUTHENTICATED, "hospital_required")
@@ -31,7 +30,8 @@ def recipient_of(context: grpc.ServicerContext) -> Recipient:
 
 
 class ScreeningModelsService(messages_pb2_grpc.ScreeningModelsServicer):
-    """Hands out screening models, like a view: who asks, then what they get."""
+    """Serves screening models: it identifies the calling hospital, then sends
+    the released final models that hospital does not hold."""
 
     @with_database
     def FetchNewScreeningModels(
@@ -55,8 +55,10 @@ class ScreeningModelsService(messages_pb2_grpc.ScreeningModelsServicer):
             )
             is not None
         ]
-        # Only a hospital still waiting gets the reply. One lost after this check
-        # is still recorded; the hospital's held list then has it sent again.
+        # Record the fetch only if the hospital is still waiting for the reply.
+        # If the reply is lost after this check, the fetch is recorded anyway,
+        # but the hospital's held list will not name the model, so it is sent
+        # again on the next fetch.
         if context.is_active():
             Release.objects.record_fetched(
                 recipient=recipient,
@@ -67,7 +69,7 @@ class ScreeningModelsService(messages_pb2_grpc.ScreeningModelsServicer):
 
 
 def serve(address: str) -> tuple[grpc.Server, int]:
-    """Start the endpoint on `address`; the server and its port."""
+    """Start the endpoint on `address`; return the server and its port."""
     return start(
         address,
         lambda server: messages_pb2_grpc.add_ScreeningModelsServicer_to_server(

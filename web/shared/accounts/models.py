@@ -5,7 +5,8 @@ from web.shared.accounts.roles import Role
 
 
 class User(AbstractUser):
-    """Django's user, swappable from the start, with its role."""
+    """Django's user with a role. A custom user model from the start, because
+    Django cannot switch to one once migrations exist."""
 
     role = models.CharField(max_length=20, choices=Role.choices, null=True, blank=True)
 

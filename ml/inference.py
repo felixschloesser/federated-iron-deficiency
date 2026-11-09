@@ -1,5 +1,6 @@
 """Inference: a final model's probability of iron deficiency for one CBC. The
-hospital decides what to make of it (hospital/deployment/models.py, Screener)."""
+hospital decides what to do with it (web/hospital/deployment/models.py,
+Screener)."""
 
 from collections.abc import Mapping
 
@@ -17,9 +18,9 @@ def probability(
     cbc: Mapping[str, float],
     age: int,
 ) -> float:
-    """The probability of iron deficiency the weights give one CBC and age, from
-    unstandardized values standardized by `mean` and `std`; who is screened is
-    the caller's decision."""
+    """The probability of iron deficiency the weights give one CBC and age. Takes
+    raw values and standardizes them with `mean` and `std`. Deciding who is
+    screened is up to the caller."""
     values = pd.DataFrame([{**cbc, "RIDAGEYR": age}], columns=FEATURES)
     if values.isna().any(axis=None):
         raise ValueError("A CBC without all its values cannot be screened.")

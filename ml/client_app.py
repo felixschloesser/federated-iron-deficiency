@@ -1,4 +1,5 @@
-"""ClientApp: each hospital trains and evaluates on its own cohort."""
+"""The ClientApp: each hospital trains and evaluates the model on its own
+cohort."""
 
 from pathlib import Path
 
@@ -21,16 +22,17 @@ from ml.training_cohort import read_training_cohort
 
 app = ClientApp()
 
-simulated: list[pd.DataFrame] | None = None  # Cache across calls in a simulation
-# Where a run's state notes the training cohort it reads.
+simulated: list[pd.DataFrame] | None = None  # Cached across calls in a simulation
+# The key under which a run's state records which training cohort it read.
 TRAINING_COHORT = "training-cohort"
 
 
 def load_cohort(context: Context) -> pd.DataFrame:
-    """Load this node's cohort: at a hospital, the training cohort its laboratory
-    director provided, the same one every round of a run."""
-    # Deployment Runtime: the training cohort, noted in the run's state, which
-    # Flower keeps on this SuperNode from round to round.
+    """Load this node's cohort. At a hospital, that is the training cohort its
+    laboratory director provided, which must stay the same for every round of a
+    run."""
+    # Deployment Runtime: read the training cohort and record its SHA-256 in the
+    # run's state, which Flower keeps on this SuperNode between rounds.
     if "data-path" in context.node_config:
         noted = context.state.config_records.get(TRAINING_COHORT)
         digest, rows = read_training_cohort(
@@ -40,7 +42,7 @@ def load_cohort(context: Context) -> pd.DataFrame:
         context.state[TRAINING_COHORT] = ConfigRecord({"sha256": digest})
         return rows
 
-    # Simulation Runtime: download and split the cohort by cycle on the fly
+    # Simulation Runtime: download the cohorts once, split by cycle.
     global simulated
     if simulated is None:
         simulated = cohorts()
@@ -57,9 +59,10 @@ def config_float(msg: Message, key: str) -> float:
 
 @app.train()
 def train(msg: Message, context: Context) -> Message:
-    """Train the global model on this node's cohort's training split. On the CPU:
-    a GPU is slower for so small a network, and not deterministic."""
-    # Seed dropout so that runs, and the report's demo numbers, are reproducible
+    """Train the global model on the training split of this node's cohort. Runs
+    on the CPU: for a network this small a GPU is slower, and its results are
+    not deterministic."""
+    # Seed dropout so that a run with the same configuration gives the same model.
     torch.manual_seed(int(context.run_config["model-seed"]))
     model = Net()
     model.load_state_dict(msg.content.array_records["arrays"].to_torch_state_dict())
@@ -82,7 +85,7 @@ def train(msg: Message, context: Context) -> Message:
 
 @app.evaluate()
 def evaluate(msg: Message, context: Context) -> Message:
-    """Evaluate the global model on this node's cohort's validation split."""
+    """Evaluate the global model on the validation split of this node's cohort."""
     model = Net()
     model.load_state_dict(msg.content.array_records["arrays"].to_torch_state_dict())
     batch_size = int(context.run_config["batch-size"])

@@ -6,7 +6,8 @@ from django.conf import settings
 from django.db import models
 from django.urls import reverse
 
-# Only for the annotations: settings import Role before Django loads its apps.
+# Imported only for annotations: the settings import Role before Django has loaded
+# its apps, so these models cannot be imported at runtime.
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 
@@ -18,7 +19,7 @@ class Role(models.TextChoices):
     DATA_SCIENTIST = "data_scientist", "data scientist"
 
     def people(self) -> str:
-        """The people of this role, as a sentence names them."""
+        """The people with this role, in the plural, as a sentence names them."""
         match self:
             case Role.GENERAL_PRACTITIONER:
                 return "general practitioners"
@@ -46,7 +47,7 @@ class Role(models.TextChoices):
                 assert_never(self)
 
     def nav_links(self) -> list[dict[str, str]]:
-        """The pages of this role, linked from the header."""
+        """The links to this role's pages in the page header."""
         match self:
             case Role.GENERAL_PRACTITIONER:
                 return [
@@ -79,9 +80,11 @@ class Role(models.TextChoices):
 
 
 def role_of(user: "AbstractBaseUser | AnonymousUser | None") -> Role | None:
-    """The user's role in this party's web app; None for an account without one,
-    or whose role is another party's (its settings' ROLES): the role's pages
-    are not served here."""
+    """Return the user's role in this party's web app.
+
+    Returns None for an account without a role, or with a role that belongs to
+    another party (one not in settings.ROLES), since that role's pages are not
+    served here."""
     value = getattr(user, "role", None)
     if value is None:
         return None

@@ -1,12 +1,13 @@
-"""Seed one party's web app for the demo, inside that party's Django, from the
-NHANES extract nhanes-download wrote for it (demo/nhanes.py):
+"""Seed one party's web app for the demo from the NHANES extract written for it.
 
     python -m demo.seed hospital --rows PARTICIPANTS --lab-records CSV [--provide]
     python -m demo.seed practice --sample-ids CSV --patients CSV
     python -m demo.seed startup
 
-DATA_DIR names the party's folder, as for its web app. Its accounts share a
-known password, so it runs only with DJANGO_DEBUG=1."""
+It runs inside that party's Django project. DATA_DIR names the party's data
+folder, as for its web app. nhanes-download (demo/nhanes.py) writes the
+extracts. The demo accounts share a known password, so this runs only with
+DJANGO_DEBUG=1."""
 
 import argparse
 import os
@@ -46,7 +47,7 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> str:
-    """Seed the party; what it seeded, in one line."""
+    """Seed the party and return a one-line summary of what was seeded."""
     options = parser().parse_args(argv)
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", f"web.{options.party}.settings")
     django.setup()

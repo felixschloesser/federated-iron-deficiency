@@ -1,9 +1,10 @@
-"""A rejected lab order's reasons on the wire (WHO LQMS 5-4, p. 66: "Record the
-reason for rejection", "promptly inform the authorized person"): the laboratory
-answers INVALID_ARGUMENT with a google.rpc.BadRequest detail, one field
-violation per error of the hospital's models on the lab order, and the
-practice reads them back as its reason for rejection
-(web/shared/grpc/messages.proto)."""
+"""Send the reasons for rejecting a lab order over gRPC, and read them back.
+
+The laboratory answers INVALID_ARGUMENT with a google.rpc.BadRequest detail that
+holds one field violation per validation error the hospital's models raised on
+the lab order. The practice shows them as the reason for rejection. WHO LQMS
+5-4 (p. 66) asks the laboratory to "record the reason for rejection" and to
+"promptly inform the authorized person"."""
 
 import google.rpc.code_pb2 as rpc_code
 import google.rpc.error_details_pb2 as rpc_details
@@ -17,8 +18,9 @@ MESSAGE = "rejected"
 
 
 def rejected(error: ValidationError) -> grpc.Status:
-    """The status rejecting a message, such as a lab order: each error, by part,
-    its code as the reason and its message as the description."""
+    """Build the gRPC status that rejects a message such as a lab order: one field
+    violation per error, with the error's code as the reason and its message as
+    the description."""
     detail = any_pb2.Any()
     detail.Pack(
         rpc_details.BadRequest(
@@ -41,8 +43,10 @@ def rejected(error: ValidationError) -> grpc.Status:
 
 
 def reason_for_rejection(error: grpc.RpcError) -> str | None:
-    """The laboratory's reasons, "field: description" each; None for a failure
-    that names no field, which is the whole exchange's, not one lab order's."""
+    """Return the laboratory's reasons as "field: description", joined by "; ".
+
+    Returns None for a failure that names no field: that is a failure of the
+    whole call, not a rejection of the lab order."""
     status = rpc_status.from_call(error)
     if status is None or status.code != rpc_code.INVALID_ARGUMENT:
         return None

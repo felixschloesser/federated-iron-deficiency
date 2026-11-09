@@ -1,21 +1,22 @@
-"""nhanes-download: the public NHANES extracts each party seeds from, one folder
-per party (demo/README.md). The one container that reaches the internet runs
-it, and it sees no party's volume.
+"""nhanes-download: write the public NHANES extracts each party seeds from.
 
     python -m demo.nhanes --out-dir DIR --pair CYCLE HOSPITAL PRACTICE PATIENTS ...
 
-Each --pair is a hospital and the practice of its cycle, by folder name, and
-how many patients the practice seeds; compose passes them (demo/compose.yaml),
-so this needs no list of parties and its image no rebuild when the demo's parties
-change.
+It writes one folder per party (demo/README.md). It runs in the only demo
+container that reaches the internet, and that container mounts no party's volume.
 
-A hospital's folder holds its past lab records (its cycle's share) and the
-participants its analyser stand-in measures, the same pool at every hospital; a
-practice's folder holds its stock of sample IDs, drawn from that pool, and its
-patients (demo/seeding/participants.py).
+Each --pair names a hospital and the practice that shares its NHANES cycle, by
+folder name, and how many patients the practice seeds. demo/compose.yaml passes
+the pairs, so this script holds no list of parties and its image needs no
+rebuild when the demo's parties change.
 
-Once written, the extracts are kept: a later run that finds them, made by the
-same code, touches neither the network nor the files.
+A hospital's folder holds its past lab records (its share of its cycle) and the
+participants its analyser stand-in measures; that pool is the same at every
+hospital. A practice's folder holds its stock of sample IDs, drawn from the
+pool, and its patients (demo/seeding/participants.py).
+
+Extracts already written are kept: a later run that finds them, written by the
+same code for the same pairs, touches neither the network nor the files.
 """
 
 import argparse
@@ -32,8 +33,9 @@ from demo.seeding.participants import patients, pool, stock
 from ml import dataset
 
 ROOT = Path(__file__).resolve().parents[1]
-# What decides the extracts' contents: a change to any makes them again (from
-# huggingface_hub's cache, so without downloading twice).
+# The files that decide the extracts' contents. When any of them changes, the
+# extracts are written again, from huggingface_hub's cache, so nothing is
+# downloaded twice.
 SOURCES = (
     "ml/cohort.py",
     "ml/dataset.py",
@@ -45,8 +47,8 @@ FINGERPRINT = "fingerprint"
 
 @dataclass(frozen=True)
 class Pair:
-    """A hospital and the practice of its NHANES cycle, by folder name; the
-    practice seeds `patients` of the 2021-2023 participants."""
+    """A hospital and the practice that shares its NHANES cycle, by folder name;
+    the practice seeds `patients` of the 2021-2023 participants."""
 
     cycle: str
     hospital: str
@@ -62,7 +64,7 @@ def fingerprint(pairs: list[Pair]) -> str:
 
 
 def expected(pairs: list[Pair]) -> list[Path]:
-    """Every extract, relative to the output folder."""
+    """Every extract's path, relative to the output folder."""
     files = []
     for pair in pairs:
         files += [
@@ -79,10 +81,12 @@ def extracts(
     lab_records: Callable[[str], pd.DataFrame],
     nhanes: pd.DataFrame,
 ) -> dict[Path, pd.DataFrame]:
-    """Each extract's rows: `lab_records` gives a cycle's share of participants,
-    `nhanes` the 2021-2023 participants practices and analysers seed from. The
-    pairs' order numbers the practices' draws, as the seed commands number them."""
-    # Any practice may send a sample to any hospital: each holds the whole pool.
+    """Each extract's rows. `lab_records` gives a cycle's share of participants;
+    `nhanes` holds the 2021-2023 participants that practices and analysers seed
+    from. Each practice's draws are seeded with its pair's position in `pairs`,
+    so the same pairs always give the same draws."""
+    # Any practice may send a sample to any hospital, so every hospital holds the
+    # whole pool.
     participants = pool(nhanes)
     files: dict[Path, pd.DataFrame] = {}
     for partition, pair in enumerate(pairs):
@@ -99,7 +103,8 @@ def extracts(
 
 
 def from_hub[T](load: Callable[[], T], attempts: int = 4) -> T:
-    """Load from the Hugging Face Hub, waiting out a refusal (unauthenticated limits)."""
+    """Call `load`, retrying with longer waits when Hugging Face refuses, as it
+    does when unauthenticated downloads hit its rate limit."""
     for attempt in range(1, attempts):
         try:
             return load()
@@ -119,8 +124,8 @@ def nhanes_2021_2023() -> pd.DataFrame:
 
 
 def download(out_dir: Path, pairs: list[Pair]) -> bool:
-    """Write every extract into `out_dir`, unless the same code already did for
-    the same pairs; whether it wrote them."""
+    """Write every extract into `out_dir`, unless the same code already wrote them
+    for the same pairs. Returns whether it wrote them."""
     stamp = out_dir / FINGERPRINT
     current = fingerprint(pairs)
     if (
@@ -137,7 +142,8 @@ def download(out_dir: Path, pairs: list[Pair]) -> bool:
     for path, rows in files.items():
         target = out_dir / path
         target.parent.mkdir(parents=True, exist_ok=True)
-        # Written beside, then renamed: an interrupted run leaves no half file.
+        # Write to a partial file, then rename it, so an interrupted run leaves no
+        # half-written file.
         partial = target.with_name(f".{target.name}.partial")
         rows.to_csv(partial, index=False)
         partial.rename(target)

@@ -1,5 +1,5 @@
-"""Terms every party's web app uses: the general practitioner's app and the
-hospital. No models, so either may import it."""
+"""Choices that both the practice and the hospital use. The module defines no
+models, so either party may import it."""
 
 from typing import assert_never
 
@@ -12,7 +12,7 @@ class RegisteredSex(models.TextChoices):
 
     @classmethod
     def of_nhanes(cls, label: str) -> "RegisteredSex":
-        """The registered sex NHANES records as `label` ("Female", "Male")."""
+        """Return the registered sex for NHANES's label ("Female" or "Male")."""
         return cls(label.lower())
 
 
@@ -25,8 +25,8 @@ class Test(models.TextChoices):
         return self is Test.CBC
 
     def on_suspicion(self) -> bool:
-        """Whether this test is ordered only beside a lab report suggesting it,
-        on that lab report's sample."""
+        """Whether this test is ordered only after a lab report suggests it, on
+        that lab report's sample."""
         return self is Test.FERRITIN
 
     def takes_indication(self) -> bool:
@@ -35,7 +35,8 @@ class Test(models.TextChoices):
 
 
 class ClinicalIndication(models.TextChoices):
-    """Why a general practitioner orders a CBC, in the guidelines' words; which of them the hospital screens is the hospital's rule."""
+    """Why a general practitioner orders a CBC, in the guidelines' words. Which of
+    them the hospital screens is decided in the hospital's code."""
 
     SUSPECTED_ANAEMIA = "suspected_anaemia", "Suspected anaemia"
     SUSPECTED_IBS = "suspected_ibs", "Suspected irritable bowel syndrome"
@@ -46,9 +47,9 @@ class ClinicalIndication(models.TextChoices):
 
 
 class ResultName(models.TextChoices):
-    """How a lab report names a measured value: NHANES 2021–2023's own label and
-    unit (CBC_L and FERTIN_L codebooks); its value is the NHANES variable. In the
-    order of ml.cohort.CBC_VARS, then ferritin; a test checks the order."""
+    """The name of a measured value in a lab report: NHANES 2021–2023's label, with
+    the NHANES variable as its value (CBC_L and FERTIN_L codebooks). The members
+    follow the order of ml.cohort.CBC_VARS, then ferritin; a test checks it."""
 
     WHITE_BLOOD_CELL_COUNT = "LBXWBCSI", "White blood cell count"
     RED_BLOOD_CELL_COUNT = "LBXRBCSI", "Red blood cell count"
@@ -66,7 +67,7 @@ class ResultName(models.TextChoices):
     FERRITIN = "LBXFER", "Ferritin"
 
     def unit(self) -> str:
-        """NHANES's unit for the value, with no conversion."""
+        """NHANES's unit for this value; values are never converted."""
         match self:
             case (
                 ResultName.WHITE_BLOOD_CELL_COUNT

@@ -1,1 +1,1 @@
-"""Laboratory side: receiving samples and running the analyser."""
+"""The laboratory: receiving samples and running the analyser."""

@@ -1,4 +1,5 @@
-"""ServerApp: aggregates the hospitals' training and sends the final model."""
+"""The ServerApp: runs federated training with the hospitals and keeps the final
+model at the startup."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -56,14 +57,13 @@ def _log_result_to_wandb(result: Result, api_key: str) -> None:
 
 @app.main()
 def main(grid: Grid, context: Context) -> None:
-    """A training run: the startup keeps its final model, which recipient
-    hospitals fetch once released."""
+    """Run one training run and keep its final model in the startup's folder."""
     demo_dir = Path(str(context.run_config["demo-dir"]) or DEFAULT_DEMO_DIR)
     training_run(grid, context, startup_final_models(demo_dir))
 
 
 def training_run(grid: Grid, context: Context, directory: Path) -> None:
-    """Train with FedAvg and keep the final model at the startup (DS4); no hospital
+    """Train with FedAvg and keep the final model at the startup. No hospital
     stores it until the data scientist releases it and the hospital fetches it."""
     fraction_evaluate = float(context.run_config["fraction-evaluate"])
     num_rounds = int(context.run_config["num-server-rounds"])
@@ -79,8 +79,9 @@ def training_run(grid: Grid, context: Context, directory: Path) -> None:
         num_rounds=num_rounds,
     )
 
-    # Only the federated aggregate of the last round; no hospital's own metrics.
-    # A run without one keeps no final model: KeyError or ValueError, loudly.
+    # Keep only the last round's AUROC aggregated across hospitals, never one
+    # hospital's own metrics. A run without evaluation metrics raises here
+    # (KeyError or ValueError) and keeps no final model.
     last_round = max(result.evaluate_metrics_clientapp)
     federated_auroc = result.evaluate_metrics_clientapp[last_round]["eval_auroc"]
     if not isinstance(federated_auroc, (int, float)):

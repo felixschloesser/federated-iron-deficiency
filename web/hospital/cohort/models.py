@@ -1,5 +1,5 @@
-"""The laboratory's lab records (DS1) and the training cohort its laboratory
-director provides from them (features/hospital/training_cohort.feature)."""
+"""The laboratory's lab records and the training cohort the laboratory director
+provides from them (features/hospital/training_cohort.feature)."""
 
 from __future__ import annotations
 
@@ -27,28 +27,29 @@ from web.hospital.lab.models import SCREENED_INDICATIONS
 from web.shared.accounts.models import User
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 
-# Below these the startup's code cannot train or validate on the cohort, and
-# each past patient weighs more in what the model learns.
+# Below these counts the startup's code cannot train and validate on the cohort,
+# and each past patient would weigh too much in what the model learns.
 MIN_PAST_PATIENTS = 100
 MIN_PER_CLASS = 10
 
 
 @dataclass(frozen=True)
 class Summary:
-    """What a training cohort would hold: counts, never records."""
+    """What a training cohort would hold, as counts only, never records."""
 
     past_patients: int
     iron_deficient: int
-    # Eligible but for a CRP result, which the label needs: left out.
+    # Past patients who are eligible except for the CRP result the label needs;
+    # they are left out.
     without_crp: int
 
 
 class LabRecordQuerySet(models.QuerySet["LabRecord"]):
     def eligible(self) -> LabRecordQuerySet:
-        """Past patients the training cohort holds: eligible, with a complete CBC
-        ordered for a screened indication, a ferritin and a CRP result; in the
-        order the laboratory recorded them. The model learns only from CBCs like
-        those it screens, so none at the start of pregnancy."""
+        """The past patients a training cohort holds, in the order the laboratory
+        recorded them: eligible, with a complete CBC ordered for a screened
+        indication, a ferritin and a CRP result. None is at the start of
+        pregnancy, because the model learns only from CBCs like those it screens."""
         return self._eligible_but_for_crp().filter(crp__isnull=False)
 
     def _eligible_but_for_crp(self) -> LabRecordQuerySet:
@@ -62,7 +63,7 @@ class LabRecordQuerySet(models.QuerySet["LabRecord"]):
 
     def summary(self) -> Summary:
         with_crp = Q(crp__isnull=False)
-        # ml.cohort.iron_deficient, as the database counts it.
+        # The rule of ml.cohort.iron_deficient, written so the database can count it.
         deficient = Q(ferritin__lt=FERRITIN_CUTOFF) | Q(
             crp__gt=INFLAMMATION_CRP, ferritin__lt=INFLAMED_FERRITIN_CUTOFF
         )
@@ -76,9 +77,9 @@ class LabRecordQuerySet(models.QuerySet["LabRecord"]):
         )
 
     def training_cohort(self) -> pd.DataFrame:
-        """The eligible past patients as the startup's code trains on them: the 13
-        CBC values, age and whether iron deficient; nothing else. Ferritin and
-        CRP only make the label; neither leaves."""
+        """The eligible past patients in the form the startup's code trains on:
+        the 13 CBC values, age, and whether iron deficient, nothing else.
+        Ferritin and CRP are used only to compute the label and never leave."""
         records = self.eligible().only("cbc", "age", "ferritin", "crp")
         rows = pd.DataFrame(
             [
@@ -100,14 +101,14 @@ class LabRecord(models.Model):
 
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
-    # The CBC values keyed by NHANES variable name (ml.cohort.CBC_VARS); one
-    # the analyser did not report is absent.
+    # The CBC values keyed by NHANES variable name (ml.cohort.CBC_VARS); a value
+    # the analyser did not report is missing.
     cbc = models.JSONField()
-    # Absent when no ferritin was measured.
+    # None when no ferritin was measured.
     ferritin = models.FloatField(null=True, blank=True)
-    # C-reactive protein, mg/L; absent when none was measured.
+    # C-reactive protein, mg/L; None when none was measured.
     crp = models.FloatField(null=True, blank=True)
-    # Why the CBC was ordered; absent on a record from before orders said.
+    # Why the CBC was ordered; None on a record from before orders gave a reason.
     clinical_indication = models.CharField(
         max_length=19, choices=ClinicalIndication.choices, null=True, blank=True
     )
@@ -123,8 +124,7 @@ class TrainingCohortManager(models.Manager["TrainingCohort"]):
     @transaction.atomic
     def provide(self, *, directory: Path, by: User, now: datetime) -> TrainingCohort:
         """Extract the training cohort from the lab records and make it the one
-        the startup's code at this hospital reads, in place of any provided
-        before."""
+        the startup's code at this hospital reads, replacing any provided before."""
         rows = LabRecord.objects.training_cohort()
         iron_deficient = int(rows["iron_deficient"].sum())
         refusals = [
@@ -170,14 +170,15 @@ class TrainingCohortManager(models.Manager["TrainingCohort"]):
             provided_at=now,
             provided_by=by,
         )
-        # Last: should writing fail, nothing above is recorded.
+        # Written last, so that if writing fails the transaction rolls back and
+        # nothing above is recorded.
         write_training_cohort(rows, directory)
         return cohort
 
     @transaction.atomic
     def withdraw(self, *, directory: Path, by: User, now: datetime) -> TrainingCohort:
-        """Withdraw the provided training cohort: the startup's code at this
-        hospital finds none from its next round."""
+        """Withdraw the provided training cohort; from its next round, the
+        startup's code at this hospital finds none."""
         provided = self.provided()
         if provided is None:
             raise ValidationError(
@@ -199,9 +200,9 @@ def _too_few(count: int, minimum: int, what: str, code: str) -> ValidationError 
 
 
 class TrainingCohort(models.Model):
-    """One training cohort the laboratory director provided: what it held and
-    its SHA-256, never its rows; withdrawn when the director withdrew it or
-    provided another."""
+    """A training cohort the laboratory director provided. It records the counts
+    and the SHA-256, never the rows. It is withdrawn when the director withdraws
+    it or provides another."""
 
     sha256 = models.CharField(max_length=64)
     past_patients = models.PositiveIntegerField()
@@ -210,7 +211,7 @@ class TrainingCohort(models.Model):
     provided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
     )
-    # Absent while the startup's code may read it.
+    # None while the startup's code may read it.
     withdrawn_at = models.DateTimeField(null=True, blank=True)
     withdrawn_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

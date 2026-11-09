@@ -1,9 +1,9 @@
-"""Which tests a run collects. Each party's web app is its own Django project at
-run time, so no run holds two parties: a folder named after a party, anywhere
-under tests/, runs only under that party's settings (--ds=web.<party>.settings).
+"""Decide which tests a pytest run collects.
 
-Plain `pytest` runs the tests outside the party folders; each party's run is
-`pytest --ds=web.<party>.settings`."""
+Each party's web app is its own Django project at run time, so one run never
+loads two parties: a folder named after a party, anywhere under tests/, runs
+only under that party's settings. Plain `pytest` runs the tests outside the
+party folders; `pytest --ds=web.<party>.settings` runs one party's."""
 
 import os
 from pathlib import Path
@@ -31,7 +31,8 @@ def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool 
         return True if folder else None
     if folder is not None:
         return folder != party
-    # Outside the party folders a party's run only walks down to them.
+    # Outside the party folders, a party's run only walks through directories to
+    # reach its folder; it collects no test files there.
     if collection_path.is_dir():
         return None
     return collection_path.name not in {"__init__.py", "conftest.py"}
@@ -40,7 +41,7 @@ def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool 
 def pytest_terminal_summary(
     terminalreporter: pytest.TerminalReporter, config: pytest.Config
 ) -> None:
-    """A run under no party's settings leaves each party's tests out: say so."""
+    """After a run under no party's settings, say that the party tests did not run."""
     if party_of(config) is None:
         terminalreporter.write_line(
             "Party tests not run: run each party's with"
@@ -48,15 +49,15 @@ def pytest_terminal_summary(
         )
 
 
-# What only a run under a party's settings provides.
+# pytest-django fixtures that exist only in a run under a party's settings.
 DJANGO_FIXTURES = {"db", "transactional_db", "settings", "client", "django_db_setup"}
 
 
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
-    """A test outside the party folders that needs Django would be skipped
-    quietly ("no Django settings"): stop the run instead."""
+    """Stop the run if a test outside the party folders needs Django, which
+    pytest-django would otherwise skip quietly for lack of settings."""
     if party_of(config) is not None:
         return
     needing = [

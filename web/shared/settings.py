@@ -1,7 +1,7 @@
-"""What every party's web app shares; each party's module (web/<party>/settings.py,
-chosen by DJANGO_SETTINGS_MODULE) adds its apps, roles, pages and
-data folder. DEBUG only with DJANGO_DEBUG=1. Plain HTTP: the demo leaves out the
-report's TLS."""
+"""Settings every party's web app shares. Each party's own module
+(web/<party>/settings.py, chosen by DJANGO_SETTINGS_MODULE) adds its apps, roles,
+pages and data folder. DEBUG is on only with DJANGO_DEBUG=1. The apps serve plain
+HTTP: the demo leaves out TLS."""
 
 import os
 from pathlib import Path
@@ -20,44 +20,44 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
-# The roles that log in to this web app, which each party's module sets; each
-# role logs in to one party (tests/quality/security/test_boundaries.py).
+# The roles that log in to this web app. Each party's module sets them, and each
+# role logs in to exactly one party (tests/quality/security/test_boundaries.py).
 ROLES: list[Role] = []
-# The party's name: shown on its pages, and what it calls another party as. A
-# party outside the demo is "Demo", which no other party knows.
+# The party's name, shown on its pages and sent as its identity when it calls
+# another party. Without PARTY_NAME (outside the demo) it is "Demo", a name no
+# other party knows.
 PARTY_NAME = os.environ.get("PARTY_NAME") or "Demo"
 
 
 def data_dir(party: str) -> Path:
-    """The party's own folder, DATA_DIR (demo/README.md,
-    tests/quality/security/test_party_isolation.py): what it stores lives
-    there. Without DATA_DIR, the checkout's .data/<party>/, so each worktree
-    keeps its own."""
+    """Return the party's data folder, creating it if needed. Everything the
+    party stores lives there. It is DATA_DIR if set (demo/README.md), else
+    .data/<party>/ in the checkout, so each worktree keeps its own."""
     folder = Path(os.environ.get("DATA_DIR") or BASE_DIR / ".data" / party)
     folder.mkdir(parents=True, exist_ok=True)
     return folder
 
 
 def databases(folder: Path) -> dict[str, Any]:
-    """The party's one SQLite file, in its folder."""
     return {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": folder / "web.sqlite3",
-            # Two processes write this file (the web app, and its gRPC endpoint): take the
-            # write lock at BEGIN, so the second waits instead of failing on its
-            # first write.
+            # Two processes write this file: the web app and its gRPC endpoint.
+            # IMMEDIATE takes the write lock at BEGIN, so the second process
+            # waits for the lock instead of failing on its first write.
             "OPTIONS": {"transaction_mode": "IMMEDIATE"},
-            # A file, not memory: Django never closes an in-memory database, so
-            # the gRPC endpoint's threads would leave their connections open
-            # in tests.
+            # The test database is a file, not in memory: Django never closes an
+            # in-memory database, so the gRPC endpoint's threads would leave
+            # their connections open in tests.
             "TEST": {"NAME": folder / "test-web.sqlite3"},
         }
     }
 
 
 def secret_key(folder: Path) -> str:
-    """The key from the environment, else one kept in the party's folder."""
+    """Return DJANGO_SECRET_KEY if set, else a key generated once and kept in the
+    party's folder."""
     if key := os.environ.get("DJANGO_SECRET_KEY"):
         return key
     path = folder / ".secret_key"
@@ -68,15 +68,18 @@ def secret_key(folder: Path) -> str:
 
 
 def cookie_names(folder: Path) -> tuple[str, str]:
-    """The session and CSRF cookies' names, after the party's folder. Browsers
-    share cookies between ports of one host, and the demo serves every party
-    from 127.0.0.1: without its own names, one party's login would replace
-    another's session and CSRF token (a 403 on its next form)."""
+    """Name the session and CSRF cookies after the party's folder.
+
+    Browsers share cookies between the ports of one host, and the demo serves
+    every party from 127.0.0.1. With Django's default names, logging in to one
+    party would replace another party's session and CSRF token, and that
+    party's next form would fail with a 403."""
     return f"sessionid-{folder.name}", f"csrftoken-{folder.name}"
 
 
-# The Pico theme that sets the party's primary colour, so its pages are told
-# apart at a glance; absent: Pico's default. Only a vendored theme will do.
+# The vendored Pico theme in the party's primary colour, so the parties' pages
+# look different at a glance. Without PRIMARY_COLOUR, Pico's default theme; a
+# colour with no vendored theme is a configuration error.
 PICO_DIR = BASE_DIR / "web" / "shared" / "static" / "css" / "vendor" / "pico-2.1.1"
 PRIMARY_COLOUR = os.environ.get("PRIMARY_COLOUR") or None
 if (
@@ -88,12 +91,12 @@ if (
     )
 
 
-# ".localhost": localhost and each <party>.localhost the demo's proxy routes (RFC 6761).
+# ".localhost" matches localhost and each <party>.localhost the demo's proxy routes (RFC 6761).
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", ".localhost,127.0.0.1").split(
     ","
 )
 
-# What every party installs; each party's module adds its own apps.
+# The apps every party installs; each party's module adds its own.
 SHARED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -107,7 +110,7 @@ AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # Serves the collected stylesheets when DEBUG is off: Django itself does not.
+    # Serves the static files when DEBUG is off, which Django itself does not.
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -155,7 +158,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "web" / "shared" / "static"]
-# WhiteNoise serves web/shared/static/ through the finders, as checked out: no collectstatic.
+# WhiteNoise serves web/shared/static/ straight from the finders, so collectstatic is never needed.
 WHITENOISE_USE_FINDERS = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

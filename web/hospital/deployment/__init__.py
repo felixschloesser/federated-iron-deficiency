@@ -1,1 +1,1 @@
-"""Screening models at the hospital: which one the laboratory director deployed (G6)."""
+"""Screening models at the hospital, and which one the laboratory director deployed."""

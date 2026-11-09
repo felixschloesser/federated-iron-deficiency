@@ -1,6 +1,6 @@
-"""A cohort's split into training, validation and test rows, its
-standardization, and evaluating a model on a split. Training and validation
-split alike because both split here."""
+"""Split a cohort into training, validation and test rows, standardize it, and
+evaluate a model on a split. Training and validation both use this module, so
+they always split a cohort the same way."""
 
 from collections.abc import Iterable
 from typing import NamedTuple
@@ -43,7 +43,7 @@ class TabularDataset(Dataset[Batch]):
 
 
 class Splits[Part](NamedTuple):
-    """A cohort's training, validation and test rows: 64/16/20."""
+    """A cohort's training, validation and test rows, split 64/16/20."""
 
     train: Part
     validation: Part
@@ -51,8 +51,8 @@ class Splits[Part](NamedTuple):
 
 
 class Evaluation(NamedTuple):
-    """A model on one split: mean BCE loss, AUROC, and each row's probability
-    beside its label."""
+    """A model's results on one split: mean BCE loss, AUROC, and each row's
+    probability next to its label."""
 
     loss: float
     auroc: float
@@ -78,9 +78,10 @@ def _split_frames(dataframe: pd.DataFrame, seed: int) -> Splits[pd.DataFrame]:
 
 
 def _training_stats(train_df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
-    # This cohort's training split only: no statistic leaves the hospital. As
-    # Flower's tabular example fits its scaler per client; pooled standardization
-    # measured no better here (2026-11-07), as FedBN argues for local statistics.
+    # Computed from this hospital's training split only, so no statistic leaves
+    # the hospital. Flower's tabular example also fits its scaler per client;
+    # pooled standardization measured no better here (2026-11-07), and FedBN
+    # argues for local statistics too.
     return train_df[FEATURES].mean(), train_df[FEATURES].std().replace(0, 1.0)
 
 
@@ -125,7 +126,7 @@ def load_data(
 
 @torch.no_grad()
 def evaluate(net: nn.Module, dataloader: Loader) -> Evaluation:
-    """The model on every row of a loader."""
+    """Evaluate the model on every row of a loader."""
     net.eval()
     criterion = nn.BCEWithLogitsLoss()
     total, num_examples = 0.0, 0
@@ -146,9 +147,9 @@ def evaluate(net: nn.Module, dataloader: Loader) -> Evaluation:
 
 
 def _held_out(state_dict: dict[str, torch.Tensor], cohort: pd.DataFrame) -> Evaluation:
-    """The weights on the cohort's test split: a run reports its validation
-    split each round and its final model is chosen by that, so only the test
-    split is unseen."""
+    """Evaluate the weights on the cohort's test split. A run reports the
+    validation split every round and its final model is chosen by it, so only
+    the test split is unseen."""
     net = Net()
     net.load_state_dict(state_dict)
     return evaluate(net, load_data(cohort).test)
@@ -159,8 +160,9 @@ def confusion_matrices(
     cohort: pd.DataFrame,
     thresholds: Iterable[float],
 ) -> dict[float, dict[str, int]]:
-    """The weights' confusion matrix at each threshold, on the cohort's test
-    split: a row is positive at a probability at or above it."""
+    """The weights' confusion matrix at each threshold on the cohort's test
+    split. A row counts as positive when its probability is at or above the
+    threshold."""
     evaluation = _held_out(state_dict, cohort)
     actual = evaluation.labels == 1
     matrices = {}
