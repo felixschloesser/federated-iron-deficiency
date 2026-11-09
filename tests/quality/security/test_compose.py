@@ -7,6 +7,7 @@ Read through `docker compose config`, which also validates the file.
 import json
 import os
 import re
+import shlex
 import subprocess
 from functools import cache
 from pathlib import Path
@@ -23,6 +24,7 @@ STARTUP_SERVICES = {
     "flower-superlink",
     "flower-server-app",
     "train",
+    "startup-setup",
     "startup-web",
     "startup-grpc",
 }
@@ -83,6 +85,20 @@ def name(slug: str) -> str:
 
 HOSPITAL_SLUGS = [hospital for _, hospital, _, _ in pairs()]
 PRACTICE_SLUGS = [practice for _, _, practice, _ in pairs()]
+PARTIES = ["startup", *HOSPITAL_SLUGS, *PRACTICE_SLUGS]
+
+
+def setup_steps(party: str) -> list[list[str]]:
+    """The commands <party>-setup runs, in order, from its one `sh -c` line."""
+    command: list[str] = service(f"{party}-setup")["command"]
+    assert command[:2] == ["sh", "-c"], command
+    steps: list[list[str]] = [[]]
+    for word in shlex.split(command[2]):
+        if word == "&&":
+            steps.append([])
+        else:
+            steps[-1].append(word)
+    return steps
 
 
 def test_the_demo_pairs_exactly_the_hospitals_training_knows() -> None:
@@ -145,7 +161,7 @@ def test_every_web_app_names_its_party_and_its_folder() -> None:
     assert web_apps
     for name, environment in web_apps.items():
         assert environment["DJANGO_SETTINGS_MODULE"].endswith(".settings"), name
-        # The folder the party's image brings (demo/party.py).
+        # The folder the party's image brings (its Dockerfile).
         assert environment.get("DATA_DIR") == "/data", name
 
 
@@ -156,7 +172,46 @@ def test_one_service_per_process_of_each_party() -> None:
         f"{slug}-{role}"
         for slug in HOSPITAL_SLUGS
         for role in ("flower-supernode", "flower-client-app", "web", "grpc")
-    } | {f"{slug}-web" for slug in PRACTICE_SLUGS}
+    } | {f"{slug}-web" for slug in PRACTICE_SLUGS} | {
+        f"{party}-setup" for party in PARTIES
+    }
+
+
+@pytest.mark.parametrize("party", PARTIES)
+def test_each_party_is_set_up_by_a_job_of_its_own_before_its_servers_start(
+    party: str,
+) -> None:
+    """A party's setup job migrates its database, seeds it from its own NHANES
+    extract and registers whom it knows, on no network, then exits; its servers
+    start only once it has succeeded."""
+    job = service(f"{party}-setup")
+    assert job["network_mode"] == "none"
+    assert job.get("restart") is None
+    steps = setup_steps(party)
+    assert steps[0] == ["python", "manage.py", "migrate", "-v0"]
+    for step in steps[1:]:
+        assert step[:3] == ["python", "-m", "demo.seed"] or step[:2] == [
+            "python",
+            "manage.py",
+        ], step
+        paths = [word for word in step if word.startswith("/")]
+        assert all(path.startswith("/nhanes/") for path in paths), step
+    waiting = {
+        name
+        for name, spec in config()["services"].items()
+        if f"{party}-setup" in (spec.get("depends_on") or {})
+    }
+    servers = {f"{party}-web", f"{party}-grpc"} & set(config()["services"])
+    assert servers <= waiting
+    for name in waiting:
+        condition = service(name)["depends_on"][f"{party}-setup"]["condition"]
+        assert condition == "service_completed_successfully", name
+
+
+def test_every_service_runs_its_images_own_command() -> None:
+    """No start script wraps a server: what a container runs is its command."""
+    for name, spec in config()["services"].items():
+        assert spec.get("entrypoint") is None, name
 
 
 def test_each_service_mounts_only_its_own_partys_folder() -> None:
@@ -192,10 +247,8 @@ def test_the_hospitals_web_app_writes_the_cohort_and_its_screening_models(
     unmasked, and the startup's code writes nothing at the hospital."""
     name = f"{slug}-web"
     assert "tmpfs" not in service(name)
-    assert mounts(name) == {
-        "/data": (f"hospitals/{slug}", False),
-        "/nhanes": (f"bind:.demo/nhanes/{slug}", True),
-    }
+    # Its NHANES extract only its setup job reads.
+    assert mounts(name) == {"/data": (f"hospitals/{slug}", False)}
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
@@ -316,9 +369,6 @@ def test_the_hospital_serves_its_pages_and_its_grpc_from_containers_of_their_own
     assert set(grpc["networks"]) == {"lab-orders"}
     assert "--bind=0.0.0.0:8000" in web["command"]
     assert grpc["command"][-2:] == ["grpcrunserver", "0.0.0.0:8441"]
-    # Only the web app sets the party up (demo/party.py); the endpoint waits for it.
-    assert grpc["entrypoint"] == []
-    assert grpc["depends_on"][f"{slug}-web"]["condition"] == "service_healthy"
     assert mounts(f"{slug}-grpc") == {"/data": (f"hospitals/{slug}", False)}
 
 
@@ -338,6 +388,9 @@ def test_no_practice_service_runs_on_a_timer() -> None:
 
 
 def test_the_superlink_keeps_its_state_with_the_startup() -> None:
+    # Its folder is the one the startup's setup job brings into the volume.
+    waits = service("flower-superlink")["depends_on"]
+    assert waits["startup-setup"]["condition"] == "service_completed_successfully"
     assert (
         "--database=/demo/startup/superlink/state.db"
         in service("flower-superlink")["command"]
@@ -361,7 +414,7 @@ def test_down_v_deletes_every_partys_data_and_keeps_the_host_folders() -> None:
         if source.startswith("bind:")
     }
     extracts = {
-        (f"{slug}-web", f"bind:.demo/nhanes/{slug}")
+        (f"{slug}-setup", f"bind:.demo/nhanes/{slug}")
         for slug in HOSPITAL_SLUGS + PRACTICE_SLUGS
     }
     assert binds == {
@@ -438,6 +491,8 @@ def test_a_server_without_pages_is_ready_when_its_port_answers(
 def test_the_clientapp_waits_for_its_supernode_to_answer(slug: str) -> None:
     waits = service(f"{slug}-flower-client-app")["depends_on"]
     assert waits[f"{slug}-flower-supernode"]["condition"] == "service_healthy"
+    # The cohort folder its hospital's setup job brings and may provide.
+    assert waits[f"{slug}-setup"]["condition"] == "service_completed_successfully"
 
 
 def test_the_proxy_waits_for_every_web_app_to_answer() -> None:
@@ -450,9 +505,10 @@ def test_the_proxy_waits_for_every_web_app_to_answer() -> None:
 
 
 def test_every_long_running_service_restarts() -> None:
-    # A crash stays down only for the two that must exit.
+    # A crash stays down only for those that must exit.
+    jobs = {"nhanes-download", "train"} | {f"{party}-setup" for party in PARTIES}
     for name, spec in config()["services"].items():
-        expected = None if name in {"nhanes-download", "train"} else "unless-stopped"
+        expected = None if name in jobs else "unless-stopped"
         assert spec.get("restart") == expected, name
 
 
@@ -534,15 +590,15 @@ def test_compose_gives_the_startups_code_only_the_cohort_read_only(
 
 
 def test_no_running_service_has_debug_on() -> None:
-    """Every web app runs gunicorn with DEBUG off; only the seed commands that
-    prepare runs set DJANGO_DEBUG, for themselves. Pass: no service sets
-    DJANGO_DEBUG."""
+    """Every web app runs gunicorn with DEBUG off; only the setup jobs, which
+    seed the demo accounts and exit, set DJANGO_DEBUG. Pass: no other service
+    sets it."""
     with_debug = {
         name
         for name, spec in config()["services"].items()
         if "DJANGO_DEBUG" in (spec.get("environment") or {})
     }
-    assert with_debug == set()
+    assert with_debug == {f"{party}-setup" for party in PARTIES}
 
 
 def test_the_startups_web_server_outwaits_a_submission() -> None:
@@ -570,7 +626,9 @@ def test_a_health_check_runs_often_only_while_its_service_starts() -> None:
         assert (check["start_interval"], check["interval"]) == ("2s", "5m0s"), name
 
 
-def test_only_the_hospitals_web_apps_reach_the_startups_messaging_endpoint() -> None:
+def test_only_the_hospitals_web_apps_reach_the_startups_screening_models_endpoint() -> (
+    None
+):
     """The startup's screening-models endpoint (P5) serves recipient hospitals only
     (features/startup/release.feature). Pass: the screening-models network joins the
     startup's web app and every hospital's web app, nothing else, and is internal."""
@@ -593,8 +651,6 @@ def test_the_startup_serves_its_pages_and_its_screening_models_from_containers_o
     assert set(endpoint["networks"]) == {"screening-models"}
     assert "--bind=0.0.0.0:8000" in web["command"]
     assert endpoint["command"][-2:] == ["grpcrunserver", "0.0.0.0:8442"]
-    assert endpoint["entrypoint"] == []
-    assert endpoint["depends_on"]["startup-web"]["condition"] == "service_healthy"
     # Like the web app: the final models read-only, the SuperLink's state masked.
     assert mounts("startup-grpc") == mounts("startup-web")
     assert endpoint["tmpfs"] == web["tmpfs"]
@@ -608,10 +664,9 @@ def test_each_hospital_fetches_from_the_startup_by_its_name(slug: str) -> None:
     assert slugify(environment["HOSPITAL_NAME"]) == slug
 
 
-def registered(name: str) -> list[list[str]]:
-    from demo.party import registrations
-
-    return registrations(service(name)["environment"].get("DEMO_REGISTER", ""))
+def registered(party: str) -> list[list[str]]:
+    """The manage.py commands after migrate that party's setup job runs."""
+    return [step[2:] for step in setup_steps(party)[1:] if step[1] == "manage.py"]
 
 
 @pytest.mark.parametrize("slug", HOSPITAL_SLUGS)
@@ -619,7 +674,7 @@ def test_every_hospital_knows_every_practice_by_its_name(slug: str) -> None:
     """Any practice may send a sample to any hospital
     (features/practice/ordering.feature), so each hospital registers every
     practice, by the name its app calls as, whose slug is its folder name."""
-    assert registered(f"{slug}-web") == [
+    assert registered(slug) == [
         ["add_practice", name(practice)] for practice in PRACTICE_SLUGS
     ]
     assert [slugify(name(practice)) for practice in PRACTICE_SLUGS] == PRACTICE_SLUGS
@@ -629,7 +684,7 @@ def test_the_startup_knows_every_hospital_by_the_name_its_web_app_calls_as() -> 
     """Any hospital may fetch released final models as screening models
     (features/startup/release.feature), so the startup registers every one, by
     the name its web app calls as."""
-    assert registered("startup-web") == [
+    assert registered("startup") == [
         ["add_hospital", name(hospital)] for hospital in HOSPITAL_SLUGS
     ]
 
@@ -640,7 +695,7 @@ def test_each_practice_sends_to_its_own_hospital_unless_told_otherwise(
 ) -> None:
     """Every hospital's laboratory, its paired hospital's the primary one, so lab
     orders follow the hospitals' sizes by default."""
-    commands = registered(f"{practice}-web")
+    commands = registered(practice)
     assert [command[1] for command in commands] == [name(h) for h in HOSPITAL_SLUGS]
     for command, hospital in zip(commands, HOSPITAL_SLUGS, strict=True):
         assert command[2] == f"{hospital}-grpc:8441"
@@ -651,7 +706,7 @@ def test_two_hospitals_provide_their_training_cohort_at_start() -> None:
     """AZ Diest's laboratory director has not, so a training run shows a hospital
     taking no part until its director provides one."""
     provides = {
-        slug: service(f"{slug}-web")["environment"].get("DEMO_PROVIDE") == "1"
+        slug: any("--provide" in step for step in setup_steps(slug))
         for slug in HOSPITAL_SLUGS
     }
     assert provides == {

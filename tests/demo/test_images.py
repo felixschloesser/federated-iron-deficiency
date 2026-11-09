@@ -90,3 +90,56 @@ def test_django_boots_without_the_training_data_libraries(party: str) -> None:
         check=True,
     )
     assert result.stdout.strip() == "[]"
+
+
+# What each party's folder may hold: the report's DFD stores, and the Django
+# secret key its web app uses (demo/README.md).
+PARTY_FOLDERS = {
+    "startup": {
+        "superlink",  # the SuperLink's own state, no DFD store
+        "final-models",  # DS4
+        "flwr-home",
+        "web.sqlite3",  # the data scientist's account
+        ".secret_key",
+    },
+    "hospital": {
+        "cohort",  # DS2
+        "screening-models",  # DS5
+        "web.sqlite3",  # DS1, DS6, DS8, DS9
+        ".secret_key",
+    },
+    "practice": {"web.sqlite3", ".secret_key"},  # DS7
+}
+
+
+@pytest.mark.parametrize("party", sorted(PARTY_FOLDERS))
+def test_each_image_brings_only_its_partys_dfd_stores(party: str) -> None:
+    """Docker copies the folders a party's image makes under /data into its fresh
+    volume: only the party's own stores."""
+    dockerfile = (ROOT / "demo" / f"{party}.Dockerfile").read_text()
+    made = " ".join(re.findall(r"^RUN mkdir -p (.+)$", dockerfile, re.MULTILINE))
+    folders = {path.removeprefix("/data/") for path in made.split()}
+    assert folders <= PARTY_FOLDERS[party]
+
+
+@pytest.mark.parametrize("party", sorted(PARTY_FOLDERS))
+def test_no_party_image_wraps_its_servers_in_a_start_script(party: str) -> None:
+    """compose.yaml's setup job sets the party up; a server is only its command."""
+    dockerfile = (ROOT / "demo" / f"{party}.Dockerfile").read_text()
+    assert "ENTRYPOINT" not in dockerfile
+
+
+def test_the_startup_image_brings_its_command_lines_superlink() -> None:
+    """The data scientist's flwr reaches the SuperLink in plaintext: the report's
+    TLS and SuperNode authentication are left out of the demo. The image brings
+    the connection into the startup's fresh volume, as it brings its folders."""
+    config = tomllib.loads((ROOT / "demo" / "flwr-home" / "config.toml").read_text())
+    assert config["superlink"] == {
+        "default": "demo",
+        "demo": {"address": "flower-superlink:9092", "insecure": True},
+    }
+    dockerfile = (ROOT / "demo" / "startup.Dockerfile").read_text()
+    assert (
+        "COPY --chown=app demo/flwr-home/config.toml /data/flwr-home/config.toml"
+        in dockerfile
+    )
