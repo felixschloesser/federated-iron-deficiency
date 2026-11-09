@@ -40,7 +40,7 @@ for party in hospital practice startup; do uv run --frozen pytest -W error --ds=
 - Each condition a user or another party can cause raises its own `ValidationError` code on its field. A rule the database can hold is a constraint.
 - Every mutation is a POST that redirects; GET never mutates.
 - No bare `assert` outside tests, no `except Exception` without re-raise, no single-letter names, no `|safe`, `mark_safe` or `csrf_exempt`.
-- Docstrings say what, then why, in plain sentences; a module docstring may name its feature file once. Use the glossary's words in models, forms, templates and copy.
+- Docstrings say what, then why, in plain sentences; a module docstring may name its feature file once. Use `GLOSSARY.md`'s words in models, forms, templates and copy.
 - Pages extend the shared includes (`web/shared/templates/includes/`) and use the vendored Pico stylesheet's classes or `web/shared/static/css/`.
 
 ## Tests

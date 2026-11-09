@@ -33,8 +33,7 @@ fetches and screens new blood counts with.
 - `features/`: the requirements as Gherkin scenarios, one folder per party, the
   ones crossing parties at the top.
 - `tests/`: the scenarios' steps and the other tests (see Tests below).
-- `web/<party>/glossary.toml`: each party's words, what each means and where it
-  comes from; the words the parties share are in `web/shared/glossary.toml`.
+- `GLOSSARY.md`: each party's words, what each means and where it comes from.
 
 ## Changes from `@javier/iron-deficiency`
 
