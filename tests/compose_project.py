@@ -135,8 +135,8 @@ def compose(
         pytest.fail("No Docker engine answers: start Docker (OrbStack on a Mac).")
     folder = tmp_path_factory.mktemp("compose")
     (folder / "demo").mkdir()
-    # compose.yaml's services extend kinds.yaml, found from the project folder.
-    shutil.copy(ROOT / "demo" / "kinds.yaml", folder / "demo")
+    # compose.yaml's services extend base.yaml, found from the project folder.
+    shutil.copy(ROOT / "demo" / "base.yaml", folder / "demo")
     override = folder / "demo" / "test-override.yaml"
     # The hospitals train on a synthetic cohort here, not on one their director
     # provides; the practice under test knows only the hospital under test.

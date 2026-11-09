@@ -17,7 +17,7 @@
 #
 # The parties: three hospitals, each paired with the general practitioner's
 # practice whose primary laboratory it is (the practices are fictional).
-# kinds.yaml says how each kind of service runs; each party's services here give
+# base.yaml holds what the services share; each party's services here give
 # only that party's facts: its name and colour (a Pico theme), its setup job's
 # steps (whom it knows, whether its laboratory director provided the training
 # cohort), its volume and its networks. nhanes-download's --pair arguments give
@@ -56,7 +56,7 @@ services:
 
   # The startup.
   flower-superlink:
-    extends: {file: kinds.yaml, service: server}
+    extends: {file: base.yaml, service: server}
     image: flwr/superlink:1.40.0
     environment:
       FLWR_HOME: /tmp/flwr
@@ -78,7 +78,7 @@ services:
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 9092)).close()"]
 
   flower-server-app:
-    extends: {file: kinds.yaml, service: superexec}
+    extends: {file: base.yaml, service: superexec}
     build: {context: .., dockerfile: demo/superexec.Dockerfile}
     depends_on:
       flower-superlink: {condition: service_healthy}
@@ -107,7 +107,7 @@ services:
 
   # Its data scientist, and every hospital as a recipient of released final models.
   startup-setup:
-    extends: {file: kinds.yaml, service: startup-setup}
+    extends: {file: base.yaml, service: startup-setup}
     command:
       - sh
       - -c
@@ -123,7 +123,7 @@ services:
   # The startup's web app: its data scientist sees the final models, submits
   # training runs and releases final models.
   startup-web:
-    extends: {file: kinds.yaml, service: web}
+    extends: {file: base.yaml, service: web}
     image: ${COMPOSE_PROJECT_NAME}-startup-web
     build: {context: .., dockerfile: demo/startup.Dockerfile}
     depends_on:
@@ -144,7 +144,7 @@ services:
   # The startup's screening-models endpoint, from which the hospitals' web apps
   # fetch released final models as screening models.
   startup-grpc:
-    extends: {file: kinds.yaml, service: server}
+    extends: {file: base.yaml, service: server}
     image: ${COMPOSE_PROJECT_NAME}-startup-web
     command: [python, manage.py, grpcrunserver, 0.0.0.0:8442]
     environment:
@@ -162,7 +162,7 @@ services:
 
   # The hospital UZ Leuven, starting with its SuperNode and ClientApp.
   uz-leuven-flower-supernode:
-    extends: {file: kinds.yaml, service: supernode}
+    extends: {file: base.yaml, service: supernode}
     command:
       - --superlink=flower-superlink:9092
       - --insecure
@@ -173,7 +173,7 @@ services:
     networks: [internet, uz-leuven-flower-client-app]
 
   uz-leuven-flower-client-app:
-    extends: {file: kinds.yaml, service: superexec}
+    extends: {file: base.yaml, service: superexec}
     depends_on:
       uz-leuven-flower-supernode: {condition: service_healthy}
       uz-leuven-setup: {condition: service_completed_successfully}
@@ -185,7 +185,7 @@ services:
   # Seeded, with every practice registered by its name; its laboratory
   # director provided the training cohort at start.
   uz-leuven-setup:
-    extends: {file: kinds.yaml, service: hospital-setup}
+    extends: {file: base.yaml, service: hospital-setup}
     command:
       - sh
       - -c
@@ -201,7 +201,7 @@ services:
       - ../.demo/nhanes/uz-leuven:/nhanes:ro
 
   uz-leuven-web:
-    extends: {file: kinds.yaml, service: hospital-web}
+    extends: {file: base.yaml, service: hospital-web}
     depends_on:
       uz-leuven-setup: {condition: service_completed_successfully}
     build: {context: .., dockerfile: demo/hospital.Dockerfile}
@@ -214,7 +214,7 @@ services:
     networks: [internet]
 
   uz-leuven-grpc:
-    extends: {file: kinds.yaml, service: hospital-grpc}
+    extends: {file: base.yaml, service: hospital-grpc}
     depends_on:
       uz-leuven-setup: {condition: service_completed_successfully}
     volumes:
@@ -222,7 +222,7 @@ services:
 
   # The hospital Heilig Hart Leuven, starting with its SuperNode and ClientApp.
   heilig-hart-leuven-flower-supernode:
-    extends: {file: kinds.yaml, service: supernode}
+    extends: {file: base.yaml, service: supernode}
     command:
       - --superlink=flower-superlink:9092
       - --insecure
@@ -233,7 +233,7 @@ services:
     networks: [internet, heilig-hart-leuven-flower-client-app]
 
   heilig-hart-leuven-flower-client-app:
-    extends: {file: kinds.yaml, service: superexec}
+    extends: {file: base.yaml, service: superexec}
     depends_on:
       heilig-hart-leuven-flower-supernode: {condition: service_healthy}
       heilig-hart-leuven-setup: {condition: service_completed_successfully}
@@ -245,7 +245,7 @@ services:
   # Seeded, with every practice registered by its name; its laboratory
   # director provided the training cohort at start.
   heilig-hart-leuven-setup:
-    extends: {file: kinds.yaml, service: hospital-setup}
+    extends: {file: base.yaml, service: hospital-setup}
     command:
       - sh
       - -c
@@ -261,7 +261,7 @@ services:
       - ../.demo/nhanes/heilig-hart-leuven:/nhanes:ro
 
   heilig-hart-leuven-web:
-    extends: {file: kinds.yaml, service: hospital-web}
+    extends: {file: base.yaml, service: hospital-web}
     depends_on:
       heilig-hart-leuven-setup: {condition: service_completed_successfully}
     environment:
@@ -273,7 +273,7 @@ services:
     networks: [internet]
 
   heilig-hart-leuven-grpc:
-    extends: {file: kinds.yaml, service: hospital-grpc}
+    extends: {file: base.yaml, service: hospital-grpc}
     depends_on:
       heilig-hart-leuven-setup: {condition: service_completed_successfully}
     volumes:
@@ -281,7 +281,7 @@ services:
 
   # The hospital AZ Diest, starting with its SuperNode and ClientApp.
   az-diest-flower-supernode:
-    extends: {file: kinds.yaml, service: supernode}
+    extends: {file: base.yaml, service: supernode}
     command:
       - --superlink=flower-superlink:9092
       - --insecure
@@ -292,7 +292,7 @@ services:
     networks: [internet, az-diest-flower-client-app]
 
   az-diest-flower-client-app:
-    extends: {file: kinds.yaml, service: superexec}
+    extends: {file: base.yaml, service: superexec}
     depends_on:
       az-diest-flower-supernode: {condition: service_healthy}
       az-diest-setup: {condition: service_completed_successfully}
@@ -304,7 +304,7 @@ services:
   # Seeded, with every practice registered by its name; its laboratory
   # director has not provided the training cohort yet.
   az-diest-setup:
-    extends: {file: kinds.yaml, service: hospital-setup}
+    extends: {file: base.yaml, service: hospital-setup}
     command:
       - sh
       - -c
@@ -320,7 +320,7 @@ services:
       - ../.demo/nhanes/az-diest:/nhanes:ro
 
   az-diest-web:
-    extends: {file: kinds.yaml, service: hospital-web}
+    extends: {file: base.yaml, service: hospital-web}
     depends_on:
       az-diest-setup: {condition: service_completed_successfully}
     environment:
@@ -332,7 +332,7 @@ services:
     networks: [internet]
 
   az-diest-grpc:
-    extends: {file: kinds.yaml, service: hospital-grpc}
+    extends: {file: base.yaml, service: hospital-grpc}
     depends_on:
       az-diest-setup: {condition: service_completed_successfully}
     volumes:
@@ -342,7 +342,7 @@ services:
   # every hospital's laboratory; its paired hospital's laboratory is its
   # primary laboratory.
   huisartsenpraktijk-de-akker-setup:
-    extends: {file: kinds.yaml, service: practice-setup}
+    extends: {file: base.yaml, service: practice-setup}
     command:
       - sh
       - -c
@@ -357,7 +357,7 @@ services:
       - ../.demo/nhanes/huisartsenpraktijk-de-akker:/nhanes:ro
 
   huisartsenpraktijk-de-akker-web:
-    extends: {file: kinds.yaml, service: practice-web}
+    extends: {file: base.yaml, service: practice-web}
     depends_on:
       huisartsenpraktijk-de-akker-setup: {condition: service_completed_successfully}
     build: {context: .., dockerfile: demo/practice.Dockerfile}
@@ -370,7 +370,7 @@ services:
     networks: [internet]
 
   huisartsenpraktijk-de-berk-setup:
-    extends: {file: kinds.yaml, service: practice-setup}
+    extends: {file: base.yaml, service: practice-setup}
     command:
       - sh
       - -c
@@ -385,7 +385,7 @@ services:
       - ../.demo/nhanes/huisartsenpraktijk-de-berk:/nhanes:ro
 
   huisartsenpraktijk-de-berk-web:
-    extends: {file: kinds.yaml, service: practice-web}
+    extends: {file: base.yaml, service: practice-web}
     depends_on:
       huisartsenpraktijk-de-berk-setup: {condition: service_completed_successfully}
     environment:
@@ -397,7 +397,7 @@ services:
     networks: [internet]
 
   huisartsenpraktijk-de-ceder-setup:
-    extends: {file: kinds.yaml, service: practice-setup}
+    extends: {file: base.yaml, service: practice-setup}
     command:
       - sh
       - -c
@@ -412,7 +412,7 @@ services:
       - ../.demo/nhanes/huisartsenpraktijk-de-ceder:/nhanes:ro
 
   huisartsenpraktijk-de-ceder-web:
-    extends: {file: kinds.yaml, service: practice-web}
+    extends: {file: base.yaml, service: practice-web}
     depends_on:
       huisartsenpraktijk-de-ceder-setup: {condition: service_completed_successfully}
     environment:
@@ -428,7 +428,7 @@ services:
   # published port; up once every web app answers, so a browser never sees a
   # party that is still setting itself up.
   proxy:
-    extends: {file: kinds.yaml, service: server}
+    extends: {file: base.yaml, service: server}
     image: nginx:1.28-alpine
     depends_on:
       startup-web: {condition: service_healthy}
