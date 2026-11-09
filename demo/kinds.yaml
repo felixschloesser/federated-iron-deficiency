@@ -68,8 +68,7 @@ services:
   # A hospital's web app. The laboratory director provides the training cohort
   # and fetches screening models here, so it writes the cohort and
   # screening-models folders, through the hospital's whole volume. It holds no
-  # SuperNode key. It joins the screening-models network to fetch from the
-  # startup and serves nothing there.
+  # SuperNode key.
   hospital-web:
     extends: web
     image: ${COMPOSE_PROJECT_NAME}-hospital-web
@@ -79,8 +78,8 @@ services:
       # The startup's screening-models endpoint.
       STARTUP_ADDRESS: startup-grpc:8442
 
-  # A hospital's lab-order endpoint, the only thing the practices reach at a
-  # hospital (tests/quality/security/test_running_containers.py).
+  # A hospital's lab-order endpoint, where practices send lab orders and fetch
+  # lab reports.
   hospital-grpc:
     extends: server
     image: ${COMPOSE_PROJECT_NAME}-hospital-web
@@ -90,7 +89,7 @@ services:
       DATA_DIR: /data
     healthcheck:
       test: [CMD, python, -c, "import socket; socket.create_connection(('localhost', 8441)).close()"]
-    networks: [lab-orders]
+    networks: [internet]
 
   # A practice's web app: Django and gRPC only, without the training package's
   # dependencies.
