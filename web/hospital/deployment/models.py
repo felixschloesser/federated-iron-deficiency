@@ -68,13 +68,13 @@ class DeployedScreeningModel(models.Model):
 class DeploymentManager(models.Manager["Deployment"]):
     @transaction.atomic
     def deploy(
-        self, *, run_id: str, threshold: float, directory: Path | None, now: datetime
+        self, *, run_id: str, threshold: float, directory: Path, now: datetime
     ) -> Deployment:
         """Make a screening model in the hospital's folder the deployed screening model, at a
         threshold its local validation holds, from `now`."""
-        path = None if directory is None else model_file_path(directory, run_id)
+        path = model_file_path(directory, run_id)
         # One read: what is checked is what is hashed.
-        data = path.read_bytes() if path is not None and path.is_file() else None
+        data = path.read_bytes() if path.is_file() else None
         file = None if data is None else read_screening_model(data)
         # A missing file and an unreadable one alike: neither is listed.
         if data is None or file is None:
@@ -106,7 +106,7 @@ class DeploymentManager(models.Manager["Deployment"]):
             deployed_screening_model=deployed_screening_model, deployed_at=now
         )
 
-    def screener(self, directory: Path | None) -> Screener | NoUsableModel:
+    def screener(self, directory: Path) -> Screener | NoUsableModel:
         """The deployed screening model ready to screen, or why there is none."""
         latest = (
             self.select_related("deployed_screening_model")
@@ -116,12 +116,8 @@ class DeploymentManager(models.Manager["Deployment"]):
         if latest is None:
             return NoUsableModel.NO_DEPLOYED_MODEL
         deployed_screening_model = latest.deployed_screening_model
-        path = (
-            None
-            if directory is None
-            else model_file_path(directory, deployed_screening_model.run_id)
-        )
-        data = path.read_bytes() if path is not None and path.is_file() else None
+        path = model_file_path(directory, deployed_screening_model.run_id)
+        data = path.read_bytes() if path.is_file() else None
         file = None if data is None else read_screening_model(data)
         if (
             data is None

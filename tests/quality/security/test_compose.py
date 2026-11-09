@@ -79,7 +79,7 @@ def pairs() -> list[tuple[str, str, str, int]]:
 def name(slug: str) -> str:
     """A practice's or hospital's name, as its web app shows it and calls as."""
     environment = service(f"{slug}-web")["environment"]
-    found: str = environment.get("PRACTICE_NAME") or environment["HOSPITAL_NAME"]
+    found: str = environment["PARTY_NAME"]
     return found
 
 
@@ -663,7 +663,7 @@ def test_each_hospital_fetches_from_the_startup_by_its_name(slug: str) -> None:
     environment = service(f"{slug}-web")["environment"]
     assert environment["STARTUP_ADDRESS"] == "startup-grpc:8442"
     # What it calls the startup as: its name's slug, its folder name.
-    assert slugify(environment["HOSPITAL_NAME"]) == slug
+    assert slugify(environment["PARTY_NAME"]) == slug
 
 
 def registered(party: str) -> list[list[str]]:

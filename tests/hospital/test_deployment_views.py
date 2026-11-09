@@ -185,9 +185,9 @@ def test_a_file_not_named_after_a_run_is_no_screening_model(
 
 
 def test_without_a_screening_models_folder(
-    client: Client, director: User, settings: Settings
+    client: Client, director: User, settings: Settings, tmp_path: Path
 ) -> None:
-    settings.SCREENING_MODELS_DIR = None
+    settings.SCREENING_MODELS_DIR = tmp_path / "absent"
     assertContains(
         client.get(reverse("deployment:screening_models")),
         "No screening model fetched yet.",

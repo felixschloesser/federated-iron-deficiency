@@ -56,7 +56,7 @@ def _send(
             )
         ),
         timeout=timeout,
-        metadata=calling_as(settings.PRACTICE_NAME),
+        metadata=calling_as(settings.PARTY_NAME),
     )
 
 
@@ -117,7 +117,7 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
     so none is sent again; the number stored."""
     with open_laboratory(laboratory) as endpoint:
         _send_pending(endpoint, laboratory, now=now)
-        metadata = calling_as(settings.PRACTICE_NAME)
+        metadata = calling_as(settings.PARTY_NAME)
         reports = endpoint.FetchNewLabReports(
             messages_pb2.FetchNewLabReportsRequest(),
             timeout=TIMEOUT_SECONDS,

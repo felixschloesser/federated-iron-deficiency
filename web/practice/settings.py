@@ -1,7 +1,6 @@
 """A general practitioner's practice's web app: patients, samples, orders and
 lab reports."""
 
-import os
 from typing import Any
 
 from web.shared.accounts.roles import Role
@@ -19,4 +18,3 @@ INSTALLED_APPS: list[str] = [
 ]
 ROLES = [Role.GENERAL_PRACTITIONER]
 ROOT_URLCONF = "web.practice.urls"
-PRACTICE_NAME = os.environ.get("PRACTICE_NAME")

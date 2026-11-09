@@ -20,28 +20,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
-# Each party's module sets these; here, what a party without them has.
-# The roles that log in to this web app; each role logs in to one party
-# (tests/quality/security/test_boundaries.py).
+# The roles that log in to this web app, which each party's module sets; each
+# role logs in to one party (tests/quality/security/test_boundaries.py).
 ROLES: list[Role] = []
-# The party's own folder (data_dir()).
-DATA_DIR: Path | None = None
-# The hospital's screening models.
-SCREENING_MODELS_DIR: Path | None = None
-# The startup's copy of every final model.
-FINAL_MODELS_DIR: Path | None = None
-# The training cohort the laboratory director provides, which the startup's
-# code at the hospital reads.
-TRAINING_COHORT_DIR: Path | None = None
-# Each party's name, set by its own settings alone: shown
-# in its title bar and header, and, for a practice or a hospital, what it calls
-# another party as; None, it shows none and cannot call. Never the screening's
-# name.
-PRACTICE_NAME: str | None = None
-HOSPITAL_NAME: str | None = None
-STARTUP_NAME: str | None = None
-# The startup's screening-models endpoint; without it, no fetching.
-STARTUP_ADDRESS: str | None = None
+# The party's name: shown on its pages, and what it calls another party as. A
+# party outside the demo is "Demo", which no other party knows.
+PARTY_NAME = os.environ.get("PARTY_NAME") or "Demo"
 
 
 def data_dir(party: str) -> Path:

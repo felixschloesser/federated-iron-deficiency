@@ -32,7 +32,7 @@ pytestmark = pytest.mark.django_db
 def practice_name(settings: Settings) -> None:
     """Every sample goes to a laboratory, so placing an order sends its lab order;
     the test laboratory answers nothing."""
-    settings.PRACTICE_NAME = "De Ceder"
+    settings.PARTY_NAME = "De Ceder"
 
 
 @pytest.fixture
@@ -382,7 +382,7 @@ def test_error_page_renders_without_a_request() -> None:
 
 
 def test_error_page_names_the_party(settings: Settings) -> None:
-    settings.PRACTICE_NAME = "AZ Diest"
+    settings.PARTY_NAME = "AZ Diest"
     response = ServerErrorView.as_view()(RequestFactory().get("/"))
     assert isinstance(response, HttpResponseServerError)
     assert b"<title>Something went wrong \xc2\xb7 AZ Diest</title>" in response.content

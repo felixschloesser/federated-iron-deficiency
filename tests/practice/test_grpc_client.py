@@ -8,7 +8,6 @@ from typing import Any
 
 import grpc
 import pytest
-from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.test import Client
 from django.urls import reverse
@@ -44,7 +43,7 @@ def latest_sample_id(patient: Patient) -> str:
 @pytest.fixture
 def practice(settings: Settings, fake_laboratory: Running) -> Laboratory:
     """Practice "De Ceder", working with the laboratory "AZ Diest"."""
-    settings.PRACTICE_NAME = "De Ceder"
+    settings.PARTY_NAME = "De Ceder"
     return Laboratory.objects.create(name="AZ Diest", address=fake_laboratory.address)
 
 
@@ -199,16 +198,6 @@ def test_the_orders_page_says_a_lab_order_was_rejected(
     client.force_login(owner)
     response = client.get(reverse("practice:orders"))
     assertContains(response, '<td data-label="Lab report">Lab order rejected</td>')
-
-
-def test_a_practice_without_a_name_sends_nothing(
-    settings: Settings, practice: Laboratory, fake_laboratory: Running
-) -> None:
-    """A practice nobody named claims no default name: it refuses to call."""
-    settings.PRACTICE_NAME = None
-    with pytest.raises(ImproperlyConfigured):
-        send_cbc(practice, ClinicalIndication.UNEXPLAINED_FATIGUE)
-    assert fake_laboratory.laboratory.callers == []
 
 
 @pytest.mark.parametrize("indication", list(ClinicalIndication))

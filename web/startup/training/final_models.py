@@ -39,9 +39,9 @@ class KeptFinalModel:
         return ", ".join(shown) or None
 
 
-def final_models(directory: Path | None) -> list[KeptFinalModel]:
+def final_models(directory: Path) -> list[KeptFinalModel]:
     """Every readable final model the startup kept, newest first."""
-    if directory is None or not directory.is_dir():
+    if not directory.is_dir():
         return []
     kept = [
         KeptFinalModel(
@@ -57,13 +57,13 @@ def final_models(directory: Path | None) -> list[KeptFinalModel]:
 
 
 def released_final_model(
-    directory: Path | None, run_id: str
+    directory: Path, run_id: str
 ) -> messages_pb2.ScreeningModel | None:
     """A released final model as a recipient hospital fetches it (DF33): its
     weights only, the AUROC across hospitals, and its run ID; never its run
     configuration. None for a run the startup kept no readable model of."""
-    path = None if directory is None else model_file_path(directory, run_id)
-    model = None if path is None or not path.is_file() else read_final_model(path)
+    path = model_file_path(directory, run_id)
+    model = read_final_model(path) if path.is_file() else None
     if model is None:
         return None
     return messages_pb2.ScreeningModel(

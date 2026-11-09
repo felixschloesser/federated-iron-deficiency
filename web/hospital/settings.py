@@ -2,12 +2,13 @@
 screening models the laboratory director deploys."""
 
 import os
+from pathlib import Path
 from typing import Any
 
 from web.shared.accounts.roles import Role
 from web.shared.settings import *
 
-DATA_DIR = data_dir("hospital")
+DATA_DIR: Path = data_dir("hospital")
 DATABASES: dict[str, Any] = databases(DATA_DIR)
 SECRET_KEY: str = secret_key(DATA_DIR)
 SESSION_COOKIE_NAME, CSRF_COOKIE_NAME = cookie_names(DATA_DIR)
@@ -22,9 +23,8 @@ INSTALLED_APPS: list[str] = [
 ]
 ROLES = [Role.LABORATORY_STAFF, Role.LABORATORY_DIRECTOR]
 ROOT_URLCONF = "web.hospital.urls"
-HOSPITAL_NAME = os.environ.get("HOSPITAL_NAME")
-SCREENING_MODELS_DIR = DATA_DIR / "screening-models"
-TRAINING_COHORT_DIR = DATA_DIR / "cohort"
+SCREENING_MODELS_DIR: Path = DATA_DIR / "screening-models"
+TRAINING_COHORT_DIR: Path = DATA_DIR / "cohort"
 # The startup's screening-models endpoint (host:port); without it, the hospital
 # offers no fetching.
-STARTUP_ADDRESS = os.environ.get("STARTUP_ADDRESS") or None
+STARTUP_ADDRESS: str | None = os.environ.get("STARTUP_ADDRESS") or None

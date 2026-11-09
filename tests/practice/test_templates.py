@@ -6,20 +6,8 @@ from django.test import RequestFactory
 from pytest_django.fixtures import Settings
 
 
-def test_base_layout_without_a_name_shows_the_default(settings: Settings) -> None:
-    """Shown only: the default never reaches a call, which reads the settings."""
-    settings.PRACTICE_NAME = None
-    template = engines["django"].from_string(
-        '{% extends "includes/base.html" %}{% block title %}Probe{% endblock %}'
-    )
-    html = template.render({}, RequestFactory().get("/"))
-    assert "<title>Probe · Demo</title>" in html
-    assert "<strong>Demo</strong>" in html
-    assert "screening" not in html.lower()
-
-
 def test_title_and_header_name_only_the_party(settings: Settings) -> None:
-    settings.PRACTICE_NAME = "AZ Diest"
+    settings.PARTY_NAME = "AZ Diest"
     template = engines["django"].from_string(
         '{% extends "includes/base.html" %}{% block title %}Probe{% endblock %}'
     )
