@@ -206,7 +206,18 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def store_screening_model(
+def read_stored(directory: Path, run_id: str) -> tuple[ScreeningModel, str] | None:
+    """The screening model of a run in the folder, and the sha256 of the very
+    bytes it was read from; None if there is no readable one."""
+    path = model_file_path(directory, run_id)
+    if not path.is_file():
+        return None
+    data = path.read_bytes()
+    file = read_screening_model(data)
+    return None if file is None else (file, sha256(data))
+
+
+def store_fetched(
     directory: Path,
     *,
     run_id: int,
@@ -215,13 +226,24 @@ def store_screening_model(
     federated_auroc: float,
     stored_at: datetime,
 ) -> Path:
-    """Store a fetched screening model, with this hospital's
-    standardization and its local validation on the training cohort.
-    `federated_auroc` is what the ServerApp aggregated; no other hospital's
-    metrics reach the file. One is never overwritten."""
+    """Store a fetched screening model with this hospital's standardization and
+    its local validation on the training cohort; `federated_auroc` is what the
+    ServerApp aggregated, no other hospital's metrics. One fetched again is kept
+    as it was; other weights under a stored run's ID are refused."""
     path = model_file_path(directory, run_id)
     if path.exists():
-        raise FileExistsError(path)
+        stored = read_screening_model(path.read_bytes())
+        same = (
+            stored is not None
+            and stored.state_dict.keys() == state_dict.keys()
+            and all(
+                torch.equal(stored.state_dict[name], state_dict[name])
+                for name in state_dict
+            )
+        )
+        if not same:
+            raise FileExistsError(f"{path} holds other weights.")
+        return path
     mean, std = standardization(cohort)
     write_contents(
         path,
@@ -237,38 +259,3 @@ def store_screening_model(
         },
     )
     return path
-
-
-def store_fetched(
-    directory: Path,
-    *,
-    run_id: int,
-    state_dict: dict[str, torch.Tensor],
-    cohort: pd.DataFrame,
-    federated_auroc: float,
-    stored_at: datetime,
-) -> Path:
-    """Store a fetched screening model; one fetched again is kept as it was. Other
-    weights under a stored run's ID are refused."""
-    path = model_file_path(directory, run_id)
-    if path.exists():
-        stored = read_screening_model(path.read_bytes())
-        same = (
-            stored is not None
-            and stored.state_dict.keys() == state_dict.keys()
-            and all(
-                torch.equal(stored.state_dict[name], state_dict[name])
-                for name in state_dict
-            )
-        )
-        if not same:
-            raise FileExistsError(f"{path} holds other weights.")
-        return path
-    return store_screening_model(
-        directory,
-        run_id=run_id,
-        state_dict=state_dict,
-        cohort=cohort,
-        federated_auroc=federated_auroc,
-        stored_at=stored_at,
-    )

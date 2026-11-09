@@ -18,7 +18,6 @@ from web.hospital.deployment.model_files import (
     ScreeningModel,
     read_screening_model,
     store_fetched,
-    store_screening_model,
 )
 
 STORED_AT = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
@@ -40,7 +39,7 @@ def cohort() -> pd.DataFrame:
 
 def store(directory: Path, cohort: pd.DataFrame, run_id: int) -> Path:
     torch.manual_seed(run_id)
-    return store_screening_model(
+    return store_fetched(
         directory,
         run_id=run_id,
         state_dict=Net().state_dict(),
@@ -57,17 +56,6 @@ def hospital(tmp_path: Path, cohort: pd.DataFrame) -> World:
 
 @given(
     parsers.parse(
-        "the hospital stored the screening models of runs {first:d} and {second:d}"
-    )
-)
-def stored_two(hospital: World, first: int, second: int) -> None:
-    store(hospital["folder"], hospital["cohort"], run_id=first)
-    store(hospital["folder"], hospital["cohort"], run_id=second)
-    hospital["before"] = (hospital["folder"] / f"{first}.pt").read_bytes()
-
-
-@given(
-    parsers.parse(
         "the disk fills up while the screening model of run {run_id:d} is written"
     )
 )
@@ -79,11 +67,7 @@ def disk_full(monkeypatch: pytest.MonkeyPatch, run_id: int) -> None:
     monkeypatch.setattr(torch, "save", save_half)
 
 
-@when(
-    parsers.re(
-        r"the hospital stores the screening model of run (?P<run_id>\d+)( again)?"
-    )
-)
+@when(parsers.re(r"the hospital stores the screening model of run (?P<run_id>\d+)"))
 def stores(hospital: World, run_id: str) -> None:
     try:
         hospital["path"] = store(hospital["folder"], hospital["cohort"], int(run_id))
@@ -95,11 +79,6 @@ def stores(hospital: World, run_id: str) -> None:
 def holds(hospital: World, name: str) -> None:
     assert hospital["path"] == hospital["folder"] / name
     assert [path.name for path in hospital["folder"].iterdir()] == [name]
-
-
-@then(parsers.parse('the hospital holds "{first}" and "{second}"'))
-def holds_two(hospital: World, first: str, second: str) -> None:
-    assert sorted(path.name for path in hospital["folder"].iterdir()) == [first, second]
 
 
 @then(
@@ -126,11 +105,6 @@ def holds_metadata(hospital: World) -> None:
 def holds_no_threshold(hospital: World) -> None:
     screening_model = torch.load(hospital["path"])
     assert not any("threshold" in key for key in screening_model)
-
-
-@then("storing it is refused")
-def refused(hospital: World) -> None:
-    assert isinstance(hospital["error"], FileExistsError)
 
 
 @then("storing it fails")

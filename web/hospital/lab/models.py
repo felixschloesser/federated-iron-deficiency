@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict, assert_never
+from typing import TypedDict
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -13,7 +13,7 @@ from django.db.models import Exists, OuterRef
 from django.utils.text import slugify
 from django_stubs_ext import WithAnnotations
 
-from ml.cohort import ELIGIBLE_AGES, ELIGIBLE_SEX
+from ml.cohort import ELIGIBLE_AGES
 from web.hospital.analyser import port as analyser
 from web.hospital.deployment.models import (
     DeployedScreeningModel,
@@ -23,34 +23,13 @@ from web.hospital.deployment.models import (
 from web.shared.parsing import once_each, parsed
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
-
-def is_screened_indication(indication: ClinicalIndication) -> bool:
-    """Whether the hospital screens a CBC ordered for this indication: the
-    guidelines order a CBC without ferritin first, so a suggestion can add something."""
-    match indication:
-        case (
-            ClinicalIndication.SUSPECTED_ANAEMIA
-            | ClinicalIndication.SUSPECTED_IBS
-            | ClinicalIndication.UNEXPLAINED_FATIGUE
-        ):
-            return True
-        case (
-            ClinicalIndication.START_OF_PREGNANCY
-            | ClinicalIndication.CKD_FOLLOW_UP
-            | ClinicalIndication.OTHER
-        ):
-            return False
-        case _:
-            assert_never(indication)
-
-
-def screened_indications() -> list[ClinicalIndication]:
-    """Every indication whose CBC the hospital screens."""
-    return [
-        indication
-        for indication in ClinicalIndication
-        if is_screened_indication(indication)
-    ]
+# The indications whose CBC the hospital screens: the guidelines order a CBC
+# without ferritin first, so a suggestion can add something.
+SCREENED_INDICATIONS = (
+    ClinicalIndication.SUSPECTED_ANAEMIA,
+    ClinicalIndication.SUSPECTED_IBS,
+    ClinicalIndication.UNEXPLAINED_FATIGUE,
+)
 
 
 class ScreeningResult(models.TextChoices):
@@ -62,19 +41,6 @@ class ScreeningResult(models.TextChoices):
     FERRITIN_NOT_SUGGESTED = "ferritin_not_suggested", "Ferritin not suggested"
     NOT_SCREENED = "not_screened", "Not screened"
     SCREENING_FAILED = "screening_failed", "Screening failed"
-
-    def is_screened(self) -> bool:
-        """Whether the model decided this result."""
-        match self:
-            case (
-                ScreeningResult.FERRITIN_SUGGESTED
-                | ScreeningResult.FERRITIN_NOT_SUGGESTED
-            ):
-                return True
-            case ScreeningResult.NOT_SCREENED | ScreeningResult.SCREENING_FAILED:
-                return False
-            case _:
-                assert_never(self)
 
 
 class PracticeManager(models.Manager["Practice"]):
@@ -284,9 +250,8 @@ class TestRequest(models.Model):
         sex female, an age in the trained range. Which of them excluded a CBC is
         never recorded: nobody acts on it."""
         return (
-            self.clinical_indication is not None
-            and is_screened_indication(ClinicalIndication(self.clinical_indication))
-            and self.registered_sex == RegisteredSex.of_nhanes(ELIGIBLE_SEX)
+            self.clinical_indication in SCREENED_INDICATIONS
+            and self.registered_sex == RegisteredSex.FEMALE
             and ELIGIBLE_AGES[0] <= self.age <= ELIGIBLE_AGES[1]
         )
 

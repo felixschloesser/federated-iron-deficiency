@@ -18,13 +18,6 @@ Feature: Screening models at each hospital
     And it holds the weights, standardization, run ID, when it was stored, the AUROC across hospitals and the local validation
     And it holds no threshold
 
-  Scenario: A screening model is never overwritten
-    Given the hospital stored the screening models of runs 11 and 12
-    When the hospital stores the screening model of run 11 again
-    Then storing it is refused
-    And "11.pt" is unchanged
-    And the hospital holds "11.pt" and "12.pt"
-
   Scenario: Local validation is a confusion matrix at each threshold, and AUROC
     When the hospital stores the screening model of run 11
     Then its local validation holds the four counts of its test split at each threshold from 0.05 to 0.95 in steps of 0.05

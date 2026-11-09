@@ -16,7 +16,6 @@ from django.db.models import Count, Q
 from ml.cohort import (
     CBC_VARS,
     ELIGIBLE_AGES,
-    ELIGIBLE_SEX,
     FEATURES,
     FERRITIN_CUTOFF,
     INFLAMED_FERRITIN_CUTOFF,
@@ -24,7 +23,7 @@ from ml.cohort import (
     iron_deficient,
 )
 from ml.training_cohort import remove_training_cohort, sha256, write_training_cohort
-from web.hospital.lab.models import screened_indications
+from web.hospital.lab.models import SCREENED_INDICATIONS
 from web.shared.accounts.models import User
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 
@@ -54,9 +53,9 @@ class LabRecordQuerySet(models.QuerySet["LabRecord"]):
 
     def _eligible_but_for_crp(self) -> LabRecordQuerySet:
         return self.filter(
-            registered_sex=RegisteredSex.of_nhanes(ELIGIBLE_SEX),
+            registered_sex=RegisteredSex.FEMALE,
             age__range=ELIGIBLE_AGES,
-            clinical_indication__in=screened_indications(),
+            clinical_indication__in=SCREENED_INDICATIONS,
             ferritin__isnull=False,
             cbc__has_keys=CBC_VARS,
         ).order_by("pk")
