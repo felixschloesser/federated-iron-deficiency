@@ -2,7 +2,7 @@
 # screening model, so it gets only the `web` dependency group (no PyTorch,
 # Flower or W&B) and only the practice's and the shared Django apps
 # (tests/quality/security/test_running_containers.py checks this).
-FROM python:3.13-slim
+FROM python:3.13.18-slim
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/
 RUN useradd --uid 1000 --create-home app && install -d -o app /app /data /opt/venv
 WORKDIR /app

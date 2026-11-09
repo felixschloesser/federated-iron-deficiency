@@ -2,7 +2,7 @@
 # apps, plus the training package (PyTorch) whose final models it keeps.
 # No other party's code
 # (tests/quality/security/test_running_containers.py checks this).
-FROM python:3.13-slim
+FROM python:3.13.18-slim
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/
 # Empty folders for this party's data. compose mounts a new volume on /data,
 # and Docker copies these folders into it, owned by app.
