@@ -48,11 +48,14 @@ class ScreeningModelsService(messages_pb2_grpc.ScreeningModelsServicer):
             )
             is not None
         ]
-        Release.objects.record_fetched(
-            recipient=recipient,
-            run_ids=[str(model.run_id) for model in offered],
-            now=timezone.now(),
-        )
+        # Only a hospital still waiting gets the reply. One lost after this check
+        # is still recorded; the hospital's held list then has it sent again.
+        if context.is_active():
+            Release.objects.record_fetched(
+                recipient=recipient,
+                run_ids=[str(model.run_id) for model in offered],
+                now=timezone.now(),
+            )
         return messages_pb2.FetchNewScreeningModelsResponse(screening_models=offered)
 
 
