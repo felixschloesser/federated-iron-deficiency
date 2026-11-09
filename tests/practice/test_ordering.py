@@ -341,18 +341,16 @@ def second_sample_same_id(world: World) -> None:
         world["integrity_error"] = error
 
 
-STOCKED = re.compile(r'"(?P<value>\d+)" \((?P<sex>\w+), (?P<age>\d+)\)')
-
-
 @given(parsers.re(r"the practice's stock of sample IDs holds only (?P<stock>.+)$"))
 def stock_holds_only(stock: str) -> None:
     SampleId.objects.unused().delete()
-    for match in STOCKED.finditer(stock):
-        SampleId.objects.create(
-            value=match["value"],
-            registered_sex=RegisteredSex(match["sex"]),
-            age=int(match["age"]),
-        )
+    for value in re.findall(r'"(\d+)"', stock):
+        SampleId.objects.create(value=value)
+
+
+@given("the practice's stock of sample IDs is used up")
+def stock_used_up() -> None:
+    SampleId.objects.unused().delete()
 
 
 @then(

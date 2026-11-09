@@ -33,21 +33,21 @@ def make_general_practitioner(name: str) -> "User":
 
 
 def make_patient(name: str, sex: "RegisteredSex", age: int) -> "Patient":
-    """A patient of the practice, and three sample IDs of the patient's registered
-    sex and age in its stock, as the demo seeds three for each patient."""
+    """A patient of the practice, and three more sample IDs in its stock, as the
+    demo seeds three for each patient."""
     from web.practice.models import Patient
 
-    stock_sample_ids(3, sex, age)
+    stock_sample_ids(3)
     return Patient.objects.create(name=name, registered_sex=sex, age=age)
 
 
-def stock_sample_ids(count: int, sex: "RegisteredSex", age: int) -> list[str]:
-    """Add `count` new sample IDs of this registered sex and age to the stock."""
+def stock_sample_ids(count: int) -> list[str]:
+    """Add `count` new sample IDs to the stock."""
     from web.practice.models import SampleId
 
     first = 100001 + SampleId.objects.count()
     return [
-        SampleId.objects.create(value=str(number), registered_sex=sex, age=age).value
+        SampleId.objects.create(value=str(number)).value
         for number in range(first, first + count)
     ]
 

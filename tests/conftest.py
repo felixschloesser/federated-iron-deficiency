@@ -63,8 +63,9 @@ UNMEASURED = ("Female", 40, None)
 
 
 def nhanes_rows() -> "pd.DataFrame":
-    """Ten participants per group, so the seed has to choose even a practice's
-    stock of sample IDs (three for each of 12 patients: nine per group)."""
+    """Twenty participants per group, so the seed has to choose even a
+    practice's stock of sample IDs (three for each of 12 patients: 36 of the 40
+    eligible women with ferritin)."""
     import pandas as pd
 
     rows = [
@@ -77,7 +78,7 @@ def nhanes_rows() -> "pd.DataFrame":
             "CRP": None if ferritin is None else 1.0,
         }
         for group, (sex, age, ferritin) in enumerate([*PEOPLE, UNMEASURED])
-        for copy in range(10)
+        for copy in range(20)
     ]
     return pd.DataFrame(rows)
 

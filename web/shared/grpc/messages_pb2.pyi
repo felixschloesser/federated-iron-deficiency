@@ -116,7 +116,6 @@ class _ResultNameEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_ResultName
     RESULT_NAME_SEGMENTED_NEUTROPHILS_NUMBER: _ResultName.ValueType  # 12
     RESULT_NAME_MONOCYTE_NUMBER: _ResultName.ValueType  # 13
     RESULT_NAME_FERRITIN: _ResultName.ValueType  # 14
-    RESULT_NAME_MADE_UP_FERRITIN: _ResultName.ValueType  # 15
 
 class ResultName(_ResultName, metaclass=_ResultNameEnumTypeWrapper): ...
 
@@ -135,7 +134,6 @@ RESULT_NAME_LYMPHOCYTE_NUMBER: ResultName.ValueType  # 11
 RESULT_NAME_SEGMENTED_NEUTROPHILS_NUMBER: ResultName.ValueType  # 12
 RESULT_NAME_MONOCYTE_NUMBER: ResultName.ValueType  # 13
 RESULT_NAME_FERRITIN: ResultName.ValueType  # 14
-RESULT_NAME_MADE_UP_FERRITIN: ResultName.ValueType  # 15
 Global___ResultName: _TypeAlias = ResultName  # noqa: Y015
 
 @_typing.final

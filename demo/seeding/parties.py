@@ -61,13 +61,11 @@ def seed_hospital(rows: Rows) -> list[str]:
     user(LABORATORY_STAFF, Role.LABORATORY_STAFF)
     user(LABORATORY_DIRECTOR, Role.LABORATORY_DIRECTOR)
     for row in rows:
-        ferritin, made_up = row["LBXFER"], row["made_up_ferritin"]
         Participant.objects.get_or_create(
             seqn=int(row["sample_id"]),
             defaults={
                 "cbc": {var: float(row[var]) for var in CBC_VARS},
-                "ferritin": measured(ferritin),
-                "made_up_ferritin": measured(made_up),
+                "ferritin": float(row["LBXFER"]),
             },
         )
     user("no-role", None)  # Has no role: for the refusal at login.
@@ -75,25 +73,21 @@ def seed_hospital(rows: Rows) -> list[str]:
 
 
 @transaction.atomic
-def seed_practice(rows: Rows) -> list[str]:
-    """The practice's general practitioner, its stock of sample IDs (the chosen
-    participants' numbers, registered sex and age), and, once, a patient for each
-    participant marked a patient."""
+def seed_practice(sample_ids: Rows, patients: Rows) -> list[str]:
+    """The practice's general practitioner, its stock of sample IDs in the order
+    drawn, and, once, its patients, each named after their NHANES number."""
     from web.practice.models import Patient, SampleId
 
     user(GENERAL_PRACTITIONER, Role.GENERAL_PRACTITIONER)
-    seed_patients = not Patient.objects.exists()
-    for row in rows:
-        seqn = int(row["sample_id"])
-        sex = RegisteredSex.of_nhanes(str(row["sex"]))
-        age = int(float(row["age"]))
-        SampleId.objects.get_or_create(
-            value=str(seqn), defaults={"registered_sex": sex, "age": age}
-        )
-        # A CSV says True as text, a table as a bool.
-        if seed_patients and str(row["patient"]) == "True":
+    for row in sample_ids:
+        SampleId.objects.get_or_create(value=str(int(row["sample_id"])))
+    if not Patient.objects.exists():
+        for row in patients:
+            sex = RegisteredSex.of_nhanes(str(row["sex"]))
             Patient.objects.create(
-                name=patient_name(seqn, sex), registered_sex=sex, age=age
+                name=patient_name(int(row["seqn"]), sex),
+                registered_sex=sex,
+                age=int(float(row["age"])),
             )
     user("no-role", None)
     return [GENERAL_PRACTITIONER]

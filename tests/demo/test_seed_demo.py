@@ -54,8 +54,13 @@ def test_the_hospitals_analyser_holds_a_tube_for_every_sample_id_of_the_practice
         ["--rows", str(extracts_hospital / "participants.csv")]
         + ["--lab-records", str(extracts_hospital / "lab-records.csv")],
     )
-    seed("practice", practice, ["--rows", str(extracts_practice / "sample-ids.csv")])
+    seed(
+        "practice",
+        practice,
+        ["--sample-ids", str(extracts_practice / "sample-ids.csv")]
+        + ["--patients", str(extracts_practice / "patients.csv")],
+    )
     tubes = column(hospital, "SELECT seqn FROM analyser_participant")
     sample_ids = column(practice, "SELECT value FROM practice_sampleid")
     assert tubes
-    assert sample_ids == tubes
+    assert set(sample_ids) <= set(tubes)

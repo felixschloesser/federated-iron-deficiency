@@ -62,7 +62,7 @@ def sends(practice: str, sample_id: str) -> None:
     )
 )
 def released(name: str, sample_id: str, practice: str, tmp_path: Path) -> None:
-    Participant.objects.create(seqn=int(sample_id), cbc={})
+    Participant.objects.create(seqn=int(sample_id), cbc={}, ferritin=40.0)
     receive(practice, sample_id, OrderedTest.FERRITIN).run_analyser(
         directory=tmp_path, now=NOW
     )

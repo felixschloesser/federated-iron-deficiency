@@ -54,18 +54,18 @@ Feature: Collecting a sample and ordering tests on it
   Scenario: A collected sample is the patient's, collected at the current time
     Then the sample is sample 1 of "Test Patient 1", collected at the current time
 
-  Scenario: A sample takes the unused sample ID of the patient's sex nearest in age
-    Given the practice's stock of sample IDs holds only "200001" (female, 50), "200002" (female, 34) and "200003" (male, 32)
+  Scenario: A sample takes the stock's next unused sample ID
+    Given the practice's stock of sample IDs holds only "200001" and "200002"
     When "Dr. Demo A" collects a sample from "Test Patient 1"
-    Then the sample is sample 2 of "Test Patient 1", with sample ID "200002"
+    Then the sample is sample 2 of "Test Patient 1", with sample ID "200001"
 
   Scenario: A patient's samples carry different sample IDs
     When "Dr. Demo A" collects a sample from "Test Patient 1"
     Then the sample is sample 2 of "Test Patient 1", collected at the current time
     And the samples of "Test Patient 1" carry different sample IDs
 
-  Scenario: Without a sample ID left for the patient collecting is refused
-    Given the practice's stock of sample IDs holds only "200003" (male, 32)
+  Scenario: Without a sample ID left collecting is refused
+    Given the practice's stock of sample IDs is used up
     When "Dr. Demo A" collects a sample from "Test Patient 1"
     Then the collection is refused with code "no_sample_id" on field "sample_id"
 

@@ -62,7 +62,7 @@ HOSPITAL_SETUP = (
 )
 PRACTICE_SETUP = (
     "python manage.py migrate -v0"
-    " && python -m demo.seed practice --rows /nhanes/sample-ids.csv"
+    " && python -m demo.seed practice --sample-ids /nhanes/sample-ids.csv --patients /nhanes/patients.csv"
     f" && python manage.py add_laboratory 'AZ Diest' {APP_HOSPITAL}-grpc:8441 --primary"
 )
 
@@ -260,14 +260,13 @@ def set_up(compose: Compose, party: str) -> None:
 
 def write_nhanes_extracts(folder: Path) -> None:
     """Small NHANES extracts for every party, as nhanes-download writes them
-    (demo/nhanes.py), so no test downloads: every practice's stock of sample IDs,
-    and each hospital's analyser stand-in measuring them all."""
-    from demo.seeding.participants import stock, with_made_up_ferritin
+    (demo/nhanes.py), so no test downloads: each hospital's analyser stand-in
+    holding the pool, and every practice's stock of sample IDs drawn from it."""
+    from demo.seeding.participants import patients, pool, stock
     from tests.conftest import nhanes_rows
 
     rows = nhanes_rows()
-    sample_ids = stock(rows, seed=0)
-    participants = with_made_up_ferritin(sample_ids, rows)
+    participants = pool(rows)
     records = rows.dropna(subset=["LBXFER"]).assign(pregnant=False)
     for slug in HOSPITAL_SLUGS:
         (folder / slug).mkdir(parents=True, exist_ok=True)
@@ -275,9 +274,8 @@ def write_nhanes_extracts(folder: Path) -> None:
         records.to_csv(folder / slug / "lab-records.csv", index=False)
     for slug in PRACTICE_SLUGS:
         (folder / slug).mkdir(parents=True, exist_ok=True)
-        sample_ids[["sample_id", "sex", "age", "patient"]].to_csv(
-            folder / slug / "sample-ids.csv", index=False
-        )
+        stock(rows, seed=0).to_csv(folder / slug / "sample-ids.csv", index=False)
+        patients(rows, seed=0).to_csv(folder / slug / "patients.csv", index=False)
 
 
 def in_party(compose: Compose, service: str, script: str) -> str:

@@ -1,8 +1,10 @@
-"""Which NHANES participants the demo seeds, and their made-up parts.
+"""Which NHANES 2021–2023 participants the demo seeds.
 
-Each party seeds the same participants for the same seed: the practice its stock
-of sample IDs (their numbers) and its patients (some of them), the hospital what
-its analyser measures for each sample ID (demo/seeding/parties.py)."""
+Every hospital's analyser stand-in holds the same pool: women aged 18–49 with a
+complete CBC and a measured ferritin, the people the screening is for. A
+practice's stock of sample IDs is a seeded draw of the pool's numbers, so each
+sample carries the blood of the participant its sample ID names. Its patients
+are drawn apart, from every group, so every screening outcome can be shown."""
 
 import enum
 from typing import assert_never
@@ -60,21 +62,19 @@ def choose(rows: pd.DataFrame, seed: int, patients: int = PATIENTS) -> pd.DataFr
     )
 
 
+def pool(rows: pd.DataFrame) -> pd.DataFrame:
+    """The participants every hospital's analyser stand-in holds."""
+    return rows[eligible(rows["sex"], rows["age"]) & rows["LBXFER"].notna()]
+
+
 def stock(rows: pd.DataFrame, seed: int, patients: int = PATIENTS) -> pd.DataFrame:
-    """A practice's stock of sample IDs: SAMPLE_IDS_PER_PATIENT participants for
-    each patient, drawn as choose() draws, so they hold the `patients` participants
-    choose() would give, marked `patient`: a patient's first sample usually
-    carries their own participant's blood."""
-    chosen = choose(rows, seed, patients * SAMPLE_IDS_PER_PATIENT)
-    patient_ids = set(choose(rows, seed, patients)["sample_id"])
-    return chosen.assign(patient=chosen["sample_id"].isin(patient_ids))
+    """A practice's stock of sample IDs: SAMPLE_IDS_PER_PATIENT numbers of the
+    pool for each patient, the same for the same seed, in the order drawn."""
+    drawn = pool(rows).sample(n=patients * SAMPLE_IDS_PER_PATIENT, random_state=seed)
+    return drawn[["sample_id"]]
 
 
-def with_made_up_ferritin(chosen: pd.DataFrame, nhanes: pd.DataFrame) -> pd.DataFrame:
-    """Add a made-up ferritin for each chosen participant NHANES did not measure
-    (it measured women aged 12–49 only): the measured ferritin of an eligible woman
-    not iron deficient, picked by sample ID so it is the same on every seed."""
-    measured = nhanes[Group.NOT_IRON_DEFICIENT.selects(nhanes)]
-    pool = measured.sort_values("sample_id")["LBXFER"].to_list()
-    made_up = chosen["sample_id"].map(lambda seqn: pool[int(seqn) % len(pool)])
-    return chosen.assign(made_up_ferritin=made_up.where(chosen["LBXFER"].isna()))
+def patients(rows: pd.DataFrame, seed: int, count: int = PATIENTS) -> pd.DataFrame:
+    """A practice's patients: their NHANES number (for a name), sex and age."""
+    chosen = choose(rows, seed, count)
+    return chosen.rename(columns={"sample_id": "seqn"})[["seqn", "sex", "age"]]

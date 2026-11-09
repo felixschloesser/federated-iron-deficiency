@@ -351,7 +351,7 @@ services:
       - -c
       - >-
         python manage.py migrate -v0
-        && python -m demo.seed practice --rows /nhanes/sample-ids.csv
+        && python -m demo.seed practice --sample-ids /nhanes/sample-ids.csv --patients /nhanes/patients.csv
         && python manage.py add_laboratory 'UZ Leuven' uz-leuven-grpc:8441 --primary
         && python manage.py add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-grpc:8441
         && python manage.py add_laboratory 'AZ Diest' az-diest-grpc:8441
@@ -379,7 +379,7 @@ services:
       - -c
       - >-
         python manage.py migrate -v0
-        && python -m demo.seed practice --rows /nhanes/sample-ids.csv
+        && python -m demo.seed practice --sample-ids /nhanes/sample-ids.csv --patients /nhanes/patients.csv
         && python manage.py add_laboratory 'UZ Leuven' uz-leuven-grpc:8441
         && python manage.py add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-grpc:8441 --primary
         && python manage.py add_laboratory 'AZ Diest' az-diest-grpc:8441
@@ -406,7 +406,7 @@ services:
       - -c
       - >-
         python manage.py migrate -v0
-        && python -m demo.seed practice --rows /nhanes/sample-ids.csv
+        && python -m demo.seed practice --sample-ids /nhanes/sample-ids.csv --patients /nhanes/patients.csv
         && python manage.py add_laboratory 'UZ Leuven' uz-leuven-grpc:8441
         && python manage.py add_laboratory 'Heilig Hart Leuven' heilig-hart-leuven-grpc:8441
         && python manage.py add_laboratory 'AZ Diest' az-diest-grpc:8441 --primary

@@ -169,7 +169,6 @@ def test_every_cbc_value_and_ferritin_has_a_name_in_cbc_order() -> None:
     assert [name.value for name in ResultName] == [
         *CBC_VARS,
         "LBXFER",
-        "MADE_UP_LBXFER",
     ]
 
 

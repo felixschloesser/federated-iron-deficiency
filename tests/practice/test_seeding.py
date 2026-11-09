@@ -1,6 +1,5 @@
-"""The practice's demo data (python -m demo.seed practice): its general practitioner, its
-stock of sample IDs, and a patient, with a made-up name, for each participant of
-the stock marked a patient."""
+"""The practice's demo data (python -m demo.seed practice): its general
+practitioner, its stock of sample IDs, and its patients, with made-up names."""
 
 from pathlib import Path
 
@@ -25,7 +24,13 @@ def extract(settings: Settings, tmp_path: Path) -> list[str]:
     in development."""
     settings.DEBUG = True
     _, practice = write_extracts(tmp_path)
-    return ["practice", "--rows", str(practice / "sample-ids.csv")]
+    return [
+        "practice",
+        "--sample-ids",
+        str(practice / "sample-ids.csv"),
+        "--patients",
+        str(practice / "patients.csv"),
+    ]
 
 
 @pytest.fixture
@@ -49,20 +54,15 @@ def test_seeds_three_patients_of_each_group_from_nhanes(seeded: None) -> None:
         assert (patient.registered_sex, patient.age) in seeded_people
 
 
-def test_seeds_three_sample_ids_for_each_patient_holding_its_participant(
+def test_seeds_three_sample_ids_for_each_patient_from_the_hospitals_pool(
     seeded: None,
 ) -> None:
-    """The stock holds each patient's own participant, so a patient's first sample
-    usually carries that participant's blood (demo/seeding/participants.py)."""
-    rows = nhanes_rows().set_index("sample_id")
-    assert SampleId.objects.count() == 3 * Patient.objects.count()
-    for sample_id in SampleId.objects.all():
-        row = rows.loc[int(sample_id.value)]
-        assert sample_id.registered_sex == str(row["sex"]).lower()
-        assert sample_id.age == row["age"]
-    patients = seeding.choose(nhanes_rows(), seed=0)
-    stocked = set(SampleId.objects.values_list("value", flat=True))
-    assert {str(seqn) for seqn in patients["sample_id"]} <= stocked
+    """Every sample ID names a participant the hospitals' analyser holds
+    (demo/seeding/participants.py)."""
+    pool = {str(seqn) for seqn in seeding.pool(nhanes_rows())["sample_id"]}
+    stocked = list(SampleId.objects.values_list("value", flat=True))
+    assert len(stocked) == 3 * Patient.objects.count()
+    assert set(stocked) <= pool
 
 
 def test_running_twice_changes_nothing(seeded: None, extract: list[str]) -> None:
@@ -104,10 +104,16 @@ def test_seeds_from_nhanes_downloads_extract(
     (demo/nhanes.py)."""
     settings.DEBUG = True
     rows = nhanes_rows().astype({"age": float})
-    extract = tmp_path / "sample-ids.csv"
-    seeding.stock(rows, seed=0)[["sample_id", "sex", "age", "patient"]].to_csv(
-        extract, index=False
+    seeding.stock(rows, seed=0).to_csv(tmp_path / "sample-ids.csv", index=False)
+    seeding.patients(rows, seed=0).to_csv(tmp_path / "patients.csv", index=False)
+    main(
+        [
+            "practice",
+            "--sample-ids",
+            str(tmp_path / "sample-ids.csv"),
+            "--patients",
+            str(tmp_path / "patients.csv"),
+        ]
     )
-    main(["practice", "--rows", str(extract)])
     assert Patient.objects.count() == 3 * len(PEOPLE)
     assert set(Patient.objects.values_list("age", flat=True)) <= {30, 25, 35, 70}

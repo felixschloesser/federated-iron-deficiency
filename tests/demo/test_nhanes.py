@@ -20,7 +20,8 @@ PEOPLE = [
 
 
 def participants_2021_2023() -> pd.DataFrame:
-    """Enough of each kind of patient for the largest practice to choose from."""
+    """Enough of each kind of patient for the largest practice: 40 patients and a
+    stock of 120 sample IDs from the pool's 140 eligible women."""
     return pd.DataFrame(
         [
             {
@@ -32,7 +33,7 @@ def participants_2021_2023() -> pd.DataFrame:
                 "CRP": None if ferritin is None else 1.0,
             }
             for group, (sex, age, ferritin) in enumerate(PEOPLE)
-            for copy in range(30)
+            for copy in range(70)
         ]
     )
 
@@ -53,7 +54,7 @@ def lab_records(cycle: str) -> pd.DataFrame:
 def test_each_party_gets_only_its_own_extracts() -> None:
     files = nhanes.extracts(PAIRS, lab_records, participants_2021_2023())
     assert sorted(files) == sorted(nhanes.expected(PAIRS))
-    patients = {}
+    stocks = {}
     for pair in PAIRS:
         hospital, practice, cycle = pair.hospital, pair.practice, pair.cycle
         assert {path.name for path in files if path.parent.name == hospital} == {
@@ -61,20 +62,26 @@ def test_each_party_gets_only_its_own_extracts() -> None:
             "participants.csv",
         }
         assert {path.name for path in files if path.parent.name == practice} == {
-            "sample-ids.csv"
+            "sample-ids.csv",
+            "patients.csv",
         }
         assert files[Path(hospital, "lab-records.csv")]["cycle"].tolist() == [cycle]
         stock = files[Path(practice, "sample-ids.csv")]
-        # Only what the stock says: no blood values reach the practice.
-        assert list(stock.columns) == ["sample_id", "sex", "age", "patient"]
+        # No blood values reach the practice.
+        assert list(stock.columns) == ["sample_id"]
         assert len(stock) == SAMPLE_IDS_PER_PATIENT * pair.patients
-        assert stock["patient"].sum() == pair.patients
-        patients[practice] = stock
+        assert list(files[Path(practice, "patients.csv")].columns) == [
+            "seqn",
+            "sex",
+            "age",
+        ]
+        assert len(files[Path(practice, "patients.csv")]) == pair.patients
+        stocks[practice] = stock
     # Each hospital's analyser holds a tube for every practice's sample IDs.
-    every = set().union(*(set(rows["sample_id"]) for rows in patients.values()))
+    every = set().union(*(set(rows["sample_id"]) for rows in stocks.values()))
     for pair in PAIRS:
         held = files[Path(pair.hospital, "participants.csv")]
-        assert set(held["sample_id"]) == every
+        assert every <= set(held["sample_id"])
 
 
 def test_extracts_made_by_the_same_code_are_kept(
