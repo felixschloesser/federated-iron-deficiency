@@ -276,11 +276,13 @@ def test_a_lab_report_the_app_cannot_match_does_not_block_the_others(
     assert stranger not in fake_laboratory.laboratory.acknowledged
 
 
-# Each part of a lab report, from its descriptor, so a new part is covered too.
+# Each part of a lab report the practice stores or finds its order by, from its
+# descriptor, so a new part is covered too. The report ID only addresses the
+# acknowledgement.
 PARTS = [
     field.name
     for field in messages_pb2.LabReport.DESCRIPTOR.fields
-    if not field.is_repeated
+    if not field.is_repeated and field.name != "report_id"
 ]
 
 
@@ -288,8 +290,8 @@ PARTS = [
 def test_a_lab_report_missing_any_part_is_not_stored(
     practice: Laboratory, fake_laboratory: Running, part: str
 ) -> None:
-    """A lab report is complete or not stored (messages.proto): the practice
-    never fills a part the hospital left out, such as no ferritin suggestion."""
+    """A lab report is complete or not stored: the practice's fields never fill a
+    part the hospital left out, such as no ferritin suggestion."""
     placed, report_id = released_ferritin(fake_laboratory.laboratory)
     full = fake_laboratory.laboratory.reports[report_id]
     fake_laboratory.laboratory.reports[report_id] = messages_pb2.LabReport(

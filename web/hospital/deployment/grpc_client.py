@@ -1,6 +1,6 @@
-"""A final model enters the hospital only when its laboratory director fetches
-new final models: the hospital's own code asks the startup's final-models
-endpoint, saying which final models it holds, and stores each with its local
+"""A screening model enters the hospital only when its laboratory director
+fetches new screening models: the hospital's own code asks the startup's
+screening-models endpoint, saying which screening models it holds, and stores each with its local
 validation (model_files.py) (web/shared/grpc/messages.proto,
 features/hospital/fetch.feature). The startup's code at the hospital writes
 nothing here."""
@@ -10,12 +10,11 @@ from datetime import datetime
 
 import grpc
 import pandas as pd
-import protovalidate
 import torch
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-from ml.final_model import final_model_paths, weights_from_bytes
+from ml.final_model import model_file_paths, weights_from_bytes
 from ml.training_cohort import (
     TrainingCohortUnavailable,
     read_training_cohort,
@@ -37,8 +36,8 @@ def unreachable(error: grpc.RpcError) -> bool:
 
 
 @dataclass(frozen=True)
-class OfferedFinalModel:
-    """A final model as the startup sends it (DF37), every part present and its
+class OfferedScreeningModel:
+    """A screening model as the startup sends it (DF37), every part present and its
     weights read."""
 
     run_id: int
@@ -46,23 +45,25 @@ class OfferedFinalModel:
     federated_auroc: float
 
 
-def offered_final_model(message: messages_pb2.FinalModel) -> OfferedFinalModel | None:
-    """The final model a message holds; None if it breaks the contract or its
+def offered_screening_model(
+    message: messages_pb2.ScreeningModel,
+) -> OfferedScreeningModel | None:
+    """The screening model a message holds; None if it leaves a part out or its
     weights are unreadable or do not fit the network."""
-    if protovalidate.collect_violations(message):
+    if not message.run_id or not message.HasField("federated_auroc"):
         return None
     state_dict = weights_from_bytes(message.weights)
     if state_dict is None:
         return None
-    return OfferedFinalModel(
+    return OfferedScreeningModel(
         run_id=message.run_id,
         state_dict=state_dict,
         federated_auroc=message.federated_auroc,
     )
 
 
-def fetch_final_models(*, now: datetime) -> list[int]:
-    """Fetch the released final models this hospital does not hold, telling the
+def fetch_screening_models(*, now: datetime) -> list[int]:
+    """Fetch the screening models this hospital does not hold, telling the
     startup which it holds, validate each complete one on the training cohort its laboratory
     director provided and store it; the run IDs stored. One the hospital holds
     other weights for is never overwritten. Raises TrainingCohortUnavailable,
@@ -79,17 +80,17 @@ def fetch_final_models(*, now: datetime) -> list[int]:
     if not training_cohorts(cohort_dir):
         raise TrainingCohortUnavailable("No training cohort to validate on.")
     with grpc.insecure_channel(address) as channel:
-        startup = messages_pb2_grpc.FinalModelsStub(channel)
-        held = [int(path.stem) for path in final_model_paths(directory)]
-        offered = startup.FetchNewFinalModels(
-            messages_pb2.NewFinalModelsRequest(held_run_ids=held),
+        startup = messages_pb2_grpc.ScreeningModelsStub(channel)
+        held = [int(path.stem) for path in model_file_paths(directory)]
+        offered = startup.FetchNewScreeningModels(
+            messages_pb2.NewScreeningModelsRequest(held_run_ids=held),
             timeout=TIMEOUT_SECONDS,
             metadata=metadata,
-        ).final_models
+        ).screening_models
         cohort: pd.DataFrame | None = None
         stored = []
         for message in offered:
-            model = offered_final_model(message)
+            model = offered_screening_model(message)
             if model is None:
                 continue
             if cohort is None:

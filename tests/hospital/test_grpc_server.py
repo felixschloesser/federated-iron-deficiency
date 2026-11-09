@@ -61,7 +61,7 @@ def lab_order(**fields: Any) -> messages_pb2.LabOrder:
 def violations(refused: grpc.RpcError) -> list[tuple[str, str]]:
     """A rejected lab order's reasons (WHO LQMS 5-4, p. 66), as the practice
     reads them: INVALID_ARGUMENT with google.rpc.BadRequest field violations,
-    each with its rule as the reason and a description to show."""
+    each with the model's error code as the reason and a description to show."""
     import google.rpc.error_details_pb2 as rpc_details
     from grpc_status import rpc_status
 
@@ -100,43 +100,48 @@ def test_a_lab_order_is_recorded_as_sent(
     assert test_request.sample.practice.name == "De Ceder"
 
 
-def test_a_lab_order_without_a_test_is_refused(
-    endpoint: messages_pb2_grpc.LaboratoryStub,
+# Every part of a lab order but its clinical indication, which ferritin takes
+# none of, from the descriptor, so a new part is covered too.
+PARTS = [
+    field.name
+    for field in messages_pb2.LabOrder.DESCRIPTOR.fields
+    if field.name != "clinical_indication"
+]
+
+
+@pytest.mark.parametrize("part", PARTS)
+def test_a_lab_order_missing_any_part_is_refused(
+    endpoint: messages_pb2_grpc.LaboratoryStub, part: str
 ) -> None:
-    """The contract requires every part but the clinical indication."""
-    refused = refusal(
-        endpoint.SendLabOrder, lab_order(test=messages_pb2.TEST_UNSPECIFIED)
+    """The hospital's models require every part; no age is not age 0."""
+    full = lab_order()
+    order = messages_pb2.LabOrder(
+        **{
+            field.name: getattr(full, field.name)
+            for field in full.DESCRIPTOR.fields
+            if field.name != part
+        }
     )
-    assert violations(refused) == [("test", "required")]
-    assert not TestRequest.objects.exists()
-
-
-def test_a_lab_order_without_an_age_is_refused(
-    endpoint: messages_pb2_grpc.LaboratoryStub,
-) -> None:
-    """No age is not age 0: the hospital refuses it rather than screen a newborn."""
-    order = lab_order()
-    order.ClearField("age")
     refused = refusal(endpoint.SendLabOrder, order)
-    assert violations(refused) == [("age", "required")]
+    assert [field for field, _ in violations(refused)] == [part]
     assert not TestRequest.objects.exists()
 
 
 def test_a_lab_order_for_a_test_the_contract_lacks_is_refused(
     endpoint: messages_pb2_grpc.LaboratoryStub,
 ) -> None:
-    """A number the Test enum does not name is no test (protovalidate)."""
+    """A number the Test enum does not name is no test."""
     refused = refusal(endpoint.SendLabOrder, lab_order(test=99))
-    assert violations(refused) == [("test", "enum.defined_only")]
+    assert violations(refused) == [("test", "invalid_choice")]
     assert not TestRequest.objects.exists()
 
 
 def test_a_lab_order_with_a_sample_id_too_long_is_refused(
     endpoint: messages_pb2_grpc.LaboratoryStub,
 ) -> None:
-    """The contract, not a form behind it, says what a sample ID may be."""
+    """The sample's model says what a sample ID may be."""
     refused = refusal(endpoint.SendLabOrder, lab_order(sample_id="1" * 21))
-    assert violations(refused) == [("sample_id", "string.max_len")]
+    assert violations(refused) == [("sample_id", "max_length")]
     assert not TestRequest.objects.exists()
 
 

@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import grpc
-import protovalidate
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from google.protobuf.empty_pb2 import Empty
 
 from web.practice.models import Laboratory, LabReport, Order
@@ -16,6 +16,7 @@ from web.shared.grpc import messages_pb2, messages_pb2_grpc
 from web.shared.grpc.convert import from_proto, moment, timestamp, to_proto
 from web.shared.grpc.identity import calling_as
 from web.shared.grpc.rejection import reason_for_rejection
+from web.shared.parsing import parsed
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 TIMEOUT_SECONDS = 10
@@ -116,11 +117,10 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
         reports = endpoint.FetchNewLabReports(
             Empty(), timeout=TIMEOUT_SECONDS, metadata=metadata
         ).reports
-        received = [received_lab_report(report) for report in reports]
         stored = [
             report.report_id
-            for report in received
-            if report is not None and _store(report, laboratory, now=now)
+            for report in reports
+            if _store(report, laboratory, now=now)
         ]
         if stored:
             endpoint.AcknowledgeLabReports(
@@ -131,56 +131,41 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
     return len(stored)
 
 
-@dataclass(frozen=True)
-class ReceivedLabReport:
-    """A lab report as the hospital sent it, every part present (DF25)."""
-
-    report_id: int
-    sample_id: str
-    test: Test
-    results: dict[str, float]
-    released_at: datetime
-    ferritin_suggested: bool
-
-
-def received_lab_report(report: messages_pb2.LabReport) -> ReceivedLabReport | None:
-    """The lab report a message holds; None if it breaks the contract, so the
-    practice never fills a part the hospital left out."""
-    if protovalidate.collect_violations(report):
-        return None
-    return ReceivedLabReport(
-        report_id=report.report_id,
-        sample_id=report.sample_id,
-        test=from_proto(report.test, messages_pb2.Test, Test),
-        results=dict(report.results),
-        released_at=moment(report.released_at),
-        ferritin_suggested=report.ferritin_suggested,
-    )
-
-
-def _store(report: ReceivedLabReport, laboratory: Laboratory, *, now: datetime) -> bool:
+def _store(
+    report: messages_pb2.LabReport, laboratory: Laboratory, *, now: datetime
+) -> bool:
     """Store a lab report of one of this app's orders on a sample that went to this
-    laboratory; False if it matches none.
+    laboratory, as its fields parse it; False if it matches none, or a field
+    refuses a part, so the practice never fills a part the hospital left out.
 
-    The hospital is another party: a report that cannot be stored, or is
-    incomplete, stays unacknowledged instead of holding back the others, and a
-    laboratory reports only on the samples it was sent."""
+    The hospital is another party: a report that cannot be stored stays
+    unacknowledged instead of holding back the others, and a laboratory reports
+    only on the samples it was sent."""
     order = Order.objects.filter(
         sample__sample_id__value=report.sample_id,
         sample__laboratory=laboratory,
-        test=report.test,
+        test=from_proto(report.test, messages_pb2.Test, Test),
     ).first()
     if order is None:
         return False
-    LabReport.objects.get_or_create(
-        order=order,
-        defaults={
-            "results": report.results,
-            "ferritin_suggested": report.ferritin_suggested,
-            "released_at": report.released_at,
-            "fetched_at": now,
-        },
-    )
+    try:
+        values = parsed(
+            (
+                LabReport,
+                {
+                    "results": dict(report.results),
+                    "ferritin_suggested": report.ferritin_suggested
+                    if report.HasField("ferritin_suggested")
+                    else None,
+                    "released_at": moment(report.released_at)
+                    if report.HasField("released_at")
+                    else None,
+                },
+            )
+        )
+    except ValidationError:
+        return False
+    LabReport.objects.get_or_create(order=order, defaults=values | {"fetched_at": now})
     return True
 
 

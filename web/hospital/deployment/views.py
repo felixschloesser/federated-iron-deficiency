@@ -13,7 +13,7 @@ from django.views.generic import TemplateView
 
 from ml.training_cohort import TrainingCohortUnavailable
 from web.hospital.deployment.forms import DeployForm
-from web.hospital.deployment.grpc_client import fetch_final_models, unreachable
+from web.hospital.deployment.grpc_client import fetch_screening_models, unreachable
 from web.hospital.deployment.model_files import screening_models
 from web.hospital.deployment.models import Deployment, NoUsableModel
 from web.shared.accounts.mixins import RoleRequiredMixin
@@ -45,8 +45,8 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
             # Only a hospital that knows the startup's endpoint can fetch.
             "post_actions": [
                 {
-                    "url": reverse("deployment:fetch_final_models"),
-                    "label": "Fetch new final models",
+                    "url": reverse("deployment:fetch_screening_models"),
+                    "label": "Fetch new screening models",
                 }
             ]
             if settings.STARTUP_ADDRESS
@@ -54,19 +54,19 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
         }
 
 
-class FetchFinalModelsView(LaboratoryDirectorRequiredMixin, View):
-    """Fetches the startup's new final models, validated on this hospital's own
+class FetchScreeningModelsView(LaboratoryDirectorRequiredMixin, View):
+    """Fetches the startup's new screening models, validated on this hospital's own
     past patients, then back (features/hospital/fetch.feature)."""
 
     def post(self, request: HttpRequest) -> HttpResponse:
         if not settings.STARTUP_ADDRESS:
             raise Http404("This hospital knows no startup to fetch from.")
         try:
-            stored = fetch_final_models(now=timezone.now())
+            stored = fetch_screening_models(now=timezone.now())
         except TrainingCohortUnavailable:
             messages.error(
                 request,
-                "Provide the training cohort first: final models are validated on it.",
+                "Provide the training cohort first: screening models are validated on it.",
             )
         except grpc.RpcError as error:
             messages.error(
@@ -78,7 +78,7 @@ class FetchFinalModelsView(LaboratoryDirectorRequiredMixin, View):
         else:
             messages.success(
                 request,
-                f"{len(stored) or 'No'} new final model{'' if len(stored) == 1 else 's'}.",
+                f"{len(stored) or 'No'} new screening model{'' if len(stored) == 1 else 's'}.",
             )
         return redirect("deployment:screening_models")
 

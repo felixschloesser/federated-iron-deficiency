@@ -1,7 +1,7 @@
 """End to end through the running demo: a CBC from the practice to the laboratory
 and back through the proxy, as a browser; and a final model trained through the
-real Flower apps, released at the startup and fetched by the hospital's own web
-app, twice (features/final_model_journey.feature).
+real Flower apps, released at the startup and fetched as a screening model by
+the hospital's own web app, twice (features/screening_model_journey.feature).
 Every test here needs a Docker engine (tests/e2e/conftest.py)."""
 
 import json
@@ -119,7 +119,7 @@ def flower_running(compose: Compose, flower: None) -> None:
     wait_until_online(compose)
 
 
-@scenario("final_model_journey.feature", "Train, release, fetch, fetch again")
+@scenario("screening_model_journey.feature", "Train, release, fetch, fetch again")
 def test_train_release_fetch_fetch_again() -> None:
     pass
 
@@ -172,7 +172,7 @@ def flower_run(compose: Compose, configuration: str) -> str:
 
 
 def held(folder: str) -> str:
-    """Python printing the final models in `folder`: each file's name and SHA-256."""
+    """Python printing the model files in `folder`: each file's name and SHA-256."""
     return (
         "import hashlib, json; from pathlib import Path;"
         " print(json.dumps({path.name: hashlib.sha256(path.read_bytes()).hexdigest()"
@@ -245,18 +245,18 @@ Release.objects.release(
 )
 """
 
-# What the laboratory director's Fetch new final models runs, in AZ Diest's own
-# web app container, on the final-models network; the run IDs it stored.
-FETCH_FINAL_MODELS = """
+# What the laboratory director's Fetch new screening models runs, in AZ Diest's
+# own web app container, on the screening-models network; the run IDs it stored.
+FETCH_SCREENING_MODELS = """
 import json
 from django.utils import timezone
-from web.hospital.deployment.grpc_client import fetch_final_models
-print(json.dumps(fetch_final_models(now=timezone.now())))
+from web.hospital.deployment.grpc_client import fetch_screening_models
+print(json.dumps(fetch_screening_models(now=timezone.now())))
 """
 
 
 def stored_at(compose: Compose, hospital: str) -> dict[str, str]:
-    """The final models a hospital stored: each file's name and SHA-256."""
+    """The screening models a hospital stored: each file's name and SHA-256."""
     stored: dict[str, str] = json.loads(
         in_party(compose, f"{hospital}-web", held("/data/screening-models"))
     )
@@ -280,7 +280,7 @@ def none_yet(compose: Compose) -> None:
     assert stored_at(compose, APP_HOSPITAL) == {}
 
 
-@when(parsers.re("AZ Diest fetches new final models(?: again)?"))
+@when(parsers.re("AZ Diest fetches new screening models(?: again)?"))
 def hospital_fetches(compose: Compose, journey: dict[str, Any]) -> None:
     journey["before"] = stored_at(compose, APP_HOSPITAL)
     result = compose(
@@ -291,13 +291,13 @@ def hospital_fetches(compose: Compose, journey: dict[str, Any]) -> None:
         "manage.py",
         "shell",
         "-c",
-        FETCH_FINAL_MODELS,
+        FETCH_SCREENING_MODELS,
     )
     journey["fetched"] = json.loads(result.stdout.strip().splitlines()[-1])
 
 
 @then(
-    "AZ Diest stores the final model under the training run's ID, with its local"
+    "AZ Diest stores the screening model under the training run's ID, with its local"
     " validation"
 )
 def stored(compose: Compose, journey: dict[str, Any]) -> None:

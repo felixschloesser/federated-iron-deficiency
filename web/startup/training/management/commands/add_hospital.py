@@ -20,4 +20,6 @@ class Command(BaseCommand):
             recipient = Recipient.objects.add(name=options["name"])
         except ValidationError as error:
             raise CommandError("; ".join(error.messages)) from error
-        self.stdout.write(f"{recipient} may fetch released final models.")
+        self.stdout.write(
+            f"{recipient} may fetch released final models as screening models."
+        )

@@ -12,7 +12,7 @@ from pytest_django.fixtures import Settings
 
 from ml.cohort import FEATURES
 from tests.conftest import World
-from tests.hospital.conftest import make_laboratory_staff_member, write_final_model
+from tests.hospital.conftest import make_laboratory_staff_member, write_screening_model
 
 NOW = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
 pytestmark = pytest.mark.django_db
@@ -83,7 +83,7 @@ def write(world: World, run_id: str) -> None:
     """(Re)write a screening model's file from what the scenario gave of it."""
     path = world["screening_models_dir"] / f"{run_id}.pt"
     path.unlink(missing_ok=True)
-    write_final_model(
+    write_screening_model(
         path.parent,
         run_id,
         world["validation"][run_id],
@@ -182,7 +182,7 @@ NOT_WHOLE: dict[str, tuple[tuple[str, ...], int]] = {
 
 
 @given(parsers.parse('screening model "{run_id}" that {problem}'))
-def broken_final_model(world: World, run_id: str, problem: str) -> None:
+def broken_screening_model(world: World, run_id: str, problem: str) -> None:
     path = world["screening_models_dir"] / f"{run_id}.pt"
     if problem == "has no file":
         return
@@ -190,7 +190,7 @@ def broken_final_model(world: World, run_id: str, problem: str) -> None:
         path.write_bytes(b"not a model")
         return
     leave_out, n_features = NOT_WHOLE[problem]
-    write_final_model(
+    write_screening_model(
         path.parent,
         run_id,
         world["validation"]["1"],

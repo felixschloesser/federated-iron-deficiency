@@ -22,12 +22,11 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1eweb/shared/grpc/messages.proto\x12\x12iron_deficiency.v1\x1a\x1b\x62uf/validate/validate.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x02\n\x08LabOrder\x12\x1d\n\tsample_id\x18\x01 \x01(\tB\n\xbaH\x07r\x02\x18\x14\xc8\x01\x01\x12\x33\n\x04test\x18\x02 \x01(\x0e\x32\x18.iron_deficiency.v1.TestB\x0b\xbaH\x08\x82\x01\x02\x10\x01\xc8\x01\x01\x12M\n\x13\x63linical_indication\x18\x03 \x01(\x0e\x32&.iron_deficiency.v1.ClinicalIndicationB\x08\xbaH\x05\x82\x01\x02\x10\x01\x12\x46\n\x0eregistered_sex\x18\x04 \x01(\x0e\x32!.iron_deficiency.v1.RegisteredSexB\x0b\xbaH\x08\x82\x01\x02\x10\x01\xc8\x01\x01\x12\x18\n\x03\x61ge\x18\x05 \x01(\rB\x0b\xaa\x01\x02\x08\x01\xbaH\x03\xc8\x01\x01\x12\x36\n\nordered_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01\"\xc5\x02\n\tLabReport\x12\x19\n\treport_id\x18\x01 \x01(\x04\x42\x06\xbaH\x03\xc8\x01\x01\x12\x19\n\tsample_id\x18\x02 \x01(\tB\x06\xbaH\x03\xc8\x01\x01\x12\x33\n\x04test\x18\x03 \x01(\x0e\x32\x18.iron_deficiency.v1.TestB\x0b\xbaH\x08\x82\x01\x02\x10\x01\xc8\x01\x01\x12;\n\x07results\x18\x04 \x03(\x0b\x32*.iron_deficiency.v1.LabReport.ResultsEntry\x12\x37\n\x0breleased_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01\x12\'\n\x12\x66\x65rritin_suggested\x18\x06 \x01(\x08\x42\x0b\xaa\x01\x02\x08\x01\xbaH\x03\xc8\x01\x01\x1a.\n\x0cResultsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"<\n\nLabReports\x12.\n\x07reports\x18\x01 \x03(\x0b\x32\x1d.iron_deficiency.v1.LabReport\"%\n\x0f\x41\x63knowledgement\x12\x12\n\nreport_ids\x18\x01 \x03(\x04\"w\n\nFinalModel\x12\x16\n\x06run_id\x18\x01 \x01(\x04\x42\x06\xbaH\x03\xc8\x01\x01\x12\x17\n\x07weights\x18\x02 \x01(\x0c\x42\x06\xbaH\x03\xc8\x01\x01\x12\x38\n\x0f\x66\x65\x64\x65rated_auroc\x18\x03 \x01(\x01\x42\x1f\xaa\x01\x02\x08\x01\xbaH\x17\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00\xc8\x01\x01\"F\n\x0eNewFinalModels\x12\x34\n\x0c\x66inal_models\x18\x01 \x03(\x0b\x32\x1e.iron_deficiency.v1.FinalModel\"-\n\x15NewFinalModelsRequest\x12\x14\n\x0cheld_run_ids\x18\x01 \x03(\x04*=\n\x04Test\x12\x14\n\x10TEST_UNSPECIFIED\x10\x00\x12\x0c\n\x08TEST_CBC\x10\x01\x12\x11\n\rTEST_FERRITIN\x10\x02*\xaa\x02\n\x12\x43linicalIndication\x12#\n\x1f\x43LINICAL_INDICATION_UNSPECIFIED\x10\x00\x12)\n%CLINICAL_INDICATION_SUSPECTED_ANAEMIA\x10\x01\x12%\n!CLINICAL_INDICATION_SUSPECTED_IBS\x10\x02\x12+\n\'CLINICAL_INDICATION_UNEXPLAINED_FATIGUE\x10\x03\x12*\n&CLINICAL_INDICATION_START_OF_PREGNANCY\x10\x04\x12%\n!CLINICAL_INDICATION_CKD_FOLLOW_UP\x10\x05\x12\x1d\n\x19\x43LINICAL_INDICATION_OTHER\x10\x06*c\n\rRegisteredSex\x12\x1e\n\x1aREGISTERED_SEX_UNSPECIFIED\x10\x00\x12\x19\n\x15REGISTERED_SEX_FEMALE\x10\x01\x12\x17\n\x13REGISTERED_SEX_MALE\x10\x02\x32\xf6\x01\n\nLaboratory\x12\x44\n\x0cSendLabOrder\x12\x1c.iron_deficiency.v1.LabOrder\x1a\x16.google.protobuf.Empty\x12L\n\x12\x46\x65tchNewLabReports\x12\x16.google.protobuf.Empty\x1a\x1e.iron_deficiency.v1.LabReports\x12T\n\x15\x41\x63knowledgeLabReports\x12#.iron_deficiency.v1.Acknowledgement\x1a\x16.google.protobuf.Empty2s\n\x0b\x46inalModels\x12\x64\n\x13\x46\x65tchNewFinalModels\x12).iron_deficiency.v1.NewFinalModelsRequest\x1a\".iron_deficiency.v1.NewFinalModelsB\x05\x92\x03\x02\x08\x02\x62\x08\x65\x64itionsp\xe9\x07')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1eweb/shared/grpc/messages.proto\x12\x12iron_deficiency.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x89\x02\n\x08LabOrder\x12\x11\n\tsample_id\x18\x01 \x01(\t\x12&\n\x04test\x18\x02 \x01(\x0e\x32\x18.iron_deficiency.v1.Test\x12\x43\n\x13\x63linical_indication\x18\x03 \x01(\x0e\x32&.iron_deficiency.v1.ClinicalIndication\x12\x39\n\x0eregistered_sex\x18\x04 \x01(\x0e\x32!.iron_deficiency.v1.RegisteredSex\x12\x12\n\x03\x61ge\x18\x05 \x01(\rB\x05\xaa\x01\x02\x08\x01\x12.\n\nordered_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\x9a\x02\n\tLabReport\x12\x11\n\treport_id\x18\x01 \x01(\x04\x12\x11\n\tsample_id\x18\x02 \x01(\t\x12&\n\x04test\x18\x03 \x01(\x0e\x32\x18.iron_deficiency.v1.Test\x12;\n\x07results\x18\x04 \x03(\x0b\x32*.iron_deficiency.v1.LabReport.ResultsEntry\x12/\n\x0breleased_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12!\n\x12\x66\x65rritin_suggested\x18\x06 \x01(\x08\x42\x05\xaa\x01\x02\x08\x01\x1a.\n\x0cResultsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\"<\n\nLabReports\x12.\n\x07reports\x18\x01 \x03(\x0b\x32\x1d.iron_deficiency.v1.LabReport\"%\n\x0f\x41\x63knowledgement\x12\x12\n\nreport_ids\x18\x01 \x03(\x04\"Q\n\x0eScreeningModel\x12\x0e\n\x06run_id\x18\x01 \x01(\x04\x12\x0f\n\x07weights\x18\x02 \x01(\x0c\x12\x1e\n\x0f\x66\x65\x64\x65rated_auroc\x18\x03 \x01(\x01\x42\x05\xaa\x01\x02\x08\x01\"R\n\x12NewScreeningModels\x12<\n\x10screening_models\x18\x01 \x03(\x0b\x32\".iron_deficiency.v1.ScreeningModel\"1\n\x19NewScreeningModelsRequest\x12\x14\n\x0cheld_run_ids\x18\x01 \x03(\x04*=\n\x04Test\x12\x14\n\x10TEST_UNSPECIFIED\x10\x00\x12\x0c\n\x08TEST_CBC\x10\x01\x12\x11\n\rTEST_FERRITIN\x10\x02*\xaa\x02\n\x12\x43linicalIndication\x12#\n\x1f\x43LINICAL_INDICATION_UNSPECIFIED\x10\x00\x12)\n%CLINICAL_INDICATION_SUSPECTED_ANAEMIA\x10\x01\x12%\n!CLINICAL_INDICATION_SUSPECTED_IBS\x10\x02\x12+\n\'CLINICAL_INDICATION_UNEXPLAINED_FATIGUE\x10\x03\x12*\n&CLINICAL_INDICATION_START_OF_PREGNANCY\x10\x04\x12%\n!CLINICAL_INDICATION_CKD_FOLLOW_UP\x10\x05\x12\x1d\n\x19\x43LINICAL_INDICATION_OTHER\x10\x06*c\n\rRegisteredSex\x12\x1e\n\x1aREGISTERED_SEX_UNSPECIFIED\x10\x00\x12\x19\n\x15REGISTERED_SEX_FEMALE\x10\x01\x12\x17\n\x13REGISTERED_SEX_MALE\x10\x02\x32\xf6\x01\n\nLaboratory\x12\x44\n\x0cSendLabOrder\x12\x1c.iron_deficiency.v1.LabOrder\x1a\x16.google.protobuf.Empty\x12L\n\x12\x46\x65tchNewLabReports\x12\x16.google.protobuf.Empty\x1a\x1e.iron_deficiency.v1.LabReports\x12T\n\x15\x41\x63knowledgeLabReports\x12#.iron_deficiency.v1.Acknowledgement\x1a\x16.google.protobuf.Empty2\x83\x01\n\x0fScreeningModels\x12p\n\x17\x46\x65tchNewScreeningModels\x12-.iron_deficiency.v1.NewScreeningModelsRequest\x1a&.iron_deficiency.v1.NewScreeningModelsB\x05\x92\x03\x02\x08\x02\x62\x08\x65\x64itionsp\xe9\x07')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,60 +34,38 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'web.shared.grpc.messages_pb
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\222\003\002\010\002'
-  _globals['_LABORDER'].fields_by_name['sample_id']._loaded_options = None
-  _globals['_LABORDER'].fields_by_name['sample_id']._serialized_options = b'\272H\007r\002\030\024\310\001\001'
-  _globals['_LABORDER'].fields_by_name['test']._loaded_options = None
-  _globals['_LABORDER'].fields_by_name['test']._serialized_options = b'\272H\010\202\001\002\020\001\310\001\001'
-  _globals['_LABORDER'].fields_by_name['clinical_indication']._loaded_options = None
-  _globals['_LABORDER'].fields_by_name['clinical_indication']._serialized_options = b'\272H\005\202\001\002\020\001'
-  _globals['_LABORDER'].fields_by_name['registered_sex']._loaded_options = None
-  _globals['_LABORDER'].fields_by_name['registered_sex']._serialized_options = b'\272H\010\202\001\002\020\001\310\001\001'
   _globals['_LABORDER'].fields_by_name['age']._loaded_options = None
-  _globals['_LABORDER'].fields_by_name['age']._serialized_options = b'\252\001\002\010\001\272H\003\310\001\001'
-  _globals['_LABORDER'].fields_by_name['ordered_at']._loaded_options = None
-  _globals['_LABORDER'].fields_by_name['ordered_at']._serialized_options = b'\272H\003\310\001\001'
+  _globals['_LABORDER'].fields_by_name['age']._serialized_options = b'\252\001\002\010\001'
   _globals['_LABREPORT_RESULTSENTRY']._loaded_options = None
   _globals['_LABREPORT_RESULTSENTRY']._serialized_options = b'8\001'
-  _globals['_LABREPORT'].fields_by_name['report_id']._loaded_options = None
-  _globals['_LABREPORT'].fields_by_name['report_id']._serialized_options = b'\272H\003\310\001\001'
-  _globals['_LABREPORT'].fields_by_name['sample_id']._loaded_options = None
-  _globals['_LABREPORT'].fields_by_name['sample_id']._serialized_options = b'\272H\003\310\001\001'
-  _globals['_LABREPORT'].fields_by_name['test']._loaded_options = None
-  _globals['_LABREPORT'].fields_by_name['test']._serialized_options = b'\272H\010\202\001\002\020\001\310\001\001'
-  _globals['_LABREPORT'].fields_by_name['released_at']._loaded_options = None
-  _globals['_LABREPORT'].fields_by_name['released_at']._serialized_options = b'\272H\003\310\001\001'
   _globals['_LABREPORT'].fields_by_name['ferritin_suggested']._loaded_options = None
-  _globals['_LABREPORT'].fields_by_name['ferritin_suggested']._serialized_options = b'\252\001\002\010\001\272H\003\310\001\001'
-  _globals['_FINALMODEL'].fields_by_name['run_id']._loaded_options = None
-  _globals['_FINALMODEL'].fields_by_name['run_id']._serialized_options = b'\272H\003\310\001\001'
-  _globals['_FINALMODEL'].fields_by_name['weights']._loaded_options = None
-  _globals['_FINALMODEL'].fields_by_name['weights']._serialized_options = b'\272H\003\310\001\001'
-  _globals['_FINALMODEL'].fields_by_name['federated_auroc']._loaded_options = None
-  _globals['_FINALMODEL'].fields_by_name['federated_auroc']._serialized_options = b'\252\001\002\010\001\272H\027\022\022\031\000\000\000\000\000\000\360?)\000\000\000\000\000\000\000\000\310\001\001'
-  _globals['_TEST']._serialized_start=1144
-  _globals['_TEST']._serialized_end=1205
-  _globals['_CLINICALINDICATION']._serialized_start=1208
-  _globals['_CLINICALINDICATION']._serialized_end=1506
-  _globals['_REGISTEREDSEX']._serialized_start=1508
-  _globals['_REGISTEREDSEX']._serialized_end=1607
-  _globals['_LABORDER']._serialized_start=146
-  _globals['_LABORDER']._serialized_end=473
-  _globals['_LABREPORT']._serialized_start=476
-  _globals['_LABREPORT']._serialized_end=801
-  _globals['_LABREPORT_RESULTSENTRY']._serialized_start=755
-  _globals['_LABREPORT_RESULTSENTRY']._serialized_end=801
-  _globals['_LABREPORTS']._serialized_start=803
-  _globals['_LABREPORTS']._serialized_end=863
-  _globals['_ACKNOWLEDGEMENT']._serialized_start=865
-  _globals['_ACKNOWLEDGEMENT']._serialized_end=902
-  _globals['_FINALMODEL']._serialized_start=904
-  _globals['_FINALMODEL']._serialized_end=1023
-  _globals['_NEWFINALMODELS']._serialized_start=1025
-  _globals['_NEWFINALMODELS']._serialized_end=1095
-  _globals['_NEWFINALMODELSREQUEST']._serialized_start=1097
-  _globals['_NEWFINALMODELSREQUEST']._serialized_end=1142
-  _globals['_LABORATORY']._serialized_start=1610
-  _globals['_LABORATORY']._serialized_end=1856
-  _globals['_FINALMODELS']._serialized_start=1858
-  _globals['_FINALMODELS']._serialized_end=1973
+  _globals['_LABREPORT'].fields_by_name['ferritin_suggested']._serialized_options = b'\252\001\002\010\001'
+  _globals['_SCREENINGMODEL'].fields_by_name['federated_auroc']._loaded_options = None
+  _globals['_SCREENINGMODEL'].fields_by_name['federated_auroc']._serialized_options = b'\252\001\002\010\001'
+  _globals['_TEST']._serialized_start=988
+  _globals['_TEST']._serialized_end=1049
+  _globals['_CLINICALINDICATION']._serialized_start=1052
+  _globals['_CLINICALINDICATION']._serialized_end=1350
+  _globals['_REGISTEREDSEX']._serialized_start=1352
+  _globals['_REGISTEREDSEX']._serialized_end=1451
+  _globals['_LABORDER']._serialized_start=117
+  _globals['_LABORDER']._serialized_end=382
+  _globals['_LABREPORT']._serialized_start=385
+  _globals['_LABREPORT']._serialized_end=667
+  _globals['_LABREPORT_RESULTSENTRY']._serialized_start=621
+  _globals['_LABREPORT_RESULTSENTRY']._serialized_end=667
+  _globals['_LABREPORTS']._serialized_start=669
+  _globals['_LABREPORTS']._serialized_end=729
+  _globals['_ACKNOWLEDGEMENT']._serialized_start=731
+  _globals['_ACKNOWLEDGEMENT']._serialized_end=768
+  _globals['_SCREENINGMODEL']._serialized_start=770
+  _globals['_SCREENINGMODEL']._serialized_end=851
+  _globals['_NEWSCREENINGMODELS']._serialized_start=853
+  _globals['_NEWSCREENINGMODELS']._serialized_end=935
+  _globals['_NEWSCREENINGMODELSREQUEST']._serialized_start=937
+  _globals['_NEWSCREENINGMODELSREQUEST']._serialized_end=986
+  _globals['_LABORATORY']._serialized_start=1454
+  _globals['_LABORATORY']._serialized_end=1700
+  _globals['_SCREENINGMODELS']._serialized_start=1703
+  _globals['_SCREENINGMODELS']._serialized_end=1834
 # @@protoc_insertion_point(module_scope)

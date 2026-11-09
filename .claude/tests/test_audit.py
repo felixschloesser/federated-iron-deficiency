@@ -282,7 +282,7 @@ def test_each_partys_tests_import_only_its_own_code(tmp_path: Path) -> None:
     root = tree(
         tmp_path,
         {
-            "tests/practice/test_messaging.py": "from tests.practice.conftest import x\n"
+            "tests/practice/test_grpc_client.py": "from tests.practice.conftest import x\n"
             "from web.hospital.lab.models import TestRequest\n",
             "tests/hospital/test_lab.py": "from tests.practice.conftest import make_patient\n",
             "tests/views/test_urls.py": "import web.hospital.lab.urls\nimport web.practice.pages\n",
@@ -290,7 +290,7 @@ def test_each_partys_tests_import_only_its_own_code(tmp_path: Path) -> None:
     )
     assert audit.run(root)["party_imports"] == [
         "tests/hospital/test_lab.py:1: the hospital's code imports tests.practice",
-        "tests/practice/test_messaging.py:2: the practice's code imports web.hospital",
+        "tests/practice/test_grpc_client.py:2: the practice's code imports web.hospital",
     ]
 
 

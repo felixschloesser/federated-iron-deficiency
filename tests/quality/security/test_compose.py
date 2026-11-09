@@ -186,7 +186,7 @@ def test_the_hospitals_web_app_writes_the_cohort_and_its_screening_models(
     slug: str,
 ) -> None:
     """The laboratory director provides the training cohort from the web app
-    (features/hospital/training_cohort.feature) and fetches final models there,
+    (features/hospital/training_cohort.feature) and fetches screening models there,
     validated on it (features/hospital/fetch.feature): the web app writes the
     cohort folder and screening-models, through the hospital's whole volume,
     unmasked, and the startup's code writes nothing at the hospital."""
@@ -260,9 +260,12 @@ def test_the_proxy_routes_each_partys_name_to_its_web_app(slug: str) -> None:
 def test_crossings_and_the_startup_are_internal_networks() -> None:
     networks = config()["networks"]
     internal = {name for name, spec in networks.items() if spec.get("internal")}
-    assert internal == {"startup", "model-updates", "lab-orders", "final-models"} | {
-        f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS
-    }
+    assert internal == {
+        "startup",
+        "model-updates",
+        "lab-orders",
+        "screening-models",
+    } | {f"{slug}-flower-client-app" for slug in HOSPITAL_SLUGS}
 
 
 def test_model_updates_connect_only_the_superlink_and_the_supernodes() -> None:
@@ -307,8 +310,9 @@ def test_the_hospital_serves_its_pages_and_its_grpc_from_containers_of_their_own
     # One container per server, each on one network: its practices reach the
     # lab-order endpoint and never the pages.
     web, grpc = service(f"{slug}-web"), service(f"{slug}-grpc")
-    # final-models: to fetch final models from the startup; it serves nothing there.
-    assert set(web["networks"]) == {slug, "final-models"}
+    # screening-models: to fetch screening models from the startup; it serves
+    # nothing there.
+    assert set(web["networks"]) == {slug, "screening-models"}
     assert set(grpc["networks"]) == {"lab-orders"}
     assert "--bind=0.0.0.0:8000" in web["command"]
     assert grpc["command"][-2:] == ["grpcrunserver", "0.0.0.0:8441"]
@@ -510,7 +514,7 @@ def test_compose_gives_the_startups_code_only_the_cohort_read_only(
 ) -> None:
     """The ClientApp, the startup's code at each hospital (DF7, TB4), sees no
     database, no key and no other party's folder, so what it sends leaves only
-    through DF9 and DF10, and it writes nothing at the hospital: a final model
+    through DF9 and DF10, and it writes nothing at the hospital: a screening model
     enters only when the hospital fetches it (features/hospital/fetch.feature).
     Pass: it mounts only its hospital's cohort, read-only, and shares one
     internal network only with its hospital's SuperNode."""
@@ -566,27 +570,27 @@ def test_a_health_check_runs_often_only_while_its_service_starts() -> None:
         assert (check["start_interval"], check["interval"]) == ("2s", "5m0s"), name
 
 
-def test_only_the_hospitals_web_apps_reach_the_startups_final_models_endpoint() -> None:
-    """The startup's final-models endpoint (P5) serves recipient hospitals only
-    (features/startup/release.feature). Pass: the final-models network joins the
+def test_only_the_hospitals_web_apps_reach_the_startups_messaging_endpoint() -> None:
+    """The startup's screening-models endpoint (P5) serves recipient hospitals only
+    (features/startup/release.feature). Pass: the screening-models network joins the
     startup's web app and every hospital's web app, nothing else, and is internal."""
     declared = config()
     members = {
         name
         for name, spec in declared["services"].items()
-        if "final-models" in spec.get("networks", {})
+        if "screening-models" in spec.get("networks", {})
     }
     assert members == {"startup-grpc"} | {f"{slug}-web" for slug in HOSPITAL_SLUGS}
-    assert declared["networks"]["final-models"]["internal"] is True
+    assert declared["networks"]["screening-models"]["internal"] is True
 
 
-def test_the_startup_serves_its_pages_and_its_final_models_from_containers_of_their_own() -> (
+def test_the_startup_serves_its_pages_and_its_screening_models_from_containers_of_their_own() -> (
     None
 ):
     # The proxy reaches the pages, the hospitals' web apps only the
-    # final-models endpoint (features/startup/release.feature).
+    # screening-models endpoint (features/startup/release.feature).
     web, endpoint = service("startup-web"), service("startup-grpc")
-    assert set(endpoint["networks"]) == {"final-models"}
+    assert set(endpoint["networks"]) == {"screening-models"}
     assert "--bind=0.0.0.0:8000" in web["command"]
     assert endpoint["command"][-2:] == ["grpcrunserver", "0.0.0.0:8442"]
     assert endpoint["entrypoint"] == []
@@ -622,7 +626,7 @@ def test_every_hospital_knows_every_practice_by_its_name(slug: str) -> None:
 
 
 def test_the_startup_knows_every_hospital_by_the_name_its_web_app_calls_as() -> None:
-    """Any hospital may fetch released final models
+    """Any hospital may fetch released final models as screening models
     (features/startup/release.feature), so the startup registers every one, by
     the name its web app calls as."""
     assert registered("startup-web") == [

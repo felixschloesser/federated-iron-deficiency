@@ -1,5 +1,5 @@
 """The hospital's builders: its staff, the practices it knows, the lab orders
-its endpoint records, its analyser stand-in, and final models as they arrive."""
+its endpoint records, its analyser stand-in, and screening models as they arrive."""
 
 from typing import TYPE_CHECKING
 
@@ -79,7 +79,7 @@ def receive_lab_order(
     )
 
 
-def write_final_model(
+def write_screening_model(
     directory: "Path",
     run_id: str,
     validation: dict[float, dict[str, int]],
@@ -88,7 +88,7 @@ def write_final_model(
     leave_out: tuple[str, ...] = (),
     n_features: int = len(FEATURES),
 ) -> "Path":
-    """A final model as the ClientApp stores it (ml.training),
+    """A screening model as the hospital stores it (model_files.py),
     with `validation`, its confusion matrix at each threshold."""
     import torch
 

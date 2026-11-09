@@ -27,7 +27,7 @@ not a process of the report's DFDs:
 | P2 Train locally | two containers: `<hospital>-flower-supernode`, and `<hospital>-flower-client-app` for the startup's code (TB4) |
 | P3 Relay messages | `flower-superlink` |
 | P4 Average weights (FedAvg) | `flower-server-app` |
-| P5 Release final models | `startup-web`, its pages, where the data scientist releases; and `startup-grpc`, the final-models endpoint the hospitals fetch from, alone on the `final-models` network with the hospitals' web apps |
+| P5 Release final models | `startup-web`, its pages, where the data scientist releases; and `startup-grpc`, the screening-models endpoint the hospitals fetch screening models from, alone on the `screening-models` network with the hospitals' web apps |
 | P6 Validate and deploy model, P8 Receive lab orders, P9 Analyse samples, P10 Screen CBC, P12 Send lab reports | two containers of one Django app, on one database: `<hospital>-web`, its pages, which screen a CBC as they record the analysis; and `<hospital>-grpc`, the lab-order endpoint, alone on the `lab-orders` network with the practices |
 | P7 Order tests, P11 Show lab reports | one container, `<practice>-web`; it fetches lab reports on *Check for reports* |
 | E1 Data scientist | `startup-web`, the startup's web app, where the data scientist sees the final models (DS4) and submits a training run; or `train`, run by hand |
@@ -138,7 +138,7 @@ scientist sits in the report's DFD; the SuperLink's control API is never
 published to your machine, and the proxy reaches the startup's web app on a
 network of its own, `startup-web`, never the SuperLink. When the run
 finishes, its final model appears on the startup's Final models page; release
-it there. Then log in to a hospital as `director`, fetch new final models, compare
+it there. Then log in to a hospital as `director`, fetch new screening models, compare
 its local validation at each threshold and deploy it at one. Then order a
 CBC as `doctor`, analyse it as `staff`, and the lab report with its
 screening comes back to the practice.

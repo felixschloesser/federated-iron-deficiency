@@ -1,4 +1,4 @@
-"""Scenarios: the laboratory director fetches new final models, which the
+"""Scenarios: the laboratory director fetches new screening models, which the
 hospital's web app validates locally, stores and acknowledges
 (features/hospital/fetch.feature). The startup is a stand-in."""
 
@@ -29,10 +29,10 @@ pytestmark = pytest.mark.django_db(transaction=True)
 scenarios("hospital/fetch.feature")
 
 
-def offered(run_id: str, seed: int) -> messages_pb2.FinalModel:
-    """A released final model as the startup's endpoint sends it (DF33)."""
+def offered(run_id: str, seed: int) -> messages_pb2.ScreeningModel:
+    """A screening model as the startup's endpoint sends it (DF33)."""
     torch.manual_seed(seed)
-    return messages_pb2.FinalModel(
+    return messages_pb2.ScreeningModel(
         run_id=int(run_id),
         weights=weights_to_bytes(Net().state_dict()),
         federated_auroc=FEDERATED_AUROC,
@@ -80,7 +80,7 @@ def released(world: World, run_id: str) -> None:
 )
 def released_misfit(world: World, run_id: str) -> None:
     world["startup"].offered.append(
-        messages_pb2.FinalModel(
+        messages_pb2.ScreeningModel(
             run_id=int(run_id),
             weights=weights_to_bytes(Net(n_features=5).state_dict()),
             federated_auroc=FEDERATED_AUROC,
@@ -93,7 +93,7 @@ def released_without(world: World, run_id: str, part: str) -> None:
     """Every part but one, as a startup that left it out would send it."""
     full = offered(run_id, seed=1)
     world["startup"].offered.append(
-        messages_pb2.FinalModel(
+        messages_pb2.ScreeningModel(
             **{
                 field.name: getattr(full, field.name)
                 for field in full.DESCRIPTOR.fields
@@ -109,7 +109,9 @@ def holds_only(world: World, name: str) -> None:
 
 
 @given(
-    parsers.parse('the startup offers final model "{run_id}" again, with other weights')
+    parsers.parse(
+        'the startup offers screening model "{run_id}" again, with other weights'
+    )
 )
 def offered_again(world: World, run_id: str) -> None:
     world["startup"].ignores_held = True
@@ -123,16 +125,18 @@ def unreachable(settings: Settings) -> None:
     settings.STARTUP_ADDRESS = "127.0.0.1:1"
 
 
-@given("the laboratory director fetched new final models")
-@when("the laboratory director fetches new final models")
+@given("the laboratory director fetched new screening models")
+@when("the laboratory director fetches new screening models")
 def director_fetches(world: World, client: Client) -> None:
     if "director" not in world:
         world["director"] = make_laboratory_director("Director One")
     client.force_login(world["director"])
-    world["page"] = client.post(reverse("deployment:fetch_final_models"), follow=True)
+    world["page"] = client.post(
+        reverse("deployment:fetch_screening_models"), follow=True
+    )
 
 
-@then("the hospital holds no final model")
+@then("the hospital holds no screening model")
 def holds_none(world: World) -> None:
     assert list(world["folder"].iterdir()) == []
 
@@ -152,7 +156,9 @@ def holds_validated(world: World, name: str) -> None:
     assert model.federated_auroc == FEDERATED_AUROC
 
 
-@then(parsers.parse('the startup is told the hospital holds final model "{run_id}"'))
+@then(
+    parsers.parse('the startup is told the hospital holds screening model "{run_id}"')
+)
 def told_held(world: World, run_id: str) -> None:
     assert world["startup"].held == [[], [int(run_id)]]
     assert world["startup"].callers == ["uz-leuven", "uz-leuven"]
@@ -179,7 +185,7 @@ def no_training_cohort(settings: Settings) -> None:
 def says_provide_first(world: World) -> None:
     assertContains(
         world["page"],
-        "Provide the training cohort first: final models are validated on it.",
+        "Provide the training cohort first: screening models are validated on it.",
     )
 
 

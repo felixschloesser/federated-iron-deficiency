@@ -1,7 +1,7 @@
 """A rejected lab order's reasons on the wire (WHO LQMS 5-4, p. 66: "Record the
 reason for rejection", "promptly inform the authorized person"): the laboratory
 answers INVALID_ARGUMENT with a google.rpc.BadRequest detail, one field
-violation per rule of the contract the lab order breaks (protovalidate), and the
+violation per error of the hospital's models on the lab order, and the
 practice reads them back as its reason for rejection
 (web/shared/grpc/messages.proto)."""
 
@@ -9,31 +9,26 @@ import google.rpc.code_pb2 as rpc_code
 import google.rpc.error_details_pb2 as rpc_details
 import google.rpc.status_pb2 as rpc_status_pb2
 import grpc
-import protovalidate
+from django.core.exceptions import ValidationError
 from google.protobuf import any_pb2
 from grpc_status import rpc_status
 
 MESSAGE = "lab_order_rejected"
 
 
-def _field(violation: protovalidate.Violation) -> str:
-    """The part a violation names, as a dotted path."""
-    path = violation.proto.field
-    return "" if path is None else ".".join(e.field_name for e in path.elements)
-
-
-def rejected(violations: list[protovalidate.Violation]) -> grpc.Status:
-    """The status rejecting a lab order: each violation, by field, its rule as
-    the reason and its message as the description."""
+def rejected(error: ValidationError) -> grpc.Status:
+    """The status rejecting a lab order: each error, by part, its code as the
+    reason and its message as the description."""
     detail = any_pb2.Any()
     detail.Pack(
         rpc_details.BadRequest(
             field_violations=[
                 rpc_details.BadRequest.FieldViolation(
-                    field=_field(violation),
-                    reason=violation.proto.rule_id,
-                    description=violation.proto.message,
+                    field=field,
+                    reason=violation.code or "",
+                    description=" ".join(violation.messages),
                 )
+                for field, violations in error.error_dict.items()
                 for violation in violations
             ]
         )

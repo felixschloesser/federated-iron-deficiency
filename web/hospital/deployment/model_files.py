@@ -15,10 +15,10 @@ from django.utils import formats, timezone
 
 from ml.final_model import (
     MISSING_PART_ERRORS,
-    final_model_path,
-    final_model_paths,
     fitting_weights,
     load_contents,
+    model_file_path,
+    model_file_paths,
     standardization_tensor,
     write_contents,
 )
@@ -196,7 +196,7 @@ def screening_models(directory: Path | None) -> list[ScreeningModel]:
         return []
     files = [
         file
-        for path in final_model_paths(directory)
+        for path in model_file_paths(directory)
         if (file := read_screening_model(path.read_bytes())) is not None
     ]
     return sorted(files, key=lambda file: file.stored_at, reverse=True)
@@ -215,11 +215,11 @@ def store_screening_model(
     federated_auroc: float,
     stored_at: datetime,
 ) -> Path:
-    """Store a fetched final model as a screening model, with this hospital's
+    """Store a fetched screening model, with this hospital's
     standardization and its local validation on the training cohort.
     `federated_auroc` is what the ServerApp aggregated; no other hospital's
     metrics reach the file. One is never overwritten."""
-    path = final_model_path(directory, run_id)
+    path = model_file_path(directory, run_id)
     if path.exists():
         raise FileExistsError(path)
     mean, std = standardization(cohort)
@@ -248,9 +248,9 @@ def store_fetched(
     federated_auroc: float,
     stored_at: datetime,
 ) -> Path:
-    """Store a fetched final model; one fetched again is kept as it was. Other
+    """Store a fetched screening model; one fetched again is kept as it was. Other
     weights under a stored run's ID are refused."""
-    path = final_model_path(directory, run_id)
+    path = model_file_path(directory, run_id)
     if path.exists():
         stored = read_screening_model(path.read_bytes())
         same = (

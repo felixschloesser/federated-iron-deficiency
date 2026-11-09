@@ -44,17 +44,13 @@ source = "Report, DF31 \"screening result\", P10"
 meaning = "The four screening results: the model suggests ferritin, it does not, the CBC was not screened (not eligible), or screening failed (no usable deployed screening model; the Models page says which fault). The lab report says only whether ferritin is suggested"
 source = "Report, Use case \"a comment to the lab report suggesting ferritin\"; \"not screened\" from Federated version; \"screening failed\": project decision 2026-11-08, after the report's security solution that a replaced model file \"screens no one\""
 
-["screening model"]
-meaning = "A final model as the hospital holds it, in its `screening-models/` folder: what the laboratory director compares and deploys, named by when it arrived (\"Screening model of 30 Oct 2026, 14:02\") with its run ID as a detail. Its file holds every part (weights, this hospital's standardization, run ID, when it was stored, AUROC across hospitals, local validation) or is unreadable, and an unreadable one is not listed"
-source = "Built from the report's words: P10 *Screen CBC* and \"the model\" (Use case)"
-
 ["deploy"]
 meaning = "The laboratory director's decision that a screening model screens this hospital's patients, at the threshold they choose"
 source = "Report, Use case: the model \"is then deployed to every hospital\""
 
 ["deployed screening model"]
 meaning = "A screening model as the laboratory director deployed it, at a threshold, with its file's hash; the latest one is the deployed screening model, the only one that screens"
-source = "Report, DF30 \"Deployed final model\"; at the hospital a final model is a screening model"
+source = "Report, DF30 \"Deployed screening model\""
 
 ["laboratory director"]
 meaning = "The person who decides which screening model screens a hospital's patients, and who provides its training cohort; one per hospital"
@@ -109,7 +105,7 @@ meaning = "The score above which the deployed screening model suggests ferritin;
 source = "Report, Design choices"
 
 ["fetch"]
-meaning = "The hospital's explicit request: a final model enters a hospital only when its laboratory director fetches new final models, through the hospital's own web app"
+meaning = "The hospital's explicit request: a screening model enters a hospital only when its laboratory director fetches new screening models, through the hospital's own web app"
 source = "Report, P5, DF33: \"a recipient hospital's laboratory director fetches it\"; as a practice fetches new lab reports (FetchNewLabReports)"
 
 ["inflammation"]

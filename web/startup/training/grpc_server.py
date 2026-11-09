@@ -1,5 +1,6 @@
-"""The startup's final-models endpoint (P5): a recipient hospital fetches the
-released final models it does not hold, saying which it holds
+"""The startup's screening-models endpoint (P5): a released final model reaches a
+hospital as a screening model; a recipient hospital fetches the screening
+models it does not hold, saying which it holds
 (web/shared/grpc/messages.proto, features/startup/release.feature)."""
 
 import grpc
@@ -26,13 +27,15 @@ def recipient_of(context: grpc.ServicerContext) -> Recipient:
     return recipient
 
 
-class FinalModelsService(messages_pb2_grpc.FinalModelsServicer):
-    """Hands out released final models, like a view: who asks, then what they get."""
+class ScreeningModelsService(messages_pb2_grpc.ScreeningModelsServicer):
+    """Hands out screening models, like a view: who asks, then what they get."""
 
     @with_database
-    def FetchNewFinalModels(
-        self, request: messages_pb2.NewFinalModelsRequest, context: grpc.ServicerContext
-    ) -> messages_pb2.NewFinalModels:
+    def FetchNewScreeningModels(
+        self,
+        request: messages_pb2.NewScreeningModelsRequest,
+        context: grpc.ServicerContext,
+    ) -> messages_pb2.NewScreeningModels:
         recipient = recipient_of(context)
         held = [str(run_id) for run_id in request.held_run_ids]
         offered = [
@@ -50,14 +53,14 @@ class FinalModelsService(messages_pb2_grpc.FinalModelsServicer):
             run_ids=[str(model.run_id) for model in offered],
             now=timezone.now(),
         )
-        return messages_pb2.NewFinalModels(final_models=offered)
+        return messages_pb2.NewScreeningModels(screening_models=offered)
 
 
 def serve(address: str) -> tuple[grpc.Server, int]:
     """Start the endpoint on `address`; the server and its port."""
     return start(
         address,
-        lambda server: messages_pb2_grpc.add_FinalModelsServicer_to_server(
-            FinalModelsService(), server
+        lambda server: messages_pb2_grpc.add_ScreeningModelsServicer_to_server(
+            ScreeningModelsService(), server
         ),
     )

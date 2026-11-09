@@ -282,7 +282,7 @@ def synthetic_cohort(hospital: str) -> str:
 @pytest.fixture(scope="session")
 def superlink(compose: Compose) -> None:
     """The startup's web app, which brings the SuperLink's folder and writes
-    flwr-home's connection (demo/party.py), its final-models endpoint, then the
+    flwr-home's connection (demo/party.py), its screening-models endpoint, then the
     SuperLink."""
     build(compose, "startup-web")
     up(compose, "startup-web")

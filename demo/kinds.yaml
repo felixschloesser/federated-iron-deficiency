@@ -35,9 +35,9 @@ services:
     entrypoint: []
 
   # A hospital's web app. The laboratory director provides the training cohort
-  # and fetches final models here, so it writes the cohort folder and
+  # and fetches screening models here, so it writes the cohort folder and
   # screening-models, through the hospital's whole volume; it holds no
-  # SuperNode key. On final-models to fetch from the startup; it serves
+  # SuperNode key. On screening-models to fetch from the startup; it serves
   # nothing there.
   hospital-web:
     extends: web
@@ -52,7 +52,7 @@ services:
         add_practice 'Huisartsenpraktijk De Akker'
         add_practice 'Huisartsenpraktijk De Berk'
         add_practice 'Huisartsenpraktijk De Ceder'
-      # The startup's final-models endpoint.
+      # The startup's screening-models endpoint.
       STARTUP_ADDRESS: startup-grpc:8442
 
   # A hospital's lab-order endpoint, the only thing its practices reach

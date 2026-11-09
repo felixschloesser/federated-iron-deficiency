@@ -10,7 +10,7 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
-from ml.final_model import final_model_path
+from ml.final_model import model_file_path
 from ml.inference import probability
 from web.hospital.deployment.model_files import (
     ScreeningModel,
@@ -72,7 +72,7 @@ class DeploymentManager(models.Manager["Deployment"]):
     ) -> Deployment:
         """Make a screening model in the hospital's folder the deployed screening model, at a
         threshold its local validation holds, from `now`."""
-        path = None if directory is None else final_model_path(directory, run_id)
+        path = None if directory is None else model_file_path(directory, run_id)
         # One read: what is checked is what is hashed.
         data = path.read_bytes() if path is not None and path.is_file() else None
         file = None if data is None else read_screening_model(data)
@@ -119,7 +119,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         path = (
             None
             if directory is None
-            else final_model_path(directory, deployed_screening_model.run_id)
+            else model_file_path(directory, deployed_screening_model.run_id)
         )
         data = path.read_bytes() if path is not None and path.is_file() else None
         file = None if data is None else read_screening_model(data)

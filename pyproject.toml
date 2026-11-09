@@ -79,7 +79,6 @@ web = [
     "gunicorn>=26.2.0",
     # The lab-order messages; flwr brings it too, but a practice installs no flwr.
     "protobuf>=6.33.6",
-    "protovalidate>=2.1.0",
     "whitenoise>=6.12.0",
 ]
 

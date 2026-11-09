@@ -1,6 +1,6 @@
-"""A stand-in for the startup's final-models endpoint, so the hospital's tests
-need none of the startup's code: it offers the final models it is given and
-records which final models each fetch said the hospital holds."""
+"""A stand-in for the startup's screening-models endpoint, so the hospital's tests
+need none of the startup's code: it offers the screening models it is given and
+records which screening models each fetch said the hospital holds."""
 
 from collections.abc import Iterator
 from concurrent import futures
@@ -19,8 +19,8 @@ def named(context: grpc.ServicerContext) -> str | None:
 
 
 @dataclass
-class FakeStartup(messages_pb2_grpc.FinalModelsServicer):
-    offered: list[messages_pb2.FinalModel] = field(default_factory=list)
+class FakeStartup(messages_pb2_grpc.ScreeningModelsServicer):
+    offered: list[messages_pb2.ScreeningModel] = field(default_factory=list)
     # The run IDs each fetch said the hospital holds, in order.
     held: list[list[int]] = field(default_factory=list)
     # The slug each fetch named its party by, in order.
@@ -28,15 +28,15 @@ class FakeStartup(messages_pb2_grpc.FinalModelsServicer):
     # A startup that offers what the hospital holds all the same.
     ignores_held: bool = False
 
-    def FetchNewFinalModels(
+    def FetchNewScreeningModels(
         self,
-        request: "messages_pb2.NewFinalModelsRequest",
+        request: "messages_pb2.NewScreeningModelsRequest",
         context: grpc.ServicerContext,
-    ) -> messages_pb2.NewFinalModels:
+    ) -> messages_pb2.NewScreeningModels:
         self.callers.append(named(context))
         self.held.append(list(request.held_run_ids))
-        return messages_pb2.NewFinalModels(
-            final_models=[
+        return messages_pb2.NewScreeningModels(
+            screening_models=[
                 model
                 for model in self.offered
                 if self.ignores_held or model.run_id not in request.held_run_ids
@@ -48,7 +48,7 @@ class FakeStartup(messages_pb2_grpc.FinalModelsServicer):
 def running(startup: FakeStartup) -> Iterator[str]:
     """The stand-in, serving; its address."""
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
-    messages_pb2_grpc.add_FinalModelsServicer_to_server(startup, server)
+    messages_pb2_grpc.add_ScreeningModelsServicer_to_server(startup, server)
     port = server.add_insecure_port("127.0.0.1:0")
     server.start()
     try:
