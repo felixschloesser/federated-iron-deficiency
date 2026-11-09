@@ -3,16 +3,16 @@
 # Flower or W&B) and only the practice's and the shared Django apps
 # (tests/quality/security/test_running_containers.py checks this).
 FROM python:3.13.18-slim
-COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/
-RUN useradd --uid 1000 --create-home app && install -d -o app /app /data /opt/venv
+RUN useradd --uid 1000 --create-home app && install -d -o app /app /data
 WORKDIR /app
 USER app
-# HOME=/tmp: a home folder any user can write to.
 # UV_COMPILE_BYTECODE: compile .pyc files now, so containers start faster.
-ENV UV_PROJECT_ENVIRONMENT=/opt/venv PATH=/opt/venv/bin:$PATH HOME=/tmp \
-    UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+ENV PATH=/app/.venv/bin:$PATH UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY --chown=app pyproject.toml uv.lock /app/
-RUN --mount=type=cache,target=/tmp/.cache/uv,uid=1000,gid=1000 uv sync --locked --only-group web
+# uv is mounted for this one step, so it stays out of the image.
+RUN --mount=from=ghcr.io/astral-sh/uv:0.13.6,source=/uv,target=/usr/local/bin/uv \
+    --mount=type=cache,target=/home/app/.cache/uv,uid=1000,gid=1000 \
+    uv sync --locked --only-group web
 COPY --chown=app manage.py /app/
 COPY --chown=app ml/__init__.py ml/cohort.py /app/ml/
 COPY --chown=app web/__init__.py /app/web/
