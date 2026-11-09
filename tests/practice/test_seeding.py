@@ -10,7 +10,7 @@ from pytest_django.fixtures import Settings
 from demo.seed import main
 from demo.seeding import names
 from demo.seeding import participants as seeding
-from tests.conftest import PEOPLE, nhanes_rows
+from tests.conftest import PEOPLE, nhanes_rows, write_extracts
 from web.practice.models import Patient, SampleId
 from web.shared.accounts.models import User
 from web.shared.accounts.roles import Role, role_of
@@ -20,14 +20,17 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def development(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
+def extract(settings: Settings, tmp_path: Path) -> list[str]:
+    """demo.seed's arguments for the practice, from nhanes-download's extract,
+    in development."""
     settings.DEBUG = True
-    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
+    _, practice = write_extracts(tmp_path)
+    return ["practice", "--rows", str(practice / "sample-ids.csv")]
 
 
 @pytest.fixture
-def seeded(development: None) -> None:
-    main(["practice"])
+def seeded(extract: list[str]) -> None:
+    main(extract)
 
 
 def test_seeds_its_one_general_practitioner(seeded: None) -> None:
@@ -62,32 +65,17 @@ def test_seeds_three_sample_ids_for_each_patient_holding_its_participant(
     assert {str(seqn) for seqn in patients["sample_id"]} <= stocked
 
 
-def test_running_twice_changes_nothing(seeded: None) -> None:
-    main(["practice"])
+def test_running_twice_changes_nothing(seeded: None, extract: list[str]) -> None:
+    main(extract)
     assert User.objects.count() == 2
     assert Patient.objects.count() == 3 * len(PEOPLE)
 
 
-def test_refuses_outside_development(settings: Settings) -> None:
+def test_refuses_outside_development(settings: Settings, extract: list[str]) -> None:
     settings.DEBUG = False
     with pytest.raises(SystemExit, match="DJANGO_DEBUG=1"):
-        main(["practice"])
+        main(extract)
     assert not User.objects.exists()
-
-
-def test_each_seed_chooses_other_participants(development: None) -> None:
-    rows = nhanes_rows()
-    assert not seeding.choose(rows, seed=0).equals(seeding.choose(rows, seed=1))
-    main(["practice", "--seed", "1"])
-    assert Patient.objects.count() == 3 * len(PEOPLE)
-
-
-def test_reads_participants_from_a_csv(settings: Settings, tmp_path: Path) -> None:
-    settings.DEBUG = True
-    csv = tmp_path / "nhanes.csv"
-    nhanes_rows().to_csv(csv, index=False)
-    main(["practice", "--nhanes", str(csv)])
-    assert Patient.objects.count() == 3 * len(PEOPLE)
 
 
 def test_eligible_women_without_ferritin_are_never_seeded(seeded: None) -> None:
@@ -107,14 +95,6 @@ def test_a_patients_name_is_the_same_on_every_seed() -> None:
     female = RegisteredSex.FEMALE
     assert names.patient_name(135318, female) == names.patient_name(135318, female)
     assert names.patient_name(135318, female) != names.patient_name(135319, female)
-
-
-def test_the_number_of_patients_is_a_parameter(development: None) -> None:
-    main(["practice", "--patients", "6"])
-    assert Patient.objects.count() == 6
-    # Shared by the groups, the first ones rounding up: 2, 2, 1, 1.
-    assert Patient.objects.filter(age=30).count() == 2
-    assert Patient.objects.filter(age=70).count() == 1
 
 
 def test_seeds_from_nhanes_downloads_extract(

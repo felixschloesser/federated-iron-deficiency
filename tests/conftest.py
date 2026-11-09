@@ -1,6 +1,7 @@
 """Test-wide settings, the scenarios' world, and what every party's tests and
 the demo's share. Each party's builders are in tests/<party>/conftest.py."""
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -79,3 +80,18 @@ def nhanes_rows() -> "pd.DataFrame":
         for copy in range(10)
     ]
     return pd.DataFrame(rows)
+
+
+def write_extracts(folder: Path) -> tuple[Path, Path]:
+    """nhanes-download's extracts (demo/nhanes.py's own extracts()) from
+    nhanes_rows(), for one hospital and its practice of 12 patients; the
+    hospital's folder and the practice's."""
+    from demo.nhanes import Pair, extracts
+
+    rows = nhanes_rows()
+    records = rows.dropna(subset=["LBXFER"]).assign(pregnant=False)
+    pair = Pair("2017-2018", "hospital", "practice", 12)
+    for path, frame in extracts([pair], lambda _: records, rows).items():
+        (folder / path).parent.mkdir(parents=True, exist_ok=True)
+        frame.to_csv(folder / path, index=False)
+    return folder / "hospital", folder / "practice"

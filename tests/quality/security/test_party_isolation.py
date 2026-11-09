@@ -77,10 +77,18 @@ def test_without_a_folder_a_party_keeps_its_data_in_the_checkouts(party: str) ->
     assert result.stdout.splitlines()[0] == str(expected), result.stderr
 
 
-def seed(party: str, env: dict[str, str], nhanes: Path) -> None:
-    """The party's demo accounts and records (python -m demo.seed); the startup
-    seeds no participants, so it takes no NHANES file."""
-    arguments = [] if party == "startup" else ["--nhanes", str(nhanes)]
+def seed(party: str, env: dict[str, str], extracts: Path) -> None:
+    """The party's demo accounts and records (python -m demo.seed), from its own
+    extract; the startup seeds no participants, so it takes none."""
+    hospital, practice = extracts / "hospital", extracts / "practice"
+    match party:
+        case "hospital":
+            arguments = ["--rows", str(hospital / "participants.csv")]
+            arguments += ["--lab-records", str(hospital / "lab-records.csv")]
+        case "practice":
+            arguments = ["--rows", str(practice / "sample-ids.csv")]
+        case _:
+            arguments = []
     subprocess.run(
         [sys.executable, "-m", "demo.seed", party, *arguments],
         check=True,
@@ -186,13 +194,12 @@ def test_every_page_of_a_party_loads_in_its_own_web_app(
 ) -> None:
     """Pass: with only its own apps installed, every page of each seeded
     account's role answers 200."""
-    from tests.conftest import nhanes_rows
+    from tests.conftest import write_extracts
 
-    nhanes = tmp_path / "nhanes.csv"
-    nhanes_rows().to_csv(nhanes, index=False)
+    write_extracts(tmp_path / "nhanes")
     env = {"DATA_DIR": str(tmp_path)}
     run_manage(party, env, "migrate", "-v0")
-    seed(party, env, nhanes)
+    seed(party, env, tmp_path / "nhanes")
     result = subprocess.run(
         [sys.executable, "manage.py", "shell", "-c", SMOKE],
         check=True,

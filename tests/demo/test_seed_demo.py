@@ -1,7 +1,8 @@
-"""Each party seeds the same NHANES participants for the same seed: the practice
-its patients, the hospital what their tubes would measure (python -m demo.seed practice,
-hospital). Each seeds its own folder in a process of its own, as the demo
-does; what each party seeds alone is in tests/<party>/test_seeding.py."""
+"""Each party seeds from its own extract of the same draw (demo/nhanes.py): the
+practice its stock of sample IDs, the hospital what their tubes would measure
+(python -m demo.seed practice, hospital). Each seeds its own folder in a
+process of its own, as the demo does; what each party seeds alone is in
+tests/<party>/test_seeding.py."""
 
 import os
 import sqlite3
@@ -12,14 +13,14 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import nhanes_rows
+from tests.conftest import write_extracts
 
 pytestmark = pytest.mark.subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def seed(party: str, folder: Path, nhanes: Path, seed_value: str) -> None:
+def seed(party: str, folder: Path, arguments: list[str]) -> None:
     env = {
         **{key: value for key, value in os.environ.items() if key != "DATA_DIR"},
         "DJANGO_SETTINGS_MODULE": f"web.{party}.settings",
@@ -29,8 +30,7 @@ def seed(party: str, folder: Path, nhanes: Path, seed_value: str) -> None:
     manage = [sys.executable, str(ROOT / "manage.py")]
     subprocess.run([*manage, "migrate", "-v0"], env=env, check=True)
     subprocess.run(
-        [sys.executable, "-m", "demo.seed", party, "--nhanes", str(nhanes)]
-        + ["--seed", seed_value],
+        [sys.executable, "-m", "demo.seed", party, *arguments],
         env=env,
         check=True,
         cwd=ROOT,
@@ -43,15 +43,18 @@ def column(folder: Path, query: str) -> set[str]:
         return {str(value) for (value,) in database.execute(query)}
 
 
-@pytest.mark.parametrize("seed_value", ["0", "1"])
 def test_the_hospitals_analyser_holds_a_tube_for_every_sample_id_of_the_practice(
-    tmp_path: Path, seed_value: str
+    tmp_path: Path,
 ) -> None:
-    nhanes = tmp_path / "nhanes.csv"
-    nhanes_rows().to_csv(nhanes, index=False)
+    extracts_hospital, extracts_practice = write_extracts(tmp_path / "nhanes")
     hospital, practice = tmp_path / "hospital", tmp_path / "practice"
-    seed("hospital", hospital, nhanes, seed_value)
-    seed("practice", practice, nhanes, seed_value)
+    seed(
+        "hospital",
+        hospital,
+        ["--rows", str(extracts_hospital / "participants.csv")]
+        + ["--lab-records", str(extracts_hospital / "lab-records.csv")],
+    )
+    seed("practice", practice, ["--rows", str(extracts_practice / "sample-ids.csv")])
     tubes = column(hospital, "SELECT seqn FROM analyser_participant")
     sample_ids = column(practice, "SELECT value FROM practice_sampleid")
     assert tubes
