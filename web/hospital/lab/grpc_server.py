@@ -74,7 +74,6 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
         return messages_pb2.FetchNewLabReportsResponse(
             lab_reports=[
                 messages_pb2.LabReport(
-                    report_id=test_request.pk,
                     sample_id=test_request.sample.sample_id,
                     test=to_proto(Test(test_request.test), messages_pb2.Test),
                     results=[
@@ -98,11 +97,21 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
         request: messages_pb2.AcknowledgeLabReportsRequest,
         context: grpc.ServicerContext,
     ) -> messages_pb2.AcknowledgeLabReportsResponse:
-        TestRequest.objects.acknowledge(
-            practice=practice_of(context),
-            report_ids=list(request.report_ids),
-            now=timezone.now(),
-        )
+        practice = practice_of(context)
+        try:
+            TestRequest.objects.acknowledge(
+                practice=practice,
+                lab_reports=[
+                    (
+                        acknowledgement.sample_id,
+                        from_proto(acknowledgement.test, messages_pb2.Test, Test),
+                    )
+                    for acknowledgement in request.acknowledgements
+                ],
+                now=timezone.now(),
+            )
+        except ValidationError as error:
+            context.abort_with_status(rejected(error))
         return messages_pb2.AcknowledgeLabReportsResponse()
 
 

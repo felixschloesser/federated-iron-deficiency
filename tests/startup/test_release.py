@@ -146,6 +146,34 @@ def fetches_holding(world: World, hospital: str, run_id: str) -> None:
 
 @when(
     parsers.parse(
+        '"{hospital}" fetches new screening models, holding screening model'
+        ' "{run_id}" twice'
+    )
+)
+def fetches_holding_twice(world: World, hospital: str, run_id: str) -> None:
+    held = messages_pb2.FetchNewScreeningModelsRequest(held_run_ids=[int(run_id)] * 2)
+    world["fetched"] = call(world, "FetchNewScreeningModels", held, hospital)
+
+
+@then("fetching is refused as holding a screening model twice")
+def refused_held_twice(world: World) -> None:
+    import google.rpc.error_details_pb2 as rpc_details
+    from grpc_status import rpc_status
+
+    status = rpc_status.from_call(world["refused"])
+    assert status is not None
+    assert status.code == grpc.StatusCode.INVALID_ARGUMENT.value[0]
+    (detail,) = status.details
+    bad_request = rpc_details.BadRequest()
+    assert detail.Unpack(bad_request)
+    assert [
+        (violation.field, violation.reason)
+        for violation in bad_request.field_violations
+    ] == [("held_run_ids", "duplicate_run_id")]
+
+
+@when(
+    parsers.parse(
         '"{hospital}" fetches new screening models but gives up before the reply'
     )
 )

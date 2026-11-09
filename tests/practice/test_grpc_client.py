@@ -22,7 +22,7 @@ from tests.practice.conftest import (
     make_patient,
     suggest_ferritin_on,
 )
-from tests.practice.fake_laboratory import FakeLaboratory
+from tests.practice.fake_laboratory import FakeLaboratory, Key, key_of
 from web.practice import grpc_client
 from web.practice.models import Laboratory, LabReport, Order, Patient
 from web.shared.accounts.models import User
@@ -121,12 +121,12 @@ def test_a_rejected_lab_order_holds_back_no_other_and_reports_still_arrive(
     rejected = place_cbc("Test Patient 2")
     fake_laboratory.laboratory.rejects[rejected.sample.sample_id.value] = AGE_REQUIRED
     accepted = place_cbc("Test Patient 3")
-    placed, report_id = released_ferritin(fake_laboratory.laboratory)
+    placed, key = released_ferritin(fake_laboratory.laboratory)
     assert grpc_client.check_for_lab_reports(practice, now=NOW) == 1
     sent = [order.sample_id for order in fake_laboratory.laboratory.lab_orders]
     assert accepted.sample.sample_id.value in sent
     assert LabReport.objects.filter(order=placed).exists()
-    assert report_id in fake_laboratory.laboratory.acknowledged
+    assert key in fake_laboratory.laboratory.acknowledged
 
 
 def test_placing_an_order_the_laboratory_rejects_says_why(
@@ -226,40 +226,38 @@ def test_the_lab_order_names_the_indication_for_the_hospital_to_decide(
 
 def released_ferritin(
     laboratory: FakeLaboratory, *, ferritin_suggested: bool = False
-) -> tuple[Order, int]:
+) -> tuple[Order, Key]:
     """A patient's ferritin order, analysed and released at the hospital; the
-    order and the lab report's ID."""
+    order and the lab report's sample ID and test."""
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     placed = collect_and_order(
         patient=record, test=OrderedTest.FERRITIN, indication=None, now=NOW
     )
-    report_id = laboratory.release(
+    key = laboratory.release(
         placed.sample.sample_id.value,
         messages_pb2.TEST_FERRITIN,
         NOW,
         ferritin_suggested=ferritin_suggested,
     )
-    return placed, report_id
+    return placed, key
 
 
 def test_checking_fetches_a_lab_report_and_acknowledges_it(
     practice: Laboratory, fake_laboratory: Running
 ) -> None:
-    placed, report_id = released_ferritin(
-        fake_laboratory.laboratory, ferritin_suggested=True
-    )
+    placed, key = released_ferritin(fake_laboratory.laboratory, ferritin_suggested=True)
     assert grpc_client.check_for_lab_reports(practice, now=NOW) == 1
     assert LabReport.objects.get(order=placed).ferritin_suggested is True
-    assert report_id in fake_laboratory.laboratory.acknowledged
+    assert key in fake_laboratory.laboratory.acknowledged
 
 
 def test_a_lab_report_is_fetched_once(
     practice: Laboratory, fake_laboratory: Running
 ) -> None:
-    placed, report_id = released_ferritin(fake_laboratory.laboratory)
+    placed, key = released_ferritin(fake_laboratory.laboratory)
     grpc_client.check_for_lab_reports(practice, now=NOW)
     # The stand-in forgets the acknowledgement: the app still stores it once.
-    fake_laboratory.laboratory.acknowledged.discard(report_id)
+    fake_laboratory.laboratory.acknowledged.discard(key)
     grpc_client.check_for_lab_reports(practice, now=NOW)
     assert LabReport.objects.filter(order=placed).count() == 1
 
@@ -269,22 +267,21 @@ def test_a_lab_report_the_app_cannot_match_is_sent_once(
 ) -> None:
     """Acknowledged means received: the laboratory stops sending it, so a report
     no order matches never piles up ahead of the others."""
-    placed, report_id = released_ferritin(fake_laboratory.laboratory)
+    placed, key = released_ferritin(fake_laboratory.laboratory)
     stranger = fake_laboratory.laboratory.release(
         "999999-1", messages_pb2.TEST_FERRITIN, NOW
     )
     assert grpc_client.check_for_lab_reports(practice, now=NOW) == 1
     assert LabReport.objects.filter(order=placed).exists()
-    assert {report_id, stranger} <= fake_laboratory.laboratory.acknowledged
+    assert {key, stranger} <= fake_laboratory.laboratory.acknowledged
 
 
 # Each part of a lab report the practice stores or finds its order by, from its
-# descriptor, so a new part is covered too. The report ID only addresses the
-# acknowledgement.
+# descriptor, so a new part is covered too.
 PARTS = [
     field.name
     for field in messages_pb2.LabReport.DESCRIPTOR.fields
-    if not field.is_repeated and field.name != "report_id"
+    if not field.is_repeated
 ]
 
 
@@ -294,9 +291,9 @@ def test_a_lab_report_missing_any_part_is_not_stored(
 ) -> None:
     """A lab report is complete or not stored: the practice's fields never fill a
     part the hospital left out, such as no ferritin suggestion."""
-    placed, report_id = released_ferritin(fake_laboratory.laboratory)
-    full = fake_laboratory.laboratory.reports[report_id]
-    fake_laboratory.laboratory.reports[report_id] = messages_pb2.LabReport(
+    placed, key = released_ferritin(fake_laboratory.laboratory)
+    full = fake_laboratory.laboratory.reports[key]
+    fake_laboratory.laboratory.reports[key] = messages_pb2.LabReport(
         **{
             field.name: getattr(full, field.name)
             for field in full.DESCRIPTOR.fields
@@ -305,7 +302,9 @@ def test_a_lab_report_missing_any_part_is_not_stored(
     )
     assert grpc_client.check_for_lab_reports(practice, now=NOW) == 0
     assert not LabReport.objects.filter(order=placed).exists()
-    assert fake_laboratory.laboratory.acknowledged == {report_id}
+    # Acknowledged by what it said: received, whatever it lacks.
+    sent = fake_laboratory.laboratory.reports[key]
+    assert fake_laboratory.laboratory.acknowledged == {key_of(sent)}
 
 
 @pytest.mark.parametrize("part", ["name", "value"])
@@ -314,14 +313,29 @@ def test_a_lab_report_with_a_result_missing_any_part_is_not_stored(
 ) -> None:
     """A result is a result name and its value: one without either is no result,
     and the practice never guesses it (a value of 0 is sent, and is a value)."""
-    placed, report_id = released_ferritin(fake_laboratory.laboratory)
-    report = fake_laboratory.laboratory.reports[report_id]
+    placed, key = released_ferritin(fake_laboratory.laboratory)
+    report = fake_laboratory.laboratory.reports[key]
     result: dict[str, Any] = {"name": messages_pb2.RESULT_NAME_FERRITIN, "value": 11.0}
     del result[part]
     del report.results[:]
     report.results.append(messages_pb2.Result(**result))
     assert grpc_client.check_for_lab_reports(practice, now=NOW) == 0
     assert not LabReport.objects.filter(order=placed).exists()
+
+
+def test_a_lab_report_naming_a_result_twice_is_not_stored(
+    practice: Laboratory, fake_laboratory: Running
+) -> None:
+    """One value per result name: of two, the practice never picks one; the
+    report is still acknowledged as received."""
+    placed, key = released_ferritin(fake_laboratory.laboratory)
+    report = fake_laboratory.laboratory.reports[key]
+    report.results.append(
+        messages_pb2.Result(name=messages_pb2.RESULT_NAME_FERRITIN, value=12.0)
+    )
+    assert grpc_client.check_for_lab_reports(practice, now=NOW) == 0
+    assert not LabReport.objects.filter(order=placed).exists()
+    assert key in fake_laboratory.laboratory.acknowledged
 
 
 # The general practitioner's app in use: its views and command talk to the endpoint.
@@ -481,12 +495,12 @@ def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
     suggest_ferritin_on(sample, NOW)
     placed = sample.place_order(test=OrderedTest.FERRITIN, indication=None, now=NOW)
     # AZ Diest releases a lab report on it anyway.
-    report_id = fake_laboratory.laboratory.release(
+    key = fake_laboratory.laboratory.release(
         sample.sample_id.value, messages_pb2.TEST_FERRITIN, NOW
     )
     assert grpc_client.check_for_lab_reports(practice, now=NOW) == 0
     assert not LabReport.objects.filter(order=placed).exists()
-    assert report_id in fake_laboratory.laboratory.acknowledged
+    assert key in fake_laboratory.laboratory.acknowledged
 
 
 def test_check_for_reports_names_an_unreachable_laboratory_and_asks_the_others(

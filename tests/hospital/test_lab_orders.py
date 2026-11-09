@@ -75,9 +75,34 @@ def released(name: str, sample_id: str, practice: str) -> None:
 def acknowledges(practice: str, sample_id: str) -> None:
     TestRequest.objects.acknowledge(
         practice=Practice.objects.get(name=practice),
-        report_ids=[TestRequest.objects.get(sample__sample_id=sample_id).pk],
+        lab_reports=[(sample_id, OrderedTest.FERRITIN)],
         now=NOW,
     )
+
+
+@when(
+    parsers.parse(
+        'practice "{practice}" acknowledges the lab report on sample "{sample_id}"'
+        " twice"
+    )
+)
+def acknowledges_twice(world: World, practice: str, sample_id: str) -> None:
+    try:
+        TestRequest.objects.acknowledge(
+            practice=Practice.objects.get(name=practice),
+            lab_reports=[(sample_id, OrderedTest.FERRITIN)] * 2,
+            now=NOW,
+        )
+    except ValidationError as error:
+        world["refused"] = error
+
+
+@then("acknowledging is refused as naming a lab report twice")
+def refused_twice(world: World) -> None:
+    refused = world["refused"].error_dict.values()
+    assert [error.code for errors in refused for error in errors] == [
+        "duplicate_lab_report"
+    ]
 
 
 def fetched(practice: str) -> list[str]:

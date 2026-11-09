@@ -29,6 +29,11 @@ Feature: The startup releases final models; recipient hospitals fetch them as sc
     When "UZ Leuven" fetches new screening models, holding screening model "7"
     Then it receives no screening model
 
+  Scenario: A fetch holding one screening model twice is refused
+    Given data scientist "Data One" released final model "7"
+    When "UZ Leuven" fetches new screening models, holding screening model "7" twice
+    Then fetching is refused as holding a screening model twice
+
   Scenario: A screening model fetched but not held is sent again
     Given data scientist "Data One" released final model "7"
     And "UZ Leuven" fetched new screening models

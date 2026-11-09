@@ -39,17 +39,26 @@ def rejection(violations: list[tuple[str, str]]) -> grpc.Status:
     return rpc_status.to_status(
         rpc_status_pb2.Status(
             code=rpc_code.INVALID_ARGUMENT,
-            message="lab_order_rejected",
+            message="rejected",
             details=[detail],
         )
     )
 
 
+type Key = tuple[str, "messages_pb2.Test.ValueType"]
+
+
+def key_of(report: messages_pb2.LabReport) -> Key:
+    """A lab report's sample ID and test: what names it on the wire."""
+    return report.sample_id, report.test
+
+
 @dataclass
 class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
     lab_orders: list[messages_pb2.LabOrder] = field(default_factory=list)
-    reports: dict[int, messages_pb2.LabReport] = field(default_factory=dict)
-    acknowledged: set[int] = field(default_factory=set)
+    # Each lab report under its sample ID and test, as the practice acknowledges it.
+    reports: dict[Key, messages_pb2.LabReport] = field(default_factory=dict)
+    acknowledged: set[Key] = field(default_factory=set)
     # The slug each call named its party by, in order.
     callers: list[str | None] = field(default_factory=list)
     # A status the endpoint answers every lab order with instead of recording it.
@@ -65,11 +74,9 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
         released_at: datetime,
         *,
         ferritin_suggested: bool = False,
-    ) -> int:
-        """A lab report the hospital releases on a sample; its report ID."""
-        report_id = len(self.reports) + 1
-        self.reports[report_id] = messages_pb2.LabReport(
-            report_id=report_id,
+    ) -> Key:
+        """A lab report the hospital releases on a sample; its sample ID and test."""
+        self.reports[sample_id, test] = messages_pb2.LabReport(
             sample_id=sample_id,
             test=test,
             results=[
@@ -78,7 +85,7 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
             ferritin_suggested=ferritin_suggested,
             released_at=timestamp(released_at),
         )
-        return report_id
+        return sample_id, test
 
     def SendLabOrder(
         self, request: messages_pb2.SendLabOrderRequest, context: grpc.ServicerContext
@@ -101,8 +108,8 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
         return messages_pb2.FetchNewLabReportsResponse(
             lab_reports=[
                 report
-                for report_id, report in self.reports.items()
-                if report_id not in self.acknowledged
+                for report in self.reports.values()
+                if key_of(report) not in self.acknowledged
             ]
         )
 
@@ -112,5 +119,8 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
         context: grpc.ServicerContext,
     ) -> messages_pb2.AcknowledgeLabReportsResponse:
         self.callers.append(named(context))
-        self.acknowledged.update(request.report_ids)
+        self.acknowledged.update(
+            (acknowledgement.sample_id, acknowledgement.test)
+            for acknowledgement in request.acknowledgements
+        )
         return messages_pb2.AcknowledgeLabReportsResponse()

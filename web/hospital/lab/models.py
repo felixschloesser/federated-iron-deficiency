@@ -20,7 +20,7 @@ from web.hospital.deployment.models import (
     Deployment,
     NoUsableModel,
 )
-from web.shared.parsing import parsed
+from web.shared.parsing import once_each, parsed
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
 
 
@@ -217,13 +217,20 @@ class TestRequestManager(models.Manager["TestRequest"]):
 
     @transaction.atomic
     def acknowledge(
-        self, *, practice: Practice, report_ids: list[int], now: datetime
+        self,
+        *,
+        practice: Practice,
+        lab_reports: list[tuple[str, str | None]],
+        now: datetime,
     ) -> None:
-        """`practice` has these lab reports of its own: hand them out no more."""
+        """`practice` has these lab reports of its own, each by its sample ID and
+        test: hand them out no more. One named twice refuses them all."""
+        once_each("acknowledgements", lab_reports, code="duplicate_lab_report")
+        named = models.Q(pk__in=[])
+        for sample_id, test in lab_reports:
+            named |= models.Q(sample__sample_id=sample_id, test=test)
         self.filter(
-            sample__practice=practice,
-            pk__in=report_ids,
-            report_acknowledged_at__isnull=True,
+            named, sample__practice=practice, report_acknowledged_at__isnull=True
         ).update(report_acknowledged_at=now)
 
 
