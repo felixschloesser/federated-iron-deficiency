@@ -145,8 +145,10 @@ flwr run . supergrid --federation @<username>/<federation-name> \
 ```shell
 uv run pytest                                          # the tests outside the party folders
 for party in hospital practice startup; do uv run pytest --ds=web.$party.settings; done   # each party's
-uv run pytest -m "not containers and not subprocess"   # the quick loop
+uv run pytest -m "not containers and not subprocess and not privacy_issue"   # the quick loop
 uv run pytest -m containers                            # against the running demo (Docker)
+uv run pytest -m privacy_issue                         # the report's open privacy issues: red until fixed
+uv run pytest -m privacy_issue --ds=web.hospital.settings   # and the hospital's
 ```
 
 Each party's web app is its own Django project, so each party's tests run under

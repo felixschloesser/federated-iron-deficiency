@@ -5,6 +5,27 @@ tier: a privacy property the contract decides is tested on the contract."""
 import pytest
 
 
+@pytest.mark.privacy_issue
+def test_a_lab_order_says_only_whether_its_cbc_is_screened_and_on_which_day() -> None:
+    """Threats DD6 and DD2 (issue B). Pass: a lab order carries a yes/no
+    `screened` in place of the clinical indication, and no timestamp: the day it
+    was ordered at most, not the time."""
+    from google.protobuf.descriptor import FieldDescriptor
+
+    from web.shared.grpc import messages_pb2
+
+    fields = messages_pb2.LabOrder.DESCRIPTOR.fields_by_name
+    assert "clinical_indication" not in fields
+    assert fields["screened"].type == FieldDescriptor.TYPE_BOOL
+    assert all(
+        field.message_type is None
+        or field.message_type.full_name != "google.protobuf.Timestamp"
+        for field in fields.values()
+    )
+
+
+# TODO(issue B): when the lab order carries `screened` in place of the clinical
+# indication, delete this test and update LabOrder's fields below.
 def test_a_lab_order_names_its_indication_only_as_one_of_the_choices() -> None:
     """The laboratory decides from the clinical indication whether to screen (features/hospital/screening.feature): it learns which of the six choices, pregnancy included, never free text."""
     from google.protobuf.descriptor import FieldDescriptor

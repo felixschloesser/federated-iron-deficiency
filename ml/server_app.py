@@ -73,6 +73,8 @@ def training_run(grid: Grid, context: Context, directory: Path | None) -> None:
 
     torch.manual_seed(int(context.run_config["model-seed"]))
     arrays = ArrayRecord(Net().state_dict())
+    # TODO(issue A, DD5): aggregate through SecAggPlusWorkflow, so the ServerApp
+    # receives only masked updates; tests/quality/privacy/test_updates.py.
     strategy = FedAvg(fraction_evaluate=fraction_evaluate)
     result = strategy.start(
         grid=grid,
