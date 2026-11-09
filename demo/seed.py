@@ -1,9 +1,9 @@
-"""Seed one party's web app for the demo, inside that party's Django:
+"""Seed one party's web app for the demo, inside that party's Django, from the
+NHANES extract nhanes-download wrote for it (demo/nhanes.py):
 
-    python -m demo.seed hospital|practice [--seed N] [--nhanes CSV] [--patients N]
-    python -m demo.seed hospital|practice --rows CSV   # nhanes-download's extract
+    python -m demo.seed hospital --rows PARTICIPANTS --lab-records CSV [--provide]
+    python -m demo.seed practice --rows SAMPLE_IDS
     python -m demo.seed startup
-    python -m demo.seed lab-records --csv CSV [--provide]   # the hospital's
 
 DATA_DIR names the party's folder, as for its web app. Its accounts share a
 known password, so it runs only with DJANGO_DEBUG=1."""
@@ -18,75 +18,32 @@ from django.conf import settings
 
 from demo.seeding.accounts import PASSWORD
 
-# Whose settings each target runs in.
-PARTIES = {
-    "hospital": "hospital",
-    "practice": "practice",
-    "startup": "startup",
-    "lab-records": "hospital",
-}
-
 
 def parser() -> argparse.ArgumentParser:
     arguments = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    arguments.add_argument("target", choices=PARTIES)
-    arguments.add_argument(
-        "--seed", type=int, default=0, help="other patients for each hospital"
+    parties = arguments.add_subparsers(dest="party", required=True)
+    hospital = parties.add_parser("hospital")
+    hospital.add_argument(
+        "--rows", type=Path, required=True, help="its participants.csv"
     )
-    arguments.add_argument(
-        "--nhanes", type=Path, help="a CSV of load_nhanes() instead of the network"
+    hospital.add_argument(
+        "--lab-records", type=Path, required=True, help="its lab-records.csv"
     )
-    arguments.add_argument(
-        "--patients",
-        type=int,
-        default=None,
-        help="how many patients; the practice's stock and its hospital's analyser"
-        " hold three sample IDs for each, and need the same",
-    )
-    arguments.add_argument(
-        "--rows",
-        type=Path,
-        help="the party's NHANES extract, as nhanes-download wrote it (demo/nhanes.py)",
-    )
-    arguments.add_argument(
-        "--csv", type=Path, help="lab-records: nhanes-download's CSV"
-    )
-    arguments.add_argument(
+    hospital.add_argument(
         "--provide",
         action="store_true",
-        help="lab-records: the laboratory director provides the training cohort",
+        help="the laboratory director provides the training cohort",
     )
+    practice = parties.add_parser("practice")
+    practice.add_argument("--rows", type=Path, required=True, help="its sample-ids.csv")
+    parties.add_parser("startup")
     return arguments
 
 
-def chosen_rows(options: argparse.Namespace) -> list[dict[object, object]]:
-    if options.rows is not None:
-        from demo.seeding.parties import read_rows
-
-        extract: list[dict[object, object]] = read_rows(options.rows)
-        return extract
-    # Choosing them needs pandas, which only a developer's checkout has.
-    import pandas as pd
-
-    from demo.seeding import participants
-
-    nhanes = (
-        pd.read_csv(options.nhanes) if options.nhanes else participants.load_nhanes()
-    )
-    patients = options.patients or participants.PATIENTS
-    chosen = participants.stock(nhanes, seed=options.seed, patients=patients)
-    rows: list[dict[object, object]] = participants.with_made_up_ferritin(
-        chosen, nhanes
-    ).to_dict("records")
-    return rows
-
-
 def main(argv: list[str] | None = None) -> str:
-    """Seed the target; what it seeded, in one line."""
+    """Seed the party; what it seeded, in one line."""
     options = parser().parse_args(argv)
-    os.environ.setdefault(
-        "DJANGO_SETTINGS_MODULE", f"web.{PARTIES[options.target]}.settings"
-    )
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", f"web.{options.party}.settings")
     django.setup()
     if not settings.DEBUG:
         raise SystemExit(
@@ -94,21 +51,19 @@ def main(argv: list[str] | None = None) -> str:
         )
     from demo.seeding import parties
 
-    if options.target == "lab-records":
-        if options.csv is None:
-            raise SystemExit("lab-records needs --csv.")
-        return parties.seed_lab_records(options.csv, options.provide)
-    if options.target == "startup":
+    if options.party == "startup":
         accounts = parties.seed_startup()
         return f"Accounts {', '.join(accounts)} and no-role, password {PASSWORD}"
-    rows = chosen_rows(options)
-    seed = (
-        parties.seed_hospital if options.target == "hospital" else parties.seed_practice
-    )
-    accounts = seed(rows)
+    rows = parties.read_rows(options.rows)
+    if options.party == "hospital":
+        accounts = parties.seed_hospital(rows)
+        records = parties.seed_lab_records(options.lab_records, options.provide)
+    else:
+        accounts = parties.seed_practice(rows)
+        records = "no lab records"
     return (
         f"Accounts {', '.join(accounts)} and no-role, password {PASSWORD};"
-        f" {len(rows)} NHANES participants"
+        f" {len(rows)} NHANES participants, {records}"
     )
 
 

@@ -92,6 +92,8 @@ def setup_steps(party: str) -> list[list[str]]:
     """The commands <party>-setup runs, in order, from its one `sh -c` line."""
     command: list[str] = service(f"{party}-setup")["command"]
     assert command[:2] == ["sh", "-c"], command
+    # One line: a newline a folded YAML block kept would end a command early.
+    assert "\n" not in command[2], command[2]
     steps: list[list[str]] = [[]]
     for word in shlex.split(command[2]):
         if word == "&&":

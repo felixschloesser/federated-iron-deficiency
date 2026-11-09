@@ -57,7 +57,7 @@ SET_UP: dict[str, set[str]] = {}
 HOSPITAL_SETUP = (
     "python manage.py migrate -v0"
     " && python -m demo.seed hospital --rows /nhanes/participants.csv"
-    " && python -m demo.seed lab-records --csv /nhanes/lab-records.csv"
+    " --lab-records /nhanes/lab-records.csv"
     " && python manage.py add_practice 'Huisartsenpraktijk De Ceder'"
 )
 PRACTICE_SETUP = (

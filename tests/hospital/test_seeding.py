@@ -7,10 +7,9 @@ import pytest
 from pytest_django.fixtures import Settings
 
 from demo.seed import main
-from demo.seeding import participants as seeding
 from demo.seeding.participants import SAMPLE_IDS_PER_PATIENT
 from ml.cohort import CBC_VARS
-from tests.conftest import PEOPLE, nhanes_rows
+from tests.conftest import PEOPLE, write_extracts
 from web.hospital.analyser.models import MADE_UP_FERRITIN, Participant
 from web.shared.accounts.models import User
 from web.shared.accounts.roles import Role, role_of
@@ -21,14 +20,28 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def development(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
+def extract(settings: Settings, tmp_path: Path) -> Path:
+    """The hospital's folder of nhanes-download's extracts, in development."""
     settings.DEBUG = True
-    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
+    hospital, _ = write_extracts(tmp_path)
+    return hospital
+
+
+def seeding(folder: Path, lab_records: Path | None = None) -> list[str]:
+    """demo.seed's arguments for the hospital, from its extracts."""
+    records = lab_records or folder / "lab-records.csv"
+    return [
+        "hospital",
+        "--rows",
+        str(folder / "participants.csv"),
+        "--lab-records",
+        str(records),
+    ]
 
 
 @pytest.fixture
-def seeded(development: None) -> None:
-    main(["hospital"])
+def seeded(extract: Path) -> None:
+    main(seeding(extract))
 
 
 def test_seeds_its_staff(seeded: None) -> None:
@@ -57,34 +70,21 @@ def test_seeds_a_participant_for_each_sample_id_of_the_stock(seeded: None) -> No
             assert participant.cbc == dict.fromkeys(CBC_VARS, float(group))
 
 
-def test_running_twice_changes_nothing(seeded: None) -> None:
-    main(["hospital"])
+def test_running_twice_changes_nothing(seeded: None, extract: Path) -> None:
+    main(seeding(extract))
     assert User.objects.count() == 3
     assert Participant.objects.count() == SAMPLE_IDS_PER_PATIENT * 3 * len(PEOPLE)
 
 
-def test_refuses_outside_development(settings: Settings) -> None:
+def test_refuses_outside_development(settings: Settings, extract: Path) -> None:
     settings.DEBUG = False
     with pytest.raises(SystemExit, match="DJANGO_DEBUG=1"):
-        main(["hospital"])
+        main(seeding(extract))
     assert not User.objects.exists()
-
-
-def test_reads_participants_from_a_csv(settings: Settings, tmp_path: Path) -> None:
-    settings.DEBUG = True
-    csv = tmp_path / "nhanes.csv"
-    nhanes_rows().to_csv(csv, index=False)
-    main(["hospital", "--nhanes", str(csv)])
-    assert Participant.objects.count() == SAMPLE_IDS_PER_PATIENT * 3 * len(PEOPLE)
 
 
 def test_eligible_women_without_ferritin_are_never_seeded(seeded: None) -> None:
     assert not Participant.objects.filter(seqn__range=(1400, 1499)).exists()
-
-
-def test_the_number_of_participants_is_a_parameter(development: None) -> None:
-    main(["hospital", "--patients", "6"])
-    assert Participant.objects.count() == SAMPLE_IDS_PER_PATIENT * 6
 
 
 def test_a_made_up_ferritin_is_reported_under_its_own_name() -> None:
@@ -110,33 +110,31 @@ def lab_records_file(tmp_path: Path, deficient: int, sound: int) -> Path:
     return path
 
 
-def test_a_hospital_seeds_its_lab_records(settings: Settings, tmp_path: Path) -> None:
+def test_a_hospital_seeds_its_lab_records(
+    settings: Settings, tmp_path: Path, extract: Path
+) -> None:
     from web.hospital.cohort.models import LabRecord, TrainingCohort
 
-    settings.DEBUG = True
     settings.TRAINING_COHORT_DIR = tmp_path / "cohort"
     path = lab_records_file(tmp_path, deficient=20, sound=100)
-    main(["lab-records", "--csv", str(path)])
-    main(["lab-records", "--csv", str(path)])
+    main(seeding(extract, path))
+    main(seeding(extract, path))
     # Once, however often prepare runs; nothing provided without --provide.
     assert LabRecord.objects.count() == 121
     assert TrainingCohort.objects.provided() is None
 
 
 def test_a_hospital_seeding_with_provide_provides_its_training_cohort(
-    settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    settings: Settings, tmp_path: Path, extract: Path
 ) -> None:
     """Through the laboratory director's own provide
     (features/hospital/training_cohort.feature); once, however often prepare runs."""
     from web.hospital.cohort.models import TrainingCohort
 
-    settings.DEBUG = True
     settings.TRAINING_COHORT_DIR = tmp_path / "cohort"
-    monkeypatch.setattr(seeding, "load_nhanes", nhanes_rows)
     path = lab_records_file(tmp_path, deficient=20, sound=100)
-    main(["hospital"])
     for _ in range(2):
-        main(["lab-records", "--csv", str(path), "--provide"])
+        main([*seeding(extract, path), "--provide"])
     provided = TrainingCohort.objects.provided()
     assert provided is not None
     assert (provided.past_patients, provided.iron_deficient) == (120, 20)
