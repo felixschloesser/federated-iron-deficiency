@@ -1,5 +1,5 @@
-"""Plain pytest collects every test: the ones outside the party folders, each
-party's under its own settings, and the tests of the tools in .claude/."""
+"""Which tests a run collects: plain pytest those outside the party folders and
+says the parties' were not run; a run under a party's settings only that party's."""
 
 import subprocess
 import sys
@@ -10,8 +10,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.subprocess
-def test_plain_pytest_collects_every_party_and_the_tools() -> None:
+def collect(*arguments: str) -> tuple[set[str], str]:
+    """The top folders under tests/ a collection holds, and its output."""
     result = subprocess.run(
         [
             sys.executable,
@@ -21,17 +21,32 @@ def test_plain_pytest_collects_every_party_and_the_tools() -> None:
             "-q",
             "-p",
             "no:cacheprovider",
+            *arguments,
         ],
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=True,
     )
-    collected = {
-        line.split("::")[0] for line in result.stdout.splitlines() if "::" in line
-    }
     folders = {
-        path.split("/")[1] if path.startswith("tests/") else path.split("/")[0]
-        for path in collected
+        line.split("::")[0].split("/")[1]
+        for line in result.stdout.splitlines()
+        if line.startswith("tests/") and "::" in line
     }
-    assert {"hospital", "practice", "startup", "quality", ".claude"} <= folders, folders
+    return folders, result.stdout
+
+
+@pytest.mark.subprocess
+def test_plain_pytest_leaves_the_parties_out_and_says_so() -> None:
+    folders, output = collect()
+    assert "quality" in folders
+    assert not {"hospital", "practice", "startup"} & folders
+    assert "Party tests not run" in output
+
+
+@pytest.mark.subprocess
+def test_a_partys_run_collects_only_its_own_tests() -> None:
+    folders, output = collect("--ds=web.hospital.settings")
+    assert "hospital" in folders
+    assert not {"practice", "startup"} & folders
+    assert "Party tests not run" not in output

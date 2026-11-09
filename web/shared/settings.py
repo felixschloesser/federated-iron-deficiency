@@ -21,8 +21,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
 # Each party's module sets these; here, what a party without them has.
-# The roles that log in to this web app (.claude/audit.py checks each role is in
-# exactly one party's module).
+# The roles that log in to this web app; each role logs in to one party
+# (tests/quality/security/test_boundaries.py).
 ROLES: list[Role] = []
 # The party's own folder (data_dir()).
 DATA_DIR: Path | None = None

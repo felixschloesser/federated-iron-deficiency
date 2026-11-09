@@ -8,8 +8,8 @@ imports from the training package only ml.cohort and ml.dataset; the
 hospital's also ml.final_model, ml.inference, ml.training_cohort, to write
 the training cohort its laboratory director provides, and ml.validation, to
 validate the screening models it fetches, the startup's also
-ml.final_model, to read its final models, never to screen (the audit checks
-that). Each test's docstring states its pass/fail measure."""
+ml.final_model, to read its final models, never to screen (test_boundaries.py
+checks that). Each test's docstring states its pass/fail measure."""
 
 import os
 import sqlite3

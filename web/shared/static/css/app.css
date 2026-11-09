@@ -1,4 +1,4 @@
-/* Additions to the vendored Pico 2.1.1; .claude/audit.py checks template classes against both. */
+/* Additions to the vendored Pico 2.1.1. */
 .skip-link {
   position: absolute;
   left: -999px;
