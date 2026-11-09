@@ -248,11 +248,70 @@ def receives_configuration(superlink: World, datatable: list[list[str]]) -> None
         assert str(sent[key]) == value, (key, sent)
 
 
-@then("the run configuration sets no fraction of hospitals evaluating and no W&B key")
+@then(
+    "the run configuration sets no fraction of hospitals evaluating, no W&B key"
+    " and no folder"
+)
 def sets_nothing_else(superlink: World) -> None:
+    from ml.training import TRAINING_PARAMETERS
+
     sent = run_configuration_sent(superlink)
     assert "fraction-evaluate" not in sent
-    assert "wandb-api-key" not in sent
+    assert set(sent) <= set(TRAINING_PARAMETERS), sent
+
+
+@given(parsers.parse("the ServerApp's final-models folder {problem}"))
+def final_models_folder(world: World, tmp_path: Path, problem: str) -> None:
+    folder = tmp_path / "server-app"
+    match problem:
+        case "is a folder it can write to":
+            folder.mkdir()
+            world["environ"] = {"FINAL_MODELS_DIR": str(folder)}
+        case "is not named":
+            world["environ"] = {}
+        case "is a relative path":
+            world["environ"] = {"FINAL_MODELS_DIR": "final-models"}
+        case "does not exist":
+            world["environ"] = {"FINAL_MODELS_DIR": str(folder)}
+        case "is read-only":
+            folder.mkdir(mode=0o500)
+            world["environ"] = {"FINAL_MODELS_DIR": str(folder)}
+        case _:
+            raise AssertionError(problem)
+    world["folder"] = folder
+
+
+@then("the ServerApp keeps the run's final model in that folder")
+def keeps_in_folder(world: World) -> None:
+    from ml.final_model import Net
+    from ml.training import keep_final_model, startup_final_models
+
+    folder = startup_final_models(world["environ"])
+    assert folder is not None
+    path = keep_final_model(
+        folder,
+        run_id=7,
+        state_dict=Net().state_dict(),
+        federated_auroc=0.86,
+        run_configuration={},
+        stored_at=NOW,
+    )
+    assert path.parent == world["folder"]
+
+
+@then("the ServerApp refuses to start the run")
+def refuses_to_start(world: World) -> None:
+    from ml.training import FinalModelsFolderUnavailable, startup_final_models
+
+    with pytest.raises(FinalModelsFolderUnavailable, match="FINAL_MODELS_DIR"):
+        startup_final_models(world["environ"])
+
+
+@then("the ServerApp keeps no final model")
+def keeps_none(world: World) -> None:
+    from ml.training import startup_final_models
+
+    assert startup_final_models(world["environ"]) is None
 
 
 @then(
@@ -285,9 +344,7 @@ def server_app_keeps_configured(
     from ml.training import keep_final_model, training_parameters
 
     run_config = {
-        key: value
-        if key in ("demo-dir", "wandb-api-key")
-        else tomllib.loads(f"v = {value}")["v"]
+        key: value if key == "wandb-api-key" else tomllib.loads(f"v = {value}")["v"]
         for key, value in datatable[1:]
     }
     keep_final_model(
@@ -312,18 +369,13 @@ def shows_configuration(world: World, run_id: str, shown: str) -> None:
     assert model.run_configuration_shown == shown
 
 
-@then(
-    parsers.parse(
-        'the startup\'s copy of final model "{run_id}" holds no W&B key and no folder'
-    )
-)
+@then(parsers.parse('the startup\'s copy of final model "{run_id}" holds no W&B key'))
 def holds_no_secret(world: World, run_id: str) -> None:
     from ml.final_model import model_file_path, read_final_model
 
     kept = read_final_model(model_file_path(world["final_models_dir"], run_id))
     assert kept is not None
     assert "wandb-api-key" not in kept.run_configuration
-    assert "demo-dir" not in kept.run_configuration
 
 
 @then("the submission gives the run's ID")

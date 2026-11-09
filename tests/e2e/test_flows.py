@@ -136,7 +136,7 @@ def flower_run(compose: Compose, configuration: str) -> str:
             "/app",
             "demo",
             "--run-config",
-            f"demo-dir='/demo' {configuration}",
+            configuration,
             "--format",
             "json",
         )

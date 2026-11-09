@@ -71,18 +71,20 @@ Each virtual SuperNode loads the cycle matching its `partition-id` from a
 pinned revision of the
 [`gracemyu/nhanes-merged`](https://huggingface.co/datasets/gracemyu/nhanes-merged)
 dataset (CC0). The first run downloads about 280 MB; set `HF_TOKEN` for faster
-downloads. On your machine, which also keeps the final models in
-`<demo-dir>/startup/final-models/<run-id>.pt` (`demo-dir` must be absolute and
-defaults to `~/.cache/iron-deficiency`):
+downloads. On your machine, keeping each final model as
+`<run-id>.pt` in the absolute folder `FINAL_MODELS_DIR` names, which must exist;
+the startup's web app reads `.data/startup/final-models` and creates it. Without
+`FINAL_MODELS_DIR`, a run keeps no final model, as on SuperGrid:
 
 ```shell
-flwr run . --federation-config "num-supernodes=3" --run-config "demo-dir='$PWD/.demo'" --stream
+FINAL_MODELS_DIR=$PWD/.data/startup/final-models flwr run . --federation-config "num-supernodes=3" --stream
 ```
 
 `flwr run` starts a local SuperLink in the background and reuses it for later
-runs, from any checkout: its simulation imports `ml` from the environment it
-was started in. Stop it (`pkill -f flower-superlink`) before running from
-another checkout.
+runs, from any checkout: its simulation imports `ml`, and reads
+`FINAL_MODELS_DIR`, from the environment it was started in. Stop it
+(`pkill -f flower-superlink`) before running from another checkout or with
+another `FINAL_MODELS_DIR`.
 
 On SuperGrid's simulation federation instead, with three virtual SuperNodes:
 

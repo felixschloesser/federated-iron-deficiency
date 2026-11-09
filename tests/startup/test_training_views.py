@@ -200,17 +200,6 @@ def test_a_refused_run_says_why(
     assertContains(response, "The SuperLink refused the run: unavailable")
 
 
-def test_a_deployment_tells_the_server_app_its_demo_folder(
-    settings: Settings, tmp_path: Path
-) -> None:
-    from web.startup.training.runs import run_configuration
-
-    settings.DATA_DIR = tmp_path / "startup"
-    assert (
-        run_configuration({"batch-size": 64}) == f"batch-size=64 demo-dir='{tmp_path}'"
-    )
-
-
 @pytest.mark.usefixtures("data_scientist")
 def test_a_run_without_an_answer_shows_no_server_paths(
     client: Client, monkeypatch: pytest.MonkeyPatch

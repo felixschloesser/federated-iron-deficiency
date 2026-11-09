@@ -2,6 +2,7 @@
 one file per training run, which recipient hospitals can fetch once it is
 released."""
 
+import os
 from collections.abc import Mapping, Sized
 from datetime import datetime
 from pathlib import Path
@@ -46,7 +47,7 @@ def dataset_size(loader: Loader) -> int:
 
 
 # The run configuration keys that say how a model was trained. The run
-# configuration also carries the demo folder and the W&B key, which are left out.
+# configuration also carries the W&B key, which is left out.
 TRAINING_PARAMETERS = (
     "num-server-rounds",
     "fraction-evaluate",
@@ -57,13 +58,30 @@ TRAINING_PARAMETERS = (
     "model-seed",
 )
 
-# Where final models live when no demo directory is configured.
-DEFAULT_DEMO_DIR = Path.home() / ".cache" / "iron-deficiency"
+
+class FinalModelsFolderUnavailable(RuntimeError):
+    """The ServerApp has no folder it can keep the final model in."""
 
 
-def startup_final_models(demo_dir: Path) -> Path:
-    """The startup's folder of final models under `demo_dir`."""
-    return demo_dir / "startup" / "final-models"
+def startup_final_models(environ: Mapping[str, str]) -> Path | None:
+    """The startup's folder of final models: the absolute path FINAL_MODELS_DIR
+    names, which the deployment creates and the ServerApp writes to. None if the
+    deployment names none, as on SuperGrid, where Flower runs the ServerApp and
+    the startup could not read a kept model anyway.
+
+    Checked before training, so a run whose final model could not be kept never
+    starts. The ServerApp never creates the folder, so a wrong path cannot
+    quietly keep final models where the startup's web app does not look."""
+    named = environ.get("FINAL_MODELS_DIR", "")
+    if not named:
+        return None
+    folder = Path(named)
+    if not (folder.is_absolute() and folder.is_dir() and os.access(folder, os.W_OK)):
+        raise FinalModelsFolderUnavailable(
+            f"FINAL_MODELS_DIR={named} is not an absolute path to a folder the"
+            " ServerApp can write to."
+        )
+    return folder
 
 
 def training_parameters(run_config: Mapping[str, object]) -> dict[str, int | float]:
