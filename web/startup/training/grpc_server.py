@@ -5,11 +5,14 @@ models it does not hold, saying which it holds
 
 import grpc
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from web.shared.grpc import messages_pb2, messages_pb2_grpc
 from web.shared.grpc.endpoint import start, with_database
 from web.shared.grpc.identity import caller
+from web.shared.grpc.rejection import rejected
+from web.shared.parsing import once_each
 from web.startup.training.final_models import released_final_model
 from web.startup.training.models import Recipient, Release
 
@@ -37,6 +40,10 @@ class ScreeningModelsService(messages_pb2_grpc.ScreeningModelsServicer):
         context: grpc.ServicerContext,
     ) -> messages_pb2.FetchNewScreeningModelsResponse:
         recipient = recipient_of(context)
+        try:
+            once_each("held_run_ids", request.held_run_ids, code="duplicate_run_id")
+        except ValidationError as error:
+            context.abort_with_status(rejected(error))
         held = [str(run_id) for run_id in request.held_run_ids]
         offered = [
             model

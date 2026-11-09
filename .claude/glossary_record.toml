@@ -229,3 +229,7 @@ rejected = ["cancel", "abort", "kill"]
 ["rejection"]
 decided = "2026-11-07"
 rejected = ["refused (the app's copy until then; no source)", "rejected sample (WHO's phrase; the sample is never examined)", "invalid", "failed", "error"]
+
+["acknowledgement"]
+decided = "2026-11-09"
+rejected = ["report ID (a second identity of a lab report, the laboratory's row; until 2026-11-09)", "receipt"]

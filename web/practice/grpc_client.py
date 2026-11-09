@@ -15,7 +15,7 @@ from web.shared.grpc import messages_pb2, messages_pb2_grpc
 from web.shared.grpc.convert import from_proto, moment, timestamp, to_proto
 from web.shared.grpc.identity import calling_as
 from web.shared.grpc.rejection import reason_for_rejection
-from web.shared.parsing import parsed
+from web.shared.parsing import once_each, parsed
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex, ResultName, Test
 
 TIMEOUT_SECONDS = 10
@@ -127,7 +127,12 @@ def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
         if reports:
             endpoint.AcknowledgeLabReports(
                 messages_pb2.AcknowledgeLabReportsRequest(
-                    report_ids=[report.report_id for report in reports]
+                    acknowledgements=[
+                        messages_pb2.Acknowledgement(
+                            sample_id=report.sample_id, test=report.test
+                        )
+                        for report in reports
+                    ]
                 ),
                 timeout=TIMEOUT_SECONDS,
                 metadata=metadata,
@@ -153,6 +158,11 @@ def _store(
     if order is None:
         return False
     try:
+        once_each(
+            "results",
+            (result.name for result in report.results),
+            code="duplicate_result_name",
+        )
         values = parsed(
             (
                 LabReport,

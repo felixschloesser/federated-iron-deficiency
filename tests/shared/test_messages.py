@@ -93,8 +93,6 @@ def test_none_is_unspecified_and_never_sent(vocabulary: str) -> None:
 @pytest.mark.parametrize(
     ("message", "field"),
     [
-        ("LabReport", "report_id"),
-        ("AcknowledgeLabReportsRequest", "report_ids"),
         ("ScreeningModel", "run_id"),
         ("FetchNewScreeningModelsRequest", "held_run_ids"),
     ],

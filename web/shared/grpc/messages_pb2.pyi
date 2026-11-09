@@ -212,30 +212,29 @@ Global___Result: _TypeAlias = Result  # noqa: Y015
 class LabReport(_message.Message):
     """DF25. Results and one bit of screening (features/practice/reports.feature, tests/quality/privacy/test_messages.py): no score, and nothing that
     tells ferritin not suggested from not screened.
+    A lab report is known by its sample ID and test: the practice matches it to its
+    order by them and acknowledges it by them.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
 
-    REPORT_ID_FIELD_NUMBER: _builtins.int
     SAMPLE_ID_FIELD_NUMBER: _builtins.int
     TEST_FIELD_NUMBER: _builtins.int
     RESULTS_FIELD_NUMBER: _builtins.int
     RELEASED_AT_FIELD_NUMBER: _builtins.int
     FERRITIN_SUGGESTED_FIELD_NUMBER: _builtins.int
-    report_id: _builtins.int
     sample_id: _builtins.str
     test: Global___Test.ValueType
     ferritin_suggested: _builtins.bool
     @_builtins.property
     def results(self) -> _containers.RepeatedCompositeFieldContainer[Global___Result]:
-        """empty when NHANES lacks the values"""
+        """Each result name once (web.practice.grpc_client); empty when NHANES lacks the values."""
 
     @_builtins.property
     def released_at(self) -> _timestamp_pb2.Timestamp: ...
     def __init__(
         self,
         *,
-        report_id: _builtins.int = ...,
         sample_id: _builtins.str = ...,
         test: Global___Test.ValueType = ...,
         results: _abc.Iterable[Global___Result] = ...,
@@ -244,11 +243,35 @@ class LabReport(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["ferritin_suggested", b"ferritin_suggested", "released_at", b"released_at"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["ferritin_suggested", b"ferritin_suggested", "released_at", b"released_at", "report_id", b"report_id", "results", b"results", "sample_id", b"sample_id", "test", b"test"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["ferritin_suggested", b"ferritin_suggested", "released_at", b"released_at", "results", b"results", "sample_id", b"sample_id", "test", b"test"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
 Global___LabReport: _TypeAlias = LabReport  # noqa: Y015
+
+@_typing.final
+class Acknowledgement(_message.Message):
+    """A lab report the practice received, stored or not, named as the report named itself."""
+
+    DESCRIPTOR: _descriptor.Descriptor
+
+    SAMPLE_ID_FIELD_NUMBER: _builtins.int
+    TEST_FIELD_NUMBER: _builtins.int
+    sample_id: _builtins.str
+    test: Global___Test.ValueType
+    def __init__(
+        self,
+        *,
+        sample_id: _builtins.str = ...,
+        test: Global___Test.ValueType = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["sample_id", b"sample_id", "test", b"test"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___Acknowledgement: _TypeAlias = Acknowledgement  # noqa: Y015
 
 @_typing.final
 class SendLabOrderRequest(_message.Message):
@@ -326,23 +349,23 @@ Global___FetchNewLabReportsResponse: _TypeAlias = FetchNewLabReportsResponse  # 
 
 @_typing.final
 class AcknowledgeLabReportsRequest(_message.Message):
-    """The lab reports the practice received, stored or not: the laboratory sends
-    them no more.
+    """The lab reports the practice received, each once: the laboratory sends them
+    no more.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
 
-    REPORT_IDS_FIELD_NUMBER: _builtins.int
+    ACKNOWLEDGEMENTS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def report_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]: ...
+    def acknowledgements(self) -> _containers.RepeatedCompositeFieldContainer[Global___Acknowledgement]: ...
     def __init__(
         self,
         *,
-        report_ids: _abc.Iterable[_builtins.int] = ...,
+        acknowledgements: _abc.Iterable[Global___Acknowledgement] = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["report_ids", b"report_ids"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["acknowledgements", b"acknowledgements"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -403,7 +426,9 @@ class FetchNewScreeningModelsRequest(_message.Message):
 
     HELD_RUN_IDS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def held_run_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]: ...
+    def held_run_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.int]:
+        """each once"""
+
     def __init__(
         self,
         *,
