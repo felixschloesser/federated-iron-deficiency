@@ -35,6 +35,11 @@ Feature: The startup releases final models; recipient hospitals fetch them as sc
     When "UZ Leuven" fetches new screening models
     Then it receives screening model "7" with its weights and AUROC across hospitals 0.81
 
+  Scenario: A fetch the hospital gave up on before the reply records no fetch
+    Given data scientist "Data One" released final model "7"
+    When "UZ Leuven" fetches new screening models but gives up before the reply
+    Then final model "7" was fetched by no hospital
+
   Scenario: A hospital the startup does not know is refused
     Given data scientist "Data One" released final model "7"
     When "AZ Gent" fetches new screening models
