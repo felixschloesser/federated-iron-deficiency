@@ -22,34 +22,16 @@ class Test(models.TextChoices):
 
     def is_screened(self) -> bool:
         """Whether the hospital screens this test for iron deficiency."""
-        match self:
-            case Test.CBC:
-                return True
-            case Test.FERRITIN:
-                return False
-            case _:
-                assert_never(self)
+        return self is Test.CBC
 
     def on_suspicion(self) -> bool:
         """Whether this test is ordered only beside a lab report suggesting it,
-        on that lab report's sample: ferritin is ordered on suspicion."""
-        match self:
-            case Test.CBC:
-                return False
-            case Test.FERRITIN:
-                return True
-            case _:
-                assert_never(self)
+        on that lab report's sample."""
+        return self is Test.FERRITIN
 
     def takes_indication(self) -> bool:
         """Whether an order for this test states a clinical indication."""
-        match self:
-            case Test.CBC:
-                return True
-            case Test.FERRITIN:
-                return False
-            case _:
-                assert_never(self)
+        return self is Test.CBC
 
 
 class ClinicalIndication(models.TextChoices):

@@ -10,13 +10,11 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
-from ml.final_model import model_file_path
 from ml.inference import probability
 from web.hospital.deployment.model_files import (
     ScreeningModel,
     model_name,
-    read_screening_model,
-    sha256,
+    read_stored,
 )
 
 
@@ -72,15 +70,13 @@ class DeploymentManager(models.Manager["Deployment"]):
     ) -> Deployment:
         """Make a screening model in the hospital's folder the deployed screening model, at a
         threshold its local validation holds, from `now`."""
-        path = model_file_path(directory, run_id)
-        # One read: what is checked is what is hashed.
-        data = path.read_bytes() if path.is_file() else None
-        file = None if data is None else read_screening_model(data)
+        stored = read_stored(directory, run_id)
         # A missing file and an unreadable one alike: neither is listed.
-        if data is None or file is None:
+        if stored is None:
             raise ValidationError(
                 f"There is no readable model of run {run_id}.", code="not_found"
             )
+        file, digest = stored
         validation = file.at(threshold)
         if validation is None:
             raise ValidationError(
@@ -94,7 +90,7 @@ class DeploymentManager(models.Manager["Deployment"]):
             )
         deployed_screening_model, _ = DeployedScreeningModel.objects.get_or_create(
             run_id=run_id,
-            sha256=sha256(data),
+            sha256=digest,
             threshold=threshold,
             defaults={
                 "stored_at": file.stored_at,
@@ -116,16 +112,10 @@ class DeploymentManager(models.Manager["Deployment"]):
         if latest is None:
             return NoUsableModel.NO_DEPLOYED_MODEL
         deployed_screening_model = latest.deployed_screening_model
-        path = model_file_path(directory, deployed_screening_model.run_id)
-        data = path.read_bytes() if path.is_file() else None
-        file = None if data is None else read_screening_model(data)
-        if (
-            data is None
-            or file is None
-            or sha256(data) != deployed_screening_model.sha256
-        ):
+        stored = read_stored(directory, deployed_screening_model.run_id)
+        if stored is None or stored[1] != deployed_screening_model.sha256:
             return NoUsableModel.DEPLOYED_MODEL_CHANGED
-        return Screener(deployed_screening_model, file)
+        return Screener(deployed_screening_model, stored[0])
 
 
 class Deployment(models.Model):

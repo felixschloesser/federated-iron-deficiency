@@ -112,10 +112,9 @@ def indication(pregnant: bool, number: int) -> ClinicalIndication:
     found pregnant, else one of the screened indications in turn."""
     if pregnant:
         return ClinicalIndication.START_OF_PREGNANCY
-    from web.hospital.lab.models import screened_indications
+    from web.hospital.lab.models import SCREENED_INDICATIONS
 
-    screened = screened_indications()
-    return screened[number % len(screened)]
+    return SCREENED_INDICATIONS[number % len(SCREENED_INDICATIONS)]
 
 
 def seed_lab_records(csv_path: Path, provide: bool) -> str:

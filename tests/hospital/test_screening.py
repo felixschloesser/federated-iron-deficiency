@@ -23,11 +23,11 @@ from web.hospital.analyser.models import Participant
 from web.hospital.deployment.model_files import sha256
 from web.hospital.deployment.models import Deployment
 from web.hospital.lab.models import (
+    SCREENED_INDICATIONS,
     LabOrderDetails,
     Sample,
     ScreeningResult,
     TestRequest,
-    is_screened_indication,
 )
 from web.shared.vocabulary import ClinicalIndication, RegisteredSex
 from web.shared.vocabulary import Test as OrderedTest
@@ -210,7 +210,10 @@ def screening_result(world: World, result: str) -> None:
 @then("the sample is screened by the model")
 def screened(world: World) -> None:
     test_request = world["test_request"]
-    assert ScreeningResult(test_request.screening_result).is_screened()
+    assert test_request.screening_result in (
+        ScreeningResult.FERRITIN_SUGGESTED,
+        ScreeningResult.FERRITIN_NOT_SUGGESTED,
+    )
     assert test_request.screened_by is not None
 
 
@@ -258,25 +261,6 @@ def released(world: World, suggested: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "result",
-    [
-        "ferritin_suggested",
-        "ferritin_not_suggested",
-        "not_screened",
-        "screening_failed",
-    ],
-)
-def test_only_the_models_two_decisions_are_screened(result: str) -> None:
-    assert {choice.value for choice in ScreeningResult} == {
-        "ferritin_suggested",
-        "ferritin_not_suggested",
-        "not_screened",
-        "screening_failed",
-    }
-    assert ScreeningResult(result).is_screened() is result.startswith("ferritin")
-
-
-@pytest.mark.parametrize(
     ("indication", "screened"),
     [
         ("suspected_anaemia", True),
@@ -290,7 +274,7 @@ def test_only_the_models_two_decisions_are_screened(result: str) -> None:
 def test_screened_indications_are_where_the_guidelines_order_a_cbc_without_ferritin(
     indication: str, screened: bool
 ) -> None:
-    assert is_screened_indication(ClinicalIndication(indication)) is screened
+    assert (ClinicalIndication(indication) in SCREENED_INDICATIONS) is screened
 
 
 def test_every_indication_is_answered() -> None:
