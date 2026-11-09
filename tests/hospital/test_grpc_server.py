@@ -216,13 +216,17 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
     (report,) = endpoint.FetchNewLabReports(
         messages_pb2.FetchNewLabReportsRequest(), timeout=10, metadata=DE_CEDER
     ).lab_reports
-    assert (report.report_id, report.sample_id) == (test_request.pk, "1")
+    assert report.sample_id == "1"
     assert report.test == messages_pb2.TEST_CBC
     assert report.ferritin_suggested is True
     assert report.released_at.ToDatetime(tzinfo=UTC) == NOW
 
     endpoint.AcknowledgeLabReports(
-        messages_pb2.AcknowledgeLabReportsRequest(report_ids=[report.report_id]),
+        messages_pb2.AcknowledgeLabReportsRequest(
+            acknowledgements=[
+                messages_pb2.Acknowledgement(sample_id="1", test=messages_pb2.TEST_CBC)
+            ]
+        ),
         timeout=10,
         metadata=DE_CEDER,
     )

@@ -36,6 +36,12 @@ Feature: Lab orders in, lab reports out, practice by practice
     When practice "De Berk" acknowledges the lab report on sample "135318"
     Then practice "De Ceder" fetches the lab report on sample "135318"
 
+  Scenario: An acknowledgement naming one lab report twice is refused
+    Given "AZ Diest" released a lab report on sample "135318" of practice "De Ceder"
+    When practice "De Ceder" acknowledges the lab report on sample "135318" twice
+    Then acknowledging is refused as naming a lab report twice
+    And practice "De Ceder" fetches the lab report on sample "135318"
+
   Scenario: A practice whose name makes a registered practice's slug is refused
     When hospital "AZ Diest" registers practice "De-Ceder"
     Then registering is refused as a slug taken

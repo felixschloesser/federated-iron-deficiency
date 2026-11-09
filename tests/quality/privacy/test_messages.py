@@ -35,7 +35,6 @@ def test_a_lab_order_names_its_indication_only_as_one_of_the_choices() -> None:
         (
             "LabReport",
             {
-                "report_id",
                 "sample_id",
                 "test",
                 "results",
@@ -43,6 +42,8 @@ def test_a_lab_order_names_its_indication_only_as_one_of_the_choices() -> None:
                 "released_at",
             },
         ),
+        # A lab report received, named as both parties know it.
+        ("Acknowledgement", {"sample_id", "test"}),
     ],
 )
 def test_a_message_between_practice_and_hospital_carries_only_these_fields(
