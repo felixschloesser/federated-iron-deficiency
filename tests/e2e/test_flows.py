@@ -219,6 +219,34 @@ def second_hospital(compose: Compose) -> None:
         time.sleep(2)
 
 
+@given(
+    "AZ Diest's SuperNode and ClientApp, whose laboratory director provided no"
+    " training cohort"
+)
+def hospital_without_cohort(compose: Compose) -> None:
+    # Its setup job provides no training cohort (tests/compose_project.py).
+    up(compose, f"{APP_HOSPITAL}-web")
+    compose(
+        "up",
+        "--detach",
+        "--no-deps",
+        "--no-build",
+        f"{APP_HOSPITAL}-flower-supernode",
+        f"{APP_HOSPITAL}-flower-client-app",
+    )
+    deadline = time.monotonic() + 120
+    while online_nodes(compose) < 3:
+        assert time.monotonic() < deadline, "AZ Diest did not come online"
+        time.sleep(2)
+
+
+@then("AZ Diest took no part, its ClientApp saying why without a traceback")
+def took_no_part(compose: Compose) -> None:
+    logs = compose("logs", f"{APP_HOSPITAL}-flower-client-app").stdout
+    assert "No part in this round: This hospital has no training cohort" in logs, logs
+    assert "Traceback" not in logs, logs
+
+
 @when("the data scientist trains for one round")
 def train_one_round(compose: Compose, journey: dict[str, Any]) -> None:
     journey["training"] = flower_run(compose, "num-server-rounds=1")
