@@ -23,6 +23,9 @@ from ml.dataset import cohorts
 from ml.final_model import Net
 from ml.training_cohort import TrainingCohortUnavailable, read_training_cohort
 
+# TODO(issue A, DD5): mask each update with Flower's SecAgg+ mod
+# (ClientApp(mods=[secaggplus_mod])), so the startup sees no hospital's
+# update in plaintext; tests/quality/privacy/test_updates.py.
 app = ClientApp()
 
 simulated: list[pd.DataFrame] | None = None  # Cached across calls in a simulation

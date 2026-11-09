@@ -141,6 +141,9 @@ class LabOrder(_message.Message):
     """The lab order, practice → hospital. It carries no patient name and no
     blood values: the sample's values are measured at the hospital. From the
     clinical indication, the laboratory decides whether to screen a CBC.
+    TODO(issue B, DD6 and DD2): carry a yes/no `screened` in place of the
+    clinical indication, and the order's day in place of its time;
+    tests/quality/privacy/test_messages.py.
     """
 
     DESCRIPTOR: _descriptor.Descriptor

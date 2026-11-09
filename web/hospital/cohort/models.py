@@ -45,6 +45,8 @@ class Summary:
 
 
 class LabRecordQuerySet(models.QuerySet["LabRecord"]):
+    # TODO(issue C, U3): add LabRecord.opted_out, and leave opted-out records
+    # out here; tests/quality/privacy/hospital/test_opt_out.py.
     def eligible(self) -> LabRecordQuerySet:
         """The past patients a training cohort holds, in the order the laboratory
         recorded them: eligible, with a complete CBC ordered for a screened
