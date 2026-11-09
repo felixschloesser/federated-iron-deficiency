@@ -13,12 +13,12 @@ from django.core.exceptions import ValidationError
 from google.protobuf import any_pb2
 from grpc_status import rpc_status
 
-MESSAGE = "lab_order_rejected"
+MESSAGE = "rejected"
 
 
 def rejected(error: ValidationError) -> grpc.Status:
-    """The status rejecting a lab order: each error, by part, its code as the
-    reason and its message as the description."""
+    """The status rejecting a message, such as a lab order: each error, by part,
+    its code as the reason and its message as the description."""
     detail = any_pb2.Any()
     detail.Pack(
         rpc_details.BadRequest(

@@ -39,7 +39,7 @@ def rejection(violations: list[tuple[str, str]]) -> grpc.Status:
     return rpc_status.to_status(
         rpc_status_pb2.Status(
             code=rpc_code.INVALID_ARGUMENT,
-            message="lab_order_rejected",
+            message="rejected",
             details=[detail],
         )
     )

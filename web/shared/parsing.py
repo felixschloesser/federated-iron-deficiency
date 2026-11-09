@@ -1,6 +1,7 @@
 """Another party's message, parsed by the receiver's own model fields: each part
 becomes the value its field stores, or the field's error refuses it."""
 
+from collections.abc import Hashable, Iterable
 from typing import Any
 
 from django.core.exceptions import ValidationError
@@ -24,3 +25,11 @@ def parsed(*parts: tuple[type[models.Model], dict[str, object]]) -> dict[str, An
     if errors:
         raise ValidationError(errors)
     return values
+
+
+def once_each(part: str, values: Iterable[Hashable], code: str) -> None:
+    """Refuse a part that names one thing twice: the message never says which of
+    the two it meant. Raises ValidationError on `part` with `code`."""
+    named = list(values)
+    if len(set(named)) < len(named):
+        raise ValidationError({part: ValidationError("Names one twice.", code=code)})

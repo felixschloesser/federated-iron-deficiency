@@ -82,8 +82,12 @@ meaning = "A released final model as it leaves federated learning: what the star
 source = "Built from the report's words: P10 *Screen CBC* and \"the model\" (Use case)"
 
 ["lab report"]
-meaning = "What the hospital returns to the practice for one test: the results and whether ferritin is suggested"
+meaning = "What the hospital returns to the practice for one test: the results and whether ferritin is suggested; known by its sample ID and test"
 source = "Report, DF25"
+
+["acknowledgement"]
+meaning = "The practice's word to the laboratory that a lab report arrived, stored or not, naming it by its sample ID and test; the laboratory sends that lab report no more"
+source = "HL7 v2, ch. 2, acknowledgment messages (ACK): the receiver's answer that a message arrived"
 
 ["CBC value names and units, e.g. *Hemoglobin*, g/dL"]
 meaning = "How the app names and measures each CBC value: NHANES's own names, in its units, with no conversion. On the wire each result is a result name (the ResultName enum) and its value; the name fixes the unit"
