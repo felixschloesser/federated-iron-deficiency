@@ -2,12 +2,10 @@
 run time, so no run holds two parties: a folder named after a party, anywhere
 under tests/, runs only under that party's settings (--ds=web.<party>.settings).
 
-Plain `pytest` runs everything: the tests outside the party folders here, then
-each party's in a pytest of its own."""
+Plain `pytest` runs the tests outside the party folders; each party's run is
+`pytest --ds=web.<party>.settings`."""
 
 import os
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -25,7 +23,7 @@ def party_of(config: pytest.Config) -> str | None:
 
 def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
     parts = collection_path.relative_to(ROOT).parts
-    if parts[:1] != ("tests",) and parts[:2] != (".claude", "tests"):
+    if parts[:1] != ("tests",):
         return None
     folder = next((part for part in parts if part in PARTIES), None)
     party = party_of(config)
@@ -39,26 +37,15 @@ def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool 
     return collection_path.name not in {"__init__.py", "conftest.py"}
 
 
-def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    """After the tests outside the party folders, each party's, unless the run
-    named its tests or a party."""
-    config = session.config
-    if party_of(config) is not None or config.args_source == config.ArgsSource.ARGS:
-        return
-    statuses = [exitstatus]
-    capture = config.pluginmanager.getplugin("capturemanager")
-    with capture.global_and_fixture_disabled():
-        for party in PARTIES:
-            sys.stdout.flush()
-            arguments = [*config.invocation_params.args, f"--ds=web.{party}.settings"]
-            statuses.append(
-                subprocess.run(
-                    [sys.executable, "-m", "pytest", *arguments], check=False
-                ).returncode
-            )
-    # 5 is "no tests collected", as under -m containers for a party.
-    failed = [status for status in statuses if status not in (0, 5)]
-    session.exitstatus = failed[0] if failed else min(statuses)
+def pytest_terminal_summary(
+    terminalreporter: pytest.TerminalReporter, config: pytest.Config
+) -> None:
+    """A run under no party's settings leaves each party's tests out: say so."""
+    if party_of(config) is None:
+        terminalreporter.write_line(
+            "Party tests not run: run each party's with"
+            f" --ds=web.<party>.settings ({', '.join(PARTIES)}); see README, Tests."
+        )
 
 
 # What only a run under a party's settings provides.

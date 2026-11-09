@@ -159,16 +159,16 @@ them in their own web app: see `demo/README.md`.
 ## Tests
 
 ```shell
-uv run pytest                                          # every test but the container ones
+uv run pytest                                          # the tests outside the party folders
+for party in hospital practice startup; do uv run pytest --ds=web.$party.settings; done   # each party's
 uv run pytest -m "not containers and not subprocess"   # the quick loop
 uv run pytest -m containers                            # against the running demo (Docker)
-uv run pytest --ds=web.hospital.settings tests/hospital/test_lab.py   # one party's file
 ```
 
-Each party's tests run under its own settings: a folder named after the party,
-anywhere under `tests/`, holds them (`tests/hospital/`,
-`tests/quality/privacy/hospital/`). Plain `uv run pytest` runs each party's in
-turn; naming a party's file needs its `--ds`.
+Each party's web app is its own Django project, so each party's tests run under
+its own settings: a folder named after the party, anywhere under `tests/`,
+holds them (`tests/hospital/`, `tests/quality/privacy/hospital/`). Plain
+`uv run pytest` leaves them out and says so.
 
 - `tests/<party>/`: each party's scenarios and views.
 - `tests/e2e/`: flows through the running demo.
