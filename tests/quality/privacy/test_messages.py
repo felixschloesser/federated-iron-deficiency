@@ -6,10 +6,11 @@ import pytest
 
 
 @pytest.mark.privacy_issue
-def test_a_lab_order_says_only_whether_its_cbc_is_screened_and_on_which_day() -> None:
+def test_a_lab_order_carries_only_screened_and_the_sample_age() -> None:
     """Threats DD6 and DD2 (issue B). Pass: a lab order carries a yes/no
-    `screened` in place of the clinical indication, and no timestamp: the day it
-    was ordered at most, not the time."""
+    `screened` in place of the clinical indication, and no timestamp: the
+    laboratory needs the sample's age to judge its values, not the moment the
+    general practitioner ordered."""
     from google.protobuf.descriptor import FieldDescriptor
 
     from web.shared.grpc import messages_pb2

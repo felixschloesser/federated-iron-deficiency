@@ -30,7 +30,7 @@ def test_the_committed_generated_code_matches_the_proto(tmp_path: Path) -> None:
     [
         ("LabOrder", "test", "Test"),
         ("LabOrder", "registered_sex", "RegisteredSex"),
-        # TODO(issue B): the lab order's day replaces its time; update this row.
+        # TODO(issue B): the sample's age replaces the order time; update this row.
         ("LabOrder", "ordered_at", "Timestamp"),
         ("LabReport", "test", "Test"),
         ("LabReport", "released_at", "Timestamp"),
