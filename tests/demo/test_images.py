@@ -180,3 +180,13 @@ def test_the_superexec_image_installs_only_the_locked_files() -> None:
     dockerfile = (ROOT / "demo" / "superexec.Dockerfile").read_text()
     assert "--no-hashes" not in dockerfile
     assert "--require-hashes" in dockerfile
+
+
+@pytest.mark.parametrize("image", OUR_IMAGES)
+def test_each_image_starts_from_one_python_release(image: str) -> None:
+    """A rebuild months later gets the same Python as today's: the base image
+    names its patch release, the same in every image."""
+    dockerfile = (ROOT / "demo" / f"{image}.Dockerfile").read_text()
+    assert re.findall(r"^FROM (\S+)", dockerfile, re.MULTILINE) == [
+        "python:3.13.18-slim"
+    ]
