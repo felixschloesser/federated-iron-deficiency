@@ -1,6 +1,7 @@
 """The ClientApp: each hospital trains and evaluates the model on its own
 cohort."""
 
+from logging import INFO
 from pathlib import Path
 
 import pandas as pd
@@ -9,22 +10,27 @@ from flwr.app import (
     ArrayRecord,
     ConfigRecord,
     Context,
+    Error,
     Message,
     MetricRecord,
     RecordDict,
 )
 from flwr.clientapp import ClientApp
+from flwr.common.logger import log
 
 from ml import training, validation
 from ml.dataset import cohorts
 from ml.final_model import Net
-from ml.training_cohort import read_training_cohort
+from ml.training_cohort import TrainingCohortUnavailable, read_training_cohort
 
 app = ClientApp()
 
 simulated: list[pd.DataFrame] | None = None  # Cached across calls in a simulation
 # The key under which a run's state records which training cohort it read.
 TRAINING_COHORT = "training-cohort"
+# The error code of a reply from a hospital without a training cohort; above
+# Flower's own ErrorCode values, so it names no failure of Flower's.
+NO_TRAINING_COHORT = 100
 
 
 def load_cohort(context: Context) -> pd.DataFrame:
@@ -49,6 +55,16 @@ def load_cohort(context: Context) -> pd.DataFrame:
     return simulated[int(context.node_config["partition-id"])]
 
 
+def no_training_cohort(msg: Message, error: TrainingCohortUnavailable) -> Message:
+    """Reply that this hospital takes no part in the round. Its laboratory
+    director has not provided a training cohort, withdrew it or replaced it
+    during the run: an expected situation, not a crash, so it is one log line
+    here rather than a traceback. The ServerApp logs the reason as a failure and
+    FedAvg leaves the hospital out."""
+    log(INFO, "No part in this round: %s", error)
+    return Message(error=Error(NO_TRAINING_COHORT, str(error)), reply_to=msg)
+
+
 def config_float(msg: Message, key: str) -> float:
     """Return a float the ServerApp sent in the message's config record."""
     value = msg.content.config_records["config"][key]
@@ -67,7 +83,11 @@ def train(msg: Message, context: Context) -> Message:
     model = Net()
     model.load_state_dict(msg.content.array_records["arrays"].to_torch_state_dict())
     batch_size = int(context.run_config["batch-size"])
-    trainloader = validation.load_data(load_cohort(context), batch_size).train
+    try:
+        cohort = load_cohort(context)
+    except TrainingCohortUnavailable as error:
+        return no_training_cohort(msg, error)
+    trainloader = validation.load_data(cohort, batch_size).train
     train_loss = training.train(
         model,
         trainloader,
@@ -89,7 +109,11 @@ def evaluate(msg: Message, context: Context) -> Message:
     model = Net()
     model.load_state_dict(msg.content.array_records["arrays"].to_torch_state_dict())
     batch_size = int(context.run_config["batch-size"])
-    valloader = validation.load_data(load_cohort(context), batch_size).validation
+    try:
+        cohort = load_cohort(context)
+    except TrainingCohortUnavailable as error:
+        return no_training_cohort(msg, error)
+    valloader = validation.load_data(cohort, batch_size).validation
     evaluation = validation.evaluate(model, valloader)
     metric_record = MetricRecord(
         {
