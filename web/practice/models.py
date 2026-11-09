@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models.functions import Abs
 
-from web.shared.vocabulary import RESULT_NAMES, ClinicalIndication, RegisteredSex, Test
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex, ResultName, Test
 
 INDICATION_REQUIRED = "A CBC needs a clinical indication."
 NOT_SUGGESTED = "Ferritin is ordered only beside a lab report suggesting it."
@@ -332,6 +332,17 @@ class ResultValue:
         return f"{self.value:g}"
 
 
+def results_named(results: object) -> None:
+    """Each result under a result name, with its value: a lab report's results
+    as the practice stores them."""
+    items = results.items() if isinstance(results, dict) else []
+    for name, value in items:
+        if name not in ResultName.values:
+            raise ValidationError("A result has no result name.", code="no_result_name")
+        if not isinstance(value, float):
+            raise ValidationError("A result has no value.", code="no_value")
+
+
 class LabReport(models.Model):
     """A lab report fetched from the hospital (DF25): results, and whether
     ferritin is suggested; nothing else of screening (features/practice/reports.feature)."""
@@ -340,7 +351,7 @@ class LabReport(models.Model):
         Order, on_delete=models.PROTECT, related_name="lab_report"
     )
     # Empty when NHANES lacks the values.
-    results = models.JSONField(blank=True)
+    results = models.JSONField(blank=True, validators=[results_named])
     ferritin_suggested = models.BooleanField(default=False)
     released_at = models.DateTimeField()
     fetched_at = models.DateTimeField()
@@ -375,7 +386,7 @@ class LabReport(models.Model):
         """The measured values under NHANES's names and units, uninterpreted;
         empty when NHANES has none."""
         return [
-            ResultValue(variable, names.name, names.unit, self.results[variable])
-            for variable, names in RESULT_NAMES.items()
-            if variable in self.results
+            ResultValue(name.value, name.label, name.unit(), self.results[name.value])
+            for name in ResultName
+            if name.value in self.results
         ]

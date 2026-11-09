@@ -16,7 +16,7 @@ from web.shared.grpc.convert import from_proto, moment, timestamp, to_proto
 from web.shared.grpc.identity import calling_as
 from web.shared.grpc.rejection import reason_for_rejection
 from web.shared.parsing import parsed
-from web.shared.vocabulary import ClinicalIndication, RegisteredSex, Test
+from web.shared.vocabulary import ClinicalIndication, RegisteredSex, ResultName, Test
 
 TIMEOUT_SECONDS = 10
 # Sending from an order's own request: the general practitioner is waiting.
@@ -157,7 +157,12 @@ def _store(
             (
                 LabReport,
                 {
-                    "results": dict(report.results),
+                    "results": {
+                        from_proto(
+                            result.name, messages_pb2.ResultName, ResultName
+                        ): result.value if result.HasField("value") else None
+                        for result in report.results
+                    },
                     "ferritin_suggested": report.ferritin_suggested
                     if report.HasField("ferritin_suggested")
                     else None,

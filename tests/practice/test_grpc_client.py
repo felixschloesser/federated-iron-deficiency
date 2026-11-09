@@ -4,6 +4,7 @@ tests/practice/fake_laboratory.py: no hospital code, no hospital database; the
 real endpoint is held to the same messages by tests/hospital/test_grpc_server.py."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 import grpc
 import pytest
@@ -315,7 +316,7 @@ def test_a_lab_report_with_a_result_missing_any_part_is_not_stored(
     and the practice never guesses it (a value of 0 is sent, and is a value)."""
     placed, report_id = released_ferritin(fake_laboratory.laboratory)
     report = fake_laboratory.laboratory.reports[report_id]
-    result = {"name": messages_pb2.RESULT_NAME_FERRITIN, "value": 11.0}
+    result: dict[str, Any] = {"name": messages_pb2.RESULT_NAME_FERRITIN, "value": 11.0}
     del result[part]
     del report.results[:]
     report.results.append(messages_pb2.Result(**result))
