@@ -263,17 +263,18 @@ def test_a_lab_report_is_fetched_once(
     assert LabReport.objects.filter(order=placed).count() == 1
 
 
-def test_a_lab_report_the_app_cannot_match_does_not_block_the_others(
+def test_a_lab_report_the_app_cannot_match_is_sent_once(
     practice: Laboratory, fake_laboratory: Running
 ) -> None:
+    """Acknowledged means received: the laboratory stops sending it, so a report
+    no order matches never piles up ahead of the others."""
     placed, report_id = released_ferritin(fake_laboratory.laboratory)
     stranger = fake_laboratory.laboratory.release(
         "999999-1", messages_pb2.TEST_FERRITIN, NOW
     )
     assert grpc_client.check_for_lab_reports(practice, now=NOW) == 1
     assert LabReport.objects.filter(order=placed).exists()
-    assert report_id in fake_laboratory.laboratory.acknowledged
-    assert stranger not in fake_laboratory.laboratory.acknowledged
+    assert {report_id, stranger} <= fake_laboratory.laboratory.acknowledged
 
 
 # Each part of a lab report the practice stores or finds its order by, from its
@@ -303,7 +304,7 @@ def test_a_lab_report_missing_any_part_is_not_stored(
     )
     assert grpc_client.check_for_lab_reports(practice, now=NOW) == 0
     assert not LabReport.objects.filter(order=placed).exists()
-    assert fake_laboratory.laboratory.acknowledged == set()
+    assert fake_laboratory.laboratory.acknowledged == {report_id}
 
 
 # The general practitioner's app in use: its views and command talk to the endpoint.
@@ -456,7 +457,7 @@ def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
     practice: Laboratory, owner: User, fake_laboratory: Running
 ) -> None:
     """A lab report from AZ Diest for a sample that went to UZ Leuven is not
-    stored, and stays unacknowledged there."""
+    stored; AZ Diest is told it arrived."""
     uz_leuven = second_laboratory()
     record = make_patient("Test Patient 1", RegisteredSex.FEMALE, 32)
     sample = record.collect_sample(laboratory=uz_leuven, now=NOW)
@@ -468,7 +469,7 @@ def test_a_laboratory_reports_only_on_the_samples_sent_to_it(
     )
     assert grpc_client.check_for_lab_reports(practice, now=NOW) == 0
     assert not LabReport.objects.filter(order=placed).exists()
-    assert report_id not in fake_laboratory.laboratory.acknowledged
+    assert report_id in fake_laboratory.laboratory.acknowledged
 
 
 def test_check_for_reports_names_an_unreachable_laboratory_and_asks_the_others(

@@ -4,6 +4,7 @@ generated code matches it, and its choices and times are typed."""
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -124,3 +125,25 @@ def test_a_part_whose_zero_is_a_value_is_sent_when_zero(
     from web.shared.grpc import messages_pb2
 
     assert getattr(messages_pb2, message).DESCRIPTOR.fields_by_name[field].has_presence
+
+
+def _calls() -> list[Any]:
+    from web.shared.grpc import messages_pb2
+
+    return [
+        method
+        for service in messages_pb2.DESCRIPTOR.services_by_name.values()
+        for method in service.methods
+    ]
+
+
+@pytest.mark.parametrize("method", _calls(), ids=lambda method: method.full_name)
+def test_every_call_has_a_request_and_a_response_of_its_own(method: Any) -> None:
+    """Each call's request and response are messages of its own, named after it
+    (Buf's style guide: RPC_REQUEST_STANDARD_NAME, RPC_RESPONSE_STANDARD_NAME,
+    RPC_REQUEST_RESPONSE_UNIQUE), so one call can gain a part without another."""
+    package = method.containing_service.file.package
+    assert (method.input_type.full_name, method.output_type.full_name) == (
+        f"{package}.{method.name}Request",
+        f"{package}.{method.name}Response",
+    )
