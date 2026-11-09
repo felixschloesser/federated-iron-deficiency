@@ -307,6 +307,22 @@ def test_a_lab_report_missing_any_part_is_not_stored(
     assert fake_laboratory.laboratory.acknowledged == {report_id}
 
 
+@pytest.mark.parametrize("part", ["name", "value"])
+def test_a_lab_report_with_a_result_missing_any_part_is_not_stored(
+    practice: Laboratory, fake_laboratory: Running, part: str
+) -> None:
+    """A result is a result name and its value: one without either is no result,
+    and the practice never guesses it (a value of 0 is sent, and is a value)."""
+    placed, report_id = released_ferritin(fake_laboratory.laboratory)
+    report = fake_laboratory.laboratory.reports[report_id]
+    result = {"name": messages_pb2.RESULT_NAME_FERRITIN, "value": 11.0}
+    del result[part]
+    del report.results[:]
+    report.results.append(messages_pb2.Result(**result))
+    assert grpc_client.check_for_lab_reports(practice, now=NOW) == 0
+    assert not LabReport.objects.filter(order=placed).exists()
+
+
 # The general practitioner's app in use: its views and command talk to the endpoint.
 
 
