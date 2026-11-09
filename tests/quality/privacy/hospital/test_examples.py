@@ -30,7 +30,7 @@ from web.hospital.lab.models import Sample, TestRequest
                 "clinical_indication",
                 "registered_sex",
                 "age",
-                "ordered_at",
+                "collected_at",
                 "analysed_at",
                 "results",
                 "screening_result",

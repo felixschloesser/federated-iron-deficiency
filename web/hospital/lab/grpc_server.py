@@ -42,8 +42,8 @@ def lab_order_details(request: messages_pb2.LabOrder) -> LabOrderDetails:
             request.registered_sex, messages_pb2.RegisteredSex, RegisteredSex
         ),
         age=request.age if request.HasField("age") else None,
-        ordered_at=moment(request.ordered_at)
-        if request.HasField("ordered_at")
+        collected_at=moment(request.collected_at)
+        if request.HasField("collected_at")
         else None,
     )
 

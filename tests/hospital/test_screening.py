@@ -138,7 +138,7 @@ def lab_sample(
             clinical_indication=clinical_indication,
             registered_sex=sex,
             age=age,
-            ordered_at=NOW,
+            collected_at=NOW,
         ),
     )
 

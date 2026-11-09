@@ -115,7 +115,7 @@ class LabOrderDetails:
     clinical_indication: str | None
     registered_sex: str | None
     age: int | None
-    ordered_at: datetime | None
+    collected_at: datetime | None
 
 
 class StoredSample(TypedDict):
@@ -127,7 +127,7 @@ class TestRequestManager(models.Manager["TestRequest"]):
     field."""
 
     def to_analyse(self) -> models.QuerySet[WithAnnotations[TestRequest, StoredSample]]:
-        """Test requests the analyser has not run yet, oldest order first. A sample
+        """Test requests the analyser has not run yet, oldest sample first. A sample
         arrives with its lab order; it is a stored sample once another test on it
         has been analysed."""
         analysed_on_same_sample = TestRequest.objects.filter(
@@ -137,7 +137,7 @@ class TestRequestManager(models.Manager["TestRequest"]):
             self.filter(analysed_at__isnull=True)
             .annotate(stored_sample=Exists(analysed_on_same_sample))
             .select_related("sample")
-            .order_by("ordered_at", "pk")
+            .order_by("collected_at", "pk")
         )
 
     def analysed(self) -> models.QuerySet[TestRequest]:
@@ -175,7 +175,7 @@ class TestRequestManager(models.Manager["TestRequest"]):
                     "clinical_indication": details.clinical_indication,
                     "registered_sex": details.registered_sex,
                     "age": details.age,
-                    "ordered_at": details.ordered_at,
+                    "collected_at": details.collected_at,
                 },
             ),
         )
@@ -222,7 +222,8 @@ class TestRequest(models.Model):
     registered_sex = models.CharField(max_length=6, choices=RegisteredSex.choices)
     age = models.PositiveSmallIntegerField()
     # No general practitioner field: the sample's practice says who ordered.
-    ordered_at = models.DateTimeField()
+    # When the practice collected the sample: how old it is.
+    collected_at = models.DateTimeField()
     # None until the analyser has run.
     analysed_at = models.DateTimeField(null=True, blank=True)
     results = models.JSONField(null=True, blank=True)

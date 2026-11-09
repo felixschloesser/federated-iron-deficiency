@@ -37,7 +37,7 @@ def test_a_write_waits_for_the_other_process_instead_of_failing() -> None:
                 clinical_indication=ClinicalIndication.SUSPECTED_ANAEMIA,
                 registered_sex=RegisteredSex.FEMALE,
                 age=30,
-                ordered_at=datetime(2026, 11, 2, 9, tzinfo=UTC),
+                collected_at=datetime(2026, 11, 2, 9, tzinfo=UTC),
             ),
         )
     finally:

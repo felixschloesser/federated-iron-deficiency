@@ -38,7 +38,7 @@ def receive(practice: str, sample_id: str, test: OrderedTest) -> TestRequest:
             else None,
             registered_sex=RegisteredSex.FEMALE,
             age=32,
-            ordered_at=NOW,
+            collected_at=NOW,
         ),
     )
 

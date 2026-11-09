@@ -53,7 +53,7 @@ def lab_order(**fields: Any) -> messages_pb2.LabOrder:
         "clinical_indication": messages_pb2.CLINICAL_INDICATION_SUSPECTED_ANAEMIA,
         "registered_sex": messages_pb2.REGISTERED_SEX_FEMALE,
         "age": 32,
-        "ordered_at": timestamp(NOW),
+        "collected_at": timestamp(NOW),
     } | fields
     return messages_pb2.LabOrder(**values)
 
@@ -99,7 +99,7 @@ def test_a_lab_order_is_recorded_as_sent(
         ClinicalIndication.SUSPECTED_ANAEMIA,
     )
     assert (test_request.registered_sex, test_request.age) == (RegisteredSex.FEMALE, 32)
-    assert test_request.ordered_at == NOW
+    assert test_request.collected_at == NOW
     # The practice its call named, by its name's slug; no general practitioner.
     assert test_request.sample.practice.name == "De Ceder"
 
@@ -207,7 +207,7 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
             clinical_indication=ClinicalIndication.SUSPECTED_ANAEMIA,
             registered_sex=RegisteredSex.FEMALE,
             age=32,
-            ordered_at=NOW,
+            collected_at=NOW,
         ),
     ).run_analyser(directory=tmp_path, now=NOW)
     # As the deployed screening model would have decided (features/hospital/screening.feature).
