@@ -112,12 +112,18 @@ def load_data(
     batch_size: int = 64,
     seed: int = SEED,
 ) -> Splits[Loader]:
-    """A loader for each split of a cohort; only the training one shuffles."""
+    """A loader for each split of a cohort; only the training one shuffles. It
+    also drops each epoch's last, smaller batch, so no training step averages
+    fewer than `batch_size` records."""
     datasets = _split_cohort(cohort, seed)
     generator = torch.Generator().manual_seed(seed)
     return Splits(
         DataLoader(
-            datasets.train, batch_size=batch_size, shuffle=True, generator=generator
+            datasets.train,
+            batch_size=batch_size,
+            shuffle=True,
+            generator=generator,
+            drop_last=True,
         ),
         DataLoader(datasets.validation, batch_size=256),
         DataLoader(datasets.test, batch_size=256),

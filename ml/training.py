@@ -22,6 +22,13 @@ def train(
     weight_decay: float = 1e-4,
 ) -> float:
     """Train for ``epochs`` epochs and return sample-weighted mean BCE loss."""
+    if len(trainloader) == 0:
+        # The loader drops a last, smaller batch, so a split smaller than one
+        # batch leaves nothing to train on.
+        raise ValueError(
+            f"The training split holds {dataset_size(trainloader)} records, fewer"
+            f" than one batch of {trainloader.batch_size}."
+        )
     net.train()
     criterion = nn.BCEWithLogitsLoss()
     optimiser = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
