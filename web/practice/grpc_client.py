@@ -9,7 +9,6 @@ from datetime import datetime
 import grpc
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from google.protobuf.empty_pb2 import Empty
 
 from web.practice.models import Laboratory, LabReport, Order
 from web.shared.grpc import messages_pb2, messages_pb2_grpc
@@ -42,15 +41,19 @@ def _send(
         None if order.indication is None else ClinicalIndication(order.indication)
     )
     endpoint.SendLabOrder(
-        messages_pb2.LabOrder(
-            sample_id=order.sample.sample_id.value,
-            test=to_proto(Test(order.test), messages_pb2.Test),
-            clinical_indication=to_proto(indication, messages_pb2.ClinicalIndication),
-            registered_sex=to_proto(
-                RegisteredSex(order.registered_sex), messages_pb2.RegisteredSex
-            ),
-            age=order.age,
-            ordered_at=timestamp(order.ordered_at),
+        messages_pb2.SendLabOrderRequest(
+            lab_order=messages_pb2.LabOrder(
+                sample_id=order.sample.sample_id.value,
+                test=to_proto(Test(order.test), messages_pb2.Test),
+                clinical_indication=to_proto(
+                    indication, messages_pb2.ClinicalIndication
+                ),
+                registered_sex=to_proto(
+                    RegisteredSex(order.registered_sex), messages_pb2.RegisteredSex
+                ),
+                age=order.age,
+                ordered_at=timestamp(order.ordered_at),
+            )
         ),
         timeout=timeout,
         metadata=calling_as(settings.PRACTICE_NAME),
@@ -110,25 +113,26 @@ def unreachable(error: grpc.RpcError) -> bool:
 
 def check_for_lab_reports(laboratory: Laboratory, *, now: datetime) -> int:
     """Send the laboratory its pending lab orders, fetch its new lab reports (DF25),
-    store and acknowledge them."""
+    store those of its orders and acknowledge every one received, stored or not,
+    so none is sent again; the number stored."""
     with open_laboratory(laboratory) as endpoint:
         _send_pending(endpoint, laboratory, now=now)
         metadata = calling_as(settings.PRACTICE_NAME)
         reports = endpoint.FetchNewLabReports(
-            Empty(), timeout=TIMEOUT_SECONDS, metadata=metadata
-        ).reports
-        stored = [
-            report.report_id
-            for report in reports
-            if _store(report, laboratory, now=now)
-        ]
-        if stored:
+            messages_pb2.FetchNewLabReportsRequest(),
+            timeout=TIMEOUT_SECONDS,
+            metadata=metadata,
+        ).lab_reports
+        stored = sum(_store(report, laboratory, now=now) for report in reports)
+        if reports:
             endpoint.AcknowledgeLabReports(
-                messages_pb2.Acknowledgement(report_ids=stored),
+                messages_pb2.AcknowledgeLabReportsRequest(
+                    report_ids=[report.report_id for report in reports]
+                ),
                 timeout=TIMEOUT_SECONDS,
                 metadata=metadata,
             )
-    return len(stored)
+    return stored
 
 
 def _store(
@@ -138,9 +142,9 @@ def _store(
     laboratory, as its fields parse it; False if it matches none, or a field
     refuses a part, so the practice never fills a part the hospital left out.
 
-    The hospital is another party: a report that cannot be stored stays
-    unacknowledged instead of holding back the others, and a laboratory reports
-    only on the samples it was sent."""
+    The hospital is another party: a report that cannot be stored is still
+    acknowledged, so it is sent once and holds back no other, and a laboratory
+    reports only on the samples it was sent."""
     order = Order.objects.filter(
         sample__sample_id__value=report.sample_id,
         sample__laboratory=laboratory,

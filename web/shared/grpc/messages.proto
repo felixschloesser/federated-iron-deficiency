@@ -15,7 +15,6 @@ edition = "2024";
 
 package iron_deficiency.v1;
 
-import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 option features.field_presence = IMPLICIT;
@@ -70,18 +69,32 @@ message LabReport {
   bool ferritin_suggested = 6 [features.field_presence = EXPLICIT];
 }
 
-message LabReports {
-  repeated LabReport reports = 1;
+// Each call has a request and a response of its own (tests/shared/test_messages.py),
+// so one call can gain a part without another.
+message SendLabOrderRequest {
+  LabOrder lab_order = 1;
 }
 
-message Acknowledgement {
+message SendLabOrderResponse {}
+
+message FetchNewLabReportsRequest {}
+
+message FetchNewLabReportsResponse {
+  repeated LabReport lab_reports = 1;
+}
+
+// The lab reports the practice received, stored or not: the laboratory sends
+// them no more.
+message AcknowledgeLabReportsRequest {
   repeated uint64 report_ids = 1;
 }
 
+message AcknowledgeLabReportsResponse {}
+
 service Laboratory {
-  rpc SendLabOrder(LabOrder) returns (google.protobuf.Empty);
-  rpc FetchNewLabReports(google.protobuf.Empty) returns (LabReports);
-  rpc AcknowledgeLabReports(Acknowledgement) returns (google.protobuf.Empty);
+  rpc SendLabOrder(SendLabOrderRequest) returns (SendLabOrderResponse);
+  rpc FetchNewLabReports(FetchNewLabReportsRequest) returns (FetchNewLabReportsResponse);
+  rpc AcknowledgeLabReports(AcknowledgeLabReportsRequest) returns (AcknowledgeLabReportsResponse);
 }
 
 // A released final model as it reaches a recipient hospital, a screening model
@@ -93,16 +106,16 @@ message ScreeningModel {
   double federated_auroc = 3 [features.field_presence = EXPLICIT];
 }
 
-message NewScreeningModels {
-  repeated ScreeningModel screening_models = 1;
-}
-
 // What the hospital holds, so the startup sends only the rest: a screening
 // model it failed to store is sent again, one it holds other weights for is not.
-message NewScreeningModelsRequest {
+message FetchNewScreeningModelsRequest {
   repeated uint64 held_run_ids = 1;
 }
 
+message FetchNewScreeningModelsResponse {
+  repeated ScreeningModel screening_models = 1;
+}
+
 service ScreeningModels {
-  rpc FetchNewScreeningModels(NewScreeningModelsRequest) returns (NewScreeningModels);
+  rpc FetchNewScreeningModels(FetchNewScreeningModelsRequest) returns (FetchNewScreeningModelsResponse);
 }

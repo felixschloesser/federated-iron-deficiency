@@ -3,7 +3,6 @@
 import grpc
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from google.protobuf.empty_pb2 import Empty
 
 from web.hospital.lab.models import LabOrderDetails, Practice, TestRequest
 from web.shared.grpc import messages_pb2, messages_pb2_grpc
@@ -54,24 +53,26 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
 
     @with_database
     def SendLabOrder(
-        self, request: messages_pb2.LabOrder, context: grpc.ServicerContext
-    ) -> Empty:
+        self, request: messages_pb2.SendLabOrderRequest, context: grpc.ServicerContext
+    ) -> messages_pb2.SendLabOrderResponse:
         practice = practice_of(context)
         try:
             TestRequest.objects.receive(
-                practice=practice, details=lab_order_details(request)
+                practice=practice, details=lab_order_details(request.lab_order)
             )
         except ValidationError as error:
             context.abort_with_status(rejected(error))
-        return Empty()
+        return messages_pb2.SendLabOrderResponse()
 
     @with_database
     def FetchNewLabReports(
-        self, request: Empty, context: grpc.ServicerContext
-    ) -> messages_pb2.LabReports:
+        self,
+        request: messages_pb2.FetchNewLabReportsRequest,
+        context: grpc.ServicerContext,
+    ) -> messages_pb2.FetchNewLabReportsResponse:
         practice = practice_of(context)
-        return messages_pb2.LabReports(
-            reports=[
+        return messages_pb2.FetchNewLabReportsResponse(
+            lab_reports=[
                 messages_pb2.LabReport(
                     report_id=test_request.pk,
                     sample_id=test_request.sample.sample_id,
@@ -87,14 +88,16 @@ class LaboratoryService(messages_pb2_grpc.LaboratoryServicer):
 
     @with_database
     def AcknowledgeLabReports(
-        self, request: messages_pb2.Acknowledgement, context: grpc.ServicerContext
-    ) -> Empty:
+        self,
+        request: messages_pb2.AcknowledgeLabReportsRequest,
+        context: grpc.ServicerContext,
+    ) -> messages_pb2.AcknowledgeLabReportsResponse:
         TestRequest.objects.acknowledge(
             practice=practice_of(context),
             report_ids=list(request.report_ids),
             now=timezone.now(),
         )
-        return Empty()
+        return messages_pb2.AcknowledgeLabReportsResponse()
 
 
 def serve(address: str) -> tuple[grpc.Server, int]:

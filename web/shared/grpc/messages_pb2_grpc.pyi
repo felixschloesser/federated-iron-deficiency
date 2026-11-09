@@ -17,7 +17,6 @@ Lists may be empty.
 """
 
 from collections import abc as _abc
-from google.protobuf import empty_pb2 as _empty_pb2
 from grpc import aio as _aio
 from web.shared.grpc import messages_pb2 as _messages_pb2
 import abc as _abc_1
@@ -45,38 +44,38 @@ class LaboratoryStub:
     def __new__(cls, channel: _grpc.Channel) -> _Self: ...
     @_typing.overload
     def __new__(cls, channel: _aio.Channel) -> LaboratoryAsyncStub: ...
-    SendLabOrder: _grpc.UnaryUnaryMultiCallable[_messages_pb2.LabOrder, _empty_pb2.Empty]
-    FetchNewLabReports: _grpc.UnaryUnaryMultiCallable[_empty_pb2.Empty, _messages_pb2.LabReports]
-    AcknowledgeLabReports: _grpc.UnaryUnaryMultiCallable[_messages_pb2.Acknowledgement, _empty_pb2.Empty]
+    SendLabOrder: _grpc.UnaryUnaryMultiCallable[_messages_pb2.SendLabOrderRequest, _messages_pb2.SendLabOrderResponse]
+    FetchNewLabReports: _grpc.UnaryUnaryMultiCallable[_messages_pb2.FetchNewLabReportsRequest, _messages_pb2.FetchNewLabReportsResponse]
+    AcknowledgeLabReports: _grpc.UnaryUnaryMultiCallable[_messages_pb2.AcknowledgeLabReportsRequest, _messages_pb2.AcknowledgeLabReportsResponse]
 
 @_typing.type_check_only
 class LaboratoryAsyncStub(LaboratoryStub):
     def __init__(self, channel: _aio.Channel) -> None: ...
-    SendLabOrder: _aio.UnaryUnaryMultiCallable[_messages_pb2.LabOrder, _empty_pb2.Empty]  # type: ignore[assignment]
-    FetchNewLabReports: _aio.UnaryUnaryMultiCallable[_empty_pb2.Empty, _messages_pb2.LabReports]  # type: ignore[assignment]
-    AcknowledgeLabReports: _aio.UnaryUnaryMultiCallable[_messages_pb2.Acknowledgement, _empty_pb2.Empty]  # type: ignore[assignment]
+    SendLabOrder: _aio.UnaryUnaryMultiCallable[_messages_pb2.SendLabOrderRequest, _messages_pb2.SendLabOrderResponse]  # type: ignore[assignment]
+    FetchNewLabReports: _aio.UnaryUnaryMultiCallable[_messages_pb2.FetchNewLabReportsRequest, _messages_pb2.FetchNewLabReportsResponse]  # type: ignore[assignment]
+    AcknowledgeLabReports: _aio.UnaryUnaryMultiCallable[_messages_pb2.AcknowledgeLabReportsRequest, _messages_pb2.AcknowledgeLabReportsResponse]  # type: ignore[assignment]
 
 class LaboratoryServicer(metaclass=_abc_1.ABCMeta):
     @_abc_1.abstractmethod
     def SendLabOrder(
         self,
-        request: _messages_pb2.LabOrder,
+        request: _messages_pb2.SendLabOrderRequest,
         context: _ServicerContext,
-    ) -> _typing.Union[_empty_pb2.Empty, _abc.Awaitable[_empty_pb2.Empty]]: ...
+    ) -> _typing.Union[_messages_pb2.SendLabOrderResponse, _abc.Awaitable[_messages_pb2.SendLabOrderResponse]]: ...
 
     @_abc_1.abstractmethod
     def FetchNewLabReports(
         self,
-        request: _empty_pb2.Empty,
+        request: _messages_pb2.FetchNewLabReportsRequest,
         context: _ServicerContext,
-    ) -> _typing.Union[_messages_pb2.LabReports, _abc.Awaitable[_messages_pb2.LabReports]]: ...
+    ) -> _typing.Union[_messages_pb2.FetchNewLabReportsResponse, _abc.Awaitable[_messages_pb2.FetchNewLabReportsResponse]]: ...
 
     @_abc_1.abstractmethod
     def AcknowledgeLabReports(
         self,
-        request: _messages_pb2.Acknowledgement,
+        request: _messages_pb2.AcknowledgeLabReportsRequest,
         context: _ServicerContext,
-    ) -> _typing.Union[_empty_pb2.Empty, _abc.Awaitable[_empty_pb2.Empty]]: ...
+    ) -> _typing.Union[_messages_pb2.AcknowledgeLabReportsResponse, _abc.Awaitable[_messages_pb2.AcknowledgeLabReportsResponse]]: ...
 
 def add_LaboratoryServicer_to_server(servicer: LaboratoryServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
 
@@ -85,19 +84,19 @@ class ScreeningModelsStub:
     def __new__(cls, channel: _grpc.Channel) -> _Self: ...
     @_typing.overload
     def __new__(cls, channel: _aio.Channel) -> ScreeningModelsAsyncStub: ...
-    FetchNewScreeningModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.NewScreeningModelsRequest, _messages_pb2.NewScreeningModels]
+    FetchNewScreeningModels: _grpc.UnaryUnaryMultiCallable[_messages_pb2.FetchNewScreeningModelsRequest, _messages_pb2.FetchNewScreeningModelsResponse]
 
 @_typing.type_check_only
 class ScreeningModelsAsyncStub(ScreeningModelsStub):
     def __init__(self, channel: _aio.Channel) -> None: ...
-    FetchNewScreeningModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.NewScreeningModelsRequest, _messages_pb2.NewScreeningModels]  # type: ignore[assignment]
+    FetchNewScreeningModels: _aio.UnaryUnaryMultiCallable[_messages_pb2.FetchNewScreeningModelsRequest, _messages_pb2.FetchNewScreeningModelsResponse]  # type: ignore[assignment]
 
 class ScreeningModelsServicer(metaclass=_abc_1.ABCMeta):
     @_abc_1.abstractmethod
     def FetchNewScreeningModels(
         self,
-        request: _messages_pb2.NewScreeningModelsRequest,
+        request: _messages_pb2.FetchNewScreeningModelsRequest,
         context: _ServicerContext,
-    ) -> _typing.Union[_messages_pb2.NewScreeningModels, _abc.Awaitable[_messages_pb2.NewScreeningModels]]: ...
+    ) -> _typing.Union[_messages_pb2.FetchNewScreeningModelsResponse, _abc.Awaitable[_messages_pb2.FetchNewScreeningModelsResponse]]: ...
 
 def add_ScreeningModelsServicer_to_server(servicer: ScreeningModelsServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...

@@ -3,7 +3,6 @@
 import grpc
 import warnings
 
-from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 from web.shared.grpc import messages_pb2 as web_dot_shared_dot_grpc_dot_messages__pb2
 
 GRPC_GENERATED_VERSION = '1.81.1'
@@ -37,18 +36,18 @@ class LaboratoryStub:
         """
         self.SendLabOrder = channel.unary_unary(
                 '/iron_deficiency.v1.Laboratory/SendLabOrder',
-                request_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.LabOrder.SerializeToString,
-                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                request_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.SendLabOrderRequest.SerializeToString,
+                response_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.SendLabOrderResponse.FromString,
                 _registered_method=True)
         self.FetchNewLabReports = channel.unary_unary(
                 '/iron_deficiency.v1.Laboratory/FetchNewLabReports',
-                request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-                response_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.LabReports.FromString,
+                request_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewLabReportsRequest.SerializeToString,
+                response_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewLabReportsResponse.FromString,
                 _registered_method=True)
         self.AcknowledgeLabReports = channel.unary_unary(
                 '/iron_deficiency.v1.Laboratory/AcknowledgeLabReports',
-                request_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.Acknowledgement.SerializeToString,
-                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                request_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.AcknowledgeLabReportsRequest.SerializeToString,
+                response_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.AcknowledgeLabReportsResponse.FromString,
                 _registered_method=True)
 
 
@@ -78,18 +77,18 @@ def add_LaboratoryServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'SendLabOrder': grpc.unary_unary_rpc_method_handler(
                     servicer.SendLabOrder,
-                    request_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.LabOrder.FromString,
-                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                    request_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.SendLabOrderRequest.FromString,
+                    response_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.SendLabOrderResponse.SerializeToString,
             ),
             'FetchNewLabReports': grpc.unary_unary_rpc_method_handler(
                     servicer.FetchNewLabReports,
-                    request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
-                    response_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.LabReports.SerializeToString,
+                    request_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewLabReportsRequest.FromString,
+                    response_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewLabReportsResponse.SerializeToString,
             ),
             'AcknowledgeLabReports': grpc.unary_unary_rpc_method_handler(
                     servicer.AcknowledgeLabReports,
-                    request_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.Acknowledgement.FromString,
-                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                    request_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.AcknowledgeLabReportsRequest.FromString,
+                    response_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.AcknowledgeLabReportsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -117,8 +116,8 @@ class Laboratory:
             request,
             target,
             '/iron_deficiency.v1.Laboratory/SendLabOrder',
-            web_dot_shared_dot_grpc_dot_messages__pb2.LabOrder.SerializeToString,
-            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+            web_dot_shared_dot_grpc_dot_messages__pb2.SendLabOrderRequest.SerializeToString,
+            web_dot_shared_dot_grpc_dot_messages__pb2.SendLabOrderResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -144,8 +143,8 @@ class Laboratory:
             request,
             target,
             '/iron_deficiency.v1.Laboratory/FetchNewLabReports',
-            google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-            web_dot_shared_dot_grpc_dot_messages__pb2.LabReports.FromString,
+            web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewLabReportsRequest.SerializeToString,
+            web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewLabReportsResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -171,8 +170,8 @@ class Laboratory:
             request,
             target,
             '/iron_deficiency.v1.Laboratory/AcknowledgeLabReports',
-            web_dot_shared_dot_grpc_dot_messages__pb2.Acknowledgement.SerializeToString,
-            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+            web_dot_shared_dot_grpc_dot_messages__pb2.AcknowledgeLabReportsRequest.SerializeToString,
+            web_dot_shared_dot_grpc_dot_messages__pb2.AcknowledgeLabReportsResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -195,8 +194,8 @@ class ScreeningModelsStub:
         """
         self.FetchNewScreeningModels = channel.unary_unary(
                 '/iron_deficiency.v1.ScreeningModels/FetchNewScreeningModels',
-                request_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.NewScreeningModelsRequest.SerializeToString,
-                response_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.NewScreeningModels.FromString,
+                request_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewScreeningModelsRequest.SerializeToString,
+                response_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewScreeningModelsResponse.FromString,
                 _registered_method=True)
 
 
@@ -214,8 +213,8 @@ def add_ScreeningModelsServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'FetchNewScreeningModels': grpc.unary_unary_rpc_method_handler(
                     servicer.FetchNewScreeningModels,
-                    request_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.NewScreeningModelsRequest.FromString,
-                    response_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.NewScreeningModels.SerializeToString,
+                    request_deserializer=web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewScreeningModelsRequest.FromString,
+                    response_serializer=web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewScreeningModelsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -243,8 +242,8 @@ class ScreeningModels:
             request,
             target,
             '/iron_deficiency.v1.ScreeningModels/FetchNewScreeningModels',
-            web_dot_shared_dot_grpc_dot_messages__pb2.NewScreeningModelsRequest.SerializeToString,
-            web_dot_shared_dot_grpc_dot_messages__pb2.NewScreeningModels.FromString,
+            web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewScreeningModelsRequest.SerializeToString,
+            web_dot_shared_dot_grpc_dot_messages__pb2.FetchNewScreeningModelsResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -11,7 +11,6 @@ import google.rpc.error_details_pb2 as rpc_details
 import google.rpc.status_pb2 as rpc_status_pb2
 import grpc
 from google.protobuf import any_pb2
-from google.protobuf.empty_pb2 import Empty
 from grpc_status import rpc_status
 
 from web.shared.grpc import messages_pb2, messages_pb2_grpc
@@ -80,22 +79,25 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
         return report_id
 
     def SendLabOrder(
-        self, request: messages_pb2.LabOrder, context: grpc.ServicerContext
-    ) -> Empty:
+        self, request: messages_pb2.SendLabOrderRequest, context: grpc.ServicerContext
+    ) -> messages_pb2.SendLabOrderResponse:
         self.callers.append(named(context))
         if self.refusal is not None:
             context.abort(self.refusal, "refused")
-        if request.sample_id in self.rejects:
-            context.abort_with_status(rejection(self.rejects[request.sample_id]))
-        self.lab_orders.append(request)
-        return Empty()
+        lab_order = request.lab_order
+        if lab_order.sample_id in self.rejects:
+            context.abort_with_status(rejection(self.rejects[lab_order.sample_id]))
+        self.lab_orders.append(lab_order)
+        return messages_pb2.SendLabOrderResponse()
 
     def FetchNewLabReports(
-        self, request: Empty, context: grpc.ServicerContext
-    ) -> messages_pb2.LabReports:
+        self,
+        request: messages_pb2.FetchNewLabReportsRequest,
+        context: grpc.ServicerContext,
+    ) -> messages_pb2.FetchNewLabReportsResponse:
         self.callers.append(named(context))
-        return messages_pb2.LabReports(
-            reports=[
+        return messages_pb2.FetchNewLabReportsResponse(
+            lab_reports=[
                 report
                 for report_id, report in self.reports.items()
                 if report_id not in self.acknowledged
@@ -103,8 +105,10 @@ class FakeLaboratory(messages_pb2_grpc.LaboratoryServicer):
         )
 
     def AcknowledgeLabReports(
-        self, request: messages_pb2.Acknowledgement, context: grpc.ServicerContext
-    ) -> Empty:
+        self,
+        request: messages_pb2.AcknowledgeLabReportsRequest,
+        context: grpc.ServicerContext,
+    ) -> messages_pb2.AcknowledgeLabReportsResponse:
         self.callers.append(named(context))
         self.acknowledged.update(request.report_ids)
-        return Empty()
+        return messages_pb2.AcknowledgeLabReportsResponse()

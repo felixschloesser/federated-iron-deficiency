@@ -202,27 +202,85 @@ class LabReport(_message.Message):
 Global___LabReport: _TypeAlias = LabReport  # noqa: Y015
 
 @_typing.final
-class LabReports(_message.Message):
+class SendLabOrderRequest(_message.Message):
+    """Each call has a request and a response of its own (tests/shared/test_messages.py),
+    so one call can gain a part without another.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
-    REPORTS_FIELD_NUMBER: _builtins.int
+    LAB_ORDER_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def reports(self) -> _containers.RepeatedCompositeFieldContainer[Global___LabReport]: ...
+    def lab_order(self) -> Global___LabOrder: ...
     def __init__(
         self,
         *,
-        reports: _abc.Iterable[Global___LabReport] = ...,
+        lab_order: Global___LabOrder = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["lab_order", b"lab_order"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["reports", b"reports"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["lab_order", b"lab_order"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-Global___LabReports: _TypeAlias = LabReports  # noqa: Y015
+Global___SendLabOrderRequest: _TypeAlias = SendLabOrderRequest  # noqa: Y015
 
 @_typing.final
-class Acknowledgement(_message.Message):
+class SendLabOrderResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    def __init__(
+        self,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___SendLabOrderResponse: _TypeAlias = SendLabOrderResponse  # noqa: Y015
+
+@_typing.final
+class FetchNewLabReportsRequest(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    def __init__(
+        self,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___FetchNewLabReportsRequest: _TypeAlias = FetchNewLabReportsRequest  # noqa: Y015
+
+@_typing.final
+class FetchNewLabReportsResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    LAB_REPORTS_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def lab_reports(self) -> _containers.RepeatedCompositeFieldContainer[Global___LabReport]: ...
+    def __init__(
+        self,
+        *,
+        lab_reports: _abc.Iterable[Global___LabReport] = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["lab_reports", b"lab_reports"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___FetchNewLabReportsResponse: _TypeAlias = FetchNewLabReportsResponse  # noqa: Y015
+
+@_typing.final
+class AcknowledgeLabReportsRequest(_message.Message):
+    """The lab reports the practice received, stored or not: the laboratory sends
+    them no more.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     REPORT_IDS_FIELD_NUMBER: _builtins.int
@@ -239,7 +297,22 @@ class Acknowledgement(_message.Message):
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-Global___Acknowledgement: _TypeAlias = Acknowledgement  # noqa: Y015
+Global___AcknowledgeLabReportsRequest: _TypeAlias = AcknowledgeLabReportsRequest  # noqa: Y015
+
+@_typing.final
+class AcknowledgeLabReportsResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    def __init__(
+        self,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___AcknowledgeLabReportsResponse: _TypeAlias = AcknowledgeLabReportsResponse  # noqa: Y015
 
 @_typing.final
 class ScreeningModel(_message.Message):
@@ -272,27 +345,7 @@ class ScreeningModel(_message.Message):
 Global___ScreeningModel: _TypeAlias = ScreeningModel  # noqa: Y015
 
 @_typing.final
-class NewScreeningModels(_message.Message):
-    DESCRIPTOR: _descriptor.Descriptor
-
-    SCREENING_MODELS_FIELD_NUMBER: _builtins.int
-    @_builtins.property
-    def screening_models(self) -> _containers.RepeatedCompositeFieldContainer[Global___ScreeningModel]: ...
-    def __init__(
-        self,
-        *,
-        screening_models: _abc.Iterable[Global___ScreeningModel] = ...,
-    ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
-    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["screening_models", b"screening_models"]  # noqa: Y015
-    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    def WhichOneof(self, oneof_group: _Never) -> None: ...
-
-Global___NewScreeningModels: _TypeAlias = NewScreeningModels  # noqa: Y015
-
-@_typing.final
-class NewScreeningModelsRequest(_message.Message):
+class FetchNewScreeningModelsRequest(_message.Message):
     """What the hospital holds, so the startup sends only the rest: a screening
     model it failed to store is sent again, one it holds other weights for is not.
     """
@@ -313,4 +366,24 @@ class NewScreeningModelsRequest(_message.Message):
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-Global___NewScreeningModelsRequest: _TypeAlias = NewScreeningModelsRequest  # noqa: Y015
+Global___FetchNewScreeningModelsRequest: _TypeAlias = FetchNewScreeningModelsRequest  # noqa: Y015
+
+@_typing.final
+class FetchNewScreeningModelsResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    SCREENING_MODELS_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def screening_models(self) -> _containers.RepeatedCompositeFieldContainer[Global___ScreeningModel]: ...
+    def __init__(
+        self,
+        *,
+        screening_models: _abc.Iterable[Global___ScreeningModel] = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["screening_models", b"screening_models"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___FetchNewScreeningModelsResponse: _TypeAlias = FetchNewScreeningModelsResponse  # noqa: Y015

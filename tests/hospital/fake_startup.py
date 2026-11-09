@@ -30,12 +30,12 @@ class FakeStartup(messages_pb2_grpc.ScreeningModelsServicer):
 
     def FetchNewScreeningModels(
         self,
-        request: "messages_pb2.NewScreeningModelsRequest",
+        request: "messages_pb2.FetchNewScreeningModelsRequest",
         context: grpc.ServicerContext,
-    ) -> messages_pb2.NewScreeningModels:
+    ) -> messages_pb2.FetchNewScreeningModelsResponse:
         self.callers.append(named(context))
         self.held.append(list(request.held_run_ids))
-        return messages_pb2.NewScreeningModels(
+        return messages_pb2.FetchNewScreeningModelsResponse(
             screening_models=[
                 model
                 for model in self.offered

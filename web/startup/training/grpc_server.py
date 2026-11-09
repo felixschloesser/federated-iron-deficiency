@@ -33,9 +33,9 @@ class ScreeningModelsService(messages_pb2_grpc.ScreeningModelsServicer):
     @with_database
     def FetchNewScreeningModels(
         self,
-        request: messages_pb2.NewScreeningModelsRequest,
+        request: messages_pb2.FetchNewScreeningModelsRequest,
         context: grpc.ServicerContext,
-    ) -> messages_pb2.NewScreeningModels:
+    ) -> messages_pb2.FetchNewScreeningModelsResponse:
         recipient = recipient_of(context)
         held = [str(run_id) for run_id in request.held_run_ids]
         offered = [
@@ -53,7 +53,7 @@ class ScreeningModelsService(messages_pb2_grpc.ScreeningModelsServicer):
             run_ids=[str(model.run_id) for model in offered],
             now=timezone.now(),
         )
-        return messages_pb2.NewScreeningModels(screening_models=offered)
+        return messages_pb2.FetchNewScreeningModelsResponse(screening_models=offered)
 
 
 def serve(address: str) -> tuple[grpc.Server, int]:

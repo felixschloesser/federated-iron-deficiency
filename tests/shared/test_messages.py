@@ -94,9 +94,9 @@ def test_none_is_unspecified_and_never_sent(vocabulary: str) -> None:
     ("message", "field"),
     [
         ("LabReport", "report_id"),
-        ("Acknowledgement", "report_ids"),
+        ("AcknowledgeLabReportsRequest", "report_ids"),
         ("ScreeningModel", "run_id"),
-        ("NewScreeningModelsRequest", "held_run_ids"),
+        ("FetchNewScreeningModelsRequest", "held_run_ids"),
     ],
 )
 def test_ids_are_unsigned_integers(message: str, field: str) -> None:

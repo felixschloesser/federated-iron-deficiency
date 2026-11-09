@@ -83,7 +83,7 @@ def fetch_screening_models(*, now: datetime) -> list[int]:
         startup = messages_pb2_grpc.ScreeningModelsStub(channel)
         held = [int(path.stem) for path in model_file_paths(directory)]
         offered = startup.FetchNewScreeningModels(
-            messages_pb2.NewScreeningModelsRequest(held_run_ids=held),
+            messages_pb2.FetchNewScreeningModelsRequest(held_run_ids=held),
             timeout=TIMEOUT_SECONDS,
             metadata=metadata,
         ).screening_models

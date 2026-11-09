@@ -129,7 +129,7 @@ def fetches(world: World, hospital: str) -> None:
     world["fetched"] = call(
         world,
         "FetchNewScreeningModels",
-        messages_pb2.NewScreeningModelsRequest(),
+        messages_pb2.FetchNewScreeningModelsRequest(),
         hospital,
     )
 
@@ -140,14 +140,17 @@ def fetches(world: World, hospital: str) -> None:
     )
 )
 def fetches_holding(world: World, hospital: str, run_id: str) -> None:
-    held = messages_pb2.NewScreeningModelsRequest(held_run_ids=[int(run_id)])
+    held = messages_pb2.FetchNewScreeningModelsRequest(held_run_ids=[int(run_id)])
     world["fetched"] = call(world, "FetchNewScreeningModels", held, hospital)
 
 
 @when("a hospital fetches new screening models without naming itself")
 def fetches_unnamed(world: World) -> None:
     world["fetched"] = call(
-        world, "FetchNewScreeningModels", messages_pb2.NewScreeningModelsRequest(), None
+        world,
+        "FetchNewScreeningModels",
+        messages_pb2.FetchNewScreeningModelsRequest(),
+        None,
     )
 
 

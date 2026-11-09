@@ -10,7 +10,6 @@ from typing import Any
 import grpc
 import pytest
 from django.core.management import call_command
-from google.protobuf.empty_pb2 import Empty
 from google.protobuf.message_factory import GetMessageClass
 
 from web.hospital.analyser.models import Participant
@@ -58,6 +57,10 @@ def lab_order(**fields: Any) -> messages_pb2.LabOrder:
     return messages_pb2.LabOrder(**values)
 
 
+def sent(order: messages_pb2.LabOrder) -> messages_pb2.SendLabOrderRequest:
+    return messages_pb2.SendLabOrderRequest(lab_order=order)
+
+
 def violations(refused: grpc.RpcError) -> list[tuple[str, str]]:
     """A rejected lab order's reasons (WHO LQMS 5-4, p. 66), as the practice
     reads them: INVALID_ARGUMENT with google.rpc.BadRequest field violations,
@@ -87,7 +90,7 @@ def refusal(call: Any, request: Any, metadata: Any = DE_CEDER) -> grpc.RpcError:
 def test_a_lab_order_is_recorded_as_sent(
     endpoint: messages_pb2_grpc.LaboratoryStub,
 ) -> None:
-    endpoint.SendLabOrder(lab_order(), timeout=10, metadata=DE_CEDER)
+    endpoint.SendLabOrder(sent(lab_order()), timeout=10, metadata=DE_CEDER)
     test_request = TestRequest.objects.select_related("sample__practice").get()
     assert test_request.sample.sample_id == "1"
     assert (test_request.test, test_request.clinical_indication) == (
@@ -122,7 +125,7 @@ def test_a_lab_order_missing_any_part_is_refused(
             if field.name != part
         }
     )
-    refused = refusal(endpoint.SendLabOrder, order)
+    refused = refusal(endpoint.SendLabOrder, sent(order))
     assert [field for field, _ in violations(refused)] == [part]
     assert not TestRequest.objects.exists()
 
@@ -131,7 +134,7 @@ def test_a_lab_order_for_a_test_the_contract_lacks_is_refused(
     endpoint: messages_pb2_grpc.LaboratoryStub,
 ) -> None:
     """A number the Test enum does not name is no test."""
-    refused = refusal(endpoint.SendLabOrder, lab_order(test=99))
+    refused = refusal(endpoint.SendLabOrder, sent(lab_order(test=99)))
     assert violations(refused) == [("test", "invalid_choice")]
     assert not TestRequest.objects.exists()
 
@@ -140,7 +143,7 @@ def test_a_lab_order_with_a_sample_id_too_long_is_refused(
     endpoint: messages_pb2_grpc.LaboratoryStub,
 ) -> None:
     """The sample's model says what a sample ID may be."""
-    refused = refusal(endpoint.SendLabOrder, lab_order(sample_id="1" * 21))
+    refused = refusal(endpoint.SendLabOrder, sent(lab_order(sample_id="1" * 21)))
     assert violations(refused) == [("sample_id", "max_length")]
     assert not TestRequest.objects.exists()
 
@@ -149,7 +152,7 @@ def test_a_lab_order_for_a_newborn_is_recorded(
     endpoint: messages_pb2_grpc.LaboratoryStub,
 ) -> None:
     """Age 0, sent, is an age."""
-    endpoint.SendLabOrder(lab_order(age=0), timeout=10, metadata=DE_CEDER)
+    endpoint.SendLabOrder(sent(lab_order(age=0)), timeout=10, metadata=DE_CEDER)
     assert TestRequest.objects.get().age == 0
 
 
@@ -211,20 +214,22 @@ def test_a_released_lab_report_is_fetched_until_acknowledged(
         screening_result=ScreeningResult.FERRITIN_SUGGESTED
     )
     (report,) = endpoint.FetchNewLabReports(
-        Empty(), timeout=10, metadata=DE_CEDER
-    ).reports
+        messages_pb2.FetchNewLabReportsRequest(), timeout=10, metadata=DE_CEDER
+    ).lab_reports
     assert (report.report_id, report.sample_id) == (test_request.pk, "1")
     assert report.test == messages_pb2.TEST_CBC
     assert report.ferritin_suggested is True
     assert report.released_at.ToDatetime(tzinfo=UTC) == NOW
 
     endpoint.AcknowledgeLabReports(
-        messages_pb2.Acknowledgement(report_ids=[report.report_id]),
+        messages_pb2.AcknowledgeLabReportsRequest(report_ids=[report.report_id]),
         timeout=10,
         metadata=DE_CEDER,
     )
-    fetched = endpoint.FetchNewLabReports(Empty(), timeout=10, metadata=DE_CEDER)
-    assert list(fetched.reports) == []
+    fetched = endpoint.FetchNewLabReports(
+        messages_pb2.FetchNewLabReportsRequest(), timeout=10, metadata=DE_CEDER
+    )
+    assert list(fetched.lab_reports) == []
 
 
 @pytest.mark.django_db
