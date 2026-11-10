@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 import torch
+from django.db.models import TextChoices
 from django.utils import formats, timezone
 
 from ml.final_model import (
@@ -23,10 +24,6 @@ from ml.final_model import (
     write_contents,
 )
 from ml.validation import auroc, confusion_matrices, standardization
-
-# The thresholds a laboratory director can choose from; local validation
-# counts at each one.
-THRESHOLDS = tuple(step / 20 for step in range(1, 20))
 
 # The four cells of a confusion matrix, under the names the file uses.
 CELLS = ("true_positives", "false_negatives", "false_positives", "true_negatives")
@@ -46,6 +43,10 @@ class Ratio:
 
     def __str__(self) -> str:
         return f"{self.part} of {self.whole}"
+
+    def reaches(self, percent: int) -> bool:
+        """Whether the share is at least `percent`, compared exactly in counts."""
+        return self.part * 100 >= percent * self.whole
 
     @property
     def percent(self) -> str | None:
@@ -98,6 +99,13 @@ class LocalValidationAt:
         return Ratio(cleared, cleared + self.count("false_positives"))
 
     @property
+    def suggested_without(self) -> "Ratio":
+        """Past patients without iron deficiency it suggests ferritin for: the
+        cost of the sensitivity."""
+        alarmed = self.count("false_positives")
+        return Ratio(alarmed, alarmed + self.count("true_negatives"))
+
+    @property
     def positive_predictive_value(self) -> "Ratio":
         found = self.count("true_positives")
         return Ratio(found, found + self.count("false_positives"))
@@ -108,10 +116,10 @@ class LocalValidationAt:
         return Ratio(cleared, cleared + self.count("false_negatives"))
 
 
-def auroc_interval(area: float, counts: LocalValidationAt) -> str:
-    """An AUROC's 95% confidence interval, such as "0.68–1.00", from the sizes of
-    the two groups in `counts`. Neither group is ever empty: a training cohort
-    holds at least 10 of each class, and the test split is stratified."""
+def auroc_bounds(area: float, counts: LocalValidationAt) -> tuple[float, float]:
+    """An AUROC's 95% confidence interval from the sizes of the two groups in
+    `counts`. Neither group is ever empty: a training cohort holds at least 10
+    of each class, and the test split is stratified."""
     deficient = counts.count("true_positives") + counts.count("false_negatives")
     other = counts.count("true_negatives") + counts.count("false_positives")
     # Hanley and McNeil's standard error (Radiology 1982;143:29–36) needs only
@@ -125,8 +133,36 @@ def auroc_interval(area: float, counts: LocalValidationAt) -> str:
         )
         / (deficient * other)
     )
-    lower, upper = max(area - 1.96 * error, 0.0), min(area + 1.96 * error, 1.0)
+    return max(area - 1.96 * error, 0.0), min(area + 1.96 * error, 1.0)
+
+
+def auroc_interval(area: float, counts: LocalValidationAt) -> str:
+    """An AUROC's 95% confidence interval as shown, such as "0.68–1.00"."""
+    lower, upper = auroc_bounds(area, counts)
     return f"{lower:.2f}–{upper:.2f}"
+
+
+class Verification(TextChoices):
+    """How a screening model's AUROC here compares with the AUROC the startup
+    reports across hospitals: the laboratory's check of a claimed performance
+    (WHO LQMS 3-3, p. 40). It informs the director and blocks nothing."""
+
+    AS_CLAIMED = "as_claimed", "Performs here as claimed across hospitals"
+    WORSE_HERE = "worse_here", "Performs worse here than across hospitals"
+    BETTER_HERE = "better_here", "Performs better here than across hospitals"
+
+
+def verification(
+    local_auroc: float, federated_auroc: float, counts: LocalValidationAt
+) -> Verification:
+    """Whether the AUROC across hospitals lies within the 95% confidence interval
+    of the AUROC here, or above or below it."""
+    lower, upper = auroc_bounds(local_auroc, counts)
+    if federated_auroc > upper:
+        return Verification.WORSE_HERE
+    if federated_auroc < lower:
+        return Verification.BETTER_HERE
+    return Verification.AS_CLAIMED
 
 
 @dataclass(frozen=True)
@@ -143,17 +179,21 @@ class ScreeningModel:
     # The AUROC the ServerApp aggregated; no other hospital's own metrics.
     federated_auroc: float
     local_auroc: float
-    # One row per threshold the laboratory director may deploy at, lowest first.
+    # One row per distinct score of the test split, lowest first.
     local_validation: list[LocalValidationAt]
 
     @property
     def name(self) -> str:
         return model_name(self.stored_at)
 
-    def at(self, threshold: float) -> LocalValidationAt | None:
-        """The local validation at `threshold`, or None if the file holds none there."""
-        return next(
-            (row for row in self.local_validation if row.threshold == threshold), None
+    def at_target(self, percent: int) -> LocalValidationAt:
+        """The local validation at the highest threshold whose sensitivity reaches
+        `percent`: the fewest ferritin suggestions that still find that share of
+        the iron-deficient past patients. The lowest threshold finds them all
+        (read_screening_model checks), so one always does."""
+        return max(
+            (row for row in self.local_validation if row.sensitivity.reaches(percent)),
+            key=lambda row: row.threshold,
         )
 
     @property
@@ -162,6 +202,12 @@ class ScreeningModel:
         # Every threshold's counts cover the same past patients, so any row
         # gives the group sizes.
         return auroc_interval(self.local_auroc, self.local_validation[0])
+
+    @property
+    def verification(self) -> Verification:
+        return verification(
+            self.local_auroc, self.federated_auroc, self.local_validation[0]
+        )
 
 
 def read_screening_model(data: bytes) -> ScreeningModel | None:
@@ -177,6 +223,13 @@ def read_screening_model(data: bytes) -> ScreeningModel | None:
             )
             for threshold, counts in sorted(contents["confusion_matrices"].items())
         ]
+        # The lowest threshold is the test split's lowest score, so it suggests
+        # ferritin for every iron-deficient past patient, of whom there are some.
+        if not local_validation:
+            return None
+        lowest = local_validation[0].sensitivity
+        if not lowest.part == lowest.whole > 0:
+            return None
         return ScreeningModel(
             state_dict=fitting_weights(contents["state_dict"]),
             mean=contents["mean"],
@@ -258,7 +311,7 @@ def store_fetched(
             "run_id": run_id,
             "stored_at": stored_at.isoformat(),
             "federated_auroc": federated_auroc,
-            "confusion_matrices": confusion_matrices(state_dict, cohort, THRESHOLDS),
+            "confusion_matrices": confusion_matrices(state_dict, cohort),
             "local_auroc": auroc(state_dict, cohort),
         },
     )

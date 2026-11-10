@@ -1,0 +1,4 @@
+{% comment %}One measure of local validation, its counts first.
+Include with: term, ratio, meaning.{% endcomment %}
+<dt>{{ term }}</dt>
+<dd>{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; <span class="no-wrap">95% CI {{ ratio.interval }}</span>){% endif %}<br><small>{{ meaning }}</small></dd>

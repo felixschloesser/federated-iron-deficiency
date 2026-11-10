@@ -18,10 +18,10 @@ from ml.final_model import (
     write_contents,
 )
 from tests.conftest import World
-from tests.hospital.conftest import make_practice
+from tests.hospital.conftest import make_laboratory_director, make_practice
 from web.hospital.analyser.models import Participant
 from web.hospital.deployment.model_files import sha256
-from web.hospital.deployment.models import Deployment
+from web.hospital.deployment.models import Deployment, TargetSensitivity
 from web.hospital.lab.models import (
     SCREENED_INDICATIONS,
     LabOrderDetails,
@@ -56,16 +56,23 @@ def deciding_model() -> dict[str, torch.Tensor]:
     return state
 
 
-# Local validation at the thresholds the scenarios deploy at; the counts are not read.
+# Local validation at the thresholds the scenarios deploy at, and the target
+# sensitivity that resolves to each: 100% finds all at 0.4, 80% all but two at 0.5.
 CONFUSION_MATRICES = {
-    threshold: {
-        "true_positives": 7,
-        "false_negatives": 3,
+    0.4: {
+        "true_positives": 10,
+        "false_negatives": 0,
+        "false_positives": 12,
+        "true_negatives": 30,
+    },
+    0.5: {
+        "true_positives": 8,
+        "false_negatives": 2,
         "false_positives": 5,
         "true_negatives": 37,
-    }
-    for threshold in (0.4, 0.5)
+    },
 }
+TARGET_FOR = {0.4: 100, 0.5: 80}
 
 
 def write_model(directory: Path, run_id: str, local_auroc: float) -> None:
@@ -100,11 +107,15 @@ def screening_model(world: World, tmp_path: Path, run_id: str) -> None:
     )
 )
 def deployed(world: World, run_id: str, threshold: float) -> None:
-    Deployment.objects.deploy(
-        run_id=run_id,
-        threshold=threshold,
+    director = make_laboratory_director("Director One")
+    TargetSensitivity.objects.set(
+        percent=TARGET_FOR[threshold],
+        by=director,
         directory=world["screening_models_dir"],
         now=NOW,
+    )
+    Deployment.objects.deploy(
+        run_id=run_id, by=director, directory=world["screening_models_dir"], now=NOW
     )
 
 

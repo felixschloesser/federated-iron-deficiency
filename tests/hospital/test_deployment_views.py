@@ -15,11 +15,17 @@ from tests.hospital.conftest import (
     make_laboratory_staff_member,
     write_screening_model,
 )
-from web.hospital.deployment.models import Deployment
+from web.hospital.deployment.models import Deployment, TargetSensitivity
 from web.shared.accounts.models import User
 
 pytestmark = pytest.mark.django_db
 VALIDATION = {
+    0.2: {
+        "true_positives": 10,
+        "false_negatives": 0,
+        "false_positives": 20,
+        "true_negatives": 22,
+    },
     0.4: {
         "true_positives": 9,
         "false_negatives": 1,
@@ -53,107 +59,188 @@ def director(client: Client) -> User:
     return director
 
 
+def set_target(client: Client, percent: str) -> None:
+    client.post(reverse("deployment:screening_models"), {"percent": percent})
+
+
 def test_models_page(
     client: Client,
     director: User,
     screening_models_dir: Path,
     django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    # Session, user with role, deployed screening model, deployment history.
-    with django_assert_num_queries(4):
+    # Session, user with role, deployed screening model, target sensitivity,
+    # target sensitivities and deployments for the history.
+    with django_assert_num_queries(6):
         response = client.get(reverse("deployment:screening_models"))
     assertContains(
         response,
-        '<h2>Screening model of <span class="no-wrap">30 Oct 2026, 10:00</span></h2>',
+        '<h3>Screening model of <span class="no-wrap">30 Oct 2026, 10:00</span></h3>',
         html=True,
+    )
+    # Without a target sensitivity nothing can be deployed, so nothing offers to.
+    assertContains(response, "No target sensitivity is set")
+    assertNotContains(response, "Deploy Screening model")
+    for percent in ("80", "85", "90", "95", "100"):
+        assertContains(response, f'name="percent" value="{percent}"', count=1)
+    assertContains(
+        response, "Set a target sensitivity to see what this screening model costs"
     )
     assertContains(
         response,
-        'aria-label="Deploy Screening model of 30 Oct 2026, 10:00 at the chosen'
-        ' threshold"',
-    )
-    # One row per threshold, each with its radio button and four measures.
-    for threshold, cells in (
-        (
-            "0.4",
-            (
-                '9 of 10 (90%; <span class="no-wrap">95% CI 60–98%</span>)',
-                '30 of 42 (71%; <span class="no-wrap">95% CI 56–83%</span>)',
-                '9 of 21 (43%; <span class="no-wrap">95% CI 24–63%</span>)',
-                '30 of 31 (97%; <span class="no-wrap">95% CI 84–99%</span>)',
-            ),
-        ),
-        (
-            "0.5",
-            (
-                '7 of 10 (70%; <span class="no-wrap">95% CI 40–89%</span>)',
-                '37 of 42 (88%; <span class="no-wrap">95% CI 75–95%</span>)',
-                '7 of 12 (58%; <span class="no-wrap">95% CI 32–81%</span>)',
-                '37 of 40 (92%; <span class="no-wrap">95% CI 80–97%</span>)',
-            ),
-        ),
-    ):
-        assertContains(
-            response, f'name="threshold" value="{threshold}" required', count=1
-        )
-        for label, cell in zip(
-            (
-                "Sensitivity",
-                "Specificity",
-                "Positive predictive value",
-                "Negative predictive value",
-            ),
-            cells,
-            strict=True,
-        ):
-            assertContains(response, f'<td data-label="{label}">{cell}</td>', html=True)
-    assertContains(
-        response,
-        '<dt>AUROC here</dt><dd>0.84 <span class="no-wrap">(95% CI 0.68–1.00)</span></dd>',
+        "<p><strong>Performs here as claimed across hospitals</strong>: AUROC 0.84"
+        ' here <span class="no-wrap">(95% CI 0.68–1.00)</span>, 0.87 across'
+        " hospitals.</p>",
         html=True,
     )
-    assertContains(response, "<dt>AUROC across hospitals</dt><dd>0.87</dd>", html=True)
     # The unreadable file is no screening model: it is not listed.
     assertContains(response, "<small>run 1</small>", count=1)
     assertNotContains(response, "<small>run 2</small>")
     assertContains(response, "No screening model is deployed")
 
 
-def test_deploying_redirects_with_a_message(
+def test_a_screening_model_at_the_target_sensitivity(
     client: Client, director: User, screening_models_dir: Path
 ) -> None:
-    url = reverse("deployment:deploy", kwargs={"run_id": "1"})
-    response = client.post(url, {"threshold": "0.4"}, follow=True)
-    assert response.redirect_chain == [(reverse("deployment:screening_models"), 302)]
+    set_target(client, "90")
+    response = client.get(reverse("deployment:screening_models"))
+    # 90% resolves to 0.4: 0.5 finds only 7 of 10.
     assertContains(
-        response, "Screening model of 30 Oct 2026, 10:00 deployed at threshold 0.40."
+        response,
+        "At 90%, it suggests ferritin for 12 of 42 past patients without iron"
+        " deficiency (threshold 0.40).",
     )
-    screening_model = Deployment.objects.get().deployed_screening_model
-    assert (screening_model.run_id, screening_model.threshold) == ("1", 0.4)
-    # The deployed threshold is the one chosen when the page shows again.
-    assertContains(response, "Deployed at threshold 0.40")
-    assertContains(response, 'value="0.4" required checked')
+    for term, measure in (
+        ("Sensitivity", '9 of 10 (90%; <span class="no-wrap">95% CI 60–98%</span>)'),
+        ("Specificity", '30 of 42 (71%; <span class="no-wrap">95% CI 56–83%</span>)'),
+        (
+            "Positive predictive value",
+            '9 of 21 (43%; <span class="no-wrap">95% CI 24–63%</span>)',
+        ),
+        (
+            "Negative predictive value",
+            '30 of 31 (97%; <span class="no-wrap">95% CI 84–99%</span>)',
+        ),
+    ):
+        assertContains(response, f"<dt>{term}</dt>", count=1, html=True)
+        assertContains(response, measure, count=1)
+    assertContains(
+        response,
+        "Iron deficient: ferritin below 15&nbsp;ng/mL, or below 70&nbsp;ng/mL with"
+        " inflammation (CRP above 5&nbsp;mg/L)",
+    )
+    # One row per threshold is gone: the page shows the target's only.
+    assertNotContains(response, "7 of 10")
 
 
-@pytest.mark.parametrize("posted", [{}, {"threshold": "high"}])
-def test_deploying_without_a_threshold_says_so(
+def test_previewing_a_target_sensitivity_changes_nothing(
+    client: Client, director: User, screening_models_dir: Path
+) -> None:
+    set_target(client, "90")
+    response = client.get(reverse("deployment:screening_models"), {"percent": "100"})
+    assertContains(response, "Showing what 100% would cost; the target is still 90%.")
+    # 100% resolves to the lowest threshold, 0.2, which finds all 10.
+    assertContains(
+        response,
+        "At 100%, it suggests ferritin for 20 of 42 past patients without iron"
+        " deficiency (threshold 0.20).",
+    )
+    assertContains(response, 'href="?percent=100" aria-current="page"')
+    assertContains(
+        response, 'name="percent" value="100" required id="id_percent_4" checked'
+    )
+    # Deploying deploys at the target in force, so it waits until 100% is set.
+    assertNotContains(response, "Deploy Screening model")
+    assert [target.percent for target in TargetSensitivity.objects.all()] == [90]
+
+
+def test_previewing_a_target_sensitivity_not_on_offer_is_not_found(
+    client: Client, director: User, screening_models_dir: Path
+) -> None:
+    response = client.get(reverse("deployment:screening_models"), {"percent": "75"})
+    assert response.status_code == 404
+
+
+def test_setting_the_target_sensitivity_redirects_with_a_message(
+    client: Client, director: User, screening_models_dir: Path
+) -> None:
+    response = client.post(
+        reverse("deployment:screening_models"), {"percent": "90"}, follow=True
+    )
+    assert response.redirect_chain == [(reverse("deployment:screening_models"), 302)]
+    assertContains(response, "Target sensitivity set to 90%.")
+    assertContains(response, "Now <strong>90%</strong>, set by director-one")
+    assertContains(
+        response, 'name="percent" value="90" required id="id_percent_2" checked'
+    )
+    assertContains(
+        response,
+        'aria-label="Deploy Screening model of 30 Oct 2026, 10:00 at 90%"',
+    )
+    assert TargetSensitivity.objects.get().set_by == director
+
+
+@pytest.mark.parametrize("posted", [{}, {"percent": "75"}, {"percent": "high"}])
+def test_setting_no_target_sensitivity_says_so_beside_the_field(
     client: Client,
     director: User,
     screening_models_dir: Path,
     posted: dict[str, str],
 ) -> None:
+    response = client.post(reverse("deployment:screening_models"), posted)
+    assert response.status_code == 200
+    assertContains(
+        response,
+        '<a href="#id_percent_0">Target sensitivity: Choose a target sensitivity.</a>',
+        html=True,
+    )
+    assert not TargetSensitivity.objects.exists()
+
+
+def test_deploying_redirects_with_a_message(
+    client: Client, director: User, screening_models_dir: Path
+) -> None:
+    set_target(client, "90")
     url = reverse("deployment:deploy", kwargs={"run_id": "1"})
-    response = client.post(url, posted, follow=True)
+    response = client.post(url, follow=True)
     assert response.redirect_chain == [(reverse("deployment:screening_models"), 302)]
-    assertContains(response, "Choose a threshold to deploy at.")
+    assertContains(
+        response,
+        "Screening model of 30 Oct 2026, 10:00 deployed at threshold 0.40 (target 90%).",
+    )
+    deployment = Deployment.objects.get()
+    screening_model = deployment.deployed_screening_model
+    assert (screening_model.run_id, screening_model.threshold) == ("1", 0.4)
+    assert deployment.deployed_by == director
+    assertContains(response, "Deployed at threshold 0.40")
+    # The history names both decisions and who made them.
+    assertContains(response, "<td>Target sensitivity set to 90%</td>", html=True)
+    assertContains(
+        response,
+        "<td>Screening model of 30 Oct 2026, 10:00 deployed at threshold 0.40"
+        " (target 90%)</td>",
+        html=True,
+    )
+    assertContains(response, "<td>director-one</td>", count=2, html=True)
+
+
+def test_deploying_before_a_target_sensitivity_says_so(
+    client: Client, director: User, screening_models_dir: Path
+) -> None:
+    url = reverse("deployment:deploy", kwargs={"run_id": "1"})
+    response = client.post(url, follow=True)
+    assertContains(
+        response, "Set a target sensitivity before deploying a screening model."
+    )
     assert not Deployment.objects.exists()
 
 
 def test_a_refused_deployment_says_why(
     client: Client, director: User, screening_models_dir: Path
 ) -> None:
+    set_target(client, "90")
     url = reverse("deployment:deploy", kwargs={"run_id": "2"})
-    response = client.post(url, {"threshold": "0.5"}, follow=True)
+    response = client.post(url, follow=True)
     assertContains(response, "There is no readable model of run 2.")
     assert not Deployment.objects.exists()
 
@@ -217,9 +304,8 @@ def test_screening_status_before_and_after_deploying(
 ) -> None:
     # The unreadable "2.pt" is no screening model.
     assert status(settings) == "1 screening model, none deployed"
-    client.post(
-        reverse("deployment:deploy", kwargs={"run_id": "1"}), {"threshold": "0.5"}
-    )
+    set_target(client, "90")
+    client.post(reverse("deployment:deploy", kwargs={"run_id": "1"}))
     assert (
         status(settings) == "Screening model of 30 Oct 2026, 10:00 deployed (1 in all)"
     )

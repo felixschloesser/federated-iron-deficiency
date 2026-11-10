@@ -1,8 +1,8 @@
 Feature: The startup's training runs
   The startup keeps every training run's final model, with the AUROC
   across hospitals. Its data scientist sees them on the startup's own web app.
-  A training run sets no threshold: each hospital's laboratory director chooses
-  one when deploying (features/hospital/deployment.feature).
+  A training run sets no threshold: each hospital's follows from its laboratory
+  director's target sensitivity (features/hospital/deployment.feature).
 
   Background:
     Given data scientist "Data One"

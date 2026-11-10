@@ -139,8 +139,8 @@ container inside the startup's network because that is where the data
 scientist sits in the report's DFD; the SuperLink's control API is never
 published to your machine. When the run
 finishes, its final model appears on the startup's Final models page; release
-it there. Then log in to a hospital as `director`, fetch new screening models, compare
-its local validation at each threshold and deploy it at one. Then order a
+it there. Then log in to a hospital as `director`, fetch new screening models, set a
+target sensitivity and deploy one. Then order a
 CBC as `doctor`, analyse it as `staff`, and the lab report with its
 screening comes back to the practice.
 

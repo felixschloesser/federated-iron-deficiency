@@ -4,7 +4,7 @@ Feature: Screening models at each hospital
   after its training run's ID, never overwriting one, with the AUROC across hospitals the startup sent,
   and its local validation on this hospital's test split, which no training run
   trained or was chosen on: a confusion
-  matrix at each threshold the laboratory director may choose, and AUROC. The
+  matrix at each distinct score of that split, where the counts change, and AUROC. The
   training run sets no threshold. Its metadata holds only this hospital's local validation and the
   federated aggregate, never another hospital's metrics. A file is read whole:
   one that lacks a part reads as no screening model.
@@ -18,9 +18,9 @@ Feature: Screening models at each hospital
     And it holds the weights, standardization, run ID, when it was stored, the AUROC across hospitals and the local validation
     And it holds no threshold
 
-  Scenario: Local validation is a confusion matrix at each threshold, and AUROC
+  Scenario: Local validation is a confusion matrix at each score of the test split, and AUROC
     When the hospital stores the screening model of run 11
-    Then its local validation holds the four counts of its test split at each threshold from 0.05 to 0.95 in steps of 0.05
+    Then its local validation holds the four counts of its test split at each distinct score of that split
     And an AUROC
 
   Scenario: A hospital learns no other hospital's metrics

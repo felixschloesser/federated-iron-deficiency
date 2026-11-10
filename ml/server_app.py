@@ -90,7 +90,7 @@ def training_run(grid: Grid, context: Context, directory: Path | None) -> None:
     federated_auroc = result.evaluate_metrics_clientapp[last_round]["eval_auroc"]
     if not isinstance(federated_auroc, (int, float)):
         raise TypeError(f"The AUROC across hospitals is no number: {federated_auroc}")
-    # No threshold: each hospital's laboratory director chooses one.
+    # No threshold: each hospital's follows from its director's target sensitivity.
     if directory is None:
         log(INFO, "FINAL_MODELS_DIR is not set: no final model kept.")
     else:

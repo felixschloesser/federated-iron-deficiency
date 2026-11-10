@@ -52,15 +52,16 @@ Each party speaks its own language: the practice *orders*, the wire carries a
 | screened indication | A clinical indication the hospital screens a CBC for. | Report, Data table |
 | not eligible | A CBC the screening does not cover: indication not screened, not female, or not aged 18–49. | Report, Use case |
 | screening result | Ferritin suggested, ferritin not suggested, not screened, or screening failed (no usable deployed screening model). | Report; "screening failed": project decision 2026-11-08 |
-| deploy | The laboratory director's decision that a screening model screens, at a threshold they choose. | Report, Use case |
+| target sensitivity | The share of iron-deficient past patients the laboratory director wants each deployed screening model to suggest ferritin for: 80, 85, 90, 95 or 100%. The hospital's screening policy. | Project decision 2026-11-10 |
+| deploy | The laboratory director's decision that a screening model screens, at the highest threshold that reaches the target sensitivity. | Report, Use case |
 | deployed screening model | A screening model as deployed, with its threshold and its file's hash; the latest is the one that screens. | Report |
-| threshold | The score at or above which the deployed screening model suggests ferritin. | Report, Design choices |
+| threshold | The score at or above which the deployed screening model suggests ferritin; it follows from the target sensitivity. | Report, Design choices |
 | fetch | The laboratory director's request for new screening models; none enters the hospital otherwise. | Report |
 | lab record | What the laboratory holds of a past patient; what the training cohort is extracted from. | Report |
 | past patient | An eligible woman with a complete CBC for a screened indication, a ferritin and a CRP in the lab records. | Report |
 | training cohort | The 13 CBC values, age and label per past patient, which the startup's code at the hospital trains on. | Report |
 | provide / withdraw | The laboratory director lets the startup's code at the hospital train on the training cohort, or takes it back. | Project decision |
-| local validation | A screening model on this hospital's held-out split: the confusion matrix at each threshold, and AUROC. | Report |
+| local validation | A screening model on this hospital's held-out split: the confusion matrix at each score of that split, and AUROC. | Report |
 | sensitivity, specificity, positive and negative predictive value | How well a screening model finds iron deficiency at a threshold, shown as counts. | WHO LQMS 3-3, p. 40 |
 | 95% confidence interval | The range a measure would likely fall in on other past patients like these. | WHO ferritin guideline 2020, p. 38 |
 | inflammation | A CRP above 5 mg/L; with it, ferritin below 70 ng/mL counts as iron deficient instead of below 15. | WHO ferritin guideline 2020, rec. 1.2 |

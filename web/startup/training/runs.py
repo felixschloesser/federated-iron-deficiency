@@ -30,7 +30,7 @@ CONNECTION = "demo"
 def run_configuration(chosen: Mapping[str, int | float | str]) -> str:
     """Format the run configuration for `flwr run --run-config`: the data
     scientist's choices only. There is no threshold, because each hospital's
-    laboratory director chooses one, and no folder, because the ServerApp's
+    threshold follows from its laboratory director's target sensitivity, and no folder, because the ServerApp's
     deployment names where it keeps final models."""
     return " ".join(f"{key}={value!r}" for key, value in chosen.items())
 

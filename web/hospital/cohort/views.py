@@ -2,7 +2,7 @@ from typing import Any
 
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -12,16 +12,11 @@ from django.views.generic import TemplateView
 
 from ml.cohort import CBC_VARS
 from web.hospital.cohort.models import LabRecord, TrainingCohort
-from web.hospital.deployment.views import LaboratoryDirectorRequiredMixin
-from web.shared.accounts.models import User
-
-
-def director(request: HttpRequest) -> User:
-    """The logged-in user, whom LaboratoryDirectorRequiredMixin has already checked
-    is a laboratory director."""
-    if not isinstance(request.user, User):
-        raise PermissionDenied
-    return request.user
+from web.hospital.deployment.views import (
+    IRON_DEFICIENCY,
+    LaboratoryDirectorRequiredMixin,
+    director,
+)
 
 
 class TrainingCohortView(LaboratoryDirectorRequiredMixin, TemplateView):
@@ -33,6 +28,7 @@ class TrainingCohortView(LaboratoryDirectorRequiredMixin, TemplateView):
             "provided": TrainingCohort.objects.provided(),
             "summary": LabRecord.objects.summary(),
             "cbc_values": len(CBC_VARS),
+            "iron_deficiency": IRON_DEFICIENCY,
             "provide_url": reverse("cohort:provide"),
             "withdraw_url": reverse("cohort:withdraw"),
             "decisions": TrainingCohort.objects.select_related(
