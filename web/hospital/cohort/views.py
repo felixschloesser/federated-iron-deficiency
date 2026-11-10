@@ -12,7 +12,11 @@ from django.views.generic import TemplateView
 
 from ml.cohort import CBC_VARS
 from web.hospital.cohort.models import LabRecord, TrainingCohort
-from web.hospital.deployment.views import LaboratoryDirectorRequiredMixin, director
+from web.hospital.deployment.views import (
+    IRON_DEFICIENCY,
+    LaboratoryDirectorRequiredMixin,
+    director,
+)
 
 
 class TrainingCohortView(LaboratoryDirectorRequiredMixin, TemplateView):
@@ -24,6 +28,7 @@ class TrainingCohortView(LaboratoryDirectorRequiredMixin, TemplateView):
             "provided": TrainingCohort.objects.provided(),
             "summary": LabRecord.objects.summary(),
             "cbc_values": len(CBC_VARS),
+            "iron_deficiency": IRON_DEFICIENCY,
             "provide_url": reverse("cohort:provide"),
             "withdraw_url": reverse("cohort:withdraw"),
             "decisions": TrainingCohort.objects.select_related(

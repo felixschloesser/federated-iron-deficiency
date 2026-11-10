@@ -54,6 +54,12 @@ def test_the_page_before_providing(
     ) == (120, 20)
     assertContains(response, reverse("cohort:provide"))
     assert reverse("cohort:withdraw") not in response.content.decode()
+    # The label's definition comes from the cutoffs the training cohort uses.
+    assertContains(
+        response,
+        "Iron deficient: ferritin below 15&nbsp;ng/mL, or below 70&nbsp;ng/mL with"
+        " inflammation (CRP above 5&nbsp;mg/L)",
+    )
 
 
 def test_the_page_once_provided_offers_withdrawing(

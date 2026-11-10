@@ -1,0 +1,3 @@
+{% comment %}What "iron deficient" means here, from ml/cohort.py's cutoffs.
+Include with: iron_deficiency, the cutoffs (ferritin, inflamed_ferritin, crp).{% endcomment %}
+<p><small>Iron deficient: ferritin below {{ iron_deficiency.ferritin|floatformat }}&nbsp;ng/mL, or below {{ iron_deficiency.inflamed_ferritin|floatformat }}&nbsp;ng/mL with inflammation (CRP above {{ iron_deficiency.crp|floatformat }}&nbsp;mg/L), as WHO's 2020 ferritin guideline defines it.</small></p>

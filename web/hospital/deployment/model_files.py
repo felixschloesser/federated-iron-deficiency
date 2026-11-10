@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 import torch
+from django.db.models import TextChoices
 from django.utils import formats, timezone
 
 from ml.final_model import (
@@ -98,6 +99,13 @@ class LocalValidationAt:
         return Ratio(cleared, cleared + self.count("false_positives"))
 
     @property
+    def suggested_without(self) -> "Ratio":
+        """Past patients without iron deficiency it suggests ferritin for: the
+        cost of the sensitivity."""
+        alarmed = self.count("false_positives")
+        return Ratio(alarmed, alarmed + self.count("true_negatives"))
+
+    @property
     def positive_predictive_value(self) -> "Ratio":
         found = self.count("true_positives")
         return Ratio(found, found + self.count("false_positives"))
@@ -108,10 +116,10 @@ class LocalValidationAt:
         return Ratio(cleared, cleared + self.count("false_negatives"))
 
 
-def auroc_interval(area: float, counts: LocalValidationAt) -> str:
-    """An AUROC's 95% confidence interval, such as "0.68–1.00", from the sizes of
-    the two groups in `counts`. Neither group is ever empty: a training cohort
-    holds at least 10 of each class, and the test split is stratified."""
+def auroc_bounds(area: float, counts: LocalValidationAt) -> tuple[float, float]:
+    """An AUROC's 95% confidence interval from the sizes of the two groups in
+    `counts`. Neither group is ever empty: a training cohort holds at least 10
+    of each class, and the test split is stratified."""
     deficient = counts.count("true_positives") + counts.count("false_negatives")
     other = counts.count("true_negatives") + counts.count("false_positives")
     # Hanley and McNeil's standard error (Radiology 1982;143:29–36) needs only
@@ -125,8 +133,36 @@ def auroc_interval(area: float, counts: LocalValidationAt) -> str:
         )
         / (deficient * other)
     )
-    lower, upper = max(area - 1.96 * error, 0.0), min(area + 1.96 * error, 1.0)
+    return max(area - 1.96 * error, 0.0), min(area + 1.96 * error, 1.0)
+
+
+def auroc_interval(area: float, counts: LocalValidationAt) -> str:
+    """An AUROC's 95% confidence interval as shown, such as "0.68–1.00"."""
+    lower, upper = auroc_bounds(area, counts)
     return f"{lower:.2f}–{upper:.2f}"
+
+
+class Verification(TextChoices):
+    """How a screening model's AUROC here compares with the AUROC the startup
+    reports across hospitals: the laboratory's check of a claimed performance
+    (WHO LQMS 3-3, p. 40). It informs the director and blocks nothing."""
+
+    AS_CLAIMED = "as_claimed", "Performs here as claimed across hospitals"
+    WORSE_HERE = "worse_here", "Performs worse here than across hospitals"
+    BETTER_HERE = "better_here", "Performs better here than across hospitals"
+
+
+def verification(
+    local_auroc: float, federated_auroc: float, counts: LocalValidationAt
+) -> Verification:
+    """Whether the AUROC across hospitals lies within the 95% confidence interval
+    of the AUROC here, or above or below it."""
+    lower, upper = auroc_bounds(local_auroc, counts)
+    if federated_auroc > upper:
+        return Verification.WORSE_HERE
+    if federated_auroc < lower:
+        return Verification.BETTER_HERE
+    return Verification.AS_CLAIMED
 
 
 @dataclass(frozen=True)
@@ -166,6 +202,12 @@ class ScreeningModel:
         # Every threshold's counts cover the same past patients, so any row
         # gives the group sizes.
         return auroc_interval(self.local_auroc, self.local_validation[0])
+
+    @property
+    def verification(self) -> Verification:
+        return verification(
+            self.local_auroc, self.federated_auroc, self.local_validation[0]
+        )
 
 
 def read_screening_model(data: bytes) -> ScreeningModel | None:

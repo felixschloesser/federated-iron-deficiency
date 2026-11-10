@@ -116,6 +116,17 @@ Feature: Deploying a screening model
       | 0.84  | 84        | 170   | 0.78–0.90 |
       | 0.50  | 10        | 42    | 0.30–0.70 |
 
+  Scenario Outline: Local validation says whether a screening model performs here as claimed across hospitals
+    Given a local validation with AUROC <auroc> on 10 iron-deficient and 42 other past patients, and <federated> across hospitals
+    Then it says the screening model "<verdict>"
+
+    Examples:
+      | auroc | federated | verdict                                     |
+      | 0.84  | 0.87      | performs here as claimed across hospitals   |
+      | 0.84  | 0.70      | performs here as claimed across hospitals   |
+      | 0.50  | 0.87      | performs worse here than across hospitals   |
+      | 0.50  | 0.20      | performs better here than across hospitals  |
+
   Scenario Outline: A screening model file that is not whole is not listed and cannot be deployed
     Given the laboratory director set the target sensitivity to 90%
     And screening model "3" that <problem>

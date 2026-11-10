@@ -491,3 +491,32 @@ def local_validation_counts(auroc: float, deficient: int, other: int) -> str:
 @then(parsers.parse("its AUROC has a 95% confidence interval of {interval}"))
 def has_auroc_interval(auroc_interval: str, interval: str) -> None:
     assert auroc_interval == interval
+
+
+@given(
+    parsers.parse(
+        "a local validation with AUROC {auroc:f} on {deficient:d} iron-deficient and"
+        " {other:d} other past patients, and {federated:f} across hospitals"
+    ),
+    target_fixture="verification",
+)
+def local_validation_and_claim(
+    auroc: float, deficient: int, other: int, federated: float
+) -> object:
+    from web.hospital.deployment.model_files import LocalValidationAt, verification
+
+    counts = {
+        "true_positives": deficient,
+        "false_negatives": 0,
+        "false_positives": other,
+        "true_negatives": 0,
+    }
+    return verification(auroc, federated, LocalValidationAt(0.05, counts))
+
+
+@then(parsers.parse('it says the screening model "{verdict}"'))
+def says_verdict(verification: object, verdict: str) -> None:
+    from web.hospital.deployment.model_files import Verification
+
+    assert isinstance(verification, Verification)
+    assert verification.label == verdict.capitalize()

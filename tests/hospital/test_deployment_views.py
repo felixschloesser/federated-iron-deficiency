@@ -83,42 +83,54 @@ def test_models_page(
     assertNotContains(response, "Deploy Screening model")
     for percent in ("80", "85", "90", "95", "100"):
         assertContains(response, f'name="percent" value="{percent}"', count=1)
-    # One row per threshold, each with its four measures.
-    for cells in (
-        (
-            '9 of 10 (90%; <span class="no-wrap">95% CI 60–98%</span>)',
-            '30 of 42 (71%; <span class="no-wrap">95% CI 56–83%</span>)',
-            '9 of 21 (43%; <span class="no-wrap">95% CI 24–63%</span>)',
-            '30 of 31 (97%; <span class="no-wrap">95% CI 84–99%</span>)',
-        ),
-        (
-            '7 of 10 (70%; <span class="no-wrap">95% CI 40–89%</span>)',
-            '37 of 42 (88%; <span class="no-wrap">95% CI 75–95%</span>)',
-            '7 of 12 (58%; <span class="no-wrap">95% CI 32–81%</span>)',
-            '37 of 40 (92%; <span class="no-wrap">95% CI 80–97%</span>)',
-        ),
-    ):
-        for label, cell in zip(
-            (
-                "Sensitivity",
-                "Specificity",
-                "Positive predictive value",
-                "Negative predictive value",
-            ),
-            cells,
-            strict=True,
-        ):
-            assertContains(response, f'<td data-label="{label}">{cell}</td>', html=True)
+    assertContains(
+        response, "Set a target sensitivity to see what this screening model costs"
+    )
     assertContains(
         response,
-        '<dt>AUROC here</dt><dd>0.84 <span class="no-wrap">(95% CI 0.68–1.00)</span></dd>',
+        "<p><strong>Performs here as claimed across hospitals</strong>: AUROC 0.84"
+        ' here <span class="no-wrap">(95% CI 0.68–1.00)</span>, 0.87 across'
+        " hospitals.</p>",
         html=True,
     )
-    assertContains(response, "<dt>AUROC across hospitals</dt><dd>0.87</dd>", html=True)
     # The unreadable file is no screening model: it is not listed.
     assertContains(response, "<small>run 1</small>", count=1)
     assertNotContains(response, "<small>run 2</small>")
     assertContains(response, "No screening model is deployed")
+
+
+def test_a_screening_model_at_the_target_sensitivity(
+    client: Client, director: User, screening_models_dir: Path
+) -> None:
+    set_target(client, "90")
+    response = client.get(reverse("deployment:screening_models"))
+    # 90% resolves to 0.4: 0.5 finds only 7 of 10.
+    assertContains(
+        response,
+        "At 90%, it suggests ferritin for 12 of 42 past patients without iron"
+        " deficiency (threshold 0.40).",
+    )
+    for term, measure in (
+        ("Sensitivity", '9 of 10 (90%; <span class="no-wrap">95% CI 60–98%</span>)'),
+        ("Specificity", '30 of 42 (71%; <span class="no-wrap">95% CI 56–83%</span>)'),
+        (
+            "Positive predictive value",
+            '9 of 21 (43%; <span class="no-wrap">95% CI 24–63%</span>)',
+        ),
+        (
+            "Negative predictive value",
+            '30 of 31 (97%; <span class="no-wrap">95% CI 84–99%</span>)',
+        ),
+    ):
+        assertContains(response, f"<dt>{term}</dt>", count=1, html=True)
+        assertContains(response, measure, count=1)
+    assertContains(
+        response,
+        "Iron deficient: ferritin below 15&nbsp;ng/mL, or below 70&nbsp;ng/mL with"
+        " inflammation (CRP above 5&nbsp;mg/L)",
+    )
+    # One row per threshold is gone: the page shows the target's only.
+    assertNotContains(response, "7 of 10")
 
 
 def test_setting_the_target_sensitivity_redirects_with_a_message(

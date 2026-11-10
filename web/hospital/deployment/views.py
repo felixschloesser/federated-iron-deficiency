@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
+from ml.cohort import FERRITIN_CUTOFF, INFLAMED_FERRITIN_CUTOFF, INFLAMMATION_CRP
 from ml.training_cohort import TrainingCohortUnavailable
 from web.hospital.deployment.forms import TargetSensitivityForm
 from web.hospital.deployment.grpc_client import fetch_screening_models, unreachable
@@ -27,6 +28,14 @@ from web.shared.accounts.roles import Role
 
 class LaboratoryDirectorRequiredMixin(RoleRequiredMixin):
     role = Role.LABORATORY_DIRECTOR
+
+
+# The cutoffs cohort/iron_deficient.html shows, as the training label uses them.
+IRON_DEFICIENCY = {
+    "ferritin": FERRITIN_CUTOFF,
+    "inflamed_ferritin": INFLAMED_FERRITIN_CUTOFF,
+    "crp": INFLAMMATION_CRP,
+}
 
 
 def director(request: HttpRequest) -> User:
@@ -92,7 +101,17 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
             or TargetSensitivityForm(
                 initial=None if target is None else {"percent": target.percent}
             ),
-            "screening_models": screening_models(settings.SCREENING_MODELS_DIR),
+            # Each screening model with its local validation at the target.
+            "cards": [
+                {
+                    "model": model,
+                    "at_target": None
+                    if target is None
+                    else model.at_target(target.percent),
+                }
+                for model in screening_models(settings.SCREENING_MODELS_DIR)
+            ],
+            "iron_deficiency": IRON_DEFICIENCY,
             "deployed": None
             if isinstance(deployed, NoUsableModel)
             else deployed.deployed_screening_model,
