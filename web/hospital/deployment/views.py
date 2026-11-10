@@ -19,7 +19,6 @@ from web.hospital.deployment.model_files import screening_models
 from web.hospital.deployment.models import (
     Deployment,
     NoUsableModel,
-    TargetPercent,
     TargetSensitivity,
 )
 from web.shared.accounts.mixins import RoleRequiredMixin
@@ -75,8 +74,9 @@ def history() -> list[dict[str, Any]]:
 class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
     """The screening models and the target sensitivity they are deployed at. A
     POST sets the target sensitivity; an invalid one shows the page again with
-    the error beside the field. `?percent=` shows what another target would
-    cost, and changes nothing."""
+    the error beside the field. The same radios, sent by GET (`?percent=`),
+    show what a target would cost and change nothing; the page then offers to
+    set it."""
 
     template_name = "deployment/models.html"
     # The target sensitivity being previewed; None shows the one in force.
@@ -106,16 +106,15 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         deployed = Deployment.objects.screener(settings.SCREENING_MODELS_DIR)
         target = TargetSensitivity.objects.current()
-        shown = self.preview or (None if target is None else target.percent)
+        current = None if target is None else target.percent
+        # Showing the target in force previews nothing.
+        preview = None if self.preview == current else self.preview
+        shown = preview or current
         return {
             **super().get_context_data(**kwargs),
             "target": target,
-            "preview": self.preview,
+            "preview": preview,
             "shown": shown,
-            "previews": [
-                {"percent": percent, "label": label, "current": percent == shown}
-                for percent, label in TargetPercent.choices
-            ],
             "target_form": kwargs.get("target_form")
             or TargetSensitivityForm(
                 initial=None if shown is None else {"percent": shown}
