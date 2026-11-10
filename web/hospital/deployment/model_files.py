@@ -43,6 +43,10 @@ class Ratio:
     def __str__(self) -> str:
         return f"{self.part} of {self.whole}"
 
+    def reaches(self, percent: int) -> bool:
+        """Whether the share is at least `percent`, compared exactly in counts."""
+        return self.part * 100 >= percent * self.whole
+
     @property
     def percent(self) -> str | None:
         """The share as a whole percentage; None when there is no whole."""
@@ -146,10 +150,14 @@ class ScreeningModel:
     def name(self) -> str:
         return model_name(self.stored_at)
 
-    def at(self, threshold: float) -> LocalValidationAt | None:
-        """The local validation at `threshold`, or None if the file holds none there."""
-        return next(
-            (row for row in self.local_validation if row.threshold == threshold), None
+    def at_target(self, percent: int) -> LocalValidationAt:
+        """The local validation at the highest threshold whose sensitivity reaches
+        `percent`: the fewest ferritin suggestions that still find that share of
+        the iron-deficient past patients. The lowest threshold finds them all
+        (read_screening_model checks), so one always does."""
+        return max(
+            (row for row in self.local_validation if row.sensitivity.reaches(percent)),
+            key=lambda row: row.threshold,
         )
 
     @property
@@ -173,6 +181,13 @@ def read_screening_model(data: bytes) -> ScreeningModel | None:
             )
             for threshold, counts in sorted(contents["confusion_matrices"].items())
         ]
+        # The lowest threshold is the test split's lowest score, so it suggests
+        # ferritin for every iron-deficient past patient, of whom there are some.
+        if not local_validation:
+            return None
+        lowest = local_validation[0].sensitivity
+        if not lowest.part == lowest.whole > 0:
+            return None
         return ScreeningModel(
             state_dict=fitting_weights(contents["state_dict"]),
             mean=contents["mean"],

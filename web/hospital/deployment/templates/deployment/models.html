@@ -7,57 +7,59 @@
 {% include "includes/alert.html" with level="error" role="status" text=no_usable_model.label|add:"." %}
 {% endif %}
 
-<p>Each screening model from a training run, newest first, checked on this hospital's own past patients at each threshold. Choose the threshold to deploy it at: a lower one suggests ferritin for more women, finding more who are iron deficient and testing more who are not.</p>
+<h2>Target sensitivity</h2>
+<p>The share of iron-deficient women the screening suggests ferritin for. Each screening model is deployed at the highest threshold that reaches it on this hospital's own past patients; a higher target finds more who are iron deficient and tests more who are not.</p>
+{% if target %}<p>Now <strong>{{ target }}</strong>, set by {{ target.set_by.username }} on {{ target.set_at|date:"j M Y, H:i" }}.</p>{% else %}<p>No target sensitivity is set: no screening model can be deployed.</p>{% endif %}
+{% include "includes/form.html" with form=target_form submit_label="Set the target sensitivity" %}
+
+<h2>Screening models</h2>
+<p>Each screening model from a training run, newest first, checked on this hospital's own past patients at each threshold.</p>
 <p><small>Sensitivity: iron-deficient women it suggests ferritin for. Specificity: women without iron deficiency it suggests none for. Positive predictive value: ferritin suggestions for iron-deficient women. Negative predictive value: women without a suggestion who are not iron deficient. 95% CI: the range each share would likely fall in on other past patients like these; few past patients give a wide one.</small></p>
 {% for model in screening_models %}
 <article>
   <header class="card-header">
-    <h2>Screening model of <span class="no-wrap">{{ model.stored_at|date:"j M Y, H:i" }}</span></h2>
+    <h3>Screening model of <span class="no-wrap">{{ model.stored_at|date:"j M Y, H:i" }}</span></h3>
     {% if deployed and model.run_id == deployed.run_id %}<p><strong>Deployed at threshold {{ deployed.threshold|floatformat:2 }}</strong></p>{% endif %}
   </header>
   <dl>
     <dt>AUROC here</dt><dd>{{ model.local_auroc|floatformat:2 }} <span class="no-wrap">(95% CI {{ model.local_auroc_interval }})</span></dd>
     <dt>AUROC across hospitals</dt><dd>{{ model.federated_auroc|floatformat:2 }}</dd>
   </dl>
+  <div class="overflow-auto"><table class="stack-narrow">
+    <thead><tr><th scope="col">Threshold</th><th scope="col">Sensitivity</th><th scope="col">Specificity</th><th scope="col">Positive predictive value</th><th scope="col">Negative predictive value</th></tr></thead>
+    <tbody>
+      {% for row in model.local_validation %}
+      <tr>
+        <th scope="row">{{ row.threshold|floatformat:2 }}</th>
+        {% with ratio=row.sensitivity %}<td data-label="Sensitivity">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; <span class="no-wrap">95% CI {{ ratio.interval }}</span>){% endif %}</td>{% endwith %}
+        {% with ratio=row.specificity %}<td data-label="Specificity">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; <span class="no-wrap">95% CI {{ ratio.interval }}</span>){% endif %}</td>{% endwith %}
+        {% with ratio=row.positive_predictive_value %}<td data-label="Positive predictive value">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; <span class="no-wrap">95% CI {{ ratio.interval }}</span>){% endif %}</td>{% endwith %}
+        {% with ratio=row.negative_predictive_value %}<td data-label="Negative predictive value">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; <span class="no-wrap">95% CI {{ ratio.interval }}</span>){% endif %}</td>{% endwith %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% if target %}
   {% url "deployment:deploy" model.run_id as deploy_url %}
-  <form method="post" action="{{ deploy_url }}">
-    {% csrf_token %}
-    <fieldset>
-      <legend>Choose a threshold</legend>
-      <div class="overflow-auto"><table class="stack-narrow">
-        <thead><tr><th scope="col">Threshold</th><th scope="col">Sensitivity</th><th scope="col">Specificity</th><th scope="col">Positive predictive value</th><th scope="col">Negative predictive value</th></tr></thead>
-        <tbody>
-          {% for row in model.local_validation %}
-          <tr>
-            <th scope="row"><label><input type="radio" name="threshold" value="{{ row.threshold }}" required{% if deployed and model.run_id == deployed.run_id and row.threshold == deployed.threshold %} checked{% endif %}> {{ row.threshold|floatformat:2 }}</label></th>
-            {% with ratio=row.sensitivity %}<td data-label="Sensitivity">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; <span class="no-wrap">95% CI {{ ratio.interval }}</span>){% endif %}</td>{% endwith %}
-            {% with ratio=row.specificity %}<td data-label="Specificity">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; <span class="no-wrap">95% CI {{ ratio.interval }}</span>){% endif %}</td>{% endwith %}
-            {% with ratio=row.positive_predictive_value %}<td data-label="Positive predictive value">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; <span class="no-wrap">95% CI {{ ratio.interval }}</span>){% endif %}</td>{% endwith %}
-            {% with ratio=row.negative_predictive_value %}<td data-label="Negative predictive value">{{ ratio }}{% if ratio.percent %} ({{ ratio.percent }}; <span class="no-wrap">95% CI {{ ratio.interval }}</span>){% endif %}</td>{% endwith %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table></div>
-    </fieldset>
-    <button aria-label="Deploy {{ model.name }} at the chosen threshold">Deploy</button>
-  </form>
+  {% include "includes/action_button.html" with url=deploy_url label="Deploy" accessible_label="Deploy "|add:model.name|add:" at "|add:target.get_percent_display %}
+  {% endif %}
   <footer><small>run {{ model.run_id }}</small></footer>
 </article>
 {% empty %}
 <p>No screening model fetched yet.</p>
 {% endfor %}
 
-<h2>Deployment history</h2>
+<h2>History</h2>
 {% if history %}
 <div class="overflow-auto"><table>
-  <thead><tr><th scope="col">Deployed</th><th scope="col">Model</th><th scope="col">Threshold</th></tr></thead>
+  <thead><tr><th scope="col">When</th><th scope="col">Decision</th><th scope="col">By</th></tr></thead>
   <tbody>
-    {% for deployment in history %}
-    <tr><td>{{ deployment.deployed_at|date:"j M Y, H:i" }}</td><td>{{ deployment.deployed_screening_model.name }}</td><td>{{ deployment.deployed_screening_model.threshold|floatformat:2 }}</td></tr>
+    {% for entry in history %}
+    <tr><td>{{ entry.at|date:"j M Y, H:i" }}</td><td>{{ entry.decision }}</td><td>{{ entry.by }}</td></tr>
     {% endfor %}
   </tbody>
 </table></div>
 {% else %}
-<p>Nothing deployed yet.</p>
+<p>Nothing set or deployed yet.</p>
 {% endif %}
 {% endblock %}

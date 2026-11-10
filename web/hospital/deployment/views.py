@@ -3,7 +3,7 @@ from typing import Any
 import grpc
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -12,11 +12,16 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from ml.training_cohort import TrainingCohortUnavailable
-from web.hospital.deployment.forms import DeployForm
+from web.hospital.deployment.forms import TargetSensitivityForm
 from web.hospital.deployment.grpc_client import fetch_screening_models, unreachable
 from web.hospital.deployment.model_files import screening_models
-from web.hospital.deployment.models import Deployment, NoUsableModel
+from web.hospital.deployment.models import (
+    Deployment,
+    NoUsableModel,
+    TargetSensitivity,
+)
 from web.shared.accounts.mixins import RoleRequiredMixin
+from web.shared.accounts.models import User
 from web.shared.accounts.roles import Role
 
 
@@ -24,16 +29,69 @@ class LaboratoryDirectorRequiredMixin(RoleRequiredMixin):
     role = Role.LABORATORY_DIRECTOR
 
 
+def director(request: HttpRequest) -> User:
+    """The logged-in user, whom LaboratoryDirectorRequiredMixin has already checked
+    is a laboratory director."""
+    if not isinstance(request.user, User):
+        raise PermissionDenied
+    return request.user
+
+
+def history() -> list[dict[str, Any]]:
+    """Every target sensitivity set and every deployment, newest first."""
+    targets = [
+        {
+            "at": target.set_at,
+            "by": target.set_by.username,
+            "decision": f"Target sensitivity set to {target}",
+        }
+        for target in TargetSensitivity.objects.select_related("set_by")
+    ]
+    deployments = [
+        {
+            "at": deployment.deployed_at,
+            "by": deployment.deployed_by.username,
+            "decision": f"{deployment.deployed_screening_model.name} deployed at"
+            f" threshold {deployment.deployed_screening_model.threshold:.2f}"
+            f" (target {deployment.target_sensitivity}%)",
+        }
+        for deployment in Deployment.objects.select_related(
+            "deployed_screening_model", "deployed_by"
+        )
+    ]
+    return sorted(targets + deployments, key=lambda entry: entry["at"], reverse=True)
+
+
 class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
+    """The screening models and the target sensitivity they are deployed at. A
+    POST sets the target sensitivity; an invalid one shows the page again with
+    the error beside the field."""
+
     template_name = "deployment/models.html"
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        form = TargetSensitivityForm(request.POST)
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(target_form=form))
+        target = TargetSensitivity.objects.set(
+            percent=form.cleaned_data["percent"],
+            by=director(request),
+            directory=settings.SCREENING_MODELS_DIR,
+            now=timezone.now(),
+        )
+        messages.success(request, f"Target sensitivity set to {target}.")
+        return redirect("deployment:screening_models")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         deployed = Deployment.objects.screener(settings.SCREENING_MODELS_DIR)
-        history = Deployment.objects.select_related(
-            "deployed_screening_model"
-        ).order_by("-deployed_at", "-pk")
+        target = TargetSensitivity.objects.current()
         return {
             **super().get_context_data(**kwargs),
+            "target": target,
+            "target_form": kwargs.get("target_form")
+            or TargetSensitivityForm(
+                initial=None if target is None else {"percent": target.percent}
+            ),
             "screening_models": screening_models(settings.SCREENING_MODELS_DIR),
             "deployed": None
             if isinstance(deployed, NoUsableModel)
@@ -41,7 +99,7 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
             "no_usable_model": deployed
             if isinstance(deployed, NoUsableModel)
             else None,
-            "history": history,
+            "history": history(),
             # Only a hospital that knows the startup's endpoint can fetch.
             "post_actions": [
                 {
@@ -85,27 +143,22 @@ class FetchScreeningModelsView(LaboratoryDirectorRequiredMixin, View):
 
 class DeployView(LaboratoryDirectorRequiredMixin, View):
     def post(self, request: HttpRequest, run_id: str) -> HttpResponse:
-        form = DeployForm(request.POST)
-        if not form.is_valid():
-            # The page lists every model, so the error goes in a message rather
-            # than beside one model's form.
-            messages.error(
-                request, " ".join(str(error) for error in form.errors["threshold"])
-            )
-            return redirect("deployment:screening_models")
         try:
             deployment = Deployment.objects.deploy(
                 run_id=run_id,
-                threshold=form.cleaned_data["threshold"],
+                by=director(request),
                 directory=settings.SCREENING_MODELS_DIR,
                 now=timezone.now(),
             )
         except ValidationError as error:
+            # Deploying is offered only once a target is set, so what is left is
+            # a file that changed or vanished since the page showed: page-wide.
             messages.error(request, " ".join(error.messages))
         else:
             deployed = deployment.deployed_screening_model
             messages.success(
                 request,
-                f"{deployed.name} deployed at threshold {deployed.threshold:.2f}.",
+                f"{deployed.name} deployed at threshold {deployed.threshold:.2f}"
+                f" (target {deployment.target_sensitivity}%).",
             )
         return redirect("deployment:screening_models")
