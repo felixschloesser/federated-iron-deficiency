@@ -80,6 +80,11 @@ def test_models_page(
     )
     # Without a target sensitivity nothing can be deployed, so nothing offers to.
     assertContains(response, "No target sensitivity is set")
+    assertContains(
+        response, '<button class="secondary">Show what it costs</button>', html=True
+    )
+    assertNotContains(response, "See what each target would cost")
+    assertNotContains(response, "Set the target sensitivity to")
     assertNotContains(response, "Deploy Screening model")
     for percent in ("80", "85", "90", "95", "100"):
         assertContains(response, f'name="percent" value="{percent}"', count=1)
@@ -145,9 +150,16 @@ def test_previewing_a_target_sensitivity_changes_nothing(
         "At 100%, it suggests ferritin for 20 of 42 past patients without iron"
         " deficiency (threshold 0.20).",
     )
-    assertContains(response, 'href="?percent=100" aria-current="page"')
+    # One set of radios: they show a target's cost, and one button sets it.
+    assertContains(response, 'name="percent" value="100"', count=2)
     assertContains(
         response, 'name="percent" value="100" required id="id_percent_4" checked'
+    )
+    assertContains(
+        response,
+        '<input type="hidden" name="percent" value="100">'
+        "<button>Set the target sensitivity to 100%</button>",
+        html=True,
     )
     # Deploying deploys at the target in force, so it waits until 100% is set.
     assertNotContains(response, "Deploy Screening model")
@@ -170,6 +182,8 @@ def test_setting_the_target_sensitivity_redirects_with_a_message(
     assert response.redirect_chain == [(reverse("deployment:screening_models"), 302)]
     assertContains(response, "Target sensitivity set to 90%.")
     assertContains(response, "Now <strong>90%</strong>, set by director-one")
+    # The target shown is the one in force: nothing left to set.
+    assertNotContains(response, "Set the target sensitivity to")
     assertContains(
         response, 'name="percent" value="90" required id="id_percent_2" checked'
     )
@@ -189,11 +203,7 @@ def test_setting_no_target_sensitivity_says_so_beside_the_field(
 ) -> None:
     response = client.post(reverse("deployment:screening_models"), posted)
     assert response.status_code == 200
-    assertContains(
-        response,
-        '<a href="#id_percent_0">Target sensitivity: Choose a target sensitivity.</a>',
-        html=True,
-    )
+    assertContains(response, "Choose a target sensitivity.")
     assert not TargetSensitivity.objects.exists()
 
 
