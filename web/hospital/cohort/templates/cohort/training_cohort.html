@@ -3,7 +3,7 @@
 {% block content %}
 {% include "includes/index_header.html" with title="Training cohort" subtitle="To the startup's code at this hospital" %}
 
-<p>The startup's code at this hospital trains its screening model on the training cohort, and only once you provide it. Providing extracts it from the lab records: eligible past patients with a complete CBC, a ferritin and a CRP result, each as the {{ cbc_values }} CBC values, age and whether iron deficient. Ferritin and CRP themselves stay in the lab records. No name, patient number or date leaves the lab records. Withdrawing it ends this hospital's part in a training run from its next round.</p>
+<p>The startup's code at this hospital trains its screening model on the training cohort, and only once you provide it. Providing extracts it from the lab records: eligible past patients with a complete CBC, a ferritin and a CRP result, each as the {{ cbc_values }} CBC values, age and whether iron deficient. Ferritin and CRP themselves stay in the lab records. No name, patient number or date leaves the lab records.</p>
 
 {% include "cohort/iron_deficient.html" %}
 
@@ -11,6 +11,7 @@
 {% if provided %}
 <p><strong>Provided</strong> on {{ provided.provided_at|date:"j M Y, H:i" }}: {{ provided.past_patients }} past patients, {{ provided.iron_deficient }} of them iron deficient.</p>
 <p><small>SHA-256 {{ provided.sha256 }}</small></p>
+<p>Withdrawing ends this hospital's part in a training run from its next round.</p>
 {% include "includes/action_button.html" with url=withdraw_url label="Withdraw the training cohort" %}
 {% else %}
 <p>No training cohort is provided: the startup's code at this hospital finds none, and this hospital takes no part in training.</p>
@@ -18,7 +19,11 @@
 
 <h2>From the lab records</h2>
 <p>Providing now would hold {{ summary.past_patients }} past patients, {{ summary.iron_deficient }} of them iron deficient.{% if summary.without_crp %} It leaves out {{ summary.without_crp }} eligible past patients without a CRP result.{% endif %}</p>
+{% if provided %}
+{% include "includes/action_button.html" with url=provide_url label="Replace it with this training cohort" %}
+{% else %}
 {% include "includes/action_button.html" with url=provide_url label="Provide the training cohort" %}
+{% endif %}
 
 <h2>Decisions</h2>
 {% if decisions %}

@@ -7,7 +7,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 from pytest_django import DjangoAssertNumQueries
-from pytest_django.asserts import assertContains
+from pytest_django.asserts import assertContains, assertNotContains
 from pytest_django.fixtures import Settings
 
 from tests.hospital.conftest import (
@@ -54,6 +54,7 @@ def test_the_page_before_providing(
     ) == (120, 20)
     assertContains(response, reverse("cohort:provide"))
     assert reverse("cohort:withdraw") not in response.content.decode()
+    assertContains(response, "<button>Provide the training cohort</button>", html=True)
     # The label's definition comes from the cutoffs the training cohort uses.
     assertContains(
         response,
@@ -72,6 +73,18 @@ def test_the_page_once_provided_offers_withdrawing(
     assert provided is not None
     assertContains(response, reverse("cohort:withdraw"))
     assertContains(response, provided.sha256)
+    # Providing again replaces it, and the button says so.
+    assertContains(
+        response, "<button>Replace it with this training cohort</button>", html=True
+    )
+    assertNotContains(
+        response, "<button>Provide the training cohort</button>", html=True
+    )
+    # What withdrawing does is said beside it.
+    assertContains(
+        response,
+        "Withdrawing ends this hospital's part in a training run from its next round.",
+    )
 
 
 def test_providing_redirects_with_a_message(
