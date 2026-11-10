@@ -10,6 +10,8 @@
 <h2>Target sensitivity</h2>
 <p>The share of iron-deficient women the screening suggests ferritin for. Each screening model is deployed at the highest threshold that reaches it on this hospital's own past patients; a higher target finds more who are iron deficient and tests more who are not.</p>
 {% if target %}<p>Now <strong>{{ target }}</strong>, set by {{ target.set_by.username }} on {{ target.set_at|date:"j M Y, H:i" }}.</p>{% else %}<p>No target sensitivity is set: no screening model can be deployed.</p>{% endif %}
+<p>See what each target would cost: {% for option in previews %}<a href="?percent={{ option.percent }}"{% if option.current %} aria-current="page"{% endif %}>{{ option.label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+{% if preview %}<p role="status"><strong>Showing what {{ preview }}% would cost; {% if target %}the target is still {{ target }}{% else %}no target is set{% endif %}.</strong></p>{% endif %}
 {% include "includes/form.html" with form=target_form submit_label="Set the target sensitivity" %}
 
 <h2>Screening models</h2>
@@ -23,7 +25,7 @@
   </header>
   <p><strong>{{ model.verification.label }}</strong>: AUROC {{ model.local_auroc|floatformat:2 }} here <span class="no-wrap">(95% CI {{ model.local_auroc_interval }})</span>, {{ model.federated_auroc|floatformat:2 }} across hospitals.</p>
   {% if at_target %}
-  <p>At {{ target }}, it suggests ferritin for {{ at_target.suggested_without }} past patients without iron deficiency (threshold {{ at_target.threshold|floatformat:2 }}).</p>
+  <p>At {{ shown }}%, it suggests ferritin for {{ at_target.suggested_without }} past patients without iron deficiency (threshold {{ at_target.threshold|floatformat:2 }}).</p>
   <dl>
     {% include "deployment/measure.html" with term="Sensitivity" ratio=at_target.sensitivity meaning="Iron-deficient past patients it suggests ferritin for." %}
     {% include "deployment/measure.html" with term="Specificity" ratio=at_target.specificity meaning="Past patients without iron deficiency it suggests no ferritin for." %}
@@ -32,8 +34,10 @@
   </dl>
   <p><small>95% CI: the range each share would likely fall in on other past patients like these; few past patients give a wide one.</small></p>
   {% include "cohort/iron_deficient.html" %}
+  {% if target and not preview %}
   {% url "deployment:deploy" model.run_id as deploy_url %}
   {% include "includes/action_button.html" with url=deploy_url label="Deploy" accessible_label="Deploy "|add:model.name|add:" at "|add:target.get_percent_display %}
+  {% endif %}
   {% else %}
   <p>Set a target sensitivity to see what this screening model costs at it.</p>
   {% endif %}

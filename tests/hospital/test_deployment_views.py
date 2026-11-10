@@ -133,6 +133,34 @@ def test_a_screening_model_at_the_target_sensitivity(
     assertNotContains(response, "7 of 10")
 
 
+def test_previewing_a_target_sensitivity_changes_nothing(
+    client: Client, director: User, screening_models_dir: Path
+) -> None:
+    set_target(client, "90")
+    response = client.get(reverse("deployment:screening_models"), {"percent": "100"})
+    assertContains(response, "Showing what 100% would cost; the target is still 90%.")
+    # 100% resolves to the lowest threshold, 0.2, which finds all 10.
+    assertContains(
+        response,
+        "At 100%, it suggests ferritin for 20 of 42 past patients without iron"
+        " deficiency (threshold 0.20).",
+    )
+    assertContains(response, 'href="?percent=100" aria-current="page"')
+    assertContains(
+        response, 'name="percent" value="100" required id="id_percent_4" checked'
+    )
+    # Deploying deploys at the target in force, so it waits until 100% is set.
+    assertNotContains(response, "Deploy Screening model")
+    assert [target.percent for target in TargetSensitivity.objects.all()] == [90]
+
+
+def test_previewing_a_target_sensitivity_not_on_offer_is_not_found(
+    client: Client, director: User, screening_models_dir: Path
+) -> None:
+    response = client.get(reverse("deployment:screening_models"), {"percent": "75"})
+    assert response.status_code == 404
+
+
 def test_setting_the_target_sensitivity_redirects_with_a_message(
     client: Client, director: User, screening_models_dir: Path
 ) -> None:

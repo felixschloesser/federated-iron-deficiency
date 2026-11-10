@@ -19,6 +19,7 @@ from web.hospital.deployment.model_files import screening_models
 from web.hospital.deployment.models import (
     Deployment,
     NoUsableModel,
+    TargetPercent,
     TargetSensitivity,
 )
 from web.shared.accounts.mixins import RoleRequiredMixin
@@ -74,9 +75,20 @@ def history() -> list[dict[str, Any]]:
 class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
     """The screening models and the target sensitivity they are deployed at. A
     POST sets the target sensitivity; an invalid one shows the page again with
-    the error beside the field."""
+    the error beside the field. `?percent=` shows what another target would
+    cost, and changes nothing."""
 
     template_name = "deployment/models.html"
+    # The target sensitivity being previewed; None shows the one in force.
+    preview: int | None = None
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        if "percent" in request.GET:
+            form = TargetSensitivityForm(request.GET)
+            if not form.is_valid():
+                raise Http404("No such target sensitivity.")
+            self.preview = form.cleaned_data["percent"]
+        return super().get(request, *args, **kwargs)
 
     def post(self, request: HttpRequest) -> HttpResponse:
         form = TargetSensitivityForm(request.POST)
@@ -94,20 +106,25 @@ class ScreeningModelsView(LaboratoryDirectorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         deployed = Deployment.objects.screener(settings.SCREENING_MODELS_DIR)
         target = TargetSensitivity.objects.current()
+        shown = self.preview or (None if target is None else target.percent)
         return {
             **super().get_context_data(**kwargs),
             "target": target,
+            "preview": self.preview,
+            "shown": shown,
+            "previews": [
+                {"percent": percent, "label": label, "current": percent == shown}
+                for percent, label in TargetPercent.choices
+            ],
             "target_form": kwargs.get("target_form")
             or TargetSensitivityForm(
-                initial=None if target is None else {"percent": target.percent}
+                initial=None if shown is None else {"percent": shown}
             ),
             # Each screening model with its local validation at the target.
             "cards": [
                 {
                     "model": model,
-                    "at_target": None
-                    if target is None
-                    else model.at_target(target.percent),
+                    "at_target": None if shown is None else model.at_target(shown),
                 }
                 for model in screening_models(settings.SCREENING_MODELS_DIR)
             ],
