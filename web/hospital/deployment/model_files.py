@@ -24,10 +24,6 @@ from ml.final_model import (
 )
 from ml.validation import auroc, confusion_matrices, standardization
 
-# The thresholds a laboratory director can choose from; local validation
-# counts at each one.
-THRESHOLDS = tuple(step / 20 for step in range(1, 20))
-
 # The four cells of a confusion matrix, under the names the file uses.
 CELLS = ("true_positives", "false_negatives", "false_positives", "true_negatives")
 
@@ -143,7 +139,7 @@ class ScreeningModel:
     # The AUROC the ServerApp aggregated; no other hospital's own metrics.
     federated_auroc: float
     local_auroc: float
-    # One row per threshold the laboratory director may deploy at, lowest first.
+    # One row per distinct score of the test split, lowest first.
     local_validation: list[LocalValidationAt]
 
     @property
@@ -258,7 +254,7 @@ def store_fetched(
             "run_id": run_id,
             "stored_at": stored_at.isoformat(),
             "federated_auroc": federated_auroc,
-            "confusion_matrices": confusion_matrices(state_dict, cohort, THRESHOLDS),
+            "confusion_matrices": confusion_matrices(state_dict, cohort),
             "local_auroc": auroc(state_dict, cohort),
         },
     )

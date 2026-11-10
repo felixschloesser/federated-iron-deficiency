@@ -2,7 +2,6 @@
 evaluate a model on a split. Training and validation both use this module, so
 they always split a cohort the same way."""
 
-from collections.abc import Iterable
 from typing import NamedTuple
 
 import numpy as np
@@ -162,17 +161,16 @@ def _held_out(state_dict: dict[str, torch.Tensor], cohort: pd.DataFrame) -> Eval
 
 
 def confusion_matrices(
-    state_dict: dict[str, torch.Tensor],
-    cohort: pd.DataFrame,
-    thresholds: Iterable[float],
+    state_dict: dict[str, torch.Tensor], cohort: pd.DataFrame
 ) -> dict[float, dict[str, int]]:
-    """The weights' confusion matrix at each threshold on the cohort's test
-    split. A row counts as positive when its probability is at or above the
-    threshold."""
+    """The weights' confusion matrix on the cohort's test split at each distinct
+    probability of that split: the points of its ROC curve, the only thresholds
+    at which the counts change. A row counts as positive when its probability is
+    at or above the threshold."""
     evaluation = _held_out(state_dict, cohort)
     actual = evaluation.labels == 1
     matrices = {}
-    for threshold in thresholds:
+    for threshold in map(float, np.unique(evaluation.probabilities)):
         predicted = evaluation.probabilities >= threshold
         matrices[threshold] = {
             "true_positives": int((predicted & actual).sum()),

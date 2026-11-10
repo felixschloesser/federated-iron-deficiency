@@ -387,7 +387,8 @@ def page_says_changed(world: World) -> None:
     assert "changed on disk" in str(getattr(no_usable_model(world), "label", ""))
 
 
-@pytest.mark.parametrize("threshold", [0.0, 1.0])
+# A threshold is a score of the test split, which may round to 0 or 1 exactly.
+@pytest.mark.parametrize("threshold", [-0.01, 1.01])
 def test_the_database_refuses_a_threshold_outside_zero_and_one(
     threshold: float,
 ) -> None:
@@ -401,7 +402,7 @@ def test_the_database_refuses_a_threshold_outside_zero_and_one(
     with pytest.raises(ValidationError) as refused:
         screening_model.full_clean()
     assert [error.code for error in refused.value.error_dict["__all__"]] == [
-        "threshold_not_between_zero_and_one"
+        "threshold_not_from_zero_to_one"
     ]
     with pytest.raises(IntegrityError), transaction.atomic():
         screening_model.save()

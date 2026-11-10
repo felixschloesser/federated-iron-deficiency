@@ -49,10 +49,10 @@ class DeployedScreeningModel(models.Model):
                 name="one_record_per_file_and_threshold",
             ),
             models.CheckConstraint(
-                condition=models.Q(threshold__gt=0, threshold__lt=1),
-                name="threshold_between_zero_and_one",
-                violation_error_code="threshold_not_between_zero_and_one",
-                violation_error_message="A threshold lies between 0 and 1.",
+                condition=models.Q(threshold__gte=0, threshold__lte=1),
+                name="threshold_from_zero_to_one",
+                violation_error_code="threshold_not_from_zero_to_one",
+                violation_error_message="A threshold lies from 0 to 1.",
             ),
         )
 

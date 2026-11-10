@@ -125,11 +125,10 @@ def holds_none(hospital: World) -> None:
 
 @then(
     "its local validation holds the four counts of its test split at each"
-    " threshold from 0.05 to 0.95 in steps of 0.05"
+    " distinct score of that split"
 )
 def local_validation(hospital: World) -> None:
     matrices = torch.load(hospital["path"])["confusion_matrices"]
-    assert sorted(matrices) == pytest.approx([step / 20 for step in range(1, 20)])
     for matrix in matrices.values():
         assert set(matrix) == {
             "true_positives",
@@ -139,12 +138,16 @@ def local_validation(hospital: World) -> None:
         }
         # The test split is 20% of the cohort (ml.validation.load_data).
         assert sum(matrix.values()) == 40
-    # A higher threshold suggests ferritin for no more women.
     suggested = [
         matrices[threshold]["true_positives"] + matrices[threshold]["false_positives"]
         for threshold in sorted(matrices)
     ]
-    assert suggested == sorted(suggested, reverse=True)
+    # The lowest score is a threshold, so it suggests ferritin for every row; each
+    # higher score is a threshold where at least one row drops out, so no two
+    # thresholds give the same counts.
+    assert suggested[0] == 40
+    assert suggested == sorted(set(suggested), reverse=True)
+    assert all(0.0 <= threshold <= 1.0 for threshold in matrices)
 
 
 @then("an AUROC")
@@ -177,11 +180,12 @@ def test_a_screening_model_screens_like_a_deployment(
 def test_a_stored_screening_model_reads_back_whole(
     tmp_path: Path, cohort: pd.DataFrame
 ) -> None:
-    file = read(store(tmp_path, cohort, run_id=11))
+    path = store(tmp_path, cohort, run_id=11)
+    file = read(path)
     assert file.run_id == "11"
     assert file.stored_at == STORED_AT
     assert file.federated_auroc == FEDERATED_AUROC
-    assert len(file.local_validation) == 19
+    assert len(file.local_validation) == len(torch.load(path)["confusion_matrices"])
     assert 0.0 <= file.local_auroc <= 1.0
 
 
